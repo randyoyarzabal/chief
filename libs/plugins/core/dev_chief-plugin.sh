@@ -5,6 +5,7 @@
 # Functions and aliases that are development related.
 
 alias vi='/usr/bin/vim'
+alias chief.git_url='git config --get remote.origin.url'
 export GIT_EDITOR='/usr/bin/vim'
 
 function chief.git_reset-local() {
