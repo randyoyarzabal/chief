@@ -279,7 +279,7 @@ function __try_text() {
 # Display Chief version info.
 function __chief.info() {
     # Usage: __chief.info
-    echo -e "${CHIEF_TOOL_NAME} ver. ${CHIEF_TOOL_VERSION} (${PLATFORM})"
+    echo -e "${CHIEF_TOOL_NAME} ${YELLOW}${CHIEF_TOOL_VERSION}${NC} (${PLATFORM})";
     echo -e "by ${CHIEF_TOOL_AUTHOR}"
     echo -e ${CHIEF_TOOL_REPO}
     echo ''
