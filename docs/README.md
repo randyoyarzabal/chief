@@ -13,11 +13,12 @@ Chief is BASH library system with extra features such as prompt and RSA keys man
     - Working directory
 
 # Getting Started
-1. Make a copy a config template from the 'templates' directory. Change the configuration to suit. Note that it need to be placed outside the root of Chief.
+1. Make a copy a config template from the 'templates' directory. Note that it need to be placed outside the root of Chief.
 
     ```bash
     cp templates/chief_config_template.sh ~/.chief_config.sh
     ```
+   Change the configuration to suit.
 
 2. Define the following variables and source call in your start-up script (.bash_profile for example).
 
@@ -25,7 +26,7 @@ Chief is BASH library system with extra features such as prompt and RSA keys man
     
     ```bash
     # Chief Environment
-    CHIEF_CONFIG="$HOME/.chief_config.ini                                                                                                          
+    CHIEF_CONFIG="$HOME/.chief_config.sh                                                                                                          
     CHIEF_PATH="$HOME/dev/repos/github/chief"
     source ${CHIEF_PATH}/chief.sh
     ```
