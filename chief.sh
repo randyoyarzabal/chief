@@ -4,6 +4,10 @@
 #   All settings and commands are done via the chief.* commands
 ###################################################################################################################
 
+CHIEF_TOOL_VERSION="v3.0.0 (2020-Jul-10)"
+CHIEF_TOOL_REPO="https://github.com/randyoyarzabal/chief"
+CHIEF_TOOL_AUTHOR="Randy E. Oyarzabal"
+
 # MAIN BEGINS HERE
 
 shopt -s expand_aliases
@@ -25,17 +29,6 @@ source ${CHIEF_PATH}/libs/core/chief_library_pre.sh
 
 # Core library loading definition
 __load_library
-
-CHIEF_TOOL_REPO="https://github.com/randyoyarzabal/chief"
-CHIEF_TOOL_NAME="${CYAN}Chief${NC} BASH Library Management and Tools"
-CHIEF_TOOL_AUTHOR="Randy E. Oyarzabal"
-CHIEF_TOOL_VERSION="${YELLOW}v3.0.0 (2020-Jul-10)${NC}"
-
-if ${CHIEF_CFG_BANNER}; then
-    echo -e "${CHIEF_TOOL_NAME} ver. ${CHIEF_TOOL_VERSION} (${PLATFORM})";
-    __try_text
-    echo ''
-fi
 
 # Load RSA/SSH keys if directory is defined
 if [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "Linux" ]]; then
@@ -151,4 +144,13 @@ if ${CHIEF_CFG_TOOL_GIT}; then
         __print "Applying default non-colored git prompt..."
     fi
     PROMPT_COMMAND='__build_git_prompt'
+fi
+
+CHIEF_TOOL_NAME="${CYAN}Chief${NC} BASH Library Management and Tools"
+
+if ${CHIEF_CFG_BANNER}; then
+    echo ""
+    echo -e "${CHIEF_TOOL_NAME} ${YELLOW}${CHIEF_TOOL_VERSION}${NC} (${PLATFORM})";
+    __try_text
+    echo ''
 fi

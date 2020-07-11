@@ -95,9 +95,9 @@ function __edit_file() {
         fi
 
         if [[ -z ${2} ]]; then
-            echo "${file##*/} file was modified. Reloaded."
+            echo "${file##*/} file was modified, therefore, reloaded."
         else
-            echo "${2} was modified. Reloaded."
+            echo "${2} was modified, therefore, reloaded."
         fi
     fi
 }
@@ -139,6 +139,40 @@ function __apply_chief-alias() {
 }
 
 # Source the library/plugin module passed.
+function __load_plugins_dir() {
+    # Usage: __load_plugins <plug-in module> (user/contrib/core)
+    __print "Loading ${CHIEF_ALIAS} ${1}-plugins..."
+
+    local full_path
+    local file_name
+    local plugin_name
+    local plugin_switch
+
+    plugin_switch="CHIEF_`__upper ${1}`_PLUGINS"
+
+    # If plugin var exists, AND is enabled, load plugin file into memory
+    # Evaluate string as a variable, '!' is a dereference for the dynamic variable name
+    if [[ ! -z ${!plugin_switch} ]] && ${!plugin_switch}; then
+        # Check for existence of plugin folder requested
+        if [[ -d ${CHIEF_PLUGINS}/${1} ]]; then
+            for plugin in ${CHIEF_PLUGINS}/${1}/*_chief-plugin.sh; do
+                full_path=${plugin}
+                file_name=${plugin##*/}
+                plugin_name=${file_name%%_*}
+
+                # TODO: Check plugin prerequisites before loading.
+                __apply_chief-alias ${full_path} # Apply alias and source the plugin
+                __print "   plugin: ${plugin_name} loaded."
+            done
+        else
+            __print "   $1 plugin directory does not exist."
+        fi
+    else
+        __print "   plugins: ${1} not enabled."
+    fi
+}
+
+# Source the library/plugin module passed.
 function __load_plugins() {
     # Usage: __load_plugins <plug-in module> (user/contrib/core)
     __print "Loading ${CHIEF_ALIAS} ${1}-plugins..."
@@ -172,35 +206,33 @@ function __load_plugins() {
 
 # Edit a plugin file and reload into memory if changed.
 #   Note, will only succeed if plug-in is enabled in settings.
-function __edit_plugin() {
-    # Usage: __edit_plugin <plug-in name> (user/contrib/core)
-    local plugin_found=false # Assume plugin was not found
-    local full_path
-    local file_name
+function __edit_user_plugin() {
+    # Usage: __edit_plugin <user plug-in name>
+
+    local plugin_variable
+    local plugin_file
     local plugin_name
+    local bash_var
     local plugin_found
-    local plugin_switch
-    for plugin in ${CHIEF_PLUGINS}/$1/*plugin.sh; do
-        full_path=${plugin}
-        file_name=${plugin##*/}
-        plugin_name=${file_name%%_*}
 
-        if [[ ${plugin_name} == $2 ]]; then
-            plugin_found=true # Plugin found.
-            plugin_switch="CHIEF_`__upper ${1}`_PLUGIN_`__upper ${plugin_name}`"
+    plugin_variable="CHIEF_USER_PLUGIN_`__upper ${1}`"
 
-            # If plugin is enabled, load it into memory
-            if ${!plugin_switch}; then # Evaluate string as a variable
-                __edit_file ${full_path}
-            else
-                echo "${CHIEF_ALIAS} $1-plugin $2 is not enabled."
-            fi
-            break
-        fi
-    done
+    # Find all plugin declarations in config file
+    bash_var=`cat ${CHIEF_CONFIG} | grep -E "^$plugin_variable="`
 
-    if ! ${plugin_found}; then
-        echo "${CHIEF_ALIAS} $1-plugin $2 is not valid."
+    if [[ -z ${bash_var} ]]; then
+        echo "${CHIEF_ALIAS} $1-plugin is not valid."
+        return
+    fi
+
+    plugin_value=$(echo $bash_var | cut -d'=' -f 2 | tr -d '"')
+    plugin_name=`__lower $(echo $plugin_variable | cut -d'_' -f 4)`
+    plugin_file=$(eval echo ${plugin_value})
+
+    if [[ -f ${plugin_file} ]]; then
+        __edit_file ${plugin_file}
+    else
+        __print "   plugin: ${plugin_name} plugin file does not exist."
     fi
 }
 
@@ -224,8 +256,8 @@ function __load_library(){
     __apply_chief-alias ${CHIEF_LIBRARY}  # Load chief_library.sh
     CHIEF_ALIAS=`__upper ${CHIEF_ALIAS}` # Capitalize again, because re-source may have overwrote it.
 
-    __load_plugins 'core'
-    __load_plugins 'contrib'
+    __load_plugins_dir 'core'
+    __load_plugins_dir 'contrib'
     __load_plugins 'user'
 
     __print "${CHIEF_ALIAS} BASH library/environment (re)loaded."

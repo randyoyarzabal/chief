@@ -47,36 +47,24 @@ Edit the $CHIEF_ALIAS utility configuration."
    __edit_file ${CHIEF_CONFIG} "Chief Configuration" "reload"
 }
 
-function chief.plugin-contrib() {
-    local USAGE="Usage: $FUNCNAME
+function chief.plugin() {
+    # Dynamically read plug-ins
+    local plugin_variable
+    local plugin_name
+    local var_arg
 
-Edit a contributed $CHIEF_ALIAS plugin library."
+    # Find all plugin declarations in config file
+    for bash_var in `cat ${CHIEF_CONFIG} | grep -E "^CHIEF_USER_PLUGIN_"` ; do
+        plugin_variable=$(echo $bash_var | cut -d'=' -f 1)
+        plugin_name=`__lower $(echo $plugin_variable | cut -d'_' -f 4)`
+        var_arg="$plugin_name|$var_arg"
+    done
 
-    if [[ $1 == "-?" ]]; then
-        echo "${USAGE}"
-        return;
-    fi
+    var_arg=`echo "$var_arg" | sed "s/\|$//g"` # Remove last |
 
-    __edit_plugin "contrib" $1
-}
+    local USAGE="Usage: $FUNCNAME [$var_arg]
 
-function chief.plugin-core() {
-    local USAGE="Usage: $FUNCNAME
-
-Edit a core $CHIEF_ALIAS plugin library."
-
-    if [[ $1 == "-?" ]]; then
-        echo "${USAGE}"
-        return;
-    fi
-
-   __edit_plugin "core" $1
-}
-
-function chief.plugin-user() {
-    local USAGE="Usage: $FUNCNAME
-
-Edit a user $CHIEF_ALIAS plugin library."
+Edit a user $CHIEF_ALIAS plugin library.  If no parameter is passed, default plug-in will be edited."
 
     if [[ $1 == "-?" ]]; then
         echo "${USAGE}"
@@ -84,9 +72,9 @@ Edit a user $CHIEF_ALIAS plugin library."
     fi
 
     if [[ -z $1 ]]; then
-        __edit_plugin "user" default
+        __edit_user_plugin default
     else
-        __edit_plugin "user" $1
+        __edit_user_plugin $1
     fi
 }
 

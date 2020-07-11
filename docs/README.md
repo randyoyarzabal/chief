@@ -16,7 +16,7 @@ Chief is BASH library system with extra features such as prompt and RSA keys man
 1. Make a copy a config template from the 'templates' directory. Change the configuration to suit. Note that it need to be placed outside the root of Chief.
 
     ```bash
-    cp templates/chief_config_template.ini ~/.chief_config.ini
+    cp templates/chief_config_template.sh ~/.chief_config.sh
     ```
 
 2. Define the following variables and source call in your start-up script (.bash_profile for example).

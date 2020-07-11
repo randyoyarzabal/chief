@@ -1,11 +1,12 @@
+#!/usr/bin/env bash
 # CHIEF BASH LIBRARY CONFIGURATION
 ####################################
 
-# Configure items to suit.
-# Set values to: true, to Enable Or false, to Disable
-# or
-# Comment (prefix with #) to disable.
-# Un-comment (remove #) to enable.
+# Configure items to suit. For all variables:
+#   Set values to: true, to enable Or false, to disable
+#   or
+#   Comment (prefix with #) to disable.
+#   Un-comment (remove #) to enable.
 
 # PLUG-INS LIBRARY PATH CONFIGURATION
 ####################################
@@ -14,24 +15,18 @@
 #  BASH environment variables are allowed in paths e.g. ${HOME}
 
 # CORE PLUGINS LIBRARY SWITCHES
-
-CHIEF_CORE_PLUGIN_DEV="${CHIEF_PLUGINS_CORE}/dev_chief-plugin.sh"
-CHIEF_CORE_PLUGIN_ETC="${CHIEF_PLUGINS_CORE}/etc_chief-plugin.sh"
+# Located in: "${CHIEF_PATH}/libs/plugins/core"
+CHIEF_CORE_PLUGINS=true
 
 # CONTRIBUTED LIBRARY PLUGINS
-# ** All contributed plug-ins variables names must be prefixed with 'CHIEF_CONTRIB_PLUGIN_' **
-
-# CHIEF_CONTRIB_PLUGIN_F5=<path>
-# CHIEF_CONTRIB_PLUGIN_IPAM=<path>
-CHIEF_CONTRIB_PLUGIN_REACH="${CHIEF_PLUGINS_CONTRIB}/reach_chief-plugin.sh"
-# CHIEF_CONTRIB_PLUGIN_SCOUT=<path>
-# CHIEF_CONTRIB_PLUGIN_SERVICENOW=<path>
+# Located in: "${CHIEF_PATH}/libs/plugins/contrib"
+# ** All contributed plug-in files in directory must end in "*_chief-plugin.sh" **
+CHIEF_CONTRIB_PLUGINS=true
 
 # USER LIBRARY PLUGINS
 # (Plug-ins you can edit with chief.plugin <plug-in> command.)
 # ** All user plug-ins variables names must be prefixed with 'CHIEF_USER_PLUGIN_' **
 # ** CHIEF_USER_PLUGIN_DEFAULT is required and must be defined to hold the default user library.' **
-
 CHIEF_USER_PLUGIN_DEFAULT="$HOME/dev/chief_plugins/default_chief-plugin.sh"
 
 # TOOLS CONFIGURATION
