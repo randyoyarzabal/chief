@@ -1,0 +1,69 @@
+# CHIEF BASH LIBRARY CONFIGURATION
+####################################
+
+# Configure items to suit.
+# Set values to: true, to Enable Or false, to Disable
+# or
+# Comment (prefix with #) to disable.
+# Un-comment (remove #) to enable.
+
+# PLUG-INS LIBRARY PATH CONFIGURATION
+####################################
+
+#  ** All plug-ins must be defined with their respective absolute paths. **
+#  BASH environment variables are allowed in paths e.g. ${HOME}
+
+# CORE PLUGINS LIBRARY SWITCHES
+
+CHIEF_CORE_PLUGIN_DEV="${CHIEF_PLUGINS_CORE}/dev_chief-plugin.sh"
+CHIEF_CORE_PLUGIN_ETC="${CHIEF_PLUGINS_CORE}/etc_chief-plugin.sh"
+
+# CONTRIBUTED LIBRARY PLUGINS
+# ** All contributed plug-ins variables names must be prefixed with 'CHIEF_CONTRIB_PLUGIN_' **
+
+# CHIEF_CONTRIB_PLUGIN_F5=<path>
+# CHIEF_CONTRIB_PLUGIN_IPAM=<path>
+CHIEF_CONTRIB_PLUGIN_REACH="${CHIEF_PLUGINS_CONTRIB}/reach_chief-plugin.sh"
+# CHIEF_CONTRIB_PLUGIN_SCOUT=<path>
+# CHIEF_CONTRIB_PLUGIN_SERVICENOW=<path>
+
+# USER LIBRARY PLUGINS
+# (Plug-ins you can edit with chief.plugin <plug-in> command.)
+# ** All user plug-ins variables names must be prefixed with 'CHIEF_USER_PLUGIN_' **
+# ** CHIEF_USER_PLUGIN_DEFAULT is required and must be defined to hold the default user library.' **
+
+CHIEF_USER_PLUGIN_DEFAULT="$HOME/dev/chief_plugins/default_chief-plugin.sh"
+
+# TOOLS CONFIGURATION
+####################################
+
+# CORE TOOLS
+CHIEF_CFG_COLORED_LS=true
+
+# Change this to false, if you prefer the full path in your prompt.
+CHIEF_CFG_CWD_ONLY_PROMPT=false
+
+CHIEF_CFG_COLORED_PROMPT=true
+CHIEF_CFG_BANNER=true
+CHIEF_CFG_VERBOSE=true
+
+# Load Git Tools (prompt and command completion)
+CHIEF_CFG_TOOL_GIT=true
+
+# Command alias for Chief
+# For example, "reo".  Then all chief.* commands will be available as reo.*
+#CHIEF_ALIAS="reo"
+
+# Set this to false for duplicate "chief.*" functions as well.
+#CHIEF_CFG_ALIAS_ONLY=false
+
+# Load private SSH keys into memory. Note: Private keys need to end in ".rsa" with the exception
+#   of the standard id_rsa private key.  Create a symlink if you have to.
+# For example, you may have multiple keys in your ~/.ssh dir.
+# Chief will automatically enable auto-load and auto-cleanup of ssh-agent.
+CHIEF_RSA_KEYS_PATH="$HOME/.ssh"
+
+# These are safe to leave commented unless you want to force chief to use specific Python binaries.
+# These are only needed if you use the chief.create_python*_ve() functions.
+#CHIEF_CFG_PYTHON3_PATH="/usr/bin/python3"
+#CHIEF_CFG_PYTHON2_PATH="/usr/bin/python2"
