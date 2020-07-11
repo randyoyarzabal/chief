@@ -143,8 +143,7 @@ function __load_plugins_dir() {
     # Usage: __load_plugins <plug-in module> (user/contrib/core)
     __print "Loading ${CHIEF_ALIAS} ${1}-plugins..."
 
-    local full_path
-    local file_name
+    local plugin_file
     local plugin_name
     local plugin_switch
 
@@ -156,13 +155,14 @@ function __load_plugins_dir() {
         # Check for existence of plugin folder requested
         if [[ -d ${CHIEF_PLUGINS}/${1} ]]; then
             for plugin in ${CHIEF_PLUGINS}/${1}/*_chief-plugin.sh; do
-                full_path=${plugin}
-                file_name=${plugin##*/}
+                plugin_file=${plugin}
                 plugin_name=${file_name%%_*}
 
-                # TODO: Check plugin prerequisites before loading.
-                __apply_chief-alias ${full_path} # Apply alias and source the plugin
-                __print "   plugin: ${plugin_name} loaded."
+                if [[ -f ${plugin_file} ]]; then
+                  # TODO: Check plugin prerequisites before loading.
+                  __apply_chief-alias ${plugin_file} # Apply alias and source the plugin
+                  __print "   plugin: ${plugin_name} loaded."
+                fi
             done
         else
             __print "   $1 plugin directory does not exist."

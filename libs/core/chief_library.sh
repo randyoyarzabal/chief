@@ -60,7 +60,7 @@ function chief.plugin() {
         var_arg="$plugin_name|$var_arg"
     done
 
-    var_arg=`echo "$var_arg" | sed "s/\|$//g"` # Remove last |
+    var_arg=`echo ${var_arg%?}` # Trim laast character
 
     local USAGE="Usage: $FUNCNAME [$var_arg]
 
