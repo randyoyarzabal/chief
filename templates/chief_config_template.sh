@@ -21,13 +21,15 @@ CHIEF_CORE_PLUGINS=true
 # CONTRIBUTED LIBRARY PLUGINS
 # This is a user-defined directory where ALL files will be loaded.
 # ** All plug-in files in directory must end in "*_chief-plugin.sh" **
-CHIEF_CONTRIB_PLUGINS=""
+# CHIEF_CONTRIB_PLUGINS=""
 
 # USER LIBRARY PLUGINS
 # (Plug-ins you can edit with chief.plugin <plug-in> command.)
 # ** All user plug-ins variables names must be prefixed with 'CHIEF_USER_PLUGIN_' **
 # ** CHIEF_USER_PLUGIN_DEFAULT is required and must be defined to hold the default user library.' **
 CHIEF_USER_PLUGIN_DEFAULT="$HOME/dev/chief_plugins/default_chief-plugin.sh"
+#CHIEF_USER_PLUGIN_SAMPLE1=""
+#CHIEF_USER_PLUGIN_SAMPLE2=""
 
 # TOOLS CONFIGURATION
 ####################################
