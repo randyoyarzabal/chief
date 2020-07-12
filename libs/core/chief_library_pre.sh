@@ -1,4 +1,5 @@
 #!/usr/bin/env bash
+
 # Prerequisite environment variables and functions for Chief.
 
 ###################################################################################################################
@@ -19,7 +20,6 @@ CHIEF_LIBRARY="${CHIEF_PATH}/libs/core/chief_library.sh"
 CHIEF_GIT_TOOLS="${CHIEF_PATH}/libs/extras/git"
 CHIEF_PLUGINS="${CHIEF_PATH}/libs/plugins"
 CHIEF_PLUGINS_CORE="${CHIEF_PLUGINS}/core"
-CHIEF_PLUGINS_CONTRIB="${CHIEF_PLUGINS}/contrib"
 
 # CORE HELPER FUNCTIONS
 ###################################################################################################################
@@ -27,11 +27,11 @@ CHIEF_PLUGINS_CONTRIB="${CHIEF_PLUGINS}/contrib"
 # Detect platform
 uname_out="$(uname -s)"
 case "${uname_out}" in
-    Linux*)     PLATFORM='Linux';;
-    Darwin*)    PLATFORM='MacOS';;
-    CYGWIN*)    PLATFORM='Cygwin';;
-    MINGW*)     PLATFORM='MinGw';;
-    *)          PLATFORM="UNKNOWN:${uname_out}"
+    Linux*) PLATFORM='Linux' ;;
+    Darwin*) PLATFORM='MacOS' ;;
+    CYGWIN*) PLATFORM='Cygwin' ;;
+    MINGW*) PLATFORM='MinGw' ;;
+    *) PLATFORM="UNKNOWN:${uname_out}"
 esac
 
 # Echo string to screen if CHIEF_CFG_VERBOSE is true.
@@ -76,7 +76,7 @@ function __edit_file() {
     local file=${1};
     local date1
     local date2
-    if [[ ${PLATFORM} == "MacOS"  ]]; then
+    if [[ ${PLATFORM} == "MacOS" ]]; then
         date1=$(stat -L -f "%Sm" -t "%Y%m%dT%H%M%S" "$file");
         vi ${file};
         date2=$(stat -L -f "%Sm" -t "%Y%m%dT%H%M%S" "$file");
@@ -91,7 +91,9 @@ function __edit_file() {
         if [[ -z $3 ]]; then
             source ${file}
         else
-            if [[ $3 == 'reload' ]]; then __load_library; fi
+            if [[ $3 == 'reload' ]]; then
+                __load_library;
+            fi
         fi
 
         if [[ -z ${2} ]]; then
@@ -107,7 +109,7 @@ function __edit_file() {
 function __apply_chief-alias() {
     # Usage: __apply_chief-alias <library file>
     # Set default values
-    local tmp_lib=`__get_tmpfile`  # Temporary library file.
+    local tmp_lib=`__get_tmpfile` # Temporary library file.
 
     if [[ ${CHIEF_ALIAS} != "CHIEF" ]]; then
         # Substitute chief.* with alias if requested
@@ -140,35 +142,56 @@ function __apply_chief-alias() {
 
 # Source the library/plugin module passed.
 function __load_plugins_dir() {
-    # Usage: __load_plugins <plug-in module> (user/contrib/core)
+    # Usage: __load_plugins <plug-in directory>
     __print "Loading ${CHIEF_ALIAS} ${1}-plugins..."
 
+    local full_path
     local plugin_file
     local plugin_name
     local plugin_switch
+    local dir_path
+    local load_flag
 
     plugin_switch="CHIEF_`__upper ${1}`_PLUGINS"
 
-    # If plugin var exists, AND is enabled, load plugin file into memory
-    # Evaluate string as a variable, '!' is a dereference for the dynamic variable name
-    if [[ ! -z ${!plugin_switch} ]] && ${!plugin_switch}; then
-        # Check for existence of plugin folder requested
-        if [[ -d ${CHIEF_PLUGINS}/${1} ]]; then
-            for plugin in ${CHIEF_PLUGINS}/${1}/*_chief-plugin.sh; do
-                plugin_file=${plugin}
-                plugin_name=${file_name%%_*}
+    if [[ $1 == 'core' ]]; then
+        dir_path=${CHIEF_PLUGINS_CORE}
 
-                if [[ -f ${plugin_file} ]]; then
-                  # TODO: Check plugin prerequisites before loading.
-                  __apply_chief-alias ${plugin_file} # Apply alias and source the plugin
-                  __print "   plugin: ${plugin_name} loaded."
-                fi
-            done
-        else
-            __print "   $1 plugin directory does not exist."
+        # If plugin var exists, AND is enabled, load plugin file into memory
+        # Evaluate string as a variable, '!' is a dereference for the dynamic variable name
+        if [[ ! -z ${!plugin_switch} ]] && ${!plugin_switch}; then
+            load_flag=true
         fi
     else
+        dir_path=${CHIEF_CONTRIB_PLUGINS}
+
+        # If plugin var exists, load plugin file into memory
+        # Evaluate string as a variable, '!' is a dereference for the dynamic variable name
+        if [[ ! -z ${!plugin_switch} ]]; then
+            load_flag=false
+        fi
+    fi
+
+    if [[ ! ${load_flag} ]]; then
         __print "   plugins: ${1} not enabled."
+        return;
+    fi
+
+    # Check for existence of plugin folder requested
+    if [[ -d ${dir_path} ]]; then
+        for plugin in ${dir_path}/*_chief-plugin.sh; do
+            full_path=${plugin}
+            plugin_file=${plugin##*/}
+            plugin_name=${plugin_file%%_*}
+
+            if [[ -f ${full_path} ]]; then
+                # TODO: Check plugin prerequisites before loading.
+                __apply_chief-alias ${full_path} # Apply alias and source the plugin
+                __print "   plugin: ${plugin_name} loaded."
+            fi
+        done
+    else
+        __print "   $1 plugins directory does not exist."
     fi
 }
 
@@ -185,7 +208,7 @@ function __load_plugins() {
     plugin_prefix="CHIEF_`__upper ${1}`_PLUGIN_"
 
     # Find all plugin declarations in config file
-    for bash_var in `cat ${CHIEF_CONFIG} | grep -E "^$plugin_prefix"` ; do
+    for bash_var in `cat ${CHIEF_CONFIG} | grep -E "^$plugin_prefix"`; do
         plugin_variable=$(echo $bash_var | cut -d'=' -f 1)
         plugin_value=$(echo $bash_var | cut -d'=' -f 2 | tr -d '"')
         plugin_name=`__lower $(echo $plugin_variable | cut -d'_' -f 4)`
@@ -237,13 +260,13 @@ function __edit_user_plugin() {
 }
 
 # Load/source Chief library
-function __load_library(){
+function __load_library() {
     # Usage: __load_library
     source ${CHIEF_CONFIG}
 
     # Set a default alias if none defined.
     if [[ -z ${CHIEF_ALIAS} ]]; then
-        CHIEF_ALIAS='CHIEF'  # Use this by default
+        CHIEF_ALIAS='CHIEF' # Use this by default
     else
         CHIEF_ALIAS=`__upper ${CHIEF_ALIAS}` # Capitalize if not already.
         if [[ ${CHIEF_ALIAS} != "CHIEF" ]]; then
@@ -253,7 +276,7 @@ function __load_library(){
 
     # These implicitly reloads the library files.
     __print "Loading core ${CHIEF_ALIAS} library..."
-    __apply_chief-alias ${CHIEF_LIBRARY}  # Load chief_library.sh
+    __apply_chief-alias ${CHIEF_LIBRARY} # Load chief_library.sh
     CHIEF_ALIAS=`__upper ${CHIEF_ALIAS}` # Capitalize again, because re-source may have overwrote it.
 
     __load_plugins_dir 'core'
@@ -291,7 +314,8 @@ function __chief.info() {
 function __start_agent {
     # Usage: __start_agent
     __print "Initializing new SSH agent..."
-    (umask 066; /usr/bin/ssh-agent > "${SSH_ENV}")
+    (umask 066;
+    /usr/bin/ssh-agent >"${SSH_ENV}")
     . "${SSH_ENV}" > /dev/null
 }
 

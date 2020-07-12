@@ -19,9 +19,9 @@
 CHIEF_CORE_PLUGINS=true
 
 # CONTRIBUTED LIBRARY PLUGINS
-# Located in: "${CHIEF_PATH}/libs/plugins/contrib"
-# ** All contributed plug-in files in directory must end in "*_chief-plugin.sh" **
-CHIEF_CONTRIB_PLUGINS=true
+# This is a user-defined directory where ALL files will be loaded.
+# ** All plug-in files in directory must end in "*_chief-plugin.sh" **
+CHIEF_CONTRIB_PLUGINS=""
 
 # USER LIBRARY PLUGINS
 # (Plug-ins you can edit with chief.plugin <plug-in> command.)
