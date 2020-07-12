@@ -57,8 +57,3 @@ CHIEF_CFG_TOOL_GIT=true
 # For example, you may have multiple keys in your ~/.ssh dir.
 # Chief will automatically enable auto-load and auto-cleanup of ssh-agent.
 CHIEF_RSA_KEYS_PATH="$HOME/.ssh"
-
-# These are safe to leave commented unless you want to force chief to use specific Python binaries.
-# These are only needed if you use the chief.create_python*_ve() functions.
-#CHIEF_CFG_PYTHON3_PATH="/usr/bin/python3"
-#CHIEF_CFG_PYTHON2_PATH="/usr/bin/python2"

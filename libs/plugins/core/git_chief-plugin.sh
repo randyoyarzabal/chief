@@ -1,12 +1,11 @@
 #!/usr/bin/env bash
-# Chief Plugin File: dev_chief.plugin
+
+# Chief Plugin File: git_chief-plugin.sh
 # Author: Randy E. Oyarzabal
 # ver. 1.0
-# Functions and aliases that are development related.
+# Functions and aliases that are development to Git.
 
-alias vi='/usr/bin/vim'
 alias chief.git_url='git config --get remote.origin.url'
-export GIT_EDITOR='/usr/bin/vim'
 
 function chief.git_reset-local() {
     local USAGE="Usage: $FUNCNAME

@@ -4,61 +4,6 @@
 # ver. 1.0
 # Functions and aliases that don't belong on any other category.
 
-alias be='__begin'
-alias begin='__begin'
-alias screen='screen -h 10000' # Increase scrollback history. 'Ctrl-A Escape' then use arrow keys to scroll.
-
-function chief.ssh_rm_host() {
-    local USAGE="Usage: $FUNCNAME <line #>
-
-Remove a host entry in known_hosts given a line # in a SSH host error message."
-
-    if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
-        echo "${USAGE}"
-        return;
-    fi
-    perl -pi -e "s/\Q\$_// if (\$. == \"$1\");" ~/.ssh/known_hosts;
-}
-
-function chief.ssh_get_publickey() {
-    local USAGE="Usage: $FUNCNAME <private key file>
-
-Extract a public key from an OpenSSH RSA private key file."
-
-    if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
-        echo "${USAGE}"
-        return;
-    fi
-    ssh-keygen -y -f $1
-}
-
-function chief.ssh_create_keypair() {
-    local USAGE="Usage: $FUNCNAME <user email> [# of bits]
-
-Create an OpenSSH private/public key pair.
-   Optionally pass # of bits, if not, the default is 2048 bits.
-   Keys will be saved as: <user>_open-ssh.private and .public files."
-
-    if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
-        echo "${USAGE}"
-        return;
-    fi
-
-    local key_bits
-    if [[ ! -z $2 ]]; then
-        key_bits=$2
-    else
-        key_bits=2048
-    fi
-
-	local KEY_COMMENT=$1
-	local KEY_NAME="${KEY_COMMENT%%@*}_open-ssh"
-
-	ssh-keygen -b ${key_bits} -t rsa -C ${KEY_COMMENT} -f ${KEY_NAME}
-	mv ${KEY_NAME} ${KEY_NAME}.private
-	mv ${KEY_NAME}.pub ${KEY_NAME}.public
-}
-
 function chief.create_cipher() {
     local USAGE="Usage: $FUNCNAME
 
@@ -75,7 +20,6 @@ Generate random 32-character cipher key for password obfuscation."
         cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1
     fi
 }
-
 
 function chief.shared-term_create() {
     local USAGE="Usage: $FUNCNAME <screen name>
@@ -173,99 +117,6 @@ Send a broadcast message to all users' (currently logged-on) shell."
     fi
 
     wall $1
-}
-
-function chief.python_ve_dep () {
-    local USAGE="Usage: $FUNCNAME
-
-Install all packages within a given a requirements.txt in the current directory."
-
-    if [[ $1 == "-?" ]]; then
-        echo "${USAGE}"
-        return;
-    fi
-
-    python -m pip install --upgrade pip setuptools wheel
-    cat requirements.txt | cut -d'=' -f 1 | xargs pip install --upgrade
-}
-
-function chief.create_python2_ve {
-    local USAGE="Usage: $FUNCNAME <ve name>
-
-Create a Python2 virtual environment."
-
-    if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
-        echo "${USAGE}"
-        return;
-    fi
-
-    local VE_CHECK=`type mkvirtualenv 2>&1`
-
-    if [[ ! ${VE_CHECK} == *"not found"* ]]; then
-        local python_bin='python2'
-        if [[ ! -z ${CHIEF_CFG_PYTHON2_PATH} ]]; then
-            python_bin=${CHIEF_CFG_PYTHON2_PATH}
-        fi
-        mkvirtualenv $1 --python=${python_bin}
-    else
-        echo "virtualenv and virtualenvwrapper must be installed to use this function."
-    fi
-}
-
-function chief.create_python3_ve {
-    local USAGE="Usage: $FUNCNAME <ve name>
-
-Create a Python3 virtual environment."
-
-    if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
-        echo "${USAGE}"
-        return;
-    fi
-
-    local VE_CHECK=`type mkvirtualenv 2>&1`
-
-    if [[ ! ${VE_CHECK} == *"not found"* ]]; then
-        local python_bin='python3'
-        if [[ ! -z ${CHIEF_CFG_PYTHON3_PATH} ]]; then
-            python_bin=${CHIEF_CFG_PYTHON3_PATH}
-        fi
-        mkvirtualenv $1 --python=${python_bin}
-    else
-        echo "virtualenv and virtualenvwrapper must be installed to use this function."
-    fi
-}
-
-function chief.start_ve {
-    local USAGE="Usage: $FUNCNAME <ve name>
-
-Start a virtual environment if not already started.
-This is handy for use in functions when you'd like to dynamically start a VE."
-
-    if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
-        echo "${USAGE}"
-        return;
-    fi
-
-    if [[ -z ${VIRTUAL_ENV} ]]; then
-        workon $1
-    fi
-}
-
-function chief.stop_ve {
-    local USAGE="Usage: $FUNCNAME <ve name>
-
-Stop a virtual environment if not already stopped.
-This is handy for use in functions when you'd like to dynamically start a VE."
-
-    if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
-        echo "${USAGE}"
-        return;
-    fi
-
-    # Don't assume there was even a VE to begin with.
-    if [[ ! -z ${VIRTUAL_ENV} ]]; then
-        deactivate
-    fi
 }
 
 function isvalid_ip() {
@@ -397,3 +248,5 @@ function __begin {
     cat | sed -n "/$1/,\$p"
 }
 alias be='__begin'
+alias begin='__begin'
+
