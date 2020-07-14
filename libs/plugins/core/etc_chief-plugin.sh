@@ -4,7 +4,7 @@
 # ver. 1.0
 # Functions and aliases that don't belong on any other category.
 
-function chief.create_cipher() {
+function chief.etc_create_cipher() {
     local USAGE="Usage: $FUNCNAME
 
 Generate random 32-character cipher key for password obfuscation."
@@ -21,7 +21,7 @@ Generate random 32-character cipher key for password obfuscation."
     fi
 }
 
-function chief.shared-term_create() {
+function chief.etc_shared-term_create() {
     local USAGE="Usage: $FUNCNAME <screen name>
 
 Create a named shared terminal for collaborated tasks."
@@ -35,7 +35,7 @@ Create a named shared terminal for collaborated tasks."
     screen -x $1;
 }
 
-function chief.shared-term_connect() {
+function chief.etc_shared-term_connect() {
     local USAGE="Usage: $FUNCNAME <screen name>
 
 Connect to a pre-existing shared terminal."
@@ -48,7 +48,7 @@ Connect to a pre-existing shared terminal."
    screen -x $1;
 }
 
-function chief.mount_share() {
+function chief.etc_mount_share() {
     local USAGE="Usage: $FUNCNAME <share path> <mount path> <user>
 
 Connect to a samba (SMB) share as user."
@@ -68,7 +68,7 @@ Connect to a samba (SMB) share as user."
     fi
 }
 
-function chief.folder_diff() {
+function chief.etc_folder_diff() {
     local USAGE="Usage: $FUNCNAME <folder 1> <folder 2>
 
 Find differences between 2 folders."
@@ -91,7 +91,7 @@ Find differences between 2 folders."
     fi
 }
 
-function chief.at_run() {
+function chief.etc_at_run() {
     local USAGE="Usage: $FUNCNAME <time> <command to run>
 see https://www.computerhope.com/unix/uat.htm for time format examples.
 
@@ -106,7 +106,7 @@ Use the 'atq' command to see the job queue and 'atrm' to remove a job from the q
     echo "source ${CHIEF_PATH}/chief.sh; $2" | at "$1"
 }
 
-function chief.broadcast() {
+function chief.etc_broadcast() {
     local USAGE="Usage: $FUNCNAME <message>
 
 Send a broadcast message to all users' (currently logged-on) shell."
@@ -119,7 +119,7 @@ Send a broadcast message to all users' (currently logged-on) shell."
     wall $1
 }
 
-function isvalid_ip() {
+function chief.etc_isvalid_ip() {
     local USAGE="Usage: $FUNCNAME <IP address>
 
 Check if an IP address is valid."
@@ -144,7 +144,7 @@ Check if an IP address is valid."
     return $stat
 }
 
-function show_spinner() {
+function chief.etc_show_spinner() {
     local USAGE="Usage: $FUNCNAME <msg> <command> <output_variable>
 
 Display a spinner progress indicator that an operation is currently in progress."
@@ -190,10 +190,16 @@ Display a spinner progress indicator that an operation is currently in progress.
     rm -rf $tmp_file
 }
 
-function ask_yes_or_no() {
+function chief.etc_ask_yes_or_no() {
     local USAGE="Usage: $FUNCNAME <msg/question>
 
-Display a yes/no user prompt and echo the response."
+Display a yes/no user prompt and echo the response.
+Returns 'yes' or 'no' string.
+
+Use example:
+   response=\$($FUNCNAME 'Do you want to continue?')
+"
+
 
     if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
         echo "${USAGE}"
@@ -205,6 +211,18 @@ Display a yes/no user prompt and echo the response."
         y|yes) echo "yes" ;;
         *)     echo "no" ;;
     esac
+}
+
+function chief.etc_prompt() {
+    local USAGE="Usage: $FUNCNAME <msg/prompt>
+
+Display a user prompt and echo response back.
+
+Use example:
+   user_name=\$($FUNCNAME 'What is your LAN ID?')"
+
+    read -p "$1: "
+    echo $REPLY
 }
 
 # HELPER FUNCTIONS
