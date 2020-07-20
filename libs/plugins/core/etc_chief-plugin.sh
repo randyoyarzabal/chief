@@ -27,7 +27,7 @@ Optionally pass file path to save key and --force to overwrite if already exists
     else
         # If the file doesn't exist Or (file exists, and --force is passed).
         if [[ ! -f $1 ]] || ( [[ -f $1 ]] && [[ $2 == '--force' ]] ); then
-            echo "Writing $key_str to $1."
+            echo "Writing '$key_str' to $1."
             echo "$key_str" > $1
         elif [[ -f $1 ]]; then
             echo "Key file: $1 already exists."
