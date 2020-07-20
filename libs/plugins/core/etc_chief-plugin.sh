@@ -10,24 +10,24 @@ function chief.etc_create_cipher() {
 Generate random 32-character cipher key for password obfuscation.
 Optionally pass file path to save key and --force to overwrite if already exists.
 "
-    if [[ $1 == "-?" ]] || [[ $2 != '--force' ]]; then
+    if [[ $1 == "-?" ]] || ( [[ ! -z $2 ]] && [[ $2 != '--force' ]] ); then
         echo "${USAGE}"
         return;
     fi
 
-    local key_file
+    local key_str
     if [[ ${PLATFORM} == "MacOS" ]]; then
-        key_file=`cat /dev/random | LC_CTYPE=C tr -dc "[:alpha:]" | fold -w 32 | head -n 1`
+        key_str=`cat /dev/random | LC_CTYPE=C tr -dc "[:alpha:]" | fold -w 32 | head -n 1`
     else
-        key_file=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1`
+        key_str=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1`
     fi
 
     if [[ -z $1 ]]; then
         echo "$key_file"
     else
         # If the file doesn't exist Or (file exists, and --force is passed).
-        if [[ ! -f $1 ]] || ( [[ ! -f $1 ]] && [[ $2 == '--force' ]] ); then
-            echo "Writing $key_file."
+        if [[ ! -f $1 ]] || ( [[ -f $1 ]] && [[ $2 == '--force' ]] ); then
+            echo "Writing $key_str to $1"
             echo "$key_file" > $1
         elif [[ -f $1 ]]; then
             echo "Key file: $1 already exists."
