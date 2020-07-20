@@ -5,19 +5,33 @@
 # Functions and aliases that don't belong on any other category.
 
 function chief.etc_create_cipher() {
-    local USAGE="Usage: $FUNCNAME
+    local USAGE="Usage: $FUNCNAME [file path] [--force]
 
-Generate random 32-character cipher key for password obfuscation."
-
-    if [[ $1 == "-?" ]]; then
+Generate random 32-character cipher key for password obfuscation.
+Optionally pass file path to save key and --force to overwrite if already exists.
+"
+    if [[ $1 == "-?" ]] || [[ $2 != '--force' ]]; then
         echo "${USAGE}"
         return;
     fi
 
+    local key_file
     if [[ ${PLATFORM} == "MacOS" ]]; then
-        cat /dev/random | LC_CTYPE=C tr -dc "[:alpha:]" | fold -w 32 | head -n 1
+        key_file=`cat /dev/random | LC_CTYPE=C tr -dc "[:alpha:]" | fold -w 32 | head -n 1`
     else
-        cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1
+        key_file=`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 32 | head -n 1`
+    fi
+
+    if [[ -z $1 ]]; then
+        echo "$key_file"
+    else
+        # If the file doesn't exist Or (file exists, and --force is passed).
+        if [[ ! -f $1 ]] || ( [[ ! -f $1 ]] && [[ $2 == '--force' ]] ); then
+            echo "Writing $key_file."
+            echo "$key_file" > $1
+        elif [[ -f $1 ]]; then
+            echo "Key file: $1 already exists."
+        fi
     fi
 }
 
