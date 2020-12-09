@@ -26,7 +26,7 @@ Chief is BASH library system with extra features such as prompt and RSA keys man
     
     ```bash
     # Chief Environment
-    CHIEF_CONFIG="$HOME/.chief_config.sh                                                                                                          
+    CHIEF_CONFIG="$HOME/.chief_config.sh"                                                                                                          
     CHIEF_PATH="$HOME/dev/repos/github/chief"
     source ${CHIEF_PATH}/chief.sh
     ```
