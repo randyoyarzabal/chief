@@ -18,7 +18,8 @@ Chief is BASH library system with extra features such as prompt and RSA keys man
     ```bash
     cp templates/chief_config_template.sh ~/.chief_config.sh
     ```
-   Change the configuration to suit.
+   Change the configuration to suit. Be sure that the file/dir defined in 'CHIEF_USER_PLUGIN_DEFAULT'
+   exists (i.e. $> touch $CHIEF_USER_PLUGIN_DEFAULT)
 
 2. Define the following variables and source call in your start-up script (.bash_profile for example).
 
