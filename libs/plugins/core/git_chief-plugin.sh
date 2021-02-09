@@ -33,6 +33,7 @@ Perform a pull and push to update local (and submodules) with remote/server orig
   git config --get remote.origin.url
   git pull
   git push
+  git fetch origin --tags --force
 }
 
 function chief.git_commit() {
