@@ -139,6 +139,23 @@ Delete a git branch and push remotely."
   git push origin --delete "$1"
 }
 
+function chief.git_cred_cache() {
+  local USAGE="Usage: $FUNCNAME <# of seconds>
+
+Cache git credentials for the passed # of seconds.  Default is 1 day."
+  re='^[0-9]+$' 
+  if [[ -z $1 ]]; then
+    git config --global credential.helper "cache --timeout=86400"
+    echo "Git credentials will be cached for 86400 seconds."
+  elif [[ $1 =~ $re ]] ; then
+    git config --global credential.helper "cache --timeout=$1"
+    echo "Git credentials will be cached for $1 seconds."
+  elif [[ $1 == "-?" ]]; then
+    echo "${USAGE}"
+    return
+  fi
+}
+
 function chief.git_rename_url() {
   local USAGE="Usage: $FUNCNAME <url>
 
@@ -189,6 +206,9 @@ function chief.git_legend() {
 
 Display character legend for git prompt."
   echo "Git Prompt Legend:"
+  echo "  '=' = local / remote version matches"
+  echo "  '<' = pull needed to get remote changes to local"
+  echo "  '>' = push needed to push local changes to remote"
   echo "  '*' = unstaged changes"
   echo "  '+' = staged changes"
   echo "  '$' = stashed changes"
