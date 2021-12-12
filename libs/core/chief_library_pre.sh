@@ -19,7 +19,7 @@ fi
 CHIEF_LIBRARY="${CHIEF_PATH}/libs/core/chief_library.sh"
 CHIEF_GIT_TOOLS="${CHIEF_PATH}/libs/extras/git"
 CHIEF_PLUGINS="${CHIEF_PATH}/libs/plugins"
-CHIEF_PLUGINS_CORE="${CHIEF_PLUGINS}/core"
+CHIEF_PLUGINS_CORE="${CHIEF_PLUGINS}"
 
 # CORE HELPER FUNCTIONS
 ###################################################################################################################

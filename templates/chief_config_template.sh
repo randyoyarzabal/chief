@@ -15,7 +15,7 @@
 #  BASH environment variables are allowed in paths e.g. ${HOME}
 
 # CORE PLUGINS LIBRARY SWITCHES
-# Located in: "${CHIEF_PATH}/libs/plugins/core"
+# Located in: "${CHIEF_PATH}/libs/plugins"
 CHIEF_CORE_PLUGINS=true
 
 # CONTRIBUTED LIBRARY PLUGINS
@@ -27,8 +27,10 @@ CHIEF_CORE_PLUGINS=true
 # (Plug-ins you can edit with chief.plugin <plug-in> command.)
 # ** All user plug-ins variables names must be prefixed with 'CHIEF_USER_PLUGIN_' **
 # ** CHIEF_USER_PLUGIN_DEFAULT is required and must be defined to hold the default user library.' **
-CHIEF_USER_PLUGIN_DEFAULT="$HOME/dev/chief_plugins/default_chief-plugin.sh"
-#CHIEF_USER_PLUGIN_SAMPLE1=""
+CHIEF_USER_PLUGIN_DEFAULT="$HOME/default_chief-plugin.sh"
+
+# Note the suffix of the variable matching the prefix of the file name
+#CHIEF_USER_PLUGIN_SAMPLE1="$HOME/sample1_chief-plugin.sh"
 #CHIEF_USER_PLUGIN_SAMPLE2=""
 
 # TOOLS CONFIGURATION
