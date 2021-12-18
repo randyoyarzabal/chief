@@ -47,6 +47,19 @@ Edit the $CHIEF_ALIAS utility configuration."
    __edit_file ${CHIEF_CONFIG} "Chief Configuration" "reload"
 }
 
+function chief.plugins.root() {
+    local USAGE="Usage: $FUNCNAME
+
+Change directory (cd) into the $CHIEF_ALIAS utility plugins directory root."
+
+    if [[ $1 == "-?" ]]; then
+        echo "${USAGE}"
+        return;
+    fi
+
+    cd ${CHIEF_USER_PLUGINS};
+}
+
 function chief.plugin() {
     # Dynamically read plug-ins
     local plugin_variable
