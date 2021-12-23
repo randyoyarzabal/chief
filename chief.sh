@@ -42,44 +42,44 @@ if [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIE
         SSH_ENV="$HOME/.ssh/environment"
 
         if [[ -f "${SSH_ENV}" ]]; then
-            . "${SSH_ENV}" > /dev/null
-            ps -ef | grep ${SSH_AGENT_PID} | grep ssh-agent$ > /dev/null || {
-                __start_agent;
+            . "${SSH_ENV}" >/dev/null
+            ps -ef | grep ${SSH_AGENT_PID} | grep ssh-agent$ >/dev/null || {
+                __start_agent
             }
         else
-            __start_agent;
+            __start_agent
         fi
-#        # Start ssh-agent if necessary because this is not enabled by default in Linux
-#        if [[ -z ${SSH_AGENT_PID} ]] ; then
-#            eval `ssh-agent -s` > /dev/null 2>&1
-#            __print "   ssh-agent started."
-#        else
-#            __print "   ssh-agent not started. It is already running."
-#        fi
-#        load="/usr/bin/ssh-add"
-#
-#        # Be sure the ssh-agent will actually get killed on logout.
-#        BASH_LOGOUT="$HOME/.bash_logout"
-#
-#        # If .bash_logout doesn't exist, Or it exists but doesn't contain the ssh-agent cleanup.
-#        if [[ ! -e ${BASH_LOGOUT} ]] || ! grep "ssh-agent -k" ${BASH_LOGOUT} > /dev/null; then
-#            __print 'ssh-agent clean-up not found, now added.'
-#            cat ${CHIEF_PATH}/templates/bash_logout.sh >> ${BASH_LOGOUT}
-#        else
-#            __print 'ssh-agent clean-up found.'
-#        fi
+        #        # Start ssh-agent if necessary because this is not enabled by default in Linux
+        #        if [[ -z ${SSH_AGENT_PID} ]] ; then
+        #            eval `ssh-agent -s` > /dev/null 2>&1
+        #            __print "   ssh-agent started."
+        #        else
+        #            __print "   ssh-agent not started. It is already running."
+        #        fi
+        #        load="/usr/bin/ssh-add"
+        #
+        #        # Be sure the ssh-agent will actually get killed on logout.
+        #        BASH_LOGOUT="$HOME/.bash_logout"
+        #
+        #        # If .bash_logout doesn't exist, Or it exists but doesn't contain the ssh-agent cleanup.
+        #        if [[ ! -e ${BASH_LOGOUT} ]] || ! grep "ssh-agent -k" ${BASH_LOGOUT} > /dev/null; then
+        #            __print 'ssh-agent clean-up not found, now added.'
+        #            cat ${CHIEF_PATH}/templates/bash_logout.sh >> ${BASH_LOGOUT}
+        #        else
+        #            __print 'ssh-agent clean-up found.'
+        #        fi
     fi
 
     # Load all keys.  Skip authorized_keys, environment, and known_hosts.
     for rsa_key in ${CHIEF_RSA_KEYS_PATH}/*.rsa; do
-#        if [[ ${rsa_key} != *'environment'* ]] && [[ ${rsa_key} != *'hosts'* ]] \
-#        && [[ ${rsa_key} != *'authorized'* ]]; then
-            if ${CHIEF_CFG_VERBOSE}; then
-                ${load} ${rsa_key}
-            else
-                ${load} ${rsa_key} > /dev/null 2>&1
-            fi
-#        fi
+        #        if [[ ${rsa_key} != *'environment'* ]] && [[ ${rsa_key} != *'hosts'* ]] \
+        #        && [[ ${rsa_key} != *'authorized'* ]]; then
+        if ${CHIEF_CFG_VERBOSE}; then
+            ${load} ${rsa_key}
+        else
+            ${load} ${rsa_key} >/dev/null 2>&1
+        fi
+        #        fi
     done
 
     # Load key from standard location
@@ -87,7 +87,7 @@ if [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIE
         if ${CHIEF_CFG_VERBOSE}; then
             ${load} ~/.ssh/id_rsa
         else
-            ${load} ~/.ssh/id_rsa > /dev/null 2>&1
+            ${load} ~/.ssh/id_rsa >/dev/null 2>&1
         fi
     fi
 fi
@@ -108,7 +108,6 @@ else
     fi
 fi
 
-
 # Apply either a short (current dir) prompt or full (full path) one
 if ${CHIEF_CFG_CWD_ONLY_PROMPT}; then
     prompt_tag='\W'
@@ -118,7 +117,7 @@ fi
 
 # Apply default prompt
 if ${CHIEF_CFG_COLORED_PROMPT}; then
-    export PS1="${CYAN}\u${NC}@${GREEN}\h${NC}:${YELLOW}${prompt_tag}${NC}\$ "
+    export PS1="${CHIEF_COLOR_CYAN}\u${CHIEF_NO_COLOR}@${CHIEF_COLOR_GREEN}\h${NC}:${CHIEF_COLOR_YELLOW}${prompt_tag}${CHIEF_NO_COLOR}\$ "
 else
     export PS1="\u@\h:${prompt_tag}$ "
 fi
@@ -128,9 +127,9 @@ if ${CHIEF_CFG_TOOL_GIT}; then
     __print "Applying git prompt/completion..."
 
     # Variables and their respective output: https://blog.backslasher.net/git-prompt-variables.html
-    export GIT_PS1_SHOWDIRTYSTATE=true           # '*'=unstaged, '+'=staged
-    export GIT_PS1_SHOWSTASHSTATE=true           # '$'=stashed
-    export GIT_PS1_SHOWUNTRACKEDFILES=true       # '%'=untracked
+    export GIT_PS1_SHOWDIRTYSTATE=true     # '*'=unstaged, '+'=staged
+    export GIT_PS1_SHOWSTASHSTATE=true     # '$'=stashed
+    export GIT_PS1_SHOWUNTRACKEDFILES=true # '%'=untracked
     export GIT_PS1_SHOWUPSTREAM="auto"
     export GIT_PS1_STATESEPARATOR='|'
 
@@ -146,11 +145,11 @@ if ${CHIEF_CFG_TOOL_GIT}; then
     PROMPT_COMMAND='__build_git_prompt'
 fi
 
-CHIEF_TOOL_NAME="${CYAN}Chief${NC} BASH Library Management and Tools"
+CHIEF_TOOL_NAME="${CHIEF_COLOR_CYAN}Chief${CHIEF_NO_COLOR} BASH Library Management and Tools"
 
 if ${CHIEF_CFG_BANNER}; then
     echo ""
-    echo -e "${CHIEF_TOOL_NAME} ${YELLOW}${CHIEF_TOOL_VERSION}${NC} (${PLATFORM})";
+    echo -e "${CHIEF_TOOL_NAME} ${CHIEF_COLOR_YELLOW}${CHIEF_TOOL_VERSION}${CHIEF_NO_COLOR} (${PLATFORM})"
     __try_text
     echo ''
 fi

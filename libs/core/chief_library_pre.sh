@@ -27,18 +27,18 @@ CHIEF_PLUGINS_CORE="${CHIEF_PLUGINS}"
 # Detect platform
 uname_out="$(uname -s)"
 case "${uname_out}" in
-    Linux*) PLATFORM='Linux' ;;
-    Darwin*) PLATFORM='MacOS' ;;
-    CYGWIN*) PLATFORM='Cygwin' ;;
-    MINGW*) PLATFORM='MinGw' ;;
-    *) PLATFORM="UNKNOWN:${uname_out}"
+Linux*) PLATFORM='Linux' ;;
+Darwin*) PLATFORM='MacOS' ;;
+CYGWIN*) PLATFORM='Cygwin' ;;
+MINGW*) PLATFORM='MinGw' ;;
+*) PLATFORM="UNKNOWN:${uname_out}" ;;
 esac
 
 # Echo string to screen if CHIEF_CFG_VERBOSE is true.
 function __print() {
     # Usage: __print <string>
     if ${CHIEF_CFG_VERBOSE}; then
-        echo "${1}";
+        echo "${1}"
     fi
 }
 
@@ -46,7 +46,7 @@ function __print() {
 function __lower() {
     # Usage: __lower <string>
     local valStr=$1
-    valStr=`echo $valStr | awk '{print tolower($0)}'`
+    valStr=$(echo $valStr | awk '{print tolower($0)}')
     echo $valStr
 }
 
@@ -54,7 +54,7 @@ function __lower() {
 function __upper() {
     # Usage: __upper <string>
     local valStr=$1
-    valStr=`echo $valStr | awk '{print toupper($0)}'`
+    valStr=$(echo $valStr | awk '{print toupper($0)}')
     echo $valStr
 }
 
@@ -63,27 +63,35 @@ function __get_tmpfile() {
     # Usage: __get_tmpfile
     local tmp_file
     if [[ ${PLATFORM} == "MacOS" ]]; then
-        tmp_file="/tmp/._`cat /dev/random | LC_CTYPE=C tr -dc "[:alpha:]" | fold -w 8 | head -n 1`"
+        tmp_file="/tmp/._$(cat /dev/random | LC_CTYPE=C tr -dc "[:alpha:]" | fold -w 8 | head -n 1)"
     else
-        tmp_file="/tmp/._`cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 8 | head -n 1`"
+        tmp_file="/tmp/._$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 8 | head -n 1)"
     fi
     echo ${tmp_file}
+}
+
+# Get absolute path to file
+function __this_file() {
+    # This is used inside a script like a Chief plugin file.
+    # Usage: __edit_file ${BASH_SOURCE[0]}
+    # Reference: https://stackoverflow.com/a/9107028
+    echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 }
 
 # Edit a file and reload into memory if changed.
 function __edit_file() {
     # Usage: __edit_file <file>
-    local file=${1};
+    local file=${1}
     local date1
     local date2
     if [[ ${PLATFORM} == "MacOS" ]]; then
-        date1=$(stat -L -f "%Sm" -t "%Y%m%dT%H%M%S" "$file");
-        vi ${file};
-        date2=$(stat -L -f "%Sm" -t "%Y%m%dT%H%M%S" "$file");
+        date1=$(stat -L -f "%Sm" -t "%Y%m%dT%H%M%S" "$file")
+        vi ${file}
+        date2=$(stat -L -f "%Sm" -t "%Y%m%dT%H%M%S" "$file")
     else
-        date1=$(stat -L -c %y "$file");
-        vi ${file};
-        date2=$(stat -L -c %y "$file");
+        date1=$(stat -L -c %y "$file")
+        vi ${file}
+        date2=$(stat -L -c %y "$file")
     fi
 
     # Check if the file was actually modified before reloading
@@ -92,7 +100,7 @@ function __edit_file() {
             source ${file}
         else
             if [[ $3 == 'reload' ]]; then
-                __load_library;
+                __load_library
             fi
         fi
 
@@ -109,14 +117,14 @@ function __edit_file() {
 function __apply_chief-alias() {
     # Usage: __apply_chief-alias <library file>
     # Set default values
-    local tmp_lib=`__get_tmpfile` # Temporary library file.
+    local tmp_lib=$(__get_tmpfile) # Temporary library file.
 
     if [[ ${CHIEF_ALIAS} != "CHIEF" ]]; then
         # Substitute chief.* with alias if requested
-        local alias=`__lower ${CHIEF_ALIAS}`
+        local alias=$(__lower ${CHIEF_ALIAS})
 
         # Apply alias to functions
-        sed "s/function chief./function $alias./g" ${1} > ${tmp_lib} # Replace into a temp file.
+        sed "s/function chief./function $alias./g" ${1} >${tmp_lib} # Replace into a temp file.
 
         # Apply alias to aliases
         if [[ ${PLATFORM} == "MacOS" ]]; then
@@ -131,7 +139,7 @@ function __apply_chief-alias() {
         rm -rf ${tmp_lib}
     else
         # Source the library requested even if no alias defined.
-        source ${1}
+        source "${1}"
     fi
 
     # Load chief.* functions as well if requested
@@ -152,7 +160,7 @@ function __load_plugins_dir() {
     local dir_path
     local load_flag
 
-    plugin_switch="CHIEF_`__upper ${1}`_PLUGINS"
+    plugin_switch="CHIEF_$(__upper ${1})_PLUGINS"
 
     if [[ $1 == 'core' ]]; then
         dir_path=${CHIEF_PLUGINS_CORE}
@@ -174,19 +182,19 @@ function __load_plugins_dir() {
 
     if [[ ! ${load_flag} ]]; then
         __print "   plugins: ${1} not enabled."
-        return;
+        return
     fi
 
     # Check for existence of plugin folder requested
     if [[ -d ${dir_path} ]]; then
-        for plugin in ${dir_path}/*_chief-plugin.sh; do
+        for plugin in "${dir_path}"/*_chief-plugin.sh; do
             full_path=${plugin}
             plugin_file=${plugin##*/}
             plugin_name=${plugin_file%%_*}
 
             if [[ -f ${full_path} ]]; then
                 # TODO: Check plugin prerequisites before loading.
-                __apply_chief-alias ${full_path} # Apply alias and source the plugin
+                __apply_chief-alias "${full_path}" # Apply alias and source the plugin
                 __print "   plugin: ${plugin_name} loaded."
             fi
         done
@@ -205,13 +213,13 @@ function __load_plugins() {
     local plugin_name
     local plugin_prefix
 
-    plugin_prefix="CHIEF_`__upper ${1}`_PLUGIN_"
+    plugin_prefix="CHIEF_$(__upper ${1})_PLUGIN_"
 
     # Find all plugin declarations in config file
-    for bash_var in `cat ${CHIEF_CONFIG} | grep -E "^$plugin_prefix"`; do
+    for bash_var in $(cat ${CHIEF_CONFIG} | grep -E "^$plugin_prefix"); do
         plugin_variable=$(echo $bash_var | cut -d'=' -f 1)
         plugin_value=$(echo $bash_var | cut -d'=' -f 2 | tr -d '"')
-        plugin_name=`__lower $(echo $plugin_variable | cut -d'_' -f 4)`
+        plugin_name=$(__lower $(echo $plugin_variable | cut -d'_' -f 4))
 
         # Since the values could contain variables themselves, expand it.
         # TODO: Find alternative to "eval"
@@ -238,10 +246,10 @@ function __edit_user_plugin() {
     local bash_var
     local plugin_found
 
-    plugin_variable="CHIEF_USER_PLUGIN_`__upper ${1}`"
+    plugin_variable="CHIEF_USER_PLUGIN_$(__upper ${1})"
 
     # Find all plugin declarations in config file
-    bash_var=`cat ${CHIEF_CONFIG} | grep -E "^$plugin_variable="`
+    bash_var=$(cat ${CHIEF_CONFIG} | grep -E "^$plugin_variable=")
 
     if [[ -z ${bash_var} ]]; then
         echo "${CHIEF_ALIAS} $1-plugin is not valid."
@@ -249,7 +257,7 @@ function __edit_user_plugin() {
     fi
 
     plugin_value=$(echo $bash_var | cut -d'=' -f 2 | tr -d '"')
-    plugin_name=`__lower $(echo $plugin_variable | cut -d'_' -f 4)`
+    plugin_name=$(__lower $(echo $plugin_variable | cut -d'_' -f 4))
     plugin_file=$(eval echo ${plugin_value})
 
     if [[ -f ${plugin_file} ]]; then
@@ -268,7 +276,7 @@ function __load_library() {
     if [[ -z ${CHIEF_ALIAS} ]]; then
         CHIEF_ALIAS='CHIEF' # Use this by default
     else
-        CHIEF_ALIAS=`__upper ${CHIEF_ALIAS}` # Capitalize if not already.
+        CHIEF_ALIAS=$(__upper ${CHIEF_ALIAS}) # Capitalize if not already.
         if [[ ${CHIEF_ALIAS} != "CHIEF" ]]; then
             __print "Chief is aliased as ${CHIEF_ALIAS}."
         fi
@@ -276,8 +284,8 @@ function __load_library() {
 
     # These implicitly reloads the library files.
     __print "Loading core ${CHIEF_ALIAS} library..."
-    __apply_chief-alias ${CHIEF_LIBRARY} # Load chief_library.sh
-    CHIEF_ALIAS=`__upper ${CHIEF_ALIAS}` # Capitalize again, because re-source may have overwrote it.
+    __apply_chief-alias ${CHIEF_LIBRARY}  # Load chief_library.sh
+    CHIEF_ALIAS=$(__upper ${CHIEF_ALIAS}) # Capitalize again, because re-source may have overwrote it.
 
     __load_plugins_dir 'core'
     __load_plugins_dir 'contrib'
@@ -289,22 +297,22 @@ function __load_library() {
 # Display "try" text and dynamically display alias if necessary.
 function __try_text() {
     # Usage: __try_text
-    local cmd_alias=`__lower ${CHIEF_ALIAS}`
+    local cmd_alias=$(__lower ${CHIEF_ALIAS})
     if [[ ! -z ${CHIEF_ALIAS} ]] && ! ${CHIEF_CFG_ALIAS_ONLY}; then
-        echo -e "Try ${GREEN}chief.[tab]${NC} or ${GREEN}${cmd_alias}.[tab]${NC} to see available commands."
+        echo -e "Try ${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} or ${CHIEF_COLOR_GREEN}${cmd_alias}.[tab]${CHIEF_NO_COLOR} to see available commands."
     elif [[ ! -z ${CHIEF_ALIAS} ]] && ${CHIEF_CFG_ALIAS_ONLY}; then
-        echo -e "Try ${GREEN}${cmd_alias}.[tab]${NC} to see available commands."
+        echo -e "Try ${CHIEF_COLOR_GREEN}${cmd_alias}.[tab]${CHIEF_NO_COLOR} to see available commands."
     else
-        echo -e "Try ${GREEN}chief.[tab]${NC} to see available commands."
+        echo -e "Try ${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} to see available commands."
     fi
 }
 
 # Display Chief version info.
 function __chief.info() {
     # Usage: __chief.info
-    echo -e "${CHIEF_TOOL_NAME} ${YELLOW}${CHIEF_TOOL_VERSION}${NC} (${PLATFORM})";
+    echo -e "${CHIEF_TOOL_NAME} ${CHIEF_COLOR_YELLOW}${CHIEF_TOOL_VERSION}${CHIEF_NO_COLOR} (${PLATFORM})"
     echo -e "by ${CHIEF_TOOL_AUTHOR}"
-    echo -e ${CHIEF_TOOL_REPO}
+    echo -e "${CHIEF_TOOL_REPO}"
     echo ''
     __try_text
     echo ''
@@ -314,9 +322,11 @@ function __chief.info() {
 function __start_agent {
     # Usage: __start_agent
     __print "Initializing new SSH agent..."
-    (umask 066;
-    /usr/bin/ssh-agent >"${SSH_ENV}")
-    . "${SSH_ENV}" > /dev/null
+    (
+        umask 066
+        /usr/bin/ssh-agent >"${SSH_ENV}"
+    )
+    . "${SSH_ENV}" >/dev/null
 }
 
 # Build Git / VirtualEnv prompt
@@ -325,26 +335,27 @@ function __build_git_prompt() {
     # Needed because PROMPT_COMMAND doesn't 'echo -e' and this also fixes the nasty
     # wrapping bug when the prompt is colorized and a VE is activated.
     local RED='\[\e[31m\]'
-    local BLUE='\[\e[34m\]'
-    local CYAN='\[\e[36m\]'
-    local GREEN='\[\e[32m\]'
-    local MAGENTA='\[\e[35m\]'
-    local ORANGE='\[\e[33m\]'
-    local YELLOW='\[\e[1;33m\]'
-    local BLINK='\[\e[5m\]'
-    local NC='\[\e[0m\]' # Reset color/style
+    local CHIEF_COLOR_BLUE='\[\e[34m\]'
+    local CHIEF_COLOR_
+    CYAN='\[\e[36m\]'
+    local CHIEF_COLOR_GREEN='\[\e[32m\]'
+    local CHIEF_COLOR_MAGENTA='\[\e[35m\]'
+    local CHIEF_COLOR_ORANGE='\[\e[33m\]'
+    local CHIEF_COLOR_YELLOW='\[\e[1;33m\]'
+    local CHIEF_TEXT_BLINK='\[\e[5m\]'
+    local CHIEF_NO_COLOR='\[\e[0m\]' # Reset color/style
 
     local ve_name=''
     if [[ ! -z ${VIRTUAL_ENV} ]]; then
         if ${CHIEF_CFG_COLORED_PROMPT}; then
-            ve_name="(${BLUE}${VIRTUAL_ENV##*/}${NC}) "
+            ve_name="(${CHIEF_COLOR_BLUE}${VIRTUAL_ENV##*/}${CHIEF_NO_COLOR}) "
         else
             ve_name="(${VIRTUAL_ENV##*/}) "
         fi
     fi
 
     if ${CHIEF_CFG_COLORED_PROMPT}; then
-        __git_ps1 "${ve_name}${MAGENTA}\u${NC}@${GREEN}\h${NC}:${YELLOW}${prompt_tag}${NC}" "\\\$ "
+        __git_ps1 "${ve_name}${CHIEF_COLOR_MAGENTA}\u${CHIEF_NO_COLOR}@${CHIEF_COLOR_GREEN}\h${CHIEF_NO_COLOR}:${CHIEF_COLOR_YELLOW}${prompt_tag}${CHIEF_NO_COLOR}" "\\\$ "
     else
         __git_ps1 "${ve_name}\u@\h:${prompt_tag}" "\\\$ "
     fi
@@ -356,6 +367,9 @@ function __build_git_prompt() {
 # Color guide from Stack Overflow
 # https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
 
+# Note: Use echo -e to support backslash escape
+# echo -e "I ${CHIEF_COLOR_RED}love${CHIEF_NO_COLOR} Stack Overflow"
+
 #Black        0;30     Dark Gray     1;30
 #Red          0;31     Light Red     1;31
 #Green        0;32     Light Green   1;32
@@ -365,45 +379,40 @@ function __build_git_prompt() {
 #Cyan         0;36     Light Cyan    1;36
 #Light Gray   0;37     White         1;37
 
-RED='\033[0;31m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-GREEN='\033[0;32m'
-MAGENTA='\033[0;35m'
-ORANGE='\033[0;33m'
-YELLOW='\033[1;33m'
-BLINK='\033[5m'
-NC='\033[0m' # Reset color/style
-
-# Note: Use echo -e to support backslash escape
-# echo -e "I ${RED}love${NC} Stack Overflow"
+CHIEF_COLOR_RED='\033[0;31m'
+CHIEF_COLOR_BLUE='\033[0;34m'
+CHIEF_COLOR_CYAN='\033[0;36m'
+CHIEF_COLOR_GREEN='\033[0;32m'
+CHIEF_COLOR_MAGENTA='\033[0;35m'
+CHIEF_COLOR_ORANGE='\033[0;33m'
+CHIEF_COLOR_YELLOW='\033[1;33m'
+CHIEF_TEXT_BLINK='\033[5m'
+CHIEF_NO_COLOR='\033[0m' # Reset color/style
 
 # From: https://www.linuxquestions.org/questions/linux-newbie-8/bash-echo-the-arrow-keys-825773/
-KEYS_ESC=$'\e'
-KEYS_F1=$'\e'[[A
-KEYS_F2=$'\e'[[B
-KEYS_F3=$'\e'[[C
-KEYS_F4=$'\e'[[D
-KEYS_F5=$'\e'[[E
-KEYS_F6=$'\e'[17~
-KEYS_F7=$'\e'[18~
-KEYS_F8=$'\e'[19~
-KEYS_F9=$'\e'[20~
-KEYS_F10=$'\e'[21~
-KEYS_F11=$'\e'[22~
-KEYS_F12=$'\e'[23~
-KEYS_HOME=$'\e'[1~
-KEYS_HOME2=$'\e'[H
-KEYS_INSERT=$'\e'[2~
-KEYS_DELETE=$'\e'[3~
-KEYS_END=$'\e'[4~
-KEYS_END2=$'\e'[F
-KEYS_PAGEUP=$'\e'[5~
-KEYS_PAGEDOWN=$'\e'[6~
-KEYS_UP=$'\e'[A
-KEYS_DOWN=$'\e'[B
-KEYS_RIGHT=$'\e'[C
-KEYS_LEFT=$'\e'[D
-KEYS_NUMPADUNKNOWN=$'\e'[G
-
-
+CHIEF_KEYS_ESC=$'\e'
+CHIEF_KEYS_F1=$'\e'[[A
+CHIEF_KEYS_F2=$'\e'[[B
+CHIEF_KEYS_F3=$'\e'[[C
+CHIEF_KEYS_F4=$'\e'[[D
+CHIEF_KEYS_F5=$'\e'[[E
+CHIEF_KEYS_F6=$'\e'[17~
+CHIEF_KEYS_F7=$'\e'[18~
+CHIEF_KEYS_F8=$'\e'[19~
+CHIEF_KEYS_F9=$'\e'[20~
+CHIEF_KEYS_F10=$'\e'[21~
+CHIEF_KEYS_F11=$'\e'[22~
+CHIEF_KEYS_F12=$'\e'[23~
+CHIEF_KEYS_HOME=$'\e'[1~
+CHIEF_KEYS_HOME2=$'\e'[H
+CHIEF_KEYS_INSERT=$'\e'[2~
+CHIEF_KEYS_DELETE=$'\e'[3~
+CHIEF_KEYS_END=$'\e'[4~
+CHIEF_KEYS_END2=$'\e'[F
+CHIEF_KEYS_PAGEUP=$'\e'[5~
+CHIEF_KEYS_PAGEDOWN=$'\e'[6~
+CHIEF_KEYS_UP=$'\e'[A
+CHIEF_KEYS_DOWN=$'\e'[B
+CHIEF_KEYS_RIGHT=$'\e'[C
+CHIEF_KEYS_LEFT=$'\e'[D
+CHIEF_KEYS_NUMPADUNKNOWN=$'\e'[G
