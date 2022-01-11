@@ -143,11 +143,11 @@ function chief.git_cred_cache() {
   local USAGE="Usage: $FUNCNAME <# of seconds>
 
 Cache git credentials for the passed # of seconds.  Default is 1 day."
-  re='^[0-9]+$' 
+  re='^[0-9]+$'
   if [[ -z $1 ]]; then
     git config --global credential.helper "cache --timeout=86400"
     echo "Git credentials will be cached for 86400 seconds."
-  elif [[ $1 =~ $re ]] ; then
+  elif [[ $1 =~ $re ]]; then
     git config --global credential.helper "cache --timeout=$1"
     echo "Git credentials will be cached for $1 seconds."
   elif [[ $1 == "-?" ]]; then
