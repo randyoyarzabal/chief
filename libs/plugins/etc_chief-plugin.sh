@@ -158,7 +158,7 @@ Check if an IP address is valid."
   return $stat
 }
 
-function chief.etc_show_spinner() {
+function chief.etc_spinner() {
   local USAGE="Usage: $FUNCNAME <msg> <command> <output_variable>
 
 Display a spinner progress indicator that an operation is currently in progress."
@@ -184,7 +184,7 @@ Display a spinner progress indicator that an operation is currently in progress.
     echo $!
   )
   printf "$1"
-  __spinner $REPLY
+  __spinner $REPLY "$1"
 
   # Clear the message in-place
   start=1
@@ -280,6 +280,11 @@ function __spinner() {
     printf "\b\b\b\b\b\b"
   done
   printf "    \b\b\b\b"
+  # Delete message
+  local lenc=`echo $2 |awk '{print length}'`
+  for (( i=1; i<=$lenc; i++ )); do
+    printf "\b"
+  done
 }
 
 function __begin {
