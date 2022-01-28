@@ -281,8 +281,8 @@ function __spinner() {
   done
   printf "    \b\b\b\b"
   # Delete message
-  local lenc=`echo $2 |awk '{print length}'`
-  for (( i=1; i<=$lenc; i++ )); do
+  local str_len=`echo $2 |awk '{print length}'`
+  for (( i=1; i <= $str_len; i++ )); do
     printf "\b"
   done
 }
