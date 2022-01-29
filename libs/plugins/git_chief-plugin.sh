@@ -160,10 +160,10 @@ Cache git credentials for the passed # of seconds.  Default is 1 day."
   fi
 }
 
-function chief.git_rename_url() {
+function chief.git_set_url() {
   local USAGE="Usage: $FUNCNAME <url>
 
-Change the remote git url."
+Change / set the remote git url."
 
   if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
     echo "${USAGE}"
