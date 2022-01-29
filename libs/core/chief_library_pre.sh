@@ -369,8 +369,8 @@ function __check_for_updates (){
     UPSTREAMHASH=$(git rev-parse master@{upstream})
 
     # Only compare local/remote changes if no local changes exist.
-    if [[ -z $(git status -s) ]] && [[ "$HEADHASH" != "$UPSTREAMHASH" ]]; then
-      echo -e "${CHIEF_COLOR_GREEN}**Chief code update available**${CHIEF_NO_COLOR} Run chief.root; chief.git_update."
+    if [[ -n $(git status -s) ]] && [[ "$HEADHASH" != "$UPSTREAMHASH" ]]; then
+      echo -e "${CHIEF_COLOR_GREEN}**Chief code update available**${CHIEF_NO_COLOR} run chief.root; chief.git_update."
     fi
     cd - > /dev/null
   fi
