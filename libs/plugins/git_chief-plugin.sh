@@ -33,7 +33,8 @@ Perform a pull and push to update local (and submodules) with remote/server orig
   git config --get remote.origin.url
   git pull
   git push
-  git fetch origin --tags --force
+  git fetch origin --tags --force # Get any new tags from origin
+  git pull --prune --tags  # Get any renamed tags
 }
 
 function chief.git_commit() {

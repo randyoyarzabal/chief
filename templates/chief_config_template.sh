@@ -11,6 +11,9 @@
 # PLUG-INS LIBRARY PATH CONFIGURATION
 ####################################
 
+# If set to true, will check and inform of updates available in GitHub.
+CHIEF_CHECK_UPDATES=true
+
 #  ** All plug-ins must be defined with their respective absolute paths. **
 #  BASH environment variables are allowed in paths e.g. ${HOME}
 

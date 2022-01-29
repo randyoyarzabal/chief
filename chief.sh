@@ -4,7 +4,7 @@
 #   All settings and commands are done via the chief.* commands
 ###################################################################################################################
 
-CHIEF_TOOL_VERSION="v3.0.2 (2021-Dec-12)"
+CHIEF_TOOL_VERSION="v3.0.3 (2022-Jan-28)"
 CHIEF_TOOL_REPO="https://github.com/randyoyarzabal/chief"
 CHIEF_TOOL_AUTHOR="Randy E. Oyarzabal"
 
@@ -151,5 +151,6 @@ if ${CHIEF_CFG_BANNER}; then
   echo ""
   echo -e "${CHIEF_TOOL_NAME} ${CHIEF_COLOR_YELLOW}${CHIEF_TOOL_VERSION}${CHIEF_NO_COLOR} (${PLATFORM})"
   __try_text
+  __check_for_updates
   echo ''
 fi
