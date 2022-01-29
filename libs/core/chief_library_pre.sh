@@ -365,11 +365,12 @@ function __check_for_updates (){
   if ${CHIEF_CHECK_UPDATES}; then
     # Check for updates and print notification here.
     chief.root
-    HEADHASH=$(git rev-parse HEAD)
-    UPSTREAMHASH=$(git rev-parse master@{upstream})
+    LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+    LOCAL_HASH=$(git rev-parse HEAD)
+    REMOTE_HASH=$(git rev-parse ${LOCAL_BRANCH}@{upstream})
 
     # Only compare local/remote changes if no local changes exist.
-    if [[ -z $(git status -s) ]] && [[ "$HEADHASH" != "$UPSTREAMHASH" ]]; then
+    if [[ -z $(git status -s) ]] && [[ ${LOCAL_HASH} != ${REMOTE_HASH} ]]; then
       echo -e "\n${CHIEF_COLOR_GREEN}**Chief code update available**${CHIEF_NO_COLOR} run chief.root; chief.git_update."
     fi
     cd - > /dev/null
