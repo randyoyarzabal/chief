@@ -154,5 +154,4 @@ if ${CHIEF_CFG_BANNER}; then
     chief.etc_spinner "Checking for updates..." "__check_for_updates" tmp_out
     echo -e "${tmp_out}"
   fi
-  echo ''
 fi
