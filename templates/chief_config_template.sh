@@ -13,7 +13,8 @@
 
 # If set to true, will check and inform of updates available in GitHub.
 # Note: if there are any local changes, Chief will not detect any remote updates as
-# it assumes you are using a forked version.
+# it assumes you are using a forked version. Also note, this will do a "git fetch"
+# every time Chief runs at startup.
 CHIEF_CHECK_UPDATES=true
 
 #  ** All plug-ins must be defined with their respective absolute paths. **
