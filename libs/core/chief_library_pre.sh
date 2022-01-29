@@ -362,20 +362,21 @@ function __build_git_prompt() {
 }
 
 function __check_for_updates (){
-  # Check for updates and print notification here.
+   # Check for updates and print notification here.
   chief.root
-  git fetch > /dev/null 2>&1
+
+  local CHANGE_MSG="\n${CHIEF_COLOR_GREEN}**Chief code update available**${CHIEF_NO_COLOR} run chief.root; chief.git_update."
 
   # Get local branch name
-  LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+  local LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
   # Get change hash local and remote for later comparison
-  LOCAL_HASH=$(git rev-parse HEAD)
-  REMOTE_HASH=$(git rev-parse ${LOCAL_BRANCH}@{upstream})
+  local LOCAL_HASH=$(git rev-parse HEAD)
+  local REMOTE_HASH=$(git ls-remote --tags --heads 2> /dev/null | grep heads/${LOCAL_BRANCH} | awk '{ print $1 }')
 
   # Only compare local/remote changes if no local changes exist.
   if [[ -z $(git status -s) ]] && [[ ${LOCAL_HASH} != ${REMOTE_HASH} ]]; then
-    echo -e "\n${CHIEF_COLOR_GREEN}**Chief code update available**${CHIEF_NO_COLOR} run chief.root; chief.git_update."
+    echo -e "${CHANGE_MSG}"
   fi
   cd - > /dev/null 2>&1
 }

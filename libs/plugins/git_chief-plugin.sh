@@ -21,9 +21,10 @@ Modified version of git clone that also grabs submodules automatically."
 }
 
 function chief.git_update() {
-  local USAGE="Usage: $FUNCNAME
+  local USAGE="Usage: $FUNCNAME [-p]
 
-Perform a pull and push to update local (and submodules) with remote/server origin."
+Perform a full update (pull/push) to update local with remote/server origin.
+  Optionally pass '-p' to pull-only (skipping push and fetching tag changes)."
 
   if [[ $1 == "-?" ]]; then
     echo "${USAGE}"
@@ -32,9 +33,11 @@ Perform a pull and push to update local (and submodules) with remote/server orig
 
   git config --get remote.origin.url
   git pull
-  git push
-  git fetch origin --tags --force # Get any new tags from origin
-  git pull --prune --tags  # Get any renamed tags
+  if [[ $1 != "--pull-only" ]]; then
+    git push
+    git fetch origin --tags --force # Get any new tags from origin
+    git pull --prune --tags  # Get any renamed tags
+  fi
 }
 
 function chief.git_commit() {
