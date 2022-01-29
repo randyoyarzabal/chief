@@ -362,10 +362,8 @@ function __build_git_prompt() {
 }
 
 function __check_for_updates (){
-   # Check for updates and print notification here.
   chief.root
-
-  local CHANGE_MSG="\n${CHIEF_COLOR_GREEN}**Chief code update available**${CHIEF_NO_COLOR} run chief.root; chief.git_update."
+  local CHANGE_MSG="${CHIEF_COLOR_GREEN}**Chief updates available**${CHIEF_NO_COLOR} run chief.root; chief.git_update -p"
 
   # Get local branch name
   local LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)

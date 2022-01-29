@@ -145,14 +145,14 @@ if ${CHIEF_CFG_TOOL_GIT}; then
   PROMPT_COMMAND='__build_git_prompt'
 fi
 
-CHIEF_TOOL_NAME="${CHIEF_COLOR_CYAN}Chief${CHIEF_NO_COLOR} BASH Library Management and Tools"
+CHIEF_TOOL_NAME="${CHIEF_COLOR_CYAN}Chief${CHIEF_NO_COLOR} BASH Tools"
 
 if ${CHIEF_CFG_BANNER}; then
-  echo ""
-  echo -e "${CHIEF_TOOL_NAME} ${CHIEF_COLOR_YELLOW}${CHIEF_TOOL_VERSION}${CHIEF_NO_COLOR} (${PLATFORM})"
+  echo -e "\n${CHIEF_TOOL_NAME} ${CHIEF_COLOR_YELLOW}${CHIEF_TOOL_VERSION}${CHIEF_NO_COLOR} (${PLATFORM})"
   __try_text
   if ${CHIEF_CHECK_UPDATES}; then
     chief.etc_spinner "Checking for updates..." "__check_for_updates" tmp_out
     echo -e "${tmp_out}"
   fi
+  echo ''
 fi

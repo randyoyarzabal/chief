@@ -33,7 +33,7 @@ Perform a full update (pull/push) to update local with remote/server origin.
 
   git config --get remote.origin.url
   git pull
-  if [[ $1 != "--pull-only" ]]; then
+  if [[ $1 != "-p" ]]; then
     git push
     git fetch origin --tags --force # Get any new tags from origin
     git pull --prune --tags  # Get any renamed tags
