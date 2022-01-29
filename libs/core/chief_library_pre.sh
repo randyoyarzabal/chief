@@ -346,7 +346,7 @@ function __build_git_prompt() {
   local CHIEF_NO_COLOR='\[\e[0m\]' # Reset color/style
 
   local ve_name=''
-  if [[ ! -z ${VIRTUAL_ENV} ]]; then
+  if [[ -n ${VIRTUAL_ENV} ]]; then
     if ${CHIEF_CFG_COLORED_PROMPT}; then
       ve_name="(${CHIEF_COLOR_BLUE}${VIRTUAL_ENV##*/}${CHIEF_NO_COLOR}) "
     else
