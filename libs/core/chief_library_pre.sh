@@ -365,7 +365,11 @@ function __check_for_updates (){
   if ${CHIEF_CHECK_UPDATES}; then
     # Check for updates and print notification here.
     chief.root
+
+    # Get local branch name
     LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+
+    # Get change hash local and remote for later comparison
     LOCAL_HASH=$(git rev-parse HEAD)
     REMOTE_HASH=$(git rev-parse ${LOCAL_BRANCH}@{upstream})
 
