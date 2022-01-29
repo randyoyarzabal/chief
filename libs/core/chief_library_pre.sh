@@ -365,6 +365,7 @@ function __check_for_updates (){
   if ${CHIEF_CHECK_UPDATES}; then
     # Check for updates and print notification here.
     chief.root
+    git fetch > /dev/null 2>&1
 
     # Get local branch name
     LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
@@ -377,7 +378,7 @@ function __check_for_updates (){
     if [[ -z $(git status -s) ]] && [[ ${LOCAL_HASH} != ${REMOTE_HASH} ]]; then
       echo -e "\n${CHIEF_COLOR_GREEN}**Chief code update available**${CHIEF_NO_COLOR} run chief.root; chief.git_update."
     fi
-    cd - > /dev/null
+    cd - > /dev/null 2>&1
   fi
 }
 
