@@ -4,7 +4,7 @@
 #   All settings and commands are done via the chief.* commands
 ###################################################################################################################
 
-CHIEF_TOOL_VERSION="v3.1.1-dev (2022-Jan-28)"
+CHIEF_TOOL_VERSION="v3.1.0-dev (2022-Jan-28)"
 CHIEF_TOOL_REPO="https://github.com/randyoyarzabal/chief"
 CHIEF_TOOL_AUTHOR="Randy E. Oyarzabal"
 
@@ -151,6 +151,8 @@ if ${CHIEF_CFG_BANNER}; then
   echo ""
   echo -e "${CHIEF_TOOL_NAME} ${CHIEF_COLOR_YELLOW}${CHIEF_TOOL_VERSION}${CHIEF_NO_COLOR} (${PLATFORM})"
   __try_text
-  chief.etc_spinner "Checking for updates..." "__check_for_updates" tmp_out
+  if ${CHIEF_CHECK_UPDATES}; then
+    chief.etc_spinner "Checking for updates..." "__check_for_updates" tmp_out
+  fi
   echo ''
 fi

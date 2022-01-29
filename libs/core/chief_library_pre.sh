@@ -362,24 +362,22 @@ function __build_git_prompt() {
 }
 
 function __check_for_updates (){
-  if ${CHIEF_CHECK_UPDATES}; then
-    # Check for updates and print notification here.
-    chief.root
-    git fetch > /dev/null 2>&1
+  # Check for updates and print notification here.
+  chief.root
+  git fetch > /dev/null 2>&1
 
-    # Get local branch name
-    LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+  # Get local branch name
+  LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
-    # Get change hash local and remote for later comparison
-    LOCAL_HASH=$(git rev-parse HEAD)
-    REMOTE_HASH=$(git rev-parse ${LOCAL_BRANCH}@{upstream})
+  # Get change hash local and remote for later comparison
+  LOCAL_HASH=$(git rev-parse HEAD)
+  REMOTE_HASH=$(git rev-parse ${LOCAL_BRANCH}@{upstream})
 
-    # Only compare local/remote changes if no local changes exist.
-    if [[ -z $(git status -s) ]] && [[ ${LOCAL_HASH} != ${REMOTE_HASH} ]]; then
-      echo -e "\n${CHIEF_COLOR_GREEN}**Chief code update available**${CHIEF_NO_COLOR} run chief.root; chief.git_update."
-    fi
-    cd - > /dev/null 2>&1
+  # Only compare local/remote changes if no local changes exist.
+  if [[ -z $(git status -s) ]] && [[ ${LOCAL_HASH} != ${REMOTE_HASH} ]]; then
+    echo -e "\n${CHIEF_COLOR_GREEN}**Chief code update available**${CHIEF_NO_COLOR} run chief.root; chief.git_update."
   fi
+  cd - > /dev/null 2>&1
 }
 
 # TEXT COLOR VARIABLES
