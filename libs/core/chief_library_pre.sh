@@ -364,13 +364,15 @@ function __build_git_prompt() {
 function __check_for_updates (){
   if ${CHIEF_CHECK_UPDATES}; then
     # Check for updates and print notification here.
+    chief.root
     HEADHASH=$(git rev-parse HEAD)
     UPSTREAMHASH=$(git rev-parse master@{upstream})
 
-    if [ "$HEADHASH" != "$UPSTREAMHASH" ]; then
-      echo -e "${CHIEF_COLOR_GREEN}Code update available.${CHIEF_NO_COLOR}"
-      echo '$>chief.root; chief.git_update to get the latest code.'
+
+    if [[ -z $(git status -s) ]] && [[ "$HEADHASH" != "$UPSTREAMHASH" ]]; then
+      echo -e "${CHIEF_COLOR_GREEN}**Chief code update available**${CHIEF_NO_COLOR} Run chief.root; chief.git_update."
     fi
+    cd - > /dev/null
   fi
 }
 
