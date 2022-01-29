@@ -373,7 +373,9 @@ function __check_for_updates (){
   local REMOTE_HASH=$(git ls-remote --tags --heads 2> /dev/null | grep heads/${LOCAL_BRANCH} | awk '{ print $1 }')
 
   # Only compare local/remote changes if no local changes exist.
-  if [[ -z $(git status -s) ]] && [[ ${LOCAL_HASH} != ${REMOTE_HASH} ]]; then
+  if [[ -z $(git status -s) ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} local Chief changes detected. Update checking skipped."
+  elif [[ ${LOCAL_HASH} != ${REMOTE_HASH} ]]; then
     echo -e "${CHANGE_MSG}"
   fi
   cd - > /dev/null 2>&1
