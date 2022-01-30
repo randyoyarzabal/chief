@@ -49,37 +49,15 @@ if [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIE
     else
       __start_agent
     fi
-    #        # Start ssh-agent if necessary because this is not enabled by default in Linux
-    #        if [[ -z ${SSH_AGENT_PID} ]] ; then
-    #            eval `ssh-agent -s` > /dev/null 2>&1
-    #            __print "   ssh-agent started."
-    #        else
-    #            __print "   ssh-agent not started. It is already running."
-    #        fi
-    #        load="/usr/bin/ssh-add"
-    #
-    #        # Be sure the ssh-agent will actually get killed on logout.
-    #        BASH_LOGOUT="$HOME/.bash_logout"
-    #
-    #        # If .bash_logout doesn't exist, Or it exists but doesn't contain the ssh-agent cleanup.
-    #        if [[ ! -e ${BASH_LOGOUT} ]] || ! grep "ssh-agent -k" ${BASH_LOGOUT} > /dev/null; then
-    #            __print 'ssh-agent clean-up not found, now added.'
-    #            cat ${CHIEF_PATH}/templates/bash_logout.sh >> ${BASH_LOGOUT}
-    #        else
-    #            __print 'ssh-agent clean-up found.'
-    #        fi
   fi
 
   # Load all keys.  Skip authorized_keys, environment, and known_hosts.
   for rsa_key in ${CHIEF_RSA_KEYS_PATH}/*.rsa; do
-    #        if [[ ${rsa_key} != *'environment'* ]] && [[ ${rsa_key} != *'hosts'* ]] \
-    #        && [[ ${rsa_key} != *'authorized'* ]]; then
     if ${CHIEF_CFG_VERBOSE}; then
       ${load} ${rsa_key}
     else
       ${load} ${rsa_key} >/dev/null 2>&1
     fi
-    #        fi
   done
 
   # Load key from standard location
