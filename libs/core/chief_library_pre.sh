@@ -24,7 +24,6 @@ CHIEF_PLUGINS_CORE="${CHIEF_PLUGINS}"
 # CORE HELPER FUNCTIONS
 ###################################################################################################################
 
-
 # Detect platform
 uname_out="$(uname -s)"
 case "${uname_out}" in
