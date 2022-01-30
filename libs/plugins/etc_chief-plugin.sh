@@ -240,7 +240,7 @@ function __spinner() {
     sleep $delay
     printf "\b\b\b\b\b\b"
   done
-
+  #printf "\b\b\b\b\b\b"
   # Delete spinner informational message
   local str_len=$(echo $2 |awk '{print length}')
   for (( i=1; i <= $str_len; i++ )); do
