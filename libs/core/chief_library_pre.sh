@@ -378,10 +378,10 @@ function __check_for_updates (){
   elif [[ ${LOCAL_HASH} != ${REMOTE_HASH} ]]; then
     echo -e "${CHANGE_MSG}"
     read -p "Or, update now? ([y]es or [N]o): "
-    response=$(case $(echo $REPLY | tr '[A-Z]' '[a-z]') in
-    y | yes) echo "yes" ;;
-    *) echo "no" ;;
-    esac)
+    case $(echo $REPLY | tr '[A-Z]' '[a-z]') in
+      y | yes) response="yes" ;;
+      *) response="no" ;;
+    esac
     if [[ $response == 'yes' ]]; then
       chief.root
       chief.git_update -p
