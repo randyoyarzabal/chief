@@ -364,7 +364,7 @@ function __build_git_prompt() {
 
 function __check_for_updates (){
   chief.root
-  local CHANGE_MSG="${CHIEF_COLOR_GREEN}**Chief updates available**${CHIEF_NO_COLOR}"
+  local CHANGE_MSG="${CHIEF_COLOR_GREEN}**Chief updates available**${CHIEF_NO_COLOR} run chief.root; chief.git_update -p"
 
   # Get local branch name
   local LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
@@ -377,7 +377,8 @@ function __check_for_updates (){
   if [[ -n $(git status -s) ]]; then
     echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} local Chief changes detected. Update checking skipped."
   elif [[ ${LOCAL_HASH} != ${REMOTE_HASH} ]]; then
-    response=$(chief.etc_ask_yes_or_no "${CHANGE_MSG} update now?" )
+    echo -e "${CHANGE_MSG}"
+    response=$(chief.etc_ask_yes_or_no "Or, update now?" )
     if [[ $response == 'yes' ]]; then
       chief.root
       chief.git_update -p
