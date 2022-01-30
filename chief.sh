@@ -158,11 +158,8 @@ if ${CHIEF_CFG_BANNER}; then
       if [[ $response == 'yes' ]]; then
         chief.root
         chief.git_update -p
-        # We need to disable updates when reloading, but let's not assume it was enabled in the first place.
-        save_setting=$CHIEF_CHECK_UPDATES
-        CHIEF_CHECK_UPDATES=false
         chief.reload_library
-        CHIEF_CHECK_UPDATES=$save_setting
+        cd - > /dev/null 2>&1
       fi
     fi
   fi
