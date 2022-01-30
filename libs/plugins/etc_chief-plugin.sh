@@ -222,14 +222,11 @@ Display a spinner progress indicator that an operation is currently in progress.
   local start=1
   local end=$(echo -n $1 | wc -m)
 
-#  # Move the cursor to the left with backspace.
-#  for ((i = $start; i <= $end; i++)); do printf "\b"; done
+  # Move the cursor to the left with backspace.
+  for ((i = $start; i <= $end; i++)); do printf "\b"; done
 
   # Remove message from console.
-  for ((i = $start; i <= $end; i++)); do
-    printf "\b";
-    printf " ";
-  done
+  for ((i = $start; i <= $end; i++)); do printf " "; done
 
   # Reposition the cursor to the beginning before any other writes to the screen
   for ((i = $start; i <= $end; i++)); do printf "\b"; done
