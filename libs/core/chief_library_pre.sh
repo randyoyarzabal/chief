@@ -363,7 +363,6 @@ function __build_git_prompt() {
 
 function __check_for_updates (){
   chief.root
-  echo ''
   local CHANGE_MSG="${CHIEF_COLOR_GREEN}**Chief updates available**${CHIEF_NO_COLOR} run chief.root; chief.git_update -p"
 
   # Get local branch name
