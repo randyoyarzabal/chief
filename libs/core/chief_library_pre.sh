@@ -346,7 +346,7 @@ function __build_git_prompt() {
   local CHIEF_NO_COLOR='\[\e[0m\]' # Reset color/style
 
   local ve_name=''
-  if [[ -n ${VIRTUAL_ENV} ]]; then
+  if [[ ! -z ${VIRTUAL_ENV} ]]; then
     if ${CHIEF_CFG_COLORED_PROMPT}; then
       ve_name="(${CHIEF_COLOR_BLUE}${VIRTUAL_ENV##*/}${CHIEF_NO_COLOR}) "
     else
@@ -363,6 +363,7 @@ function __build_git_prompt() {
 
 function __check_for_updates (){
   chief.root
+  echo ''
   local CHANGE_MSG="${CHIEF_COLOR_GREEN}**Chief updates available**${CHIEF_NO_COLOR} run chief.root; chief.git_update -p"
 
   # Get local branch name
@@ -377,8 +378,6 @@ function __check_for_updates (){
     echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} local Chief changes detected. Update checking skipped."
   elif [[ ${LOCAL_HASH} != ${REMOTE_HASH} ]]; then
     echo -e "${CHANGE_MSG}"
-  else
-    echo 'No updates'
   fi
   cd - > /dev/null 2>&1
 }

@@ -158,6 +158,57 @@ Check if an IP address is valid."
   return $stat
 }
 
+function chief.etc_spinner() {
+  local USAGE="Usage: $FUNCNAME <msg> <command> <output_variable>
+
+Display a spinner progress indicator that an operation is currently in progress."
+
+  if [[ -z $3 ]] || [[ $1 == "-?" ]]; then
+    echo "${USAGE}"
+    return
+  fi
+
+  MSG_LENGTH=$(echo -n $1 | wc -m)
+  # Create a random file to hold output
+
+  if [[ ${PLATFORM} == "MacOS" ]]; then
+    tmp_file="/tmp/._$(cat /dev/random | LC_CTYPE=C tr -dc "[:alpha:]" | fold -w 8 | head -n 1)"
+  else
+    tmp_file="/tmp/._$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 8 | head -n 1)"
+  fi
+
+  # Process the command in the background until it returns (saving the output to the temp file.
+  #   In the meantime, keep printing the spinner chars.
+  read < <(
+    eval "$2" >$tmp_file &
+    echo $!
+  )
+  printf "$1"
+  __spinner $REPLY "$1"
+
+  # Clear the message in-place
+  start=1
+  end=$MSG_LENGTH
+
+  # Move the cursor to the left
+  for ((i = $start; i <= $end; i++)); do printf "$KEYS_LEFT"; done
+
+  # Blank the message
+  for ((i = $start; i <= $end; i++)); do printf " "; done
+
+  # Reposition the cursor to the beginning before any other writes to the screen
+  for ((i = $start; i <= $end; i++)); do printf "$KEYS_LEFT"; done
+
+  # Save output to 3rd parameter variable
+  eval "$3='$(cat $tmp_file)'"
+
+  # Display the command output to the screen
+  # cat $tmp_file
+
+  # Destroy / delete the temp file
+  rm -rf $tmp_file
+}
+
 function chief.etc_ask_yes_or_no() {
   local USAGE="Usage: $FUNCNAME <msg/question>
 
@@ -192,61 +243,8 @@ Use example:
   echo $REPLY
 }
 
-function chief.etc_spinner() {
-  local USAGE="Usage: $FUNCNAME <msg> <command> <output_variable>
-
-Display a spinner progress indicator that an operation is currently in progress."
-
-  if [[ -z $3 ]] || [[ $1 == "-?" ]]; then
-    echo "${USAGE}"
-    return
-  fi
-
-  # Create a random file to hold output
-  if [[ ${PLATFORM} == "MacOS" ]]; then
-    tmp_file="/tmp/._$(cat /dev/random | LC_CTYPE=C tr -dc "[:alpha:]" | fold -w 8 | head -n 1)"
-  else
-    tmp_file="/tmp/._$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 8 | head -n 1)"
-  fi
-
-  # Process the command in the background until it returns (saving the output to the temp file).
-  #   In the meantime, keep printing the spinner chars.
-  read < <(
-    eval "$2" >$tmp_file &
-    echo $!
-  )
-  printf "$1"
-  __spinner $REPLY "$1"
-
-  # Save output to 3rd parameter variable
-  eval "$3='$(cat $tmp_file)'"
-
-  # Destroy / delete the temp file
-  rm -rf $tmp_file
-}
-
 # HELPER FUNCTIONS
 ##################################################
-
-function __spinner() {
-  # Usage: __spinner <pid>
-  local pid=$1
-  local delay=0.75
-  local spinstr='|/-\'
-  while [[ "$(ps a | awk '{print $1}' | grep $pid)" ]]; do
-    local temp=${spinstr#?}
-    printf " [%c]  " "$spinstr"
-    local spinstr=$temp${spinstr%"$temp"}
-    sleep $delay
-    printf "\b\b\b\b\b\b"
-  done
-  printf "\b\b\b\b\b\b"
-  # Delete spinner informational message
-  local str_len=$(echo $2 |awk '{print length}')
-  for (( i=1; i <= $str_len; i++ )); do
-    printf "\b"
-  done
-}
 
 function __timer() {
   # Usage: __timer <start | end>
@@ -269,10 +267,29 @@ function __trim() {
   awk '{$1=$1};1'
 }
 
+function __spinner() {
+  # Usage: __spinner <pid>
+  local pid=$1
+  local delay=0.75
+  local spinstr='|/-\'
+  while [[ "$(ps a | awk '{print $1}' | grep $pid)" ]]; do
+    local temp=${spinstr#?}
+    printf " [%c]  " "$spinstr"
+    local spinstr=$temp${spinstr%"$temp"}
+    sleep $delay
+    printf "\b\b\b\b\b\b"
+  done
+  printf "    \b\b\b\b"
+  # Delete message
+  local str_len=`echo $2 |awk '{print length}'`
+  for (( i=1; i <= $str_len; i++ )); do
+    printf "\b"
+  done
+}
+
 function __begin {
   # Linux implementation of Cisco's "begin"
   cat | sed -n "/$1/,\$p"
 }
-
 alias be='__begin'
 alias begin='__begin'
