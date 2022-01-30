@@ -140,5 +140,6 @@ Reload the $CHIEF_ALIAS utility library/environment."
     return
   fi
 
-  __load_library
+  #__load_library
+  source $CHIEF_PATH/chief.sh
 }

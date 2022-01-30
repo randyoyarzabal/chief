@@ -190,16 +190,16 @@ Display a spinner progress indicator that an operation is currently in progress.
   start=1
   end=$MSG_LENGTH
 
-  # Move the cursor to the left
+#  # Move the cursor to the left
+#  for ((i = $start; i <= $end; i++)); do printf "$KEYS_LEFT"; done
+#
+#  # Blank the message
+#  for ((i = $start; i <= $end; i++)); do printf " "; done
+#
+#  # Reposition the cursor to the beginning before any other writes to the screen
   for ((i = $start; i <= $end; i++)); do printf "$KEYS_LEFT"; done
-
-  # Blank the message
-  for ((i = $start; i <= $end; i++)); do printf " "; done
-
-  # Reposition the cursor to the beginning before any other writes to the screen
-  for ((i = $start; i <= $end; i++)); do printf "$KEYS_LEFT"; done
-
-  # Save output to 3rd parameter variable
+#
+#  # Save output to 3rd parameter variable
   eval "$3='$(cat $tmp_file)'"
 
   # Display the command output to the screen
