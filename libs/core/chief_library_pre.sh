@@ -377,6 +377,8 @@ function __check_for_updates (){
     echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} local Chief changes detected. Update checking skipped."
   elif [[ ${LOCAL_HASH} != ${REMOTE_HASH} ]]; then
     echo -e "${CHANGE_MSG}"
+  else
+    echo 'No updates'
   fi
   cd - > /dev/null 2>&1
 }
