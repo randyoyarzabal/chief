@@ -376,7 +376,12 @@ function __check_for_updates (){
   if [[ -n $(git status -s) ]]; then
     echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} local Chief changes detected. Update checking skipped."
   elif [[ ${LOCAL_HASH} != ${REMOTE_HASH} ]]; then
-    echo -e "${CHANGE_MSG}"
+    response=$(chief.etc_ask_yes_or_no "${CHANGE_MSG} update now?" )
+    if [[ $response == 'yes' ]]; then
+      chief.root
+      chief.git_update -p
+      chief.reload_library
+    fi
   fi
   cd - > /dev/null 2>&1
 }
