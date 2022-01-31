@@ -212,7 +212,7 @@ Display a spinner progress indicator that an operation is currently in progress.
   # Process the command in the background until it returns (saving the output to the temp file).
   #   In the meantime, keep printing the spinner chars.
   read < <(
-    eval "$2" >$tmp_file &
+    eval "$2" &> $tmp_file &
     echo $!
   )
   printf "$1"
