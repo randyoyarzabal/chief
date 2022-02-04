@@ -192,6 +192,30 @@ Use example:
   echo $REPLY
 }
 
+function chief.type_writer () {
+  local USAGE="Usage: $FUNCNAME <message> [delay in fractional seconds]
+
+Type each character to the console with a delay to simulate a typewriter effect. This feature
+  is meant to be used in educational screen-share/demonstration scripts.
+  Optionally pass the delay. The default delay is .05 seconds.
+
+Example(s):
+$> $FUNCNAME \"Hello World.\"
+$> $FUNCNAME \"Hello World.\" .25";
+  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
+    echo "${USAGE}";
+    return;
+  fi;
+  msg=$1
+  timer=$2
+  eol=$3
+  if [[ -z $timer ]]; then timer=.05; fi;
+  for (( i=0; i<${#msg}; i++ )); do
+    sleep $timer
+    echo -n "${msg:$i:1}"
+  done
+}
+
 function chief.etc_spinner() {
   local USAGE="Usage: $FUNCNAME <msg> <command> <output_variable>
 
