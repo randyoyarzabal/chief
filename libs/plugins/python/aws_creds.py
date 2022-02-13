@@ -3,6 +3,7 @@ import configparser
 import argparse
 import sys
 import os
+import collections
 
 # Constants
 DEFAULT_ROLE = 'default'
@@ -34,7 +35,7 @@ class AWSCredentials:
             sys.stderr.write("Error: {}\n".format(e))
             exit(1)
         self.roles = self.creds.sections()
-        self.default_role = 'default'
+        self.default_role = None
 
     def export_role(self, role):
         """
@@ -67,6 +68,10 @@ class AWSCredentials:
         if DEFAULT_ROLE not in self.roles:
             self.creds.add_section(DEFAULT_ROLE)
         self.default_role = role
+
+        # Set order of credentials config
+        self.creds._sections = collections.OrderedDict(sorted(self.creds._sections.items(), key=lambda t: t[0]))
+
         for (key_var, key_val) in self.creds.items(role):
             self.creds.set(DEFAULT_ROLE, key_var, key_val)
 
