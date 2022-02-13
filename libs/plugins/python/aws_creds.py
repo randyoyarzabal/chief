@@ -60,10 +60,9 @@ class AWSCredentials:
         Args:
             role: AWS role to set.
             region: AWS region to set.
-
+            export: True to print export lines and rename credentials, False otherwise.
         Returns:
             None
-            :param export:
         """
         if DEFAULT_ROLE not in self.roles:
             self.creds.add_section(DEFAULT_ROLE)
