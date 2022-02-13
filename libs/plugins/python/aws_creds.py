@@ -70,7 +70,8 @@ class AWSCredentials:
         self.default_role = role
 
         # Set order of credentials config
-        self.creds._sections = collections.OrderedDict(sorted(self.creds._sections.items(), key=lambda t: t[0]))
+        self.creds._sections = collections.OrderedDict(
+            sorted(self.creds._sections.items(), reverse=True, key=lambda t: t[0]))
 
         for (key_var, key_val) in self.creds.items(role):
             self.creds.set(DEFAULT_ROLE, key_var, key_val)

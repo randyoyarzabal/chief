@@ -37,12 +37,9 @@ Export role and rename AWS credentials file.
     return
   fi
 
-  # For some reason this doesn't work
-  #source <("$AWS_CREDS_SCRIPT -u $1 -r $2 -e")
+  local output=$(eval "$AWS_CREDS_SCRIPT -u $1 -r $2 -e")
+  source <(echo "$output")
 
-  # Work around
-  output=$(eval "$AWS_CREDS_SCRIPT -u $1 -r $2 -e")
-  echo "$output" > ~/.aws_envs  && source ~/.aws_envs $$ rm ~/.aws_envs
-  echo "Credentials exported."
-  echo "$output" | grep '#'
+  echo "$1 credentials exported. Be sure to aws.set_role to revert back if needed."
+  echo "$output" | grep '#' | sed 's/\# //'
 }
