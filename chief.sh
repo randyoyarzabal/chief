@@ -35,7 +35,7 @@ if [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIE
   __print "Loading SSH keys from: ${CHIEF_RSA_KEYS_PATH}..."
 
   if [[ ${PLATFORM} == "MacOS" ]]; then
-    load="/usr/bin/ssh-add -K"
+    load="/usr/bin/ssh-add --apple-use-keychain"
   elif [[ ${PLATFORM} == "Linux" ]]; then
     # This will load ssh-agent (only if needed) just once and will only be reloaded on reboot.
     load="/usr/bin/ssh-add"
