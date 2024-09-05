@@ -10,7 +10,7 @@ CHIEF_TOOL_AUTHOR="Randy E. Oyarzabal"
 
 # MAIN BEGINS HERE
 
-shopt -s expand_aliases
+# shopt -s expand_aliases
 
 # Block interactive execution
 if [[ $0 = $BASH_SOURCE ]]; then
@@ -71,74 +71,74 @@ if [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIE
 fi
 
 # Apply colored LS
-if ${CHIEF_CFG_COLORED_LS}; then
-  __print "Applying ls colors..."
-  if [[ ${PLATFORM} == "MacOS" ]]; then
-    export CLICOLOR=1
-    export LSCOLORS=ExFxBxDxCxegedabagacad
-    alias ls='ls -GFh'
-  else
-    alias ls='ls --color=auto'
-  fi
-else
-  if [[ ! ${PLATFORM} == "MacOS" ]]; then
-    alias ls='ls --color=never'
-  fi
-fi
-
-# Apply either a short (current dir) prompt or full (full path) one
-if ${CHIEF_CFG_CWD_ONLY_PROMPT}; then
-  prompt_tag='\W'
-else
-  prompt_tag='\w'
-fi
-
-# Apply default prompt
-if ${CHIEF_CFG_COLORED_PROMPT}; then
-  export PS1="${CHIEF_COLOR_CYAN}\u${CHIEF_NO_COLOR}@${CHIEF_COLOR_GREEN}\h${NC}:${CHIEF_COLOR_YELLOW}${prompt_tag}${CHIEF_NO_COLOR}\$ "
-else
-  export PS1="\u@\h:${prompt_tag}$ "
-fi
-
-# Apply Git Tools (completion/prompt)
-if ${CHIEF_CFG_TOOL_GIT}; then
-  __print "Applying git prompt/completion..."
-
-  # Variables and their respective output: https://blog.backslasher.net/git-prompt-variables.html
-  export GIT_PS1_SHOWDIRTYSTATE=true     # '*'=unstaged, '+'=staged
-  export GIT_PS1_SHOWSTASHSTATE=true     # '$'=stashed
-  export GIT_PS1_SHOWUNTRACKEDFILES=true # '%'=untracked
-  export GIT_PS1_SHOWUPSTREAM="auto"
-  export GIT_PS1_STATESEPARATOR='|'
-
-  source ${CHIEF_GIT_TOOLS}/git-prompt.sh
-  source ${CHIEF_GIT_TOOLS}/git-completion.bash
-
-  if ${CHIEF_CFG_COLORED_PROMPT}; then
-    export GIT_PS1_SHOWCOLORHINTS=true
-    __print "Applying colored git prompt..."
-  else
-    __print "Applying default non-colored git prompt..."
-  fi
-  PROMPT_COMMAND='__build_git_prompt'
-fi
-
-CHIEF_TOOL_NAME="${CHIEF_COLOR_CYAN}Chief${CHIEF_NO_COLOR} BASH Tools"
-
-if ${CHIEF_CFG_BANNER}; then
-  echo -e "${CHIEF_TOOL_NAME} ${CHIEF_COLOR_YELLOW}${CHIEF_TOOL_VERSION}${CHIEF_NO_COLOR} (${PLATFORM})"
-  __try_text
-  if ${CHIEF_CHECK_UPDATES}; then
-    chief.etc_spinner "Checking for updates..." "__check_for_updates" tmp_out
-    echo -e "${tmp_out}"
-    if [[ ${tmp_out} == *"available"* ]]; then
-      response=$(chief.etc_ask_yes_or_no "Or, update now?")
-      if [[ $response == 'yes' ]]; then
-        chief.root
-        chief.git_update -p
-        chief.reload_library
-        cd - > /dev/null 2>&1
-      fi
-    fi
-  fi
-fi
+#if ${CHIEF_CFG_COLORED_LS}; then
+#  __print "Applying ls colors..."
+#  if [[ ${PLATFORM} == "MacOS" ]]; then
+#    export CLICOLOR=1
+#    export LSCOLORS=ExFxBxDxCxegedabagacad
+#    alias ls='ls -GFh'
+#  else
+#    alias ls='ls --color=auto'
+#  fi
+#else
+#  if [[ ! ${PLATFORM} == "MacOS" ]]; then
+#    alias ls='ls --color=never'
+#  fi
+#fi
+#
+## Apply either a short (current dir) prompt or full (full path) one
+#if ${CHIEF_CFG_CWD_ONLY_PROMPT}; then
+#  prompt_tag='\W'
+#else
+#  prompt_tag='\w'
+#fi
+#
+## Apply default prompt
+#if ${CHIEF_CFG_COLORED_PROMPT}; then
+#  export PS1="${CHIEF_COLOR_CYAN}\u${CHIEF_NO_COLOR}@${CHIEF_COLOR_GREEN}\h${NC}:${CHIEF_COLOR_YELLOW}${prompt_tag}${CHIEF_NO_COLOR}\$ "
+#else
+#  export PS1="\u@\h:${prompt_tag}$ "
+#fi
+#
+## Apply Git Tools (completion/prompt)
+#if ${CHIEF_CFG_TOOL_GIT}; then
+#  __print "Applying git prompt/completion..."
+#
+#  # Variables and their respective output: https://blog.backslasher.net/git-prompt-variables.html
+#  export GIT_PS1_SHOWDIRTYSTATE=true     # '*'=unstaged, '+'=staged
+#  export GIT_PS1_SHOWSTASHSTATE=true     # '$'=stashed
+#  export GIT_PS1_SHOWUNTRACKEDFILES=true # '%'=untracked
+#  export GIT_PS1_SHOWUPSTREAM="auto"
+#  export GIT_PS1_STATESEPARATOR='|'
+#
+#  source ${CHIEF_GIT_TOOLS}/git-prompt.sh
+#  source ${CHIEF_GIT_TOOLS}/git-completion.bash
+#
+#  if ${CHIEF_CFG_COLORED_PROMPT}; then
+#    export GIT_PS1_SHOWCOLORHINTS=true
+#    __print "Applying colored git prompt..."
+#  else
+#    __print "Applying default non-colored git prompt..."
+#  fi
+#  PROMPT_COMMAND='__build_git_prompt'
+#fi
+#
+#CHIEF_TOOL_NAME="${CHIEF_COLOR_CYAN}Chief${CHIEF_NO_COLOR} BASH Tools"
+#
+#if ${CHIEF_CFG_BANNER}; then
+#  echo -e "${CHIEF_TOOL_NAME} ${CHIEF_COLOR_YELLOW}${CHIEF_TOOL_VERSION}${CHIEF_NO_COLOR} (${PLATFORM})"
+#  __try_text
+#  if ${CHIEF_CHECK_UPDATES}; then
+#    chief.etc_spinner "Checking for updates..." "__check_for_updates" tmp_out
+#    echo -e "${tmp_out}"
+#    if [[ ${tmp_out} == *"available"* ]]; then
+#      response=$(chief.etc_ask_yes_or_no "Or, update now?")
+#      if [[ $response == 'yes' ]]; then
+#        chief.root
+#        chief.git_update -p
+#        chief.reload_library
+#        cd - > /dev/null 2>&1
+#      fi
+#    fi
+#  fi
+#fi
