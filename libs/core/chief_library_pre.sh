@@ -167,7 +167,7 @@ function __load_plugins_dir() {
 
     # If plugin var exists, AND is enabled, load plugin file into memory
     # Evaluate string as a variable, '!' is a dereference for the dynamic variable name
-    if [[ ! -z ${!plugin_switch} ]] && ${!plugin_switch}; then
+    if [[ -n ${!plugin_switch} ]] && ${!plugin_switch}; then
       load_flag=true
     fi
   else
@@ -175,7 +175,7 @@ function __load_plugins_dir() {
 
     # If plugin var exists, load plugin file into memory
     # Evaluate string as a variable, '!' is a dereference for the dynamic variable name
-    if [[ ! -z ${!plugin_switch} ]]; then
+    if [[ -n ${!plugin_switch} ]]; then
       load_flag=false
     fi
   fi
@@ -436,3 +436,18 @@ CHIEF_KEYS_DOWN=$'\e'[B
 CHIEF_KEYS_RIGHT=$'\e'[C
 CHIEF_KEYS_LEFT=$'\e'[D
 CHIEF_KEYS_NUMPADUNKNOWN=$'\e'[G
+
+
+prompt_end() {
+  if [[ -n $CURRENT_BG ]]; then
+      print -n "%{%k%F{$CURRENT_BG}%}$SEGMENT_SEPARATOR"
+  else
+      print -n "%{%k%}"
+  fi
+
+  print -n "%{%f%}"
+  CURRENT_BG=''
+
+  #Adds the new line and ➜ as the start character.
+  printf "\n ➜";
+}
