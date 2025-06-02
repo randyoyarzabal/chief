@@ -44,17 +44,19 @@ CHIEF_USER_PLUGIN_DEFAULT="$CHIEF_USER_PLUGINS/default_chief-plugin.sh"
 ####################################
 
 # CORE TOOLS
-CHIEF_CFG_COLORED_LS=true
+CHIEF_CFG_COLORED_LS=false
+
+# Prompt configuration
+CHIEF_CFG_COLORED_PROMPT=true
+
+# Load Git Tools (prompt and command completion)
+CHIEF_CFG_TOOL_GIT=false
 
 # Change this to false, if you prefer the full path in your prompt.
 CHIEF_CFG_CWD_ONLY_PROMPT=false
 
-CHIEF_CFG_COLORED_PROMPT=true
 CHIEF_CFG_BANNER=true
 CHIEF_CFG_VERBOSE=true
-
-# Load Git Tools (prompt and command completion)
-CHIEF_CFG_TOOL_GIT=true
 
 # Command alias for Chief
 # For example, "reo".  Then all chief.* commands will be available as reo.*
