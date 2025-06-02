@@ -70,7 +70,7 @@ if [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIE
   fi
 fi
 
-Apply colored LS
+# Apply colored LS
 if ${CHIEF_CFG_COLORED_LS}; then
   __print "Applying ls colors..."
   if [[ ${PLATFORM} == "MacOS" ]]; then
