@@ -4,7 +4,7 @@
 #   All settings and commands are done via the chief.* commands
 ###################################################################################################################
 
-CHIEF_TOOL_VERSION="v3.0.8 (2024-Sept-4)"
+CHIEF_TOOL_VERSION="v3.0.9 (2025-Jun-1)"
 CHIEF_TOOL_REPO="https://github.com/randyoyarzabal/chief"
 CHIEF_TOOL_AUTHOR="Randy E. Oyarzabal"
 
