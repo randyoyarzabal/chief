@@ -1,6 +1,5 @@
 title: Chief
 tagline: [Get your BASH functions and aliases in order]
-description: [Chief is BASH library system with extra features such as prompt and RSA keys management. It allows you to quickly create, manage, and share environment variables, aliases and functions to be used personally or in a team environment.]
 author: Randy E. Oyarzabal
 author_email: github@randyoyarzabal.com
 url: https://chief.reonetlabs.us
