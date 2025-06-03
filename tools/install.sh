@@ -12,6 +12,13 @@ CHIEF_COLOR_GREEN='\033[0;32m'
 CHIEF_COLOR_YELLOW='\033[1;33m'
 CHIEF_NO_COLOR='\033[0m' # Reset color/style
 
+# Chief Environment
+local config_lines=(
+  "export CHIEF_CONFIG=\"\$HOME/.chief_config.sh\""
+  "export CHIEF_PATH=\"\$HOME/.chief\""
+  "source \${CHIEF_PATH}/chief.sh"
+)
+
 function _chief.banner {
   echo -e "${CHIEF_COLOR_YELLOW}        __    _      ____${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW}  _____/ /_  (_)__  / __/${CHIEF_NO_COLOR}"
@@ -77,13 +84,6 @@ function _chief_install_config {
   else
     echo -e "${CHIEF_COLOR_YELLOW}Chief configuration file already exists at $CHIEF_CONFIG.${CHIEF_NO_COLOR}"
   fi
-
-  # Chief Environment
-  local config_lines=(
-    "export CHIEF_CONFIG=\"\$HOME/.chief_config.sh\""
-    "export CHIEF_PATH=\"\$HOME/.chief\""
-    "source \${CHIEF_PATH}/chief.sh"
-  )
 
   # Check if .bashrc exists
   if [[ ! -f "$HOME/.bashrc" ]]; then
