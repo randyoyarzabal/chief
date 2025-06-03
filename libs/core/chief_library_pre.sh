@@ -27,11 +27,11 @@ CHIEF_PLUGINS_CORE="${CHIEF_PLUGINS}"
 # Detect platform
 uname_out="$(uname -s)"
 case "${uname_out}" in
-Linux*) PLATFORM='Linux' ;;
-Darwin*) PLATFORM='MacOS' ;;
-CYGWIN*) PLATFORM='Cygwin' ;;
-MINGW*) PLATFORM='MinGw' ;;
-*) PLATFORM="UNKNOWN:${uname_out}" ;;
+  Linux*) PLATFORM='Linux' ;;
+  Darwin*) PLATFORM='MacOS' ;;
+  CYGWIN*) PLATFORM='Cygwin' ;;
+  MINGW*) PLATFORM='MinGw' ;;
+  *) PLATFORM="UNKNOWN:${uname_out}" ;;
 esac
 
 # Echo string to screen if CHIEF_CFG_VERBOSE is true.
@@ -150,7 +150,7 @@ function __apply_chief-alias() {
 
 # Source the library/plugin module passed.
 function __load_plugins_dir() {
-  # Usage: __load_plugins <plug-in directory>
+  # Usage: __load_plugins_dir <plug-in module> (contrib/core)
   __print "Loading ${CHIEF_ALIAS} ${1}-plugins..."
 
   local full_path
@@ -315,9 +315,9 @@ function __try_text() {
 # Display Chief version info.
 function __chief.info() {
   # Usage: __chief.info
-  echo -e "${CHIEF_TOOL_NAME} ${CHIEF_COLOR_YELLOW}${CHIEF_TOOL_VERSION}${CHIEF_NO_COLOR} (${PLATFORM})"
-  echo -e "by ${CHIEF_TOOL_AUTHOR}"
-  echo -e "${CHIEF_TOOL_REPO}"
+  echo -e "${CHIEF_TITLE} ${CHIEF_COLOR_YELLOW}${CHIEF_VERSION}${CHIEF_NO_COLOR} (${PLATFORM})"
+  echo -e "by ${CHIEF_AUTHOR}"
+  echo -e "${CHIEF_REPO}"
   echo ''
   __try_text
   echo ''

@@ -4,9 +4,9 @@
 #   All settings and commands are done via the chief.* commands
 ###################################################################################################################
 
-CHIEF_TOOL_VERSION="v1.1 (2025-Jun-3)"
-CHIEF_TOOL_REPO="https://github.com/randyoyarzabal/chief"
-CHIEF_TOOL_AUTHOR="Randy E. Oyarzabal"
+CHIEF_VERSION="v1.1 (2025-Jun-3)"
+CHIEF_REPO="https://github.com/randyoyarzabal/chief"
+CHIEF_AUTHOR="Randy E. Oyarzabal"
 
 # MAIN BEGINS HERE
 
@@ -123,10 +123,10 @@ if ${CHIEF_CFG_TOOL_GIT}; then
   PROMPT_COMMAND='__build_git_prompt'
 fi
 
-CHIEF_TOOL_NAME="${CHIEF_COLOR_CYAN}Chief${CHIEF_NO_COLOR} BASH Tools"
+CHIEF_TITLE="${CHIEF_COLOR_CYAN}Chief${CHIEF_NO_COLOR} BASH Tools"
 
 if ${CHIEF_CFG_BANNER}; then
-  echo -e "${CHIEF_TOOL_NAME} ${CHIEF_COLOR_YELLOW}${CHIEF_TOOL_VERSION}${CHIEF_NO_COLOR} (${PLATFORM})"
+  echo -e "${CHIEF_TITLE} ${CHIEF_COLOR_YELLOW}${CHIEF_VERSION}${CHIEF_NO_COLOR} (${PLATFORM})"
   __try_text
 fi
 

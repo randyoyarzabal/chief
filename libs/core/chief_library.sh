@@ -77,7 +77,7 @@ function chief.plugin() {
 
   local USAGE="Usage: $FUNCNAME [$var_arg]
 
-Edit a user $CHIEF_ALIAS plugin library.  If no parameter is passed, default plug-in will be edited."
+Edit a user $CHIEF_ALIAS plugin library.  If no parameter is passed, the default plug-in will be edited."
 
   if [[ $1 == "-?" ]]; then
     echo "${USAGE}"

@@ -10,6 +10,23 @@ Running this command will install Chief by cloning this repo, configure using de
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/master/install.sh)"
 ```
 
+## What can Chief do for you?
+
+TODO
+
+- Function namespaces
+
+
+## Configuration Options
+
+TODO: Table of config options
+
+## Built-in Plug-ins
+
+TODO: Table of core plugins
+
+
+
 ## Configurable Features
 
 - Management of BASH variables, aliases and functions
@@ -61,11 +78,8 @@ Experiment and try the following commands:
 
 ## Contribute
 
-All contributions are welcome. Please use the [git-flow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow) method when contributing.
+All contributions are welcome. Feel free to create your own branch and pull-request against main.
 
 Helpful Reference Sites:
 
 - [BASH Reference Page](https://www.gnu.org/software/bash/manual/bash.html)
-- [Git-Flow Branching](https://nvie.com/posts/a-successful-git-branching-model/)
-- [Git-Flow Cheat Sheet](https://danielkummer.github.io/git-flow-cheatsheet/)
-- [Git Submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules)

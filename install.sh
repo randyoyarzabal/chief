@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
+CHIEF_VERSION="v1.1 (2025-Jun-3)"
 CHIEF_REPOSITORY="https://github.com/randyoyarzabal/chief.git"
 CHIEF_INSTALL_DIR="$HOME/.chief"
 CHIEF_CONFIG_FILE="$HOME/.chief_config.sh" 
@@ -14,6 +15,27 @@ COLOR_ORANGE='\033[0;33m'
 COLOR_YELLOW='\033[1;33m'
 TEXT_BLINK='\033[5m'
 NO_COLOR='\033[0m' # Reset color/style
+
+function _chief_confirm() {
+  local USAGE="Usage: $FUNCNAME <msg/question>
+
+Display a yes/no user prompt and echo the response.
+Returns 'yes' or 'no' string.
+
+Example:
+   response=\$($FUNCNAME 'Do you want to continue?')
+"
+  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
+    echo "${USAGE}"
+    return
+  fi
+
+  read -p "$1 ([y]es or [N]o): "
+  case $(echo $REPLY | tr '[A-Z]' '[a-z]') in
+    y | yes) echo "yes" ;;
+    *) echo "no" ;;
+  esac
+}
 
 function _chief_install {
   if [[ -d $CHIEF_INSTALL_DIR ]]; then
@@ -36,10 +58,11 @@ function _chief_install {
       return 1
     fi
   fi
-  git clone --depth=1 "$CHIEF_REPOSITORY" "$CHIEF_INSTALL_DIR" || {
+  git clone -b reo --depth=1 "$CHIEF_REPOSITORY" "$CHIEF_INSTALL_DIR" || {
     echo -e "${COLOR_RED}Error: git clone of Chief repo failed.${NO_COLOR}"
     return 1
   }
+  echo -e "${COLOR_GREEN}Chief was successfully installed in '${CHIEF_INSTALL_DIR}'.${NO_COLOR}"
 }
 
 function _chief_install_config {
@@ -58,11 +81,29 @@ function _chief_install_config {
     "source \${CHIEF_PATH}/chief.sh"
   )
 
-  # Only append the lines if they are not already present
-  for line in "${config_lines[@]}"; do
-    grep -qxF "$line" "$HOME/.bashrc" || echo "$line" >> "$HOME/.bashrc"
-  done
-
+  # Check if .bashrc exists
+  if [[ ! -f "$HOME/.bashrc" ]]; then
+    echo -e "${COLOR_RED}Error: ~/.bashrc file does not exist.${NO_COLOR}"
+    response=$(_chief_confirm "Create it?")
+    if [[ $response == 'yes' ]]; then
+      touch "$HOME/.bashrc"
+      for line in "${config_lines[@]}"; do
+        echo "$line" >> "$HOME/.bashrc"
+      done
+    else
+      echo -e "${COLOR_YELLOW}Chief wasn't auto-added to your start-up scripts.${NO_COLOR}"
+      echo -e "${COLOR_YELLOW}To use Chief, you must add the following lines to to your start-up scripts:${NO_COLOR}"
+      for line in "${config_lines[@]}"; do
+        echo -e "  ${COLOR_CYAN}$line${NO_COLOR}"
+      done
+      return 1
+    fi
+  else
+    # Only append the lines if they are not already present
+    for line in "${config_lines[@]}"; do
+      grep -qxF "$line" "$HOME/.bashrc" || echo "$line" >> "$HOME/.bashrc"
+    done
+  fi
   echo -e "${COLOR_GREEN}These lines were added to your ~/.bashrc (if it didn't already exist):${NO_COLOR}"
   for line in "${config_lines[@]}"; do
     echo -e "  ${COLOR_CYAN}$line${NO_COLOR}"
@@ -71,6 +112,12 @@ function _chief_install_config {
 
 function _chief_install_banner {
   source ~/.bashrc
+        __    _      ____
+  _____/ /_  (_)__  / __/
+ / ___/ __ \/ / _ \/ /_  
+/ /__/ / / / /  __/ __/  
+\___/_/ /_/_/\___/_/     
+                         
   echo -e "${COLOR_CYAN}Chief is now installed and configured.${NO_COLOR}"
   echo -e "${COLOR_BLUE}Get your BASH together and load Chief! ${COLOR_YELLOW}Restart your terminal or reload your ~/.bashrc file.${NO_COLOR}"
 }

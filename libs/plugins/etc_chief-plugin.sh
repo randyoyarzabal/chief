@@ -164,7 +164,7 @@ function chief.etc_ask_yes_or_no() {
 Display a yes/no user prompt and echo the response.
 Returns 'yes' or 'no' string.
 
-Use example:
+Example:
    response=\$($FUNCNAME 'Do you want to continue?')
 "
 
@@ -185,7 +185,7 @@ function chief.etc_prompt() {
 
 Display a user prompt and echo response back.
 
-Use example:
+Example:
    user_name=\$($FUNCNAME 'What is your LAN ID?')"
 
   read -p "$1: "
