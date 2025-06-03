@@ -5,15 +5,11 @@ CHIEF_REPOSITORY="https://github.com/randyoyarzabal/chief.git"
 CHIEF_INSTALL_DIR="$HOME/.chief"
 CHIEF_CONFIG_FILE="$HOME/.chief_config.sh" 
 
-# COLORS
 COLOR_RED='\033[0;31m'
 COLOR_BLUE='\033[0;34m'
 COLOR_CYAN='\033[0;36m'
 COLOR_GREEN='\033[0;32m'
-COLOR_MAGENTA='\033[0;35m'
-COLOR_ORANGE='\033[0;33m'
 COLOR_YELLOW='\033[1;33m'
-TEXT_BLINK='\033[5m'
 NO_COLOR='\033[0m' # Reset color/style
 
 function _chief_confirm() {
@@ -110,16 +106,6 @@ function _chief_install_config {
   done
 }
 
-function _chief_install_banner {
-  echo -e "${COLOR_YELLOW}        __    _      ____${NO_COLOR}"
-  echo -e "${COLOR_YELLOW}  _____/ /_  (_)__  / __/${NO_COLOR}"
-  echo -e "${COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${NO_COLOR}"
-  echo -e "${COLOR_YELLOW}/ /__/ / / / /  __/ __/  ${NO_COLOR}"
-  echo -e "${COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${NO_COLOR}${CHIEF_VERSION}"
-  echo -e "${COLOR_CYAN}Chief is now installed and configured.${NO_COLOR}"
-  echo -e "${COLOR_BLUE}Get your BASH together! ${COLOR_YELLOW}Restart your terminal or reload your ~/.bashrc file.${NO_COLOR}"
-}
-
 _chief_install || {
   echo -e "${COLOR_RED}Chief installation failed.${NO_COLOR}"
   exit 1
@@ -133,6 +119,6 @@ _chief_install_config || {
 echo -e "${COLOR_CYAN}Chief is now installed and configured.${NO_COLOR}"
 
 source $HOME/.bashrc || {
-  echo -e "${COLOR_RED}Error: Could not source ~/.bashrc. Please check the file for errors.${NO_COLOR}"
+  echo -e "${COLOR_RED}Error: Could not source ~/.bashrc. Chief did not load. Please check the file for errors.${NO_COLOR}"
   exit 1
 }
