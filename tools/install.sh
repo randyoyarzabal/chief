@@ -62,7 +62,7 @@ function _chief_install {
       return 1
     fi
   fi
-  git clone -b reo --depth=1 "$CHIEF_REPOSITORY" "$CHIEF_PATH" || {
+  git clone --depth=1 "$CHIEF_REPOSITORY" "$CHIEF_PATH" || {
     echo -e "${CHIEF_COLOR_RED}Error: git clone of Chief repo failed.${CHIEF_NO_COLOR}"
     return 1
   }
