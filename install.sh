@@ -112,12 +112,11 @@ function _chief_install_config {
 
 function _chief_install_banner {
   source ~/.bashrc
-        __    _      ____
-  _____/ /_  (_)__  / __/
- / ___/ __ \/ / _ \/ /_  
-/ /__/ / / / /  __/ __/  
-\___/_/ /_/_/\___/_/     
-                         
+  echo -e "${COLOR_YELLOW}      __    _      ____${NO_COLOR}"
+  echo -e "${COLOR_YELLOW}_____/ /_  (_)__  / __/${NO_COLOR}"
+  echo -e "${COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${NO_COLOR}"
+  echo -e "${COLOR_YELLOW}/ /__/ / / / /  __/ __/  ${NO_COLOR}"
+  echo -e "${COLOR_YELLOW}\___/_/ /_/_/\___/_/     ${NO_COLOR}${CHIEF_VERSION}"
   echo -e "${COLOR_CYAN}Chief is now installed and configured.${NO_COLOR}"
   echo -e "${COLOR_BLUE}Get your BASH together and load Chief! ${COLOR_YELLOW}Restart your terminal or reload your ~/.bashrc file.${NO_COLOR}"
 }
