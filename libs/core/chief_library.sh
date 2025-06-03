@@ -57,6 +57,7 @@ Update the $CHIEF_ALIAS utility library to the latest version."
       chief.git_update -p
       chief.reload_library
       cd - > /dev/null 2>&1
+      echo -e "${CHIEF_COLOR_GREEN}Updated Chief to [${CHIEF_VERSION}].${CHIEF_NO_COLOR}"
     fi
   else
     echo -e "${CHIEF_COLOR_YELLOW}No Chief updates found.${CHIEF_NO_COLOR}"
