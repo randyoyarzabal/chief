@@ -37,7 +37,8 @@ esac
 # Echo string to screen if CHIEF_CFG_VERBOSE is true.
 function __print() {
   # Usage: __print <string>
-  if ${CHIEF_CFG_VERBOSE} || [[ "${2}" == '--force' ]]; then
+  echo "=>${2}<=="
+  if ${CHIEF_CFG_VERBOSE} && [[ "${2}" == '--force' ]]; then
     echo "${1}"
   fi
 }
@@ -299,7 +300,7 @@ function __load_library() {
   __load_plugins_dir 'contrib' "$1"
   __load_plugins 'user' "$1"
 
-  __print "${CHIEF_ALIAS} BASH library/environment (re)loaded."
+  __print "${CHIEF_ALIAS} BASH library/environment (re)loaded." "$1"
 }
 
 # Display Chief banner
