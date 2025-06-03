@@ -4,7 +4,7 @@ Get your BASH together!
 
 ## Installation
 
-```shell
+```
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
 ```
 
@@ -17,7 +17,7 @@ Running the above command will:
 
 To un-install:
 
-```shell
+```
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh)"
 ```
 
@@ -53,13 +53,13 @@ TODO: Table of core plugins
 
 1. Clone the repo to your desired location, for example: `$HOME/.chief`
 
-    ```bash
+    ```
     git clone --depth=1 https://github.com/randyoyarzabal/chief.git $HOME/.chief
     ```
 
 2. Make a copy a config template from the 'templates' directory. Note that it need to be placed outside the root of Chief.
 
-    ```bash
+    ```
     cp templates/chief_config_template.sh ~/.chief_config.sh
     ```
 
