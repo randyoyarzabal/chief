@@ -25,6 +25,7 @@ CHIEF_CFG_HINTS=true
 # Note: if there are any local changes, Chief will not detect any remote updates as
 # it assumes you are using a forked version. Also note, depending on GitHub's current stability,
 # this could take annoyingly long, so feel free to disable if it bothers you.
+# You can also check for updates manually with the command: chief.update
 CHIEF_CHECK_UPDATES=false
 
 #  ** All plug-ins must be defined with their respective absolute paths. **

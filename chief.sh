@@ -37,17 +37,7 @@ if ${CHIEF_CFG_BANNER}; then
 fi
 
 if ${CHIEF_CHECK_UPDATES}; then
-  chief.etc_spinner "Checking for updates..." "__check_for_updates" tmp_out
-  echo -e "${tmp_out}"
-  if [[ ${tmp_out} == *"available"* ]]; then
-    response=$(chief.etc_ask_yes_or_no "Or, update now?")
-    if [[ $response == 'yes' ]]; then
-      chief.root
-      chief.git_update -p
-      chief.reload_library
-      cd - > /dev/null 2>&1
-    fi
-  fi
+  chief.update
 fi
 
 # Load RSA/SSH keys if directory is defined

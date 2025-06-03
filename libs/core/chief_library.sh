@@ -43,15 +43,26 @@ Update the $CHIEF_ALIAS utility library to the latest version."
     return
   fi
 
-  local save_dir=$(pwd)
-  chief.root; 
-  if [[ $(chief.git_update -p) == *"changed"* ]]; then
-    echo -e "${CHIEF_COLOR_YELLOW}Updates found [${CHIEF_VERSION}] and applied.${CHIEF_NO_COLOR}"
-    chief.reload_library
-  else
-    echo -e "${CHIEF_COLOR_YELLOW}No updates found.${CHIEF_NO_COLOR}"
+  chief.etc_spinner "Checking for updates..." "__check_for_updates" tmp_out
+  echo -e "${tmp_out}"
+  if [[ ${tmp_out} == *"available"* ]]; then
+    response=$(chief.etc_ask_yes_or_no "Updates are available, update now?")
+    if [[ $response == 'yes' ]]; then
+      chief.root
+      chief.git_update -p
+      chief.reload_library
+      cd - > /dev/null 2>&1
+    fi
   fi
-  cd ${save_dir}
+
+  # chief.root; 
+  # if [[ $(chief.git_update -p) == *"changed"* ]]; then
+  #   echo -e "${CHIEF_COLOR_YELLOW}Updates found [${CHIEF_VERSION}] and applied.${CHIEF_NO_COLOR}"
+  #   chief.reload_library
+  # else
+  #   echo -e "${CHIEF_COLOR_YELLOW}No updates found.${CHIEF_NO_COLOR}"
+  # fi
+  # cd - > /dev/null 2>&1
 }
 
 function chief.config() {
