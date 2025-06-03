@@ -155,7 +155,7 @@ function __apply_chief-alias() {
 # Source the library/plugin module passed.
 function __load_plugins_dir() {
   # Usage: __load_plugins_dir <plug-in module> (contrib/core)
-  __print "Loading ${CHIEF_ALIAS} ${1}-plugins..." "$1"
+  __print "Loading ${CHIEF_ALIAS} ${1}-plugins..." "$2"
 
   local full_path
   local plugin_file
@@ -185,7 +185,7 @@ function __load_plugins_dir() {
   fi
 
   if [[ ! ${load_flag} ]]; then
-    __print "   plugins: ${1} not enabled." "$1"
+    __print "   plugins: ${1} not enabled." "$2"
     return
   fi
 
@@ -199,18 +199,18 @@ function __load_plugins_dir() {
       if [[ -f ${full_path} ]]; then
         # TODO: Check plugin prerequisites before loading.
         __apply_chief-alias "${full_path}" # Apply alias and source the plugin
-        __print "   plugin: ${plugin_name} loaded." "$1"
+        __print "   plugin: ${plugin_name} loaded." "$2"
       fi
     done
   else
-    __print "   $1 plugins directory does not exist." "$1"
+    __print "   $1 plugins directory does not exist." "$2"
   fi
 }
 
 # Source the library/plugin module passed.
 function __load_plugins() {
   # Usage: __load_plugins <plug-in module> (user/contrib/core)
-  __print "Loading ${CHIEF_ALIAS} ${1}-plugins..." "$1"
+  __print "Loading ${CHIEF_ALIAS} ${1}-plugins..." "$2"
 
   local plugin_variable
   local plugin_file
@@ -232,9 +232,9 @@ function __load_plugins() {
     if [[ -f ${plugin_file} ]]; then
       # TODO: Check plugin prerequisites before loading.
       __apply_chief-alias ${plugin_file} # Apply alias and source the plugin
-      __print "   plugin: ${plugin_name} loaded." "$1"
+      __print "   plugin: ${plugin_name} loaded." "$2"
     else
-      __print "   plugin: ${plugin_name} plugin file does not exist." "$1"
+      __print "   plugin: ${plugin_name} plugin file does not exist." "$2"
     fi
   done
 }
