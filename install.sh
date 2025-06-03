@@ -111,14 +111,13 @@ function _chief_install_config {
 }
 
 function _chief_install_banner {
-  source ~/.bashrc
   echo -e "${COLOR_YELLOW}        __    _      ____${NO_COLOR}"
   echo -e "${COLOR_YELLOW}  _____/ /_  (_)__  / __/${NO_COLOR}"
   echo -e "${COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${NO_COLOR}"
   echo -e "${COLOR_YELLOW}/ /__/ / / / /  __/ __/  ${NO_COLOR}"
-  echo -e "${COLOR_YELLOW}\___/_/ /_/_/\___/_/     ${NO_COLOR}${CHIEF_VERSION}"
+  echo -e "${COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${NO_COLOR}${CHIEF_VERSION}"
   echo -e "${COLOR_CYAN}Chief is now installed and configured.${NO_COLOR}"
-  echo -e "${COLOR_BLUE}Get your BASH together and load Chief! ${COLOR_YELLOW}Restart your terminal or reload your ~/.bashrc file.${NO_COLOR}"
+  echo -e "${COLOR_BLUE}Get your BASH together! ${COLOR_YELLOW}Restart your terminal or reload your ~/.bashrc file.${NO_COLOR}"
 }
 
 _chief_install || {
@@ -131,4 +130,9 @@ _chief_install_config || {
   exit 1
 }
 
-_chief_install_banner
+echo -e "${COLOR_CYAN}Chief is now installed and configured.${NO_COLOR}"
+
+source $HOME/.bashrc || {
+  echo -e "${COLOR_RED}Error: Could not source ~/.bashrc. Please check the file for errors.${NO_COLOR}"
+  exit 1
+}

@@ -301,11 +301,11 @@ function __load_library() {
 
 # Display Chief banner
 function __chief.banner {
-  echo -e "${COLOR_YELLOW}        __    _      ____${NO_COLOR}"
-  echo -e "${COLOR_YELLOW}  _____/ /_  (_)__  / __/${NO_COLOR}"
-  echo -e "${COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${NO_COLOR}"
-  echo -e "${COLOR_YELLOW}/ /__/ / / / /  __/ __/  ${NO_COLOR}"
-  echo -e "${COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
+  echo -e "${CHIEF_COLOR_YELLOW}        __    _      ____${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_YELLOW}  _____/ /_  (_)__  / __/${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/  ${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
 }
 
 # Display "try" text and dynamically display alias if necessary.
