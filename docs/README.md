@@ -11,7 +11,7 @@ Running the above command will:
 - Install Chief by cloning the git repo to `$HOME/.chief`
 - Configure using a copy of default configuration template to `$HOME/.chief_config.sh`
 - Add the following `$HOME/.bashrc` (file will be created if it doesn't exist)
-- Load Chief by loading `$HOME/.bashrc`
+- Start Chief by loading `$HOME/.bashrc`
 
 To un-install:
 
