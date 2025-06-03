@@ -33,7 +33,7 @@ __load_library
 
 if ${CHIEF_CFG_BANNER}; then
   __chief.banner
-  __try_text
+  __chief.try_text
 fi
 
 if ${CHIEF_CHECK_UPDATES}; then
