@@ -321,6 +321,7 @@ function __chief.try_text() {
     echo -e "${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit the configuration to turn off these hints, banner, enable prompt customizations etc."
     echo -e "${CHIEF_COLOR_GREEN}chief.plugin${CHIEF_NO_COLOR} to edit the default plugin."
     echo -e "${CHIEF_COLOR_GREEN}chief.plugin [plugin_name]${CHIEF_NO_COLOR} to edit a specific user plugin file."
+    echo -e "${CHIEF_COLOR_GREEN}chief.bash_profile${CHIEF_NO_COLOR} and ${CHIEF_COLOR_GREEN}chief.bashrc{CHIEF_NO_COLOR} to edit and autoload accordingly."
     echo -e "${CHIEF_COLOR_CYAN}**Disable this hint by setting ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS=false${CHIEF_NO_COLOR} in ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}"
   fi
 }
