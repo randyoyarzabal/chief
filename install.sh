@@ -2,7 +2,7 @@
 
 CHIEF_REPOSITORY="https://github.com/randyoyarzabal/chief.git"
 CHIEF_INSTALL_DIR="$HOME/.chief"
-CHIEF_CONFIG_FILE="$HOME/.chief_config-test.sh" 
+CHIEF_CONFIG_FILE="$HOME/.chief_config.sh" 
 
 # COLORS
 COLOR_RED='\033[0;31m'
