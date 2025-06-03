@@ -328,12 +328,11 @@ function __chief.try_text() {
 # Display Chief version info.
 function __chief.info() {
   # Usage: __chief.info
-  echo -e "${CHIEF_TITLE} ${CHIEF_COLOR_YELLOW}${CHIEF_VERSION}${CHIEF_NO_COLOR} (${PLATFORM})"
+  __chief.banner
   echo -e "by ${CHIEF_AUTHOR}"
   echo -e "${CHIEF_REPO}"
   echo ''
   __chief.try_text
-  echo ''
 }
 
 # Start SSH agent
