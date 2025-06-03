@@ -35,7 +35,7 @@ Change directory (cd) into the $CHIEF_ALIAS utility root installation directory.
 
 function chief.update() {
   chief.root; 
-  if [[ $(chief.git_update -p) == *changed* ]]; then
+  if [[ $(chief.git_update -p) == *"changed"* ]]; then
     echo -e "${CHIEF_COLOR_YELLOW}Updates found (${CHIEF_VERSION}) and applied.${CHIEF_NO_COLOR}"
     chief.reload_library
   else

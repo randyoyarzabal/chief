@@ -90,7 +90,7 @@ function _chief_install_config {
       echo -e "${COLOR_YELLOW}Chief wasn't auto-added to your start-up scripts.${NO_COLOR}"
       echo -e "${COLOR_YELLOW}To use Chief, you must add the following lines to to your start-up scripts:${NO_COLOR}"
       for line in "${config_lines[@]}"; do
-        echo -e ">${line}"
+        echo -e "${COLOR_CYAN}${line}${NO_COLOR}"
       done
       return 1
     fi
@@ -102,7 +102,7 @@ function _chief_install_config {
   fi
   echo -e "${COLOR_GREEN}These lines were added to your ~/.bashrc (if it didn't already exist):${NO_COLOR}"
   for line in "${config_lines[@]}"; do
-    echo -e "  ${COLOR_CYAN}$line${NO_COLOR}"
+    echo -e ">$line"
   done
 }
 
@@ -118,7 +118,7 @@ _chief_install_config || {
 
 echo -e "${COLOR_CYAN}Chief is now installed and configured.${NO_COLOR}"
 
-source $HOME/.bashrc || {
+. $HOME/.bashrc || {
   echo -e "${COLOR_RED}Error: Could not source ~/.bashrc. Chief did not load. Please check the file for errors.${NO_COLOR}"
   exit 1
 }
