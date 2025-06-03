@@ -51,8 +51,8 @@ CHIEF_USER_PLUGIN_DEFAULT="$CHIEF_USER_PLUGINS/default_chief-plugin.sh"
 
 # (Plug-ins you can edit with chief.plugin <plug-in> command.)
 # Note the suffix of the variable matching the prefix of the file name
-#CHIEF_USER_PLUGIN_SAMPLE1="CHIEF_USER_PLUGINS/sample1_chief-plugin.sh"
-#CHIEF_USER_PLUGIN_SAMPLE1="CHIEF_USER_PLUGINS/sample2_chief-plugin.sh"
+#CHIEF_USER_PLUGIN_SAMPLE1="$CHIEF_USER_PLUGINS/sample1_chief-plugin.sh"
+#CHIEF_USER_PLUGIN_SAMPLE1="$CHIEF_USER_PLUGINS/sample2_chief-plugin.sh"
 
 # You can then access/edit the plugin with:
 # chief.plugin sample1

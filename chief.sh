@@ -29,7 +29,7 @@ fi
 source ${CHIEF_PATH}/libs/core/chief_library_pre.sh
 
 # Core library loading definition
-__load_library
+__load_library 
 
 if ${CHIEF_CFG_BANNER}; then
   __chief.banner

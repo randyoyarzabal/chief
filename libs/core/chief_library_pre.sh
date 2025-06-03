@@ -37,7 +37,7 @@ esac
 # Echo string to screen if CHIEF_CFG_VERBOSE is true.
 function __print() {
   # Usage: __print <string>
-  if ${CHIEF_CFG_VERBOSE}; then
+  if ${CHIEF_CFG_VERBOSE} || [[ -n "${2}" ]]; then
     echo "${1}"
   fi
 }
@@ -154,7 +154,7 @@ function __apply_chief-alias() {
 # Source the library/plugin module passed.
 function __load_plugins_dir() {
   # Usage: __load_plugins_dir <plug-in module> (contrib/core)
-  __print "Loading ${CHIEF_ALIAS} ${1}-plugins..."
+  __print "Loading ${CHIEF_ALIAS} ${1}-plugins..." "$1"
 
   local full_path
   local plugin_file
@@ -184,7 +184,7 @@ function __load_plugins_dir() {
   fi
 
   if [[ ! ${load_flag} ]]; then
-    __print "   plugins: ${1} not enabled."
+    __print "   plugins: ${1} not enabled." "$1"
     return
   fi
 
@@ -198,11 +198,11 @@ function __load_plugins_dir() {
       if [[ -f ${full_path} ]]; then
         # TODO: Check plugin prerequisites before loading.
         __apply_chief-alias "${full_path}" # Apply alias and source the plugin
-        __print "   plugin: ${plugin_name} loaded."
+        __print "   plugin: ${plugin_name} loaded." "$1"
       fi
     done
   else
-    __print "   $1 plugins directory does not exist."
+    __print "   $1 plugins directory does not exist." "$1"
   fi
 }
 
