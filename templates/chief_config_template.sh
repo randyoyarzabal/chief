@@ -11,6 +11,16 @@
 # PLUG-INS LIBRARY PATH CONFIGURATION
 ####################################
 
+# If set to true, will display a banner at start-up.
+# The banner will display the current version and the platform.
+CHIEF_CFG_BANNER=true
+
+# If set to true, will display output when plugins and SSH keys loaded at start-up.
+CHIEF_CFG_VERBOSE=false
+
+# If set to true, will display hints at start-up.
+CHIEF_CFG_HINTS=true
+
 # If set to true, will check and inform of updates available in GitHub at start-up.
 # Note: if there are any local changes, Chief will not detect any remote updates as
 # it assumes you are using a forked version. Also note, depending on GitHub's current stability,
@@ -51,27 +61,18 @@ CHIEF_USER_PLUGIN_DEFAULT="$CHIEF_USER_PLUGINS/default_chief-plugin.sh"
 # TOOLS CONFIGURATION
 ####################################
 
-# CORE TOOLS
+# If set to true, will use colored ls command.
 CHIEF_CFG_COLORED_LS=false
 
-# Prompt configuration
+# Prompt Customizations
 CHIEF_CFG_COLORED_PROMPT=false
 
 # Load Git Tools (prompt and command completion)
 CHIEF_CFG_TOOL_GIT=false
 
 # Change this to false, if you prefer the full path in your prompt.
+#   Setting this to true will only show the current directory name in the prompt.
 CHIEF_CFG_CWD_ONLY_PROMPT=false
-
-CHIEF_CFG_BANNER=true
-CHIEF_CFG_VERBOSE=false
-
-# Command alias for Chief
-# For example, "reo".  Then all chief.* commands will be available as reo.*
-#CHIEF_ALIAS="reo"
-
-# Set this to false for duplicate "chief.*" functions as well.
-#CHIEF_CFG_ALIAS_ONLY=false
 
 # Load private SSH keys into memory. Note: Private keys need to end in ".rsa" with the exception
 #   of the standard id_rsa private key.  Create a symlink if you have to.

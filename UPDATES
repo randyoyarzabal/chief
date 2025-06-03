@@ -5,6 +5,7 @@
 - Updated git completion/prompt scripts.
 - Standard SSH keys (id_rsa, id_ed25519, etc.) are no longer loaded via ssh-add.
 - Added install.sh for simplifying adoption.
-- Deprecated default prompt changes.
+- Disabled custom prompt on default installation.
 - Default plugin will be auto-created if necessary.
 - Added chief.update to update Chief itself.
+- Deprecated ability to change `chief.` alias.

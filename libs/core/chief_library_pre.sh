@@ -117,35 +117,38 @@ function __edit_file() {
 function __apply_chief-alias() {
   # Usage: __apply_chief-alias <library file>
   # Set default values
-  local tmp_lib=$(__get_tmpfile) # Temporary library file.
 
-  if [[ ${CHIEF_ALIAS} != "CHIEF" ]]; then
-    # Substitute chief.* with alias if requested
-    local alias=$(__lower ${CHIEF_ALIAS})
+  # DEPRECATED: This is no longer used, but kept for reference.
+  # local tmp_lib=$(__get_tmpfile) # Temporary library file.
 
-    # Apply alias to functions
-    sed "s/function chief./function $alias./g" ${1} >${tmp_lib} # Replace into a temp file.
+  # if [[ ${CHIEF_ALIAS} != "CHIEF" ]]; then
+  #   # Substitute chief.* with alias if requested
+  #   local alias=$(__lower ${CHIEF_ALIAS})
 
-    # Apply alias to aliases
-    if [[ ${PLATFORM} == "MacOS" ]]; then
-      sed -i "" "s/alias chief./alias $alias./g" ${tmp_lib} # Replace inline.
-    else
-      sed -i "s/alias chief./alias $alias./g" ${tmp_lib} # Replace inline.
-    fi
+  #   # Apply alias to functions
+  #   sed "s/function chief./function $alias./g" ${1} >${tmp_lib} # Replace into a temp file.
 
-    source ${tmp_lib} # Source the library as its alias
+  #   # Apply alias to aliases
+  #   if [[ ${PLATFORM} == "MacOS" ]]; then
+  #     sed -i "" "s/alias chief./alias $alias./g" ${tmp_lib} # Replace inline.
+  #   else
+  #     sed -i "s/alias chief./alias $alias./g" ${tmp_lib} # Replace inline.
+  #   fi
 
-    # Destroy / delete the temp library
-    rm -rf ${tmp_lib}
-  else
-    # Source the library requested even if no alias defined.
-    source "${1}"
-  fi
+  #   source ${tmp_lib} # Source the library as its alias
 
-  # Load chief.* functions as well if requested
-  if ! ${CHIEF_CFG_ALIAS_ONLY}; then
-    source ${1} # Source the library as itself
-  fi
+  #   # Destroy / delete the temp library
+  #   rm -rf ${tmp_lib}
+  # else
+  #   # Source the library requested even if no alias defined.
+  #   source "${1}"
+  # fi
+
+  # # Load chief.* functions as well if requested
+  # if ! ${CHIEF_CFG_ALIAS_ONLY}; then
+  #   source ${1} # Source the library as itself
+  # fi
+  source ${1} # Source the library as itself
 }
 
 # Source the library/plugin module passed.
@@ -309,15 +312,16 @@ function __chief.banner {
 }
 
 # Display "try" text and dynamically display alias if necessary.
-function __try_text() {
-  # Usage: __try_text
-  local cmd_alias=$(__lower ${CHIEF_ALIAS})
-  if [[ ! -z ${CHIEF_ALIAS} ]] && ! ${CHIEF_CFG_ALIAS_ONLY}; then
-    echo -e "Try ${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} or ${CHIEF_COLOR_GREEN}${cmd_alias}.[tab]${CHIEF_NO_COLOR} to see available commands."
-  elif [[ ! -z ${CHIEF_ALIAS} ]] && ${CHIEF_CFG_ALIAS_ONLY}; then
-    echo -e "Try ${CHIEF_COLOR_GREEN}${cmd_alias}.[tab]${CHIEF_NO_COLOR} to see available commands."
-  else
-    echo -e "Try ${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} to see available commands."
+function __chief.try_text() {
+  # Usage: __chief.try_text
+  if ${CHIEF_CFG_HINTS}; then
+    echo -e "${CHIEF_COLOR_YELLOW}Chief tool hints:${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} to see available commands."
+    echo -e "  ${CHIEF_COLOR_GREEN}chief.<command> -?${CHIEF_NO_COLOR} to display help text."
+    echo -e "  ${CHIEF_COLOR_CYAN}chief.config${CHIEF_NO_COLOR} to edit the Chief configuration file."
+    echo -e "  ${CHIEF_COLOR_CYAN}chief.plugin${CHIEF_NO_COLOR} to edit the default plugin."
+    echo -e "  ${CHIEF_COLOR_CYAN}chief.plugin [plugin_name]${CHIEF_NO_COLOR} to edit a specific user plugin file."
+    echo -e "  ${CHIEF_COLOR_CYAN}**Disable this hint by setting ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS=false${CHIEF_NO_COLOR} in ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}"
   fi
 }
 
@@ -328,7 +332,7 @@ function __chief.info() {
   echo -e "by ${CHIEF_AUTHOR}"
   echo -e "${CHIEF_REPO}"
   echo ''
-  __try_text
+  __chief.try_text
   echo ''
 }
 
