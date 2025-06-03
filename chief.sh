@@ -30,6 +30,25 @@ source ${CHIEF_PATH}/libs/core/chief_library_pre.sh
 # Core library loading definition
 __load_library
 
+if ${CHIEF_CFG_BANNER}; then
+  __chief.banner
+  __try_text
+fi
+
+if ${CHIEF_CHECK_UPDATES}; then
+  chief.etc_spinner "Checking for updates..." "__check_for_updates" tmp_out
+  echo -e "${tmp_out}"
+  if [[ ${tmp_out} == *"available"* ]]; then
+    response=$(chief.etc_ask_yes_or_no "Or, update now?")
+    if [[ $response == 'yes' ]]; then
+      chief.root
+      chief.git_update -p
+      chief.reload_library
+      cd - > /dev/null 2>&1
+    fi
+  fi
+fi
+
 # Load RSA/SSH keys if directory is defined
 if [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "Linux" ]]; then
   __print "Loading SSH keys from: ${CHIEF_RSA_KEYS_PATH}..."
@@ -123,23 +142,3 @@ if ${CHIEF_CFG_TOOL_GIT}; then
   PROMPT_COMMAND='__build_git_prompt'
 fi
 
-CHIEF_TITLE="${CHIEF_COLOR_CYAN}Chief${CHIEF_NO_COLOR} BASH Tools"
-
-if ${CHIEF_CFG_BANNER}; then
-  echo -e "${CHIEF_TITLE} ${CHIEF_COLOR_YELLOW}${CHIEF_VERSION}${CHIEF_NO_COLOR} (${PLATFORM})"
-  __try_text
-fi
-
-if ${CHIEF_CHECK_UPDATES}; then
-  chief.etc_spinner "Checking for updates..." "__check_for_updates" tmp_out
-  echo -e "${tmp_out}"
-  if [[ ${tmp_out} == *"available"* ]]; then
-    response=$(chief.etc_ask_yes_or_no "Or, update now?")
-    if [[ $response == 'yes' ]]; then
-      chief.root
-      chief.git_update -p
-      chief.reload_library
-      cd - > /dev/null 2>&1
-    fi
-  fi
-fi

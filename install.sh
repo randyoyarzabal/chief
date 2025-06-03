@@ -94,7 +94,7 @@ function _chief_install_config {
       echo -e "${COLOR_YELLOW}Chief wasn't auto-added to your start-up scripts.${NO_COLOR}"
       echo -e "${COLOR_YELLOW}To use Chief, you must add the following lines to to your start-up scripts:${NO_COLOR}"
       for line in "${config_lines[@]}"; do
-        echo -e "  ${COLOR_CYAN}$line${NO_COLOR}"
+        echo -e ">${line}"
       done
       return 1
     fi
@@ -112,8 +112,8 @@ function _chief_install_config {
 
 function _chief_install_banner {
   source ~/.bashrc
-  echo -e "${COLOR_YELLOW}      __    _      ____${NO_COLOR}"
-  echo -e "${COLOR_YELLOW}_____/ /_  (_)__  / __/${NO_COLOR}"
+  echo -e "${COLOR_YELLOW}        __    _      ____${NO_COLOR}"
+  echo -e "${COLOR_YELLOW}  _____/ /_  (_)__  / __/${NO_COLOR}"
   echo -e "${COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${NO_COLOR}"
   echo -e "${COLOR_YELLOW}/ /__/ / / / /  __/ __/  ${NO_COLOR}"
   echo -e "${COLOR_YELLOW}\___/_/ /_/_/\___/_/     ${NO_COLOR}${CHIEF_VERSION}"
