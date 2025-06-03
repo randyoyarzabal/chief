@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
-CHIEF_INSTALL_DIR="$HOME/.chief"
-CHIEF_CONFIG_FILE="$HOME/.chief_config.sh" 
+CHIEF_PATH="$HOME/.chief"
+CHIEF_CONFIG="$HOME/.chief_config.sh" 
 
 CHIEF_COLOR_RED='\033[0;31m'
 CHIEF_COLOR_BLUE='\033[0;34m'
@@ -42,9 +42,9 @@ function _chief_uninstall {
   # TODO: Implement uninstall functionality
 
   # Remove the Chief installation directory
-  if [[ -d $CHIEF_INSTALL_DIR ]]; then
+  if [[ -d $CHIEF_PATH ]]; then
     echo -e "${CHIEF_COLOR_BLUE}Removing Chief installation directory...${CHIEF_NO_COLOR}"
-    rm -rf "$CHIEF_INSTALL_DIR" || {
+    rm -rf "$CHIEF_PATH" || {
       echo -e "${CHIEF_COLOR_RED}Error: Could not remove Chief installation directory.${CHIEF_NO_COLOR}"
       return 1
     }
@@ -53,15 +53,15 @@ function _chief_uninstall {
     echo -e "${CHIEF_COLOR_YELLOW}Chief is not installed, nothing to remove.${CHIEF_NO_COLOR}"
   fi
   # Remove the Chief configuration file
-  if [[ -f $CHIEF_CONFIG_FILE ]]; then
+  if [[ -f $CHIEF_CONFIG ]]; then
     # Backup the configuration file before removing it
     echo -e "${CHIEF_COLOR_BLUE}Backing up Chief configuration file...${CHIEF_NO_COLOR}"
-    cp "$CHIEF_CONFIG_FILE" "${CHIEF_CONFIG_FILE}.backup" || {
+    cp "$CHIEF_CONFIG" "${CHIEF_CONFIG}.backup" || {
       echo -e "${CHIEF_COLOR_RED}Error: Could not backup Chief configuration file.${CHIEF_NO_COLOR}"
       return 1
     }
     echo -e "${CHIEF_COLOR_BLUE}Removing Chief configuration file...${CHIEF_NO_COLOR}"
-    rm -f "$CHIEF_CONFIG_FILE" || {
+    rm -f "$CHIEF_CONFIG" || {
       echo -e "${CHIEF_COLOR_RED}Error: Could not remove Chief configuration file.${CHIEF_NO_COLOR}"
       return 1
     }
