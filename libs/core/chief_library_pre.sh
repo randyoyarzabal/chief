@@ -37,7 +37,7 @@ esac
 # Echo string to screen if CHIEF_CFG_VERBOSE is true.
 function __print() {
   # Usage: __print <string>
-  if ${CHIEF_CFG_VERBOSE} || [[ -n "${2}" ]]; then
+  if ${CHIEF_CFG_VERBOSE} || [[ -z "${2}" ]]; then
     echo "${1}"
   fi
 }
@@ -209,7 +209,7 @@ function __load_plugins_dir() {
 # Source the library/plugin module passed.
 function __load_plugins() {
   # Usage: __load_plugins <plug-in module> (user/contrib/core)
-  __print "Loading ${CHIEF_ALIAS} ${1}-plugins..."
+  __print "Loading ${CHIEF_ALIAS} ${1}-plugins..." "$1"
 
   local plugin_variable
   local plugin_file
@@ -231,9 +231,9 @@ function __load_plugins() {
     if [[ -f ${plugin_file} ]]; then
       # TODO: Check plugin prerequisites before loading.
       __apply_chief-alias ${plugin_file} # Apply alias and source the plugin
-      __print "   plugin: ${plugin_name} loaded."
+      __print "   plugin: ${plugin_name} loaded." "$1"
     else
-      __print "   plugin: ${plugin_name} plugin file does not exist."
+      __print "   plugin: ${plugin_name} plugin file does not exist." "$1"
     fi
   done
 }
@@ -295,9 +295,9 @@ function __load_library() {
   __apply_chief-alias ${CHIEF_LIBRARY}  # Load chief_library.sh
   CHIEF_ALIAS=$(__upper ${CHIEF_ALIAS}) # Capitalize again, because re-source may have overwrote it.
 
-  __load_plugins_dir 'core'
-  __load_plugins_dir 'contrib'
-  __load_plugins 'user'
+  __load_plugins_dir 'core' "$1"
+  __load_plugins_dir 'contrib' "$1"
+  __load_plugins 'user' "$1"
 
   __print "${CHIEF_ALIAS} BASH library/environment (re)loaded."
 }
