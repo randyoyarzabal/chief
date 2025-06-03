@@ -2,8 +2,8 @@
 
 CHIEF_VERSION="v1.1 (2025-Jun-3)"
 CHIEF_REPOSITORY="https://github.com/randyoyarzabal/chief.git"
-CHIEF_INSTALL_DIR="$HOME/.chief"
-CHIEF_CONFIG_FILE="$HOME/.chief_config.sh" 
+CHIEF_PATH="$HOME/.chief"
+CHIEF_CONFIG="$HOME/.chief_config.sh" 
 
 CHIEF_COLOR_RED='\033[0;31m'
 CHIEF_COLOR_BLUE='\033[0;34m'
@@ -42,9 +42,9 @@ Example:
 }
 
 function _chief_install {
-  if [[ -d $CHIEF_INSTALL_DIR ]]; then
+  if [[ -d $CHIEF_PATH ]]; then
     echo -e "${CHIEF_COLOR_YELLOW}You already have Chief installed.${CHIEF_NO_COLOR}"
-    echo -e "You'll need to remove '$CHIEF_INSTALL_DIR' if you want to re-install it."
+    echo -e "You'll need to remove '$CHIEF_PATH' if you want to re-install it."
     return 1
   fi
 
@@ -62,20 +62,20 @@ function _chief_install {
       return 1
     fi
   fi
-  git clone -b reo --depth=1 "$CHIEF_REPOSITORY" "$CHIEF_INSTALL_DIR" || {
+  git clone -b reo --depth=1 "$CHIEF_REPOSITORY" "$CHIEF_PATH" || {
     echo -e "${CHIEF_COLOR_RED}Error: git clone of Chief repo failed.${CHIEF_NO_COLOR}"
     return 1
   }
-  echo -e "${CHIEF_COLOR_GREEN}Chief was successfully installed in '${CHIEF_INSTALL_DIR}'.${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_GREEN}Chief was successfully installed in '${CHIEF_PATH}'.${CHIEF_NO_COLOR}"
 }
 
 function _chief_install_config {
   echo -e "${CHIEF_COLOR_BLUE}Configuring Chief...${CHIEF_NO_COLOR}"
-  if [[ ! -f "$CHIEF_CONFIG_FILE" ]]; then
-    cp $CHIEF_INSTALL_DIR/templates/chief_config_template.sh $CHIEF_CONFIG_FILE
-    echo -e "${CHIEF_COLOR_GREEN}Chief configuration file created at $CHIEF_CONFIG_FILE.${CHIEF_NO_COLOR}"
+  if [[ ! -f "$CHIEF_CONFIG" ]]; then
+    cp $CHIEF_PATH/templates/chief_config_template.sh $CHIEF_CONFIG
+    echo -e "${CHIEF_COLOR_GREEN}Chief configuration file created at $CHIEF_CONFIG.${CHIEF_NO_COLOR}"
   else
-    echo -e "${CHIEF_COLOR_YELLOW}Chief configuration file already exists at $CHIEF_CONFIG_FILE.${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_YELLOW}Chief configuration file already exists at $CHIEF_CONFIG.${CHIEF_NO_COLOR}"
   fi
 
   # Chief Environment
@@ -127,7 +127,11 @@ function _chief_install_main () {
 
   _chief.banner
   echo -e "${CHIEF_COLOR_GREEN}Chief is now installed and configured.${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_BLUE}Get your BASH together and load Chief! ${CHIEF_COLOR_YELLOW}Restart your terminal or reload your ~/.bashrc file.${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_BLUE}Get your BASH together! ${CHIEF_COLOR_YELLOW}Restart your terminal or reload your ~/.bashrc file to start Chief.${CHIEF_NO_COLOR}"
+
+  export CHIEF_CONFIG
+  export CHIEF_PATH
+  source ${CHIEF_PATH}/chief.sh
 }
 
 _chief_install_main
