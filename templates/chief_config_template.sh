@@ -15,7 +15,7 @@
 # Note: if there are any local changes, Chief will not detect any remote updates as
 # it assumes you are using a forked version. Also note, depending on GitHub's current stability,
 # this could take annoyingly long, so feel free to disable if it bothers you.
-CHIEF_CHECK_UPDATES=true
+CHIEF_CHECK_UPDATES=false
 
 #  ** All plug-ins must be defined with their respective absolute paths. **
 #  BASH environment variables are allowed in paths e.g. ${HOME}
