@@ -1,14 +1,43 @@
-# Introduction
+# Chief
+
+Get your BASH together!
+
+## Installation
+
+```shell
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/master/tools/install.sh)"
+```
+
+Running the above command will:
+
+- Install Chief by cloning the git repo to `$HOME/.chief`
+- Configure using a copy of default configuration template to `$HOME/.chief_config.sh`
+- Add the following `$HOME/.bashrc` (file will be created if it doesn't exist)
+- Start Chief by loading `$HOME/.bashrc`
+
+To un-install:
+
+```shell
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/master/tools/uninstall.sh)"
+```
+
+## What is Chief?
 
 Chief is BASH library system with extra features such as prompt and RSA keys management.  It allows you to quickly create, manage, and share environment variables, aliases and functions to be used personally or a in team environment.
 
-## Automated Installation
+## What can Chief do for you?
 
-Running this command will install Chief by cloning this repo, configure using default configuration template, and add .bashrc entries to auto-load when you start your terminal.
+TODO
 
-```shell
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/master/install.sh)"
-```
+- Function namespaces
+
+## Configuration Options
+
+TODO: Table of config options
+
+## Built-in Plug-ins
+
+TODO: Table of core plugins
 
 ## Configurable Features
 
@@ -61,11 +90,8 @@ Experiment and try the following commands:
 
 ## Contribute
 
-All contributions are welcome. Please use the [git-flow](https://www.atlassian.com/git/tutorials/comparing-workflows/gitflow-workflow) method when contributing.
+All contributions are welcome. Feel free to create your own branch and pull-request against main.
 
 Helpful Reference Sites:
 
 - [BASH Reference Page](https://www.gnu.org/software/bash/manual/bash.html)
-- [Git-Flow Branching](https://nvie.com/posts/a-successful-git-branching-model/)
-- [Git-Flow Cheat Sheet](https://danielkummer.github.io/git-flow-cheatsheet/)
-- [Git Submodules](https://git-scm.com/book/en/v2/Git-Tools-Submodules)

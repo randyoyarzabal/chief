@@ -27,11 +27,11 @@ CHIEF_PLUGINS_CORE="${CHIEF_PLUGINS}"
 # Detect platform
 uname_out="$(uname -s)"
 case "${uname_out}" in
-Linux*) PLATFORM='Linux' ;;
-Darwin*) PLATFORM='MacOS' ;;
-CYGWIN*) PLATFORM='Cygwin' ;;
-MINGW*) PLATFORM='MinGw' ;;
-*) PLATFORM="UNKNOWN:${uname_out}" ;;
+  Linux*) PLATFORM='Linux' ;;
+  Darwin*) PLATFORM='MacOS' ;;
+  CYGWIN*) PLATFORM='Cygwin' ;;
+  MINGW*) PLATFORM='MinGw' ;;
+  *) PLATFORM="UNKNOWN:${uname_out}" ;;
 esac
 
 # Echo string to screen if CHIEF_CFG_VERBOSE is true.
@@ -150,7 +150,7 @@ function __apply_chief-alias() {
 
 # Source the library/plugin module passed.
 function __load_plugins_dir() {
-  # Usage: __load_plugins <plug-in directory>
+  # Usage: __load_plugins_dir <plug-in module> (contrib/core)
   __print "Loading ${CHIEF_ALIAS} ${1}-plugins..."
 
   local full_path
@@ -299,6 +299,15 @@ function __load_library() {
   __print "${CHIEF_ALIAS} BASH library/environment (re)loaded."
 }
 
+# Display Chief banner
+function __chief.banner {
+  echo -e "${CHIEF_COLOR_YELLOW}        __    _      ____${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_YELLOW}  _____/ /_  (_)__  / __/${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
+  echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_COLOR_CYAN}${CHIEF_WEBSITE}${CHIEF_NO_COLOR}"
+}
+
 # Display "try" text and dynamically display alias if necessary.
 function __try_text() {
   # Usage: __try_text
@@ -315,9 +324,9 @@ function __try_text() {
 # Display Chief version info.
 function __chief.info() {
   # Usage: __chief.info
-  echo -e "${CHIEF_TOOL_NAME} ${CHIEF_COLOR_YELLOW}${CHIEF_TOOL_VERSION}${CHIEF_NO_COLOR} (${PLATFORM})"
-  echo -e "by ${CHIEF_TOOL_AUTHOR}"
-  echo -e "${CHIEF_TOOL_REPO}"
+  echo -e "${CHIEF_TITLE} ${CHIEF_COLOR_YELLOW}${CHIEF_VERSION}${CHIEF_NO_COLOR} (${PLATFORM})"
+  echo -e "by ${CHIEF_AUTHOR}"
+  echo -e "${CHIEF_REPO}"
   echo ''
   __try_text
   echo ''
