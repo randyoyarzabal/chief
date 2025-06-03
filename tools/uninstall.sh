@@ -80,7 +80,7 @@ function _chief_uninstall {
       # TODO: Detect if gnu sed is installed and use that, for now, instruct user to do the removal manually
       echo -e "${CHIEF_COLOR_YELLOW}Remove the following lines manually from ~/.bashrc${CHIEF_NO_COLOR}:"
       for line in "${CHIEF_CONFIG_LINES[@]}"; do
-        echo -e "$line"
+        echo -e "  $line"
       done
     else
       # Use sed to remove lines from .bashrc on non MacOS systems
