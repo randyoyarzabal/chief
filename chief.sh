@@ -31,6 +31,12 @@ source ${CHIEF_PATH}/libs/core/chief_library_pre.sh
 # Core library loading definition
 __load_library 
 
+# Load RSA/SSH keys if directory is defined
+if [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "Linux" ]]; then
+  chief.etc_spinner "Loading SSH keys..." "__load_ssh_keys" tmp_out
+  echo -e "${tmp_out}"
+fi
+
 if ${CHIEF_CFG_BANNER}; then
   __chief.banner
   __chief.try_text
@@ -38,12 +44,6 @@ fi
 
 if ${CHIEF_CHECK_UPDATES}; then
   chief.update
-fi
-
-# Load RSA/SSH keys if directory is defined
-if [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "Linux" ]]; then
-  chief.etc_spinner "Loading SSH keys..." "__load_ssh_keys" tmp_out
-  echo -e "${tmp_out}"
 fi
 
 # Apply colored LS
