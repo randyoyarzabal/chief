@@ -1,3 +1,4 @@
+v1.1
 - Updated git completion/prompt scripts.
 - Standard SSH keys (id_rsa, id_ed25519, etc.) are no longer loaded via ssh-add.
 - Added install.sh for simplifying adoption.
