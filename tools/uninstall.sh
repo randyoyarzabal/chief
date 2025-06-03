@@ -78,7 +78,7 @@ function _chief_uninstall {
   if [[ -f "$HOME/.bashrc" ]]; then
     if [[ $(uname) == "Darwin" ]]; then
       # TODO: Detect if gnu sed is installed and use that, for now, instruct user to do the removal manually
-      echo -e "${CHIEF_COLOR_YELLOW}Remove the following lines manually from ~/.bashrc${CHIEF_NO_COLOR}:"
+      echo -e "${CHIEF_COLOR_YELLOW}Remove the following lines manually from ~/.bashrc (if exists).${CHIEF_NO_COLOR}:"
       for line in "${CHIEF_CONFIG_LINES[@]}"; do
         echo -e "  $line"
       done
