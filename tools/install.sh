@@ -102,23 +102,30 @@ function _chief_install_config {
   fi
   echo -e "${COLOR_GREEN}These lines were added to your ~/.bashrc (if it didn't already exist):${NO_COLOR}"
   for line in "${config_lines[@]}"; do
-    echo -e ">$line"
+    echo -e "  $line"
   done
 }
 
-_chief_install || {
-  echo -e "${COLOR_RED}Chief installation failed.${NO_COLOR}"
-  exit 1
+function _chief_install_main () {
+  _chief_install || {
+    echo -e "${COLOR_RED}Chief installation failed.${NO_COLOR}"
+    exit 1
+  }
+
+  _chief_install_config || {
+    echo -e "${COLOR_RED}Chief configuration failed.${NO_COLOR}"
+    exit 1
+  }
+
+  echo -e "${COLOR_CYAN}Chief is now installed and configured.${NO_COLOR}"
+
+  . $HOME/.bashrc || {
+    echo -e "${COLOR_RED}Error: Could not source ~/.bashrc. Chief did not load. Please check the file for errors.${NO_COLOR}"
+    exit 1
+  }
 }
 
-_chief_install_config || {
-  echo -e "${COLOR_RED}Chief configuration failed.${NO_COLOR}"
-  exit 1
-}
+[[ ${BASH_EXECUTION_STRING-} && $0 == -* ]] &&
+  set -- "$0" "$@"
 
-echo -e "${COLOR_CYAN}Chief is now installed and configured.${NO_COLOR}"
-
-. $HOME/.bashrc || {
-  echo -e "${COLOR_RED}Error: Could not source ~/.bashrc. Chief did not load. Please check the file for errors.${NO_COLOR}"
-  exit 1
-}
+_chief_install_main "$@" 5>&2
