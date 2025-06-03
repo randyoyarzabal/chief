@@ -4,7 +4,7 @@ show_downloads: false
 author: Randy E. Oyarzabal
 author_email: github@randyoyarzabal.com
 url: https://chief.reonetlabs.us
-remote_theme: pages-themes/tactile@v0.2.0
+remote_theme: pages-themes/dinky@v0.2.0
 plugins:
 - jekyll-remote-theme
 toc: true
