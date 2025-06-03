@@ -22,7 +22,11 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 
 ## Manual Installation
 
-1. Clone the repo.
+1. Clone the repo to your desired location, for example: `$HOME/.chief`
+
+    ```bash
+    git clone --depth=1 https://github.com/randyoyarzabal/chief.git $HOME/.chief
+    ```
 
 2. Make a copy a config template from the 'templates' directory. Note that it need to be placed outside the root of Chief.
 
@@ -30,8 +34,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
     cp templates/chief_config_template.sh ~/.chief_config.sh
     ```
 
-    Change the configuration to suit. Be sure that the file/dir defined in 'CHIEF_USER_PLUGIN_DEFAULT'
-    exists (i.e. $> touch $CHIEF_USER_PLUGIN_DEFAULT)
+    Change the configuration to suit.
 
 3. Define the following variables and source call in your start-up script (.bash_profile for example).
 
@@ -40,7 +43,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
     ```bash
     # Chief Environment
     CHIEF_CONFIG="$HOME/.chief_config.sh"                                                                                                          
-    CHIEF_PATH="$HOME/dev/repos/github/chief"
+    CHIEF_PATH="$HOME/.chief"
     source ${CHIEF_PATH}/chief.sh
     ```
 
