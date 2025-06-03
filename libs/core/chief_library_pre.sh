@@ -329,8 +329,7 @@ function __chief.try_text() {
 function __chief.info() {
   # Usage: __chief.info
   __chief.banner
-  echo -e "by ${CHIEF_AUTHOR}"
-  echo -e "${CHIEF_REPO}"
+  echo -e "by: ${CHIEF_AUTHOR}"
   echo ''
   __chief.try_text
 }
