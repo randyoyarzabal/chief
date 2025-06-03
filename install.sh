@@ -62,11 +62,11 @@ function _chief_install_config {
   for line in "${config_lines[@]}"; do
     grep -qxF "$line" "$HOME/.bashrc" || echo "$line" >> "$HOME/.bashrc"
   done
-  echo -e "${COLOR_GREEN}Chief has been configured successfully!${NO_COLOR}"
 }
 
 function _chief_install_banner {
-  echo -e "${COLOR_CYAN}Thank you for using Chief${NO_COLOR}"
+  source ~/.bashrc
+  echo -e "${COLOR_CYAN}Chief is now installed and configured.${NO_COLOR}"
   echo -e "${COLOR_BLUE}Get your Bash together!${NO_COLOR}"
 }
 
@@ -79,3 +79,5 @@ _chief_install_config || {
   echo -e "${COLOR_RED}Chief configuration failed.${NO_COLOR}"
   exit 1
 }
+
+_chief_install_banner
