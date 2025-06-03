@@ -13,7 +13,7 @@ CHIEF_COLOR_YELLOW='\033[1;33m'
 CHIEF_NO_COLOR='\033[0m' # Reset color/style
 
 # Chief Environment
-local config_lines=(
+CHIEF_CONFIG_LINES=(
   "export CHIEF_CONFIG=\"\$HOME/.chief_config.sh\""
   "export CHIEF_PATH=\"\$HOME/.chief\""
   "source \${CHIEF_PATH}/chief.sh"
@@ -91,25 +91,25 @@ function _chief_install_config {
     response=$(_chief_confirm "Create it?")
     if [[ $response == 'yes' ]]; then
       touch "$HOME/.bashrc"
-      for line in "${config_lines[@]}"; do
+      for line in "${CHIEF_CONFIG_LINES[@]}"; do
         echo "$line" >> "$HOME/.bashrc"
       done
     else
       echo -e "${CHIEF_COLOR_YELLOW}Chief wasn't auto-added to your start-up scripts.${CHIEF_NO_COLOR}"
       echo -e "${CHIEF_COLOR_YELLOW}To use Chief, you must add the following lines to to your start-up scripts:${CHIEF_NO_COLOR}"
-      for line in "${config_lines[@]}"; do
+      for line in "${CHIEF_CONFIG_LINES[@]}"; do
         echo -e "${CHIEF_COLOR_CYAN}${line}${CHIEF_NO_COLOR}"
       done
       return 1
     fi
   else
     # Only append the lines if they are not already present
-    for line in "${config_lines[@]}"; do
+    for line in "${CHIEF_CONFIG_LINES[@]}"; do
       grep -qxF "$line" "$HOME/.bashrc" || echo "$line" >> "$HOME/.bashrc"
     done
   fi
   echo -e "${CHIEF_COLOR_GREEN}These lines were added to your ~/.bashrc (if it didn't already exist):${CHIEF_NO_COLOR}"
-  for line in "${config_lines[@]}"; do
+  for line in "${CHIEF_CONFIG_LINES[@]}"; do
     echo -e "  $line"
   done
 }

@@ -11,7 +11,7 @@ CHIEF_COLOR_YELLOW='\033[1;33m'
 CHIEF_NO_COLOR='\033[0m' # Reset color/style
 
 # Chief Environment
-local config_lines=(
+CHIEF_CONFIG_LINES=(
   "export CHIEF_CONFIG=\"\$HOME/.chief_config.sh\""
   "export CHIEF_PATH=\"\$HOME/.chief\""
   "source \${CHIEF_PATH}/chief.sh"
@@ -79,13 +79,13 @@ function _chief_uninstall {
     if [[ $(uname) == "Darwin" ]]; then
       # TODO: Detect if gnu sed is installed and use that, for now, instruct user to do the removal manually
       echo -e "${CHIEF_COLOR_YELLOW}Remove the following lines manually from ~/.bashrc${CHIEF_NO_COLOR}:"
-      for line in "${config_lines[@]}"; do
-        echo -e "${CHIEF_COLOR_YELLOW}$line${CHIEF_NO_COLOR}"
+      for line in "${CHIEF_CONFIG_LINES[@]}"; do
+        echo -e "$line"
       done
     else
       # Use sed to remove lines from .bashrc on non MacOS systems
       echo -e "${CHIEF_COLOR_BLUE}Removing Chief lines from ~/.bashrc...${CHIEF_NO_COLOR}"
-      for line in "${config_lines[@]}"; do
+      for line in "${CHIEF_CONFIG_LINES[@]}"; do
         echo -e "${CHIEF_COLOR_BLUE}Removing line from ~/.bashrc: $line${CHIEF_NO_COLOR}"
         sed -i "/$(echo "$line" | sed 's/[\/&]/\\&/g')/d" "$HOME/.bashrc"
       done
