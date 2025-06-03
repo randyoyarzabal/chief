@@ -45,7 +45,6 @@ function _chief_install {
 function _chief_install_config {
   echo -e "${COLOR_BLUE}Configuring Chief...${NO_COLOR}"
   if [[ ! -f "$CHIEF_CONFIG_FILE" ]]; then
-    echo -e "${COLOR_YELLOW}Creating Chief configuration file at $CHIEF_CONFIG_FILE...${NO_COLOR}"
     cp $CHIEF_INSTALL_DIR/templates/chief_config_template.sh $CHIEF_CONFIG_FILE
   else
     echo -e "${COLOR_YELLOW}Chief configuration file already exists at $CHIEF_CONFIG_FILE.${NO_COLOR}"
@@ -67,7 +66,7 @@ function _chief_install_config {
 function _chief_install_banner {
   source ~/.bashrc
   echo -e "${COLOR_CYAN}Chief is now installed and configured.${NO_COLOR}"
-  echo -e "${COLOR_BLUE}Get your Bash together! Restart your terminal or reload your ~/.bashrc file.${NO_COLOR}"
+  echo -e "${COLOR_BLUE}Get your Bash together! ${COLOR_YELLOW}Restart your terminal or reload your ~/.bashrc file.${NO_COLOR}"
 }
 
 _chief_install || {
