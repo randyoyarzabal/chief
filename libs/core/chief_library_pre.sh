@@ -37,7 +37,6 @@ esac
 # Echo string to screen if CHIEF_CFG_VERBOSE is true.
 function __print() {
   # Usage: __print <string>
-  echo "=>${2}<=="
   if ${CHIEF_CFG_VERBOSE} || [[ "${2}" == '--force' ]]; then
     echo "${1}"
   fi
@@ -292,7 +291,7 @@ function __load_library() {
   fi
 
   # These implicitly reloads the library files.
-  __print "Loading core ${CHIEF_ALIAS} library..."
+  __print "Loading core ${CHIEF_ALIAS} library..." "$1"
   __apply_chief-alias ${CHIEF_LIBRARY}  # Load chief_library.sh
   CHIEF_ALIAS=$(__upper ${CHIEF_ALIAS}) # Capitalize again, because re-source may have overwrote it.
 
