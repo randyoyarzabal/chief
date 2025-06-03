@@ -12,12 +12,12 @@ CHIEF_COLOR_GREEN='\033[0;32m'
 CHIEF_COLOR_YELLOW='\033[1;33m'
 CHIEF_NO_COLOR='\033[0m' # Reset color/style
 
-function __chief.banner {
+function _chief.banner {
   echo -e "${CHIEF_COLOR_YELLOW}        __    _      ____${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW}  _____/ /_  (_)__  / __/${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/  ${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
+  echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
+  echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_COLOR_CYAN}https://chief.reonetlabs.us${CHIEF_NO_COLOR}"
 }
 
 function _chief_confirm() {
@@ -125,15 +125,9 @@ function _chief_install_main () {
     exit 1
   }
 
+  _chief.banner
   echo -e "${CHIEF_COLOR_CYAN}Chief is now installed and configured.${CHIEF_NO_COLOR}"
-
-  . $HOME/.bashrc || {
-    echo -e "${CHIEF_COLOR_RED}Error: Could not source ~/.bashrc. Chief did not load. Please check the file for errors.${CHIEF_NO_COLOR}"
-    exit 1
-  }
+  echo -e "${CHIEF_COLOR_BLUE}Get your BASH together and load Chief! ${CHIEF_COLOR_YELLOW}Restart your terminal or reload your ~/.bashrc file.${CHIEF_NO_COLOR}"
 }
 
-[[ ${BASH_EXECUTION_STRING-} && $0 == -* ]] &&
-  set -- "$0" "$@"
-
-_chief_install_main "$@" 5>&2
+_chief_install_main
