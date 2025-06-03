@@ -1,7 +1,3 @@
-# Chief
-
-Get your BASH together!
-
 ## Installation
 
 ```shell
