@@ -65,7 +65,7 @@ function _chief_install_config {
 
   echo -e "${COLOR_GREEN}These lines were added to your ~/.bashrc (if it didn't already exist):${NO_COLOR}"
   for line in "${config_lines[@]}"; do
-    echo -e "${COLOR_CYAN}$line${NO_COLOR}"
+    echo -e "  ${COLOR_CYAN}$line${NO_COLOR}"
   done
 }
 
