@@ -39,8 +39,6 @@ Example:
 }
 
 function _chief_uninstall {
-  # TODO: Implement uninstall functionality
-
   # Remove the Chief installation directory
   if [[ -d $CHIEF_PATH ]]; then
     echo -e "${CHIEF_COLOR_BLUE}Removing Chief installation directory...${CHIEF_NO_COLOR}"
