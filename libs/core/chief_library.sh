@@ -34,6 +34,16 @@ Change directory (cd) into the $CHIEF_ALIAS utility root installation directory.
 }
 
 function chief.update() {
+  local USAGE="Usage: $FUNCNAME
+
+Update the $CHIEF_ALIAS utility library to the latest version."
+
+  if [[ $1 == "-?" ]]; then
+    echo "${USAGE}"
+    return
+  fi
+
+  local save_dir=$(pwd)
   chief.root; 
   if [[ $(chief.git_update -p) == *"changed"* ]]; then
     echo -e "${CHIEF_COLOR_YELLOW}Updates found (${CHIEF_VERSION}) and applied.${CHIEF_NO_COLOR}"
@@ -41,6 +51,7 @@ function chief.update() {
   else
     echo -e "${CHIEF_COLOR_YELLOW}No updates found.${CHIEF_NO_COLOR}"
   fi
+  cd ${save_dir}
 }
 
 function chief.config() {
