@@ -42,42 +42,8 @@ fi
 
 # Load RSA/SSH keys if directory is defined
 if [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "Linux" ]]; then
-  __print "Loading SSH keys from: ${CHIEF_RSA_KEYS_PATH}..."
-
-  if [[ ${PLATFORM} == "MacOS" ]]; then
-    load="/usr/bin/ssh-add --apple-use-keychain"
-  elif [[ ${PLATFORM} == "Linux" ]]; then
-    # This will load ssh-agent (only if needed) just once and will only be reloaded on reboot.
-    load="/usr/bin/ssh-add"
-    SSH_ENV="$HOME/.ssh/environment"
-
-    if [[ -f "${SSH_ENV}" ]]; then
-      . "${SSH_ENV}" >/dev/null
-      ps -ef | grep ${SSH_AGENT_PID} | grep ssh-agent$ >/dev/null || {
-        __start_agent
-      }
-    else
-      __start_agent
-    fi
-  fi
-
-  # Load all keys.  Skip authorized_keys, environment, and known_hosts.
-  for rsa_key in ${CHIEF_RSA_KEYS_PATH}/*.rsa; do
-    if ${CHIEF_CFG_VERBOSE}; then
-      ${load} ${rsa_key}
-    else
-      ${load} ${rsa_key} >/dev/null 2>&1
-    fi
-  done
-
-  # Load key from standard location
-  # if [[ -e ~/.ssh/id_rsa ]]; then
-  #   if ${CHIEF_CFG_VERBOSE}; then
-  #     ${load} ~/.ssh/id_rsa
-  #   else
-  #     ${load} ~/.ssh/id_rsa >/dev/null 2>&1
-  #   fi
-  # fi
+  chief.etc_spinner "Loading SSH keys..." "__load_ssh_keys" tmp_out
+  echo -e "${tmp_out}"
 fi
 
 # Apply colored LS

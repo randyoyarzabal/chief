@@ -33,6 +33,11 @@ Change directory (cd) into the $CHIEF_ALIAS utility root installation directory.
   cd ${CHIEF_PATH}
 }
 
+function chief.load_ssh_keys() {
+  chief.etc_spinner "Loading SSH keys..." "__load_ssh_keys --force" tmp_out
+  echo -e "${tmp_out}"
+}
+
 function chief.update() {
   local USAGE="Usage: $FUNCNAME
 
@@ -53,6 +58,8 @@ Update the $CHIEF_ALIAS utility library to the latest version."
       chief.reload_library
       cd - > /dev/null 2>&1
     fi
+  else
+    echo -e "${CHIEF_COLOR_YELLOW}No updates found.${CHIEF_NO_COLOR}"
   fi
 
   # chief.root; 
