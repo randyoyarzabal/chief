@@ -1,11 +1,9 @@
-# Introduction
+# Chief
 
-Chief is BASH library system with extra features such as prompt and RSA keys management.  It allows you to quickly create, manage, and share environment variables, aliases and functions to be used personally or a in team environment.
-
-## Automated Installation
+## Installation
 
 ```shell
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/master/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/master/tools/install.sh)"
 ```
 
 Running the above command will:
@@ -15,13 +13,21 @@ Running the above command will:
 - Add the following `$HOME/.bashrc` (file will be created if it doesn't exist)
 - Load Chief by loading `$HOME/.bashrc`
 
+To un-install:
+
+```shell
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/master/tools/uninstall.sh)"
+```
+
+## What is Chief?
+
+Chief is BASH library system with extra features such as prompt and RSA keys management.  It allows you to quickly create, manage, and share environment variables, aliases and functions to be used personally or a in team environment.
 
 ## What can Chief do for you?
 
 TODO
 
 - Function namespaces
-
 
 ## Configuration Options
 
@@ -30,8 +36,6 @@ TODO: Table of config options
 ## Built-in Plug-ins
 
 TODO: Table of core plugins
-
-
 
 ## Configurable Features
 
