@@ -1,6 +1,6 @@
 Git Prompt and Completion Tools
 Downloaded from: https://github.com/git/git/tree/master/contrib/completion
-as of: Dec, 12, 2021
+as of: Jun. 2, 2025
 
 To update manually:
 

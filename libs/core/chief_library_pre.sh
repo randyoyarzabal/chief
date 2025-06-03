@@ -263,7 +263,12 @@ function __edit_user_plugin() {
   if [[ -f ${plugin_file} ]]; then
     __edit_file ${plugin_file}
   else
-    __print "   plugin: ${plugin_name} plugin file does not exist."
+    echo "Chief plugin: ${plugin_name} plugin file does not exist."
+    response=$(chief.etc_ask_yes_or_no "Create it?")
+    if [[ $response == 'yes' ]]; then
+      touch ${plugin_file}
+      __edit_file ${plugin_file}
+    fi
   fi
 }
 
