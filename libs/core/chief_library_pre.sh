@@ -309,6 +309,7 @@ function __chief.banner {
   echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
   echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_COLOR_CYAN}${CHIEF_WEBSITE}${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} to see available commands | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
 }
 
 # Display "try" text and dynamically display alias if necessary.
@@ -316,12 +317,11 @@ function __chief.try_text() {
   # Usage: __chief.try_text
   if ${CHIEF_CFG_HINTS}; then
     echo -e "${CHIEF_COLOR_YELLOW}Chief tool hints:${CHIEF_NO_COLOR}"
-    echo -e "  ${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} to see available commands."
-    echo -e "  ${CHIEF_COLOR_GREEN}chief.<command> -?${CHIEF_NO_COLOR} to display help text."
-    echo -e "  ${CHIEF_COLOR_CYAN}chief.config${CHIEF_NO_COLOR} to edit the Chief configuration file."
-    echo -e "  ${CHIEF_COLOR_CYAN}chief.plugin${CHIEF_NO_COLOR} to edit the default plugin."
-    echo -e "  ${CHIEF_COLOR_CYAN}chief.plugin [plugin_name]${CHIEF_NO_COLOR} to edit a specific user plugin file."
-    echo -e "  ${CHIEF_COLOR_CYAN}**Disable this hint by setting ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS=false${CHIEF_NO_COLOR} in ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_GREEN}chief.<command> -?${CHIEF_NO_COLOR} to display help text."
+    echo -e "${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit the configuration to turn off these hints, banner, enable prompt customizations etc."
+    echo -e "${CHIEF_COLOR_GREEN}chief.plugin${CHIEF_NO_COLOR} to edit the default plugin."
+    echo -e "${CHIEF_COLOR_GREEN}chief.plugin [plugin_name]${CHIEF_NO_COLOR} to edit a specific user plugin file."
+    echo -e "${CHIEF_COLOR_CYAN}**Disable this hint by setting ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS=false${CHIEF_NO_COLOR} in ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}"
   fi
 }
 
