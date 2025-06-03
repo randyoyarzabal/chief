@@ -38,7 +38,7 @@ esac
 function __print() {
   # Usage: __print <string>
   echo "=>${2}<=="
-  if ${CHIEF_CFG_VERBOSE} && [[ "${2}" == '--force' ]]; then
+  if ${CHIEF_CFG_VERBOSE} || [[ "${2}" == '--force' ]]; then
     echo "${1}"
   fi
 }
