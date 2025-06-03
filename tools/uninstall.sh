@@ -95,7 +95,7 @@ function _chief_uninstall {
     echo -e "${CHIEF_COLOR_YELLOW}~/.bashrc does not exist, nothing to remove.${CHIEF_NO_COLOR}"
   fi 
   _chief.banner
-  echo -e "${CHIEF_COLOR_GREEN}Chief was successfully un-installed.${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_GREEN}Chief was successfully uninstalled.${CHIEF_NO_COLOR}"
 }
 
 _chief_uninstall
