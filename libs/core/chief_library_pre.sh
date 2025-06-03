@@ -37,7 +37,7 @@ esac
 # Echo string to screen if CHIEF_CFG_VERBOSE is true.
 function __print() {
   # Usage: __print <string>
-  if ${CHIEF_CFG_VERBOSE} && [[ -n "${2}" ]]; then
+  if ${CHIEF_CFG_VERBOSE} && [[ -z "${2}" ]]; then
     echo "${1}"
   fi
 }
