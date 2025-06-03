@@ -4,7 +4,7 @@
 #   All settings and commands are done via the chief.* commands
 ###################################################################################################################
 
-CHIEF_TOOL_VERSION="v3.0.9 (2025-Jun-1)"
+CHIEF_TOOL_VERSION="v1.0 (2025-Jun-1)"
 CHIEF_TOOL_REPO="https://github.com/randyoyarzabal/chief"
 CHIEF_TOOL_AUTHOR="Randy E. Oyarzabal"
 
@@ -70,7 +70,7 @@ if [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIE
   fi
 fi
 
-Apply colored LS
+# Apply colored LS
 if ${CHIEF_CFG_COLORED_LS}; then
   __print "Applying ls colors..."
   if [[ ${PLATFORM} == "MacOS" ]]; then
