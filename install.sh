@@ -46,6 +46,7 @@ function _chief_install_config {
   echo -e "${COLOR_BLUE}Configuring Chief...${NO_COLOR}"
   if [[ ! -f "$CHIEF_CONFIG_FILE" ]]; then
     cp $CHIEF_INSTALL_DIR/templates/chief_config_template.sh $CHIEF_CONFIG_FILE
+    echo -e "${COLOR_GREEN}Chief configuration file created at $CHIEF_CONFIG_FILE.${NO_COLOR}"
   else
     echo -e "${COLOR_YELLOW}Chief configuration file already exists at $CHIEF_CONFIG_FILE.${NO_COLOR}"
   fi
@@ -60,6 +61,11 @@ function _chief_install_config {
   # Only append the lines if they are not already present
   for line in "${config_lines[@]}"; do
     grep -qxF "$line" "$HOME/.bashrc" || echo "$line" >> "$HOME/.bashrc"
+  done
+
+  echo -e "${COLOR_GREEN}These lines were added to your ~/.bashrc (if it didn't already exist):${NO_COLOR}"
+  for line in "${config_lines[@]}"; do
+    echo -e "${COLOR_CYAN}$line${NO_COLOR}"
   done
 }
 

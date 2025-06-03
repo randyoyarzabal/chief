@@ -4,6 +4,8 @@ Chief is BASH library system with extra features such as prompt and RSA keys man
 
 ## Automated Installation
 
+Running this command will install Chief by cloning this repo, configure using default configuration template, and add .bashrc entries to auto-load when you start your terminal.
+
 ```shell
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/master/install.sh)"
 ```
