@@ -125,13 +125,9 @@ function _chief_install_main () {
     exit 1
   }
 
-  export CHIEF_CONFIG
-  export CHIEF_PATH
-  source ${CHIEF_PATH}/chief.sh
-
-  # _chief.banner
+  _chief.banner
   echo -e "${CHIEF_COLOR_GREEN}Chief is now installed and configured.${CHIEF_NO_COLOR}"
-  # echo -e "${CHIEF_COLOR_BLUE}Get your BASH together! ${CHIEF_COLOR_YELLOW}Restart your terminal or reload your ~/.bashrc file to start Chief.${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_BLUE}Get your BASH together! ${CHIEF_COLOR_YELLOW}Restart your terminal or reload your ~/.bashrc file to start Chief.${CHIEF_NO_COLOR}"
 }
 
 _chief_install_main
