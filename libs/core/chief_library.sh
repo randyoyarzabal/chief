@@ -33,7 +33,7 @@ Change directory (cd) into the $CHIEF_ALIAS utility root installation directory.
   cd ${CHIEF_PATH}
 }
 
-function chief.load_ssh_keys() {
+function chief.ssh_load_keys() {
   chief.etc_spinner "Loading SSH keys..." "__load_ssh_keys --force" tmp_out
   echo -e "${tmp_out}"
 }
