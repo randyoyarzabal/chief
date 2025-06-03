@@ -45,7 +45,7 @@ function _chief_install {
 function _chief_install_config {
   echo -e "${COLOR_BLUE}Configuring Chief...${NO_COLOR}"
   if [[ ! -f "$CHIEF_CONFIG_FILE" ]]; then
-    cp templates/chief_config_template.sh $CHIEF_CONFIG_FILE
+    cp $CHIEF_INSTALL_DIR/templates/chief_config_template.sh $CHIEF_CONFIG_FILE
   fi
 
   # Chief Environment
