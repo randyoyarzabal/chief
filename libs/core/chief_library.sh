@@ -59,7 +59,7 @@ Update the $CHIEF_ALIAS utility library to the latest version."
       cd - > /dev/null 2>&1
     fi
   else
-    echo -e "${CHIEF_COLOR_YELLOW}No updates found.${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_YELLOW}No Chief updates found.${CHIEF_NO_COLOR}"
   fi
 
   # chief.root; 
