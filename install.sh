@@ -67,7 +67,7 @@ function _chief_install_config {
 function _chief_install_banner {
   source ~/.bashrc
   echo -e "${COLOR_CYAN}Chief is now installed and configured.${NO_COLOR}"
-  echo -e "${COLOR_BLUE}Get your Bash together!${NO_COLOR}"
+  echo -e "${COLOR_BLUE}Get your Bash together! Restart your terminal or reload your ~/.bashrc file.${NO_COLOR}"
 }
 
 _chief_install || {
