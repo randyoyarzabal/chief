@@ -52,7 +52,7 @@ function _chief_install_config {
 
   # Chief Environment
   local config_lines=(
-    "export CHIEF_CONFIG=\"\$HOME/.chief_config-test.sh\""
+    "export CHIEF_CONFIG=\"\$HOME/.chief_config.sh\""
     "export CHIEF_PATH=\"\$HOME/.chief\""
     "source \${CHIEF_PATH}/chief.sh"
   )
