@@ -61,13 +61,13 @@ if [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIE
   done
 
   # Load key from standard location
-  if [[ -e ~/.ssh/id_rsa ]]; then
-    if ${CHIEF_CFG_VERBOSE}; then
-      ${load} ~/.ssh/id_rsa
-    else
-      ${load} ~/.ssh/id_rsa >/dev/null 2>&1
-    fi
-  fi
+  # if [[ -e ~/.ssh/id_rsa ]]; then
+  #   if ${CHIEF_CFG_VERBOSE}; then
+  #     ${load} ~/.ssh/id_rsa
+  #   else
+  #     ${load} ~/.ssh/id_rsa >/dev/null 2>&1
+  #   fi
+  # fi
 fi
 
 # Apply colored LS
@@ -96,8 +96,8 @@ fi
 # Apply default prompt
 if ${CHIEF_CFG_COLORED_PROMPT}; then
   export PS1="${CHIEF_COLOR_CYAN}\u${CHIEF_NO_COLOR}@${CHIEF_COLOR_GREEN}\h${NC}:${CHIEF_COLOR_YELLOW}${prompt_tag}${CHIEF_NO_COLOR}\$ "
-else
-  export PS1="\u@\h:${prompt_tag}$ "
+# else
+#   export PS1="\u@\h:${prompt_tag}$ "
 fi
 
 # Apply Git Tools (completion/prompt)
