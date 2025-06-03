@@ -5,7 +5,7 @@ Get your BASH together!
 ## Installation
 
 ```shell
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/master/tools/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
 ```
 
 Running the above command will:
@@ -18,7 +18,7 @@ Running the above command will:
 To un-install:
 
 ```shell
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/master/tools/uninstall.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh)"
 ```
 
 ## What is Chief?
