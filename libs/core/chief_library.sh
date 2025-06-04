@@ -122,14 +122,15 @@ function chief.plugin() {
   local plugin_name
   local var_arg
 
-  # Find all plugin declarations in config file
-  for bash_var in $(cat ${CHIEF_CONFIG} | grep -E "^CHIEF_USER_PLUGIN_"); do
-    plugin_variable=$(echo $bash_var | cut -d'=' -f 1)
-    plugin_name=$(__lower $(echo $plugin_variable | cut -d'_' -f 4))
-    var_arg="$plugin_name|$var_arg"
-  done
+  # # Find all plugin declarations in config file
+  # for bash_var in $(cat ${CHIEF_CONFIG} | grep -E "^CHIEF_USER_PLUGIN_"); do
+  #   plugin_variable=$(echo $bash_var | cut -d'=' -f 1)
+  #   plugin_name=$(__lower $(echo $plugin_variable | cut -d'_' -f 4))
+  #   var_arg="$plugin_name|$var_arg"
+  # done
 
-  var_arg=$(echo ${var_arg%?}) # Trim last character
+  # var_arg=$(echo ${var_arg%?}) # Trim last character
+  var_arg=$(__get_plugins)
 
   local USAGE="Usage: $FUNCNAME [$var_arg]
 

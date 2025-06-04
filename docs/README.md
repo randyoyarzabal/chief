@@ -35,6 +35,8 @@ TODO: Table of config options
 
 ## Built-in Plug-ins
 
+| Plugin | Description |
+
 TODO: Table of core plugins
 
 ## Configurable Features

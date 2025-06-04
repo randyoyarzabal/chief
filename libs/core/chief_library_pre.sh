@@ -302,6 +302,22 @@ function __load_library() {
   __print "${CHIEF_ALIAS} BASH library/environment (re)loaded." "$1"
 }
 
+function __get_plugins() {
+  local var_arg
+  local plugin_variable
+  local plugin_name
+
+  # Find all plugin declarations in config file
+  for bash_var in $(cat ${CHIEF_CONFIG} | grep -E "^CHIEF_USER_PLUGIN_"); do
+    plugin_variable=$(echo $bash_var | cut -d'=' -f 1)
+    plugin_name=$(__lower $(echo $plugin_variable | cut -d'_' -f 4))
+    var_arg="$plugin_name|$var_arg"
+  done
+
+  var_arg=$(echo ${var_arg%?}) # Trim last character
+  echo "${var_arg}"
+}
+
 # Display Chief banner
 function __chief.banner {
   echo -e "${CHIEF_COLOR_YELLOW}        __    _      ____${CHIEF_NO_COLOR}"
@@ -309,12 +325,13 @@ function __chief.banner {
   echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
   echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_COLOR_CYAN}${CHIEF_WEBSITE}${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} to see available commands | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
+  echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
+  echo -e "${CHIEF_COLOR_GREEN}Plugins loaded: ${CHIEF_COLOR_GREEN}$(__get_plugins){CHIEF_NO_COLOR}"
 }
 
-# Display "try" text and dynamically display alias if necessary.
-function __chief.try_text() {
-  # Usage: __chief.try_text
+# Display "hints" text and dynamically display alias if necessary.
+function __chief.hints_text() {
+  # Usage: __chief.hints_text
   if ${CHIEF_CFG_HINTS}; then
     echo -e "${CHIEF_COLOR_YELLOW}Chief tool hints:${CHIEF_NO_COLOR}"
     echo -e "${CHIEF_COLOR_GREEN}chief.<command> -?${CHIEF_NO_COLOR} to display help text."
@@ -332,7 +349,7 @@ function __chief.info() {
   __chief.banner
   echo -e "by: ${CHIEF_AUTHOR}"
   echo ''
-  __chief.try_text
+  __chief.hints_text
 }
 
 # Start SSH agent

@@ -2,6 +2,7 @@
 
 CHIEF_PATH="$HOME/.chief"
 CHIEF_CONFIG="$HOME/.chief_config.sh" 
+BASHRC_FILE="$HOME/.bashrc"
 
 CHIEF_COLOR_RED='\033[0;31m'
 CHIEF_COLOR_BLUE='\033[0;34m'
@@ -76,21 +77,23 @@ function _chief_uninstall {
   fi
   # Remove lines from .bashrc
   if [[ -f "$HOME/.bashrc" ]]; then
-    if [[ $(uname) == "Darwin" ]]; then
-      # TODO: Detect if gnu sed is installed and use that, for now, instruct user to do the removal manually
-      echo -e "${CHIEF_COLOR_YELLOW}Remove the following lines manually from ~/.bashrc (if exists).${CHIEF_NO_COLOR}:"
-      for line in "${CHIEF_CONFIG_LINES[@]}"; do
-        echo -e "  $line"
-      done
-    else
-      # Use sed to remove lines from .bashrc on non MacOS systems
-      echo -e "${CHIEF_COLOR_BLUE}Removing Chief lines from ~/.bashrc...${CHIEF_NO_COLOR}"
-      for line in "${CHIEF_CONFIG_LINES[@]}"; do
-        echo -e "${CHIEF_COLOR_BLUE}Removing line from ~/.bashrc: $line${CHIEF_NO_COLOR}"
-        sed -i "/$(echo "$line" | sed 's/[\/&]/\\&/g')/d" "$HOME/.bashrc"
-      done
-      echo -e "${CHIEF_COLOR_GREEN}Chief lines removed from ~/.bashrc.${CHIEF_NO_COLOR}"
-    fi
+    # if [[ $(uname) == "Darwin" ]]; then
+    #   # TODO: Detect if gnu sed is installed and use that, for now, instruct user to do the removal manually
+    #   echo -e "${CHIEF_COLOR_YELLOW}Remove the following lines manually from ~/.bashrc (if exists).${CHIEF_NO_COLOR}:"
+    #   for line in "${CHIEF_CONFIG_LINES[@]}"; do
+    #     echo -e "  $line"
+    #   done
+    # else
+    # Use sed to remove lines from .bashrc on non MacOS systems
+    echo -e "${CHIEF_COLOR_BLUE}Removing Chief lines from ~/.bashrc...${CHIEF_NO_COLOR}"
+    for line in "${CHIEF_CONFIG_LINES[@]}"; do
+      echo -e "${CHIEF_COLOR_BLUE}Removing line from ~/.bashrc: $line${CHIEF_NO_COLOR}"
+      # sed -i "/$(echo "$line" | sed 's/[\/&]/\\&/g')/d" "$HOME/.bashrc"
+      # Portable sed usage: https://unix.stackexchange.com/a/381201
+      sed -i.bak -e "/$(echo "$line" | sed 's/[\/&]/\\&/g')/d" -- "${BASHRC_FILE}" && rm -- "${BASHRC_FILE}.bak"
+    done
+    echo -e "${CHIEF_COLOR_GREEN}Chief lines removed from ~/.bashrc.${CHIEF_NO_COLOR}"
+    # fi
   else
     echo -e "${CHIEF_COLOR_YELLOW}~/.bashrc does not exist, nothing to remove.${CHIEF_NO_COLOR}"
   fi 
