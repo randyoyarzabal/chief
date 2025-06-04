@@ -79,4 +79,4 @@ CHIEF_CFG_CWD_ONLY_PROMPT=false
 #   of the standard id_rsa private key.  Create a symlink if you have to.
 # For example, you may have multiple keys in your ~/.ssh dir.
 # Chief will automatically enable auto-load and auto-cleanup of ssh-agent.
-CHIEF_RSA_KEYS_PATH="$HOME/.ssh"
+#CHIEF_RSA_KEYS_PATH="$HOME/.ssh"

@@ -34,6 +34,21 @@ Change directory (cd) into the $CHIEF_ALIAS utility root installation directory.
 }
 
 function chief.ssh_load_keys() {
+  local USAGE="Usage: $FUNCNAME
+
+Load SSH keys from CHIEF_RSA_KEYS_PATH defined in the Chief configuration.
+Note: All private keys must end with the suffix '.rsa'. Symlinks are allowed.
+"
+
+  if [[ $1 == "-?" ]]; then
+    echo "${USAGE}"
+    return
+  fi
+
+  if [[ -z ${CHIEF_RSA_KEYS_PATH}  ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error: CHIEF_RSA_KEYS_PATH is not set in ${CHIEF_CONFIG}. Please set it to the path where your SSH keys are stored.${CHIEF_NO_COLOR}"
+    return 1
+  fi
   chief.etc_spinner "Loading SSH keys..." "__load_ssh_keys --force" tmp_out
   echo -e "${tmp_out}"
 }
