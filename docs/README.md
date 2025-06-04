@@ -1,6 +1,6 @@
 ## Installation
 
-```
+```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
 ```
 
@@ -15,27 +15,23 @@ Type `chief.config` to edit the configuration to do things such as turn off the 
 
 To uninstall:
 
-```
+```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh)"
 ```
 
 ## What is Chief?
 
-Chief is BASH library system with extra features such as prompt and RSA keys management.  It allows you to quickly create, manage, and share environment variables, aliases and functions to be used personally or a in team environment.
+Chief is BASH library system to help organize functions, aliases, and environment variables with extra features such as prompt customization and SSH keys management.  It also installs  with various function utilities relating to git, SSL, openshift, vault, etc. Once installed, checkout `chief.[tab]` to explore what's available.
 
 ## What can Chief do for you?
 
 TODO
-
-- Function namespaces
 
 ## Configuration Options
 
 TODO: Table of config options
 
 ## Built-in Plug-ins
-
-| Plugin | Description |
 
 TODO: Table of core plugins
 
@@ -53,13 +49,13 @@ TODO: Table of core plugins
 
 1. Clone the repo to your desired location, for example: `$HOME/.chief`
 
-    ```
+    ```bash
     git clone --depth=1 https://github.com/randyoyarzabal/chief.git $HOME/.chief
     ```
 
 2. Make a copy a config template from the 'templates' directory. Note that it need to be placed outside the root of Chief.
 
-    ```
+    ```bash
     cp templates/chief_config_template.sh ~/.chief_config.sh
     ```
 

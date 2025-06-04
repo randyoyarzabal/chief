@@ -89,7 +89,7 @@ function _chief_uninstall {
     for line in "${CHIEF_CONFIG_LINES[@]}"; do
       echo -e "${CHIEF_COLOR_BLUE}Removing line from ~/.bashrc: $line${CHIEF_NO_COLOR}"
       # sed -i "/$(echo "$line" | sed 's/[\/&]/\\&/g')/d" "$HOME/.bashrc"
-      # Portable sed usage: https://unix.stackexchange.com/a/381201
+      # Portable sed reference: https://unix.stackexchange.com/a/381201
       sed -i.bak -e "/$(echo "$line" | sed 's/[\/&]/\\&/g')/d" -- "${BASHRC_FILE}" && rm -- "${BASHRC_FILE}.bak"
     done
     echo -e "${CHIEF_COLOR_GREEN}Chief lines removed from ~/.bashrc.${CHIEF_NO_COLOR}"
