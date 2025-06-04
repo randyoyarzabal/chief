@@ -4,12 +4,12 @@
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
 ```
 
-Running the above command will:
+Running the `install` command will:
 
 - Install Chief by cloning the git repo to `$HOME/.chief`
 - Configure using a copy of default configuration template to `$HOME/.chief_config.sh`
-- Add the following `$HOME/.bashrc` (file will be created if it doesn't exist)
-- To start Chief, restert your terminal or `source ~/.bashrc`.
+- Add the library loading lines to `$HOME/.bashrc` (file will be created if it doesn't exist)
+- To start Chief, restart your terminal or `source ~/.bashrc`.
 
 Type `chief.config` to edit the configuration to do things such as turn off the banner, hints, enable prompt customizations etc.
 
@@ -18,6 +18,18 @@ To uninstall:
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh)"
 ```
+
+Or
+
+`chief.uninstall` within the tool.
+
+Running the `uninstall` command will:
+
+- Remove the installation from `$HOME/.chief`
+- Backup `$HOME/.chief_config.sh` to `$HOME/.chief_config.sh.backup`
+- Remove `$HOME/.chief_config.sh`
+- Remove the library loading lines from `$HOME/.bashrc`
+- Restart your terminal to complete uninstallation.
 
 ## What is Chief?
 

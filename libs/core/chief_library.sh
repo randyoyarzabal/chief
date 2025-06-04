@@ -93,7 +93,8 @@ function  chief.uninstall() {
   local USAGE="Usage: $FUNCNAME
 
 Uninstall the Chief utility.
-This will remove all files and settings related to Chief.
+The configuration file will be backed up as ${CHIEF_CONFIG}.backup.
+All plugin files and plugin directories will NOT be removed.
 This command will prompt for confirmation before proceeding with the uninstallation."
 
   if [[ $1 == "-?" ]]; then
@@ -101,10 +102,7 @@ This command will prompt for confirmation before proceeding with the uninstallat
     return
   fi
 
-  response=$(chief.etc_ask_yes_or_no "Are you sure you want to uninstall the Chief utility? This will remove all files and settings related to Chief.")
-  if [[ $response == 'yes' ]]; then
-    ${CHIEF_PATH}/tools/uninstall.sh
-  fi
+  ${CHIEF_PATH}/tools/uninstall.sh
 }
 
 function chief.config() {

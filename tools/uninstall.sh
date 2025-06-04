@@ -47,6 +47,14 @@ Example:
 }
 
 function _chief_uninstall {
+  response=$(_chief_confirm "Are you sure you want to uninstall the Chief utility? 
+The configuration file will be backed up as ${CHIEF_CONFIG}.backup.
+All plugin files and plugin directories will NOT be removed.
+This action cannot be undone. Proceed with uninstallation?")
+  if [[ $response == 'no' ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Uninstall aborted.${CHIEF_NO_COLOR}"
+    return 0
+  fi
   # Remove the Chief installation directory
   if [[ -d $CHIEF_PATH ]]; then
     echo -e "${CHIEF_COLOR_BLUE}Removing Chief installation directory...${CHIEF_NO_COLOR}"
@@ -99,6 +107,9 @@ function _chief_uninstall {
   fi 
   _chief.banner
   echo -e "${CHIEF_COLOR_GREEN}Chief was successfully uninstalled.${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_CYAN}Thank you for using Chief!${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_CYAN}Plugin files and directories were NOT removed.${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_CYAN}You can remove them manually if you wish.${CHIEF_NO_COLOR}"
 }
 
 _chief_uninstall
