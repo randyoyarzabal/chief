@@ -47,6 +47,7 @@ Note: All private keys must end with the suffix '.rsa'. Symlinks are allowed.
 
   if [[ -z ${CHIEF_RSA_KEYS_PATH}  ]]; then
     echo -e "${CHIEF_COLOR_RED}Error: CHIEF_RSA_KEYS_PATH is not set in ${CHIEF_CONFIG}. Please set it to the path where your SSH keys are stored.${CHIEF_NO_COLOR}"
+    echo "${USAGE}"
     return 1
   fi
   chief.etc_spinner "Loading SSH keys..." "__load_ssh_keys --force" tmp_out
