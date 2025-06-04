@@ -326,7 +326,7 @@ function __chief.banner {
   echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
   echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_COLOR_CYAN}${CHIEF_WEBSITE}${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
-  echo -e "${CHIEF_COLOR_GREEN}Plugins loaded: ${CHIEF_COLOR_GREEN}$(__get_plugins){CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_GREEN}Plugins loaded: ${CHIEF_COLOR_GREEN}$(__get_plugins)${CHIEF_NO_COLOR}"
 }
 
 # Display "hints" text and dynamically display alias if necessary.
