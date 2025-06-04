@@ -89,6 +89,24 @@ Update the $CHIEF_ALIAS utility library to the latest version."
   # cd - > /dev/null 2>&1
 }
 
+function  chief.uninstall() {
+  local USAGE="Usage: $FUNCNAME
+
+Uninstall the Chief utility.
+This will remove all files and settings related to Chief.
+This command will prompt for confirmation before proceeding with the uninstallation."
+
+  if [[ $1 == "-?" ]]; then
+    echo "${USAGE}"
+    return
+  fi
+
+  response=$(chief.etc_ask_yes_or_no "Are you sure you want to uninstall the Chief utility? This will remove all files and settings related to Chief.")
+  if [[ $response == 'yes' ]]; then
+    ${CHIEF_PATH}/tools/uninstall.sh
+  fi
+}
+
 function chief.config() {
   local USAGE="Usage: $FUNCNAME
 
