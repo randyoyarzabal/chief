@@ -200,7 +200,9 @@ function __load_plugins_dir() {
       done
 
       # Sort the plugins alphabetically
-      mapfile -t sorted_plugins < <(printf "%s\n" "${plugins[@]}" | sort)
+      #mapfile -t sorted_plugins < <(printf "%s\n" "${plugins[@]}" | sort)
+      sorted_plugins=($(printf '%s\n' "${plugins[@]}"|sort))
+
 
       # Loop through sorted plugins and print them
       for plugin in "${sorted_plugins[@]}"; do
@@ -240,7 +242,8 @@ __get_plugins() {
     done
 
     # Sort the plugins alphabetically
-    mapfile -t sorted_plugins < <(printf "%s\n" "${plugins[@]}" | sort)
+    #mapfile -t sorted_plugins < <(printf "%s\n" "${plugins[@]}" | sort)
+    sorted_plugins=($(printf '%s\n' "${plugins[@]}"|sort))
 
     # Loop through sorted plugins and print them
     for plugin in "${sorted_plugins[@]}"; do
