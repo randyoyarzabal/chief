@@ -16,13 +16,22 @@ if [[ $0 = $BASH_SOURCE ]]; then
   exit 1
 fi
 
-CHIEF_LIBRARY="${CHIEF_PATH}/libs/core/chief_library.sh"
-CHIEF_GIT_TOOLS="${CHIEF_PATH}/libs/extras/git"
-CHIEF_PLUGINS="${CHIEF_PATH}/libs/plugins"
-CHIEF_PLUGINS_CORE="${CHIEF_PLUGINS}"
+# CHIEF DEFAULTS
+###################################################################################################################
+
+CHIEF_PLUGINS_CORE="${CHIEF_PATH}/libs/core/plugins"
+CHIEF_PLUGIN_SUFFIX="_chief-plugin.sh"
+CHIEF_DEFAULT_USER_PLUGIN_TEMPLATE="${CHIEF_PATH}/templates/chief_user_plugin_template.sh"
+CHIEF_CFG_LOAD_NON_ALIAS=true # Load non-alias functions from plugins by default.
 
 # CORE HELPER FUNCTIONS
 ###################################################################################################################
+
+# This is used to store the sorted plugins array.
+export __CHIEF_PLUGINS_ARR_SORTED=()
+
+#This is used to store the names of the plugins as a string.
+export __CHIEF_PLUGINS_NAMES_STRING=""
 
 # Detect platform
 uname_out="$(uname -s)"
@@ -97,7 +106,7 @@ function __edit_file() {
   # Check if the file was actually modified before reloading
   if [[ ${date2} != ${date1} ]]; then
     if [[ -z $3 ]]; then
-      source ${file}
+      __load_file ${file}
     else
       if [[ $3 == 'reload' ]]; then
         __load_library
@@ -112,51 +121,43 @@ function __edit_file() {
   fi
 }
 
+# This is a helper function to load a file as itself. But created to allow for future pre-processing
+#  e.g. to apply alias to the file before loading it.
+# Usage: __load_file <file> [<message>] 
+function __load_file() {
+  __apply_chief-alias ${1} # Apply alias if defined, then source the file.
+}
+
 # Apply the alias defined in CHIEF_ALIAS to the file passed.
 #  Note: this only applied to any function/alias starting with "chief."
+# Usage: __apply_chief-alias <library file>
 function __apply_chief-alias() {
-  # Usage: __apply_chief-alias <library file>
-  # Set default values
+  #Set default values
+  local tmp_lib=$(__get_tmpfile) # Temporary library file.
+  local source_file=${1} # File to source
 
-  # DEPRECATED: This is no longer used, but kept for reference.
-  # local tmp_lib=$(__get_tmpfile) # Temporary library file.
+  if [[ -n ${CHIEF_ALIAS} ]]; then
+    # Substitute chief.* with alias if requested
+    local alias=$(__lower ${CHIEF_ALIAS})
+    
+    # Apply alias to functions
+    sed "s/function chief./function $alias./g" ${source_file} >${tmp_lib} # Replace into a temp file.
+    sed -i.bak -e "s/alias chief./alias $alias./g" -- "${tmp_lib}" 
 
-  # if [[ ${CHIEF_ALIAS} != "CHIEF" ]]; then
-  #   # Substitute chief.* with alias if requested
-  #   local alias=$(__lower ${CHIEF_ALIAS})
+    source ${tmp_lib} # Source the library as its alias
 
-  #   # Apply alias to functions
-  #   sed "s/function chief./function $alias./g" ${1} >${tmp_lib} # Replace into a temp file.
-
-  #   # Apply alias to aliases
-  #   if [[ ${PLATFORM} == "MacOS" ]]; then
-  #     sed -i "" "s/alias chief./alias $alias./g" ${tmp_lib} # Replace inline.
-  #   else
-  #     sed -i "s/alias chief./alias $alias./g" ${tmp_lib} # Replace inline.
-  #   fi
-
-  #   source ${tmp_lib} # Source the library as its alias
-
-  #   # Destroy / delete the temp library
-  #   rm -rf ${tmp_lib}
-  # else
-  #   # Source the library requested even if no alias defined.
-  #   source "${1}"
-  # fi
-
-  # # Load chief.* functions as well if requested
-  # if ! ${CHIEF_CFG_ALIAS_ONLY}; then
-  #   source ${1} # Source the library as itself
-  # fi
-  source ${1} # Source the library as itself
+    # Destroy / delete the temp library
+    rm -rf ${tmp_lib}
+  fi
+  # Always source the library as "chief." to ensure all functions are available.
+  source ${source_file}
 }
 
 # Source the library/plugin module passed.
 function __load_plugins_dir() {
-  # Usage: __load_plugins_dir <plug-in module> (contrib/core)
-  __print "Loading ${CHIEF_ALIAS} ${1}-plugins..." "$2"
+  # Usage: __load_plugins_dir <plug-in module> (user/core)
+  __print "Loading Chief ${1}-plugins..." "$2"
 
-  local full_path
   local plugin_file
   local plugin_name
   local plugin_switch
@@ -164,158 +165,128 @@ function __load_plugins_dir() {
   local load_flag
 
   plugin_switch="CHIEF_$(__upper ${1})_PLUGINS"
-
+  load_flag=false # Default to false, unless plugin switch is defined.
   if [[ $1 == 'core' ]]; then
     dir_path=${CHIEF_PLUGINS_CORE}
-
-    # If plugin var exists, AND is enabled, load plugin file into memory
+    # If plugin var exists, AND is enabled, load core plugin files into memory
     # Evaluate string as a variable, '!' is a dereference for the dynamic variable name
     if [[ -n ${!plugin_switch} ]] && ${!plugin_switch}; then
       load_flag=true
     fi
-  else
-    dir_path=${CHIEF_CONTRIB_PLUGINS}
-
-    # If plugin var exists, load plugin file into memory
-    # Evaluate string as a variable, '!' is a dereference for the dynamic variable name
+  elif [[ $1 == 'user' ]]; then
+    dir_path=${CHIEF_USER_PLUGINS}
     if [[ -n ${!plugin_switch} ]]; then
-      load_flag=false
+      load_flag=true
     fi
-  fi
-
-  if [[ ! ${load_flag} ]]; then
-    __print "   plugins: ${1} not enabled." "$2"
-    return
-  fi
-
-  # Check for existence of plugin folder requested
-  if [[ -d ${dir_path} ]]; then
-    for plugin in "${dir_path}"/*_chief-plugin.sh; do
-      full_path=${plugin}
-      plugin_file=${plugin##*/}
-      plugin_name=${plugin_file%%_*}
-
-      if [[ -f ${full_path} ]]; then
-        # TODO: Check plugin prerequisites before loading.
-        __apply_chief-alias "${full_path}" # Apply alias and source the plugin
-        __print "   plugin: ${plugin_name} loaded." "$2"
-      fi
-    done
   else
-    __print "   $1 plugins directory does not exist." "$2"
+    __print "   plugins: ${1} is not a valid plug-in module." "$2"
+    return 1
   fi
-}
 
-# Source the library/plugin module passed.
-function __load_plugins() {
-  # Usage: __load_plugins <plug-in module> (user/contrib/core)
-  __print "Loading ${CHIEF_ALIAS} ${1}-plugins..." "$2"
+  local plugins=() # Array to hold plugin names
+  if ! ${load_flag}; then
+    __print "   plugins: ${1} not enabled." "$2"
+  else
+    # Check for existence of plugin folder requested
+    if [[ -d ${dir_path} ]]; then
+      for plugin in "${dir_path}/"*"${CHIEF_PLUGIN_SUFFIX}"; do
+        plugins+=("${plugin}") # Collect plugin names
+      done
 
-  local plugin_variable
-  local plugin_file
-  local plugin_name
-  local plugin_prefix
+      # Sort the plugins alphabetically
+      mapfile -t __CHIEF_PLUGINS_ARR_SORTED < <(printf "%s\n" "${plugins[@]}" | sort)
 
-  plugin_prefix="CHIEF_$(__upper ${1})_PLUGIN_"
+      # Loop through sorted plugins and print them
+      for plugin in "${__CHIEF_PLUGINS_ARR_SORTED[@]}"; do
+        plugin_file=${plugin##*/}
+        plugin_name=${plugin_file%%_*}
 
-  # Find all plugin declarations in config file
-  for bash_var in $(cat ${CHIEF_CONFIG} | grep -E "^$plugin_prefix"); do
-    plugin_variable=$(echo $bash_var | cut -d'=' -f 1)
-    plugin_value=$(echo $bash_var | cut -d'=' -f 2 | tr -d '"')
-    plugin_name=$(__lower $(echo $plugin_variable | cut -d'_' -f 4))
-
-    # Since the values could contain variables themselves, expand it.
-    # TODO: Find alternative to "eval"
-    plugin_file=$(eval echo ${plugin_value})
-
-    if [[ -f ${plugin_file} ]]; then
-      # TODO: Check plugin prerequisites before loading.
-      __apply_chief-alias ${plugin_file} # Apply alias and source the plugin
-      __print "   plugin: ${plugin_name} loaded." "$2"
+        if [[ -f ${plugin} ]]; then
+          __load_file "${plugin}" # Apply alias and source the plugin
+          __print "   plugin: ${plugin_name} loaded." "$2"
+        fi
+        if [[ $1 == 'user' ]]; then
+          __CHIEF_PLUGINS_NAMES_STRING="$__CHIEF_PLUGINS_NAMES_STRING|$plugin_name" # Append plugin name to var_arg
+        fi
+      done
+      if [[ $1 == 'user' ]]; then
+        __CHIEF_PLUGINS_NAMES_STRING=$(echo ${__CHIEF_PLUGINS_NAMES_STRING#?}) # Trim first character
+      fi
     else
-      __print "   plugin: ${plugin_name} plugin file does not exist." "$2"
+      __print "   $1 plugins directory does not exist." "$2"
     fi
-  done
+  fi
 }
 
 # Edit a plugin file and reload into memory if changed.
 #   Note, will only succeed if plug-in is enabled in settings.
+# Usage: __edit_plugin <user plug-in name>
 function __edit_user_plugin() {
-  # Usage: __edit_plugin <user plug-in name>
-
-  local plugin_variable
-  local plugin_file
   local plugin_name
-  local bash_var
-  local plugin_found
+  local plugin_file
 
-  plugin_variable="CHIEF_USER_PLUGIN_$(__upper ${1})"
-
-  # Find all plugin declarations in config file
-  bash_var=$(cat ${CHIEF_CONFIG} | grep -E "^$plugin_variable=")
-
-  if [[ -z ${bash_var} ]]; then
-    echo "${CHIEF_ALIAS} $1-plugin is not valid."
+  # Check if user plugins are enabled.
+  if [[ -z ${CHIEF_USER_PLUGINS} ]] || [[ ! -d ${CHIEF_USER_PLUGINS} ]]; then
+    echo "Chief user plugins are not enabled."
     return
   fi
 
-  plugin_value=$(echo $bash_var | cut -d'=' -f 2 | tr -d '"')
-  plugin_name=$(__lower $(echo $plugin_variable | cut -d'_' -f 4))
-  plugin_file=$(eval echo ${plugin_value})
+  plugin_name=$(__lower ${1})
+  plugin_file="${CHIEF_USER_PLUGINS}/${plugin_name}${CHIEF_PLUGIN_SUFFIX}"
 
+  # Check if the plugin file exists, if not, prompt to create it.
   if [[ -f ${plugin_file} ]]; then
     __edit_file ${plugin_file}
   else
     echo "Chief plugin: ${plugin_name} plugin file does not exist."
     response=$(chief.etc_ask_yes_or_no "Create it?")
-    if [[ $response == 'yes' ]]; then
-      touch ${plugin_file}
-      __edit_file ${plugin_file}
+    if [[ $response == 'no' ]]; then
+      echo "${CHIEF_COLOR_YELLOW}Plugin file not created.${CHIEF_NO_COLOR}"
+      return 1
     fi
+
+    # Get the user plugin template file
+    if [[ -z ${CHIEF_CFG_USER_PLUGIN_TEMPLATE} ]] || [[ ! -f ${CHIEF_CFG_USER_PLUGIN_TEMPLATE} ]]; then
+      echo "${CHIEF_COLOR_RED}Chief user plugin template not defined or does not exist. Using default template.${CHIEF_NO_COLOR}"
+      CHIEF_CFG_USER_PLUGIN_TEMPLATE=${CHIEF_DEFAULT_USER_PLUGIN_TEMPLATE}
+    fi
+
+    # Create the user plugins directory if it does not exist.
+    if [[ ! -d ${CHIEF_USER_PLUGINS} ]]; then
+      mkdir -p ${CHIEF_USER_PLUGINS} || {
+        echo -e "${CHIEF_COLOR_RED}Error: Unable to create directory '${CHIEF_USER_PLUGINS}'.${CHIEF_NO_COLOR}"
+        return 1
+      }
+    fi
+
+    # Copy the template to the plugin file
+    cp ${CHIEF_CFG_USER_PLUGIN_TEMPLATE} ${plugin_file} || {
+      echo -e "${CHIEF_COLOR_RED}Error: Unable to create '${plugin_file}'.${CHIEF_NO_COLOR}"
+      return 1
+    }
+
+    # Replace the plugin name in the template
+    # Portable sed usage; reference: https://unix.stackexchange.com/a/381201
+    sed -i.bak -e "s/\$CHIEF_PLUGIN_NAME/${plugin_name}/g" -- "${plugin_file}" && rm -- "${plugin_file}.bak"
+    #sed -i "s/\$CHIEF_PLUGIN_NAME/${plugin_name}/g" ${plugin_file}
+    __edit_file ${plugin_file}
   fi
 }
 
 # Load/source Chief library
 function __load_library() {
   # Usage: __load_library
-  source ${CHIEF_CONFIG}
+  __load_file ${CHIEF_CONFIG}
 
   # Set a default alias if none defined.
-  if [[ -z ${CHIEF_ALIAS} ]]; then
-    CHIEF_ALIAS='CHIEF' # Use this by default
-  else
-    CHIEF_ALIAS=$(__upper ${CHIEF_ALIAS}) # Capitalize if not already.
-    if [[ ${CHIEF_ALIAS} != "CHIEF" ]]; then
-      __print "Chief is aliased as ${CHIEF_ALIAS}."
-    fi
+  if [[ -n ${CHIEF_ALIAS} ]]; then
+    __print "Chief is aliased as ${CHIEF_ALIAS}."
   fi
 
-  # These implicitly reloads the library files.
-  __print "Loading core ${CHIEF_ALIAS} library..." "$1"
-  __apply_chief-alias ${CHIEF_LIBRARY}  # Load chief_library.sh
-  CHIEF_ALIAS=$(__upper ${CHIEF_ALIAS}) # Capitalize again, because re-source may have overwrote it.
-
   __load_plugins_dir 'core' "$1"
-  __load_plugins_dir 'contrib' "$1"
-  __load_plugins 'user' "$1"
+  __load_plugins_dir 'user' "$1"
 
-  __print "${CHIEF_ALIAS} BASH library/environment (re)loaded." "$1"
-}
-
-function __get_plugins() {
-  local var_arg
-  local plugin_variable
-  local plugin_name
-
-  # Find all plugin declarations in config file
-  for bash_var in $(cat ${CHIEF_CONFIG} | grep -E "^CHIEF_USER_PLUGIN_"); do
-    plugin_variable=$(echo $bash_var | cut -d'=' -f 1)
-    plugin_name=$(__lower $(echo $plugin_variable | cut -d'_' -f 4))
-    var_arg="$plugin_name|$var_arg"
-  done
-
-  var_arg=$(echo ${var_arg%?}) # Trim last character
-  echo "${var_arg}"
+  __print "Chief BASH library/environment (re)loaded." "$1"
 }
 
 # Display Chief banner
@@ -326,7 +297,10 @@ function __chief.banner {
   echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
   echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_COLOR_CYAN}${CHIEF_WEBSITE}${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
-  echo -e "${CHIEF_COLOR_GREEN}User plugins loaded: ${CHIEF_COLOR_GREEN}$(__get_plugins)${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_GREEN}User plugins loaded: ${CHIEF_COLOR_GREEN}$__CHIEF_PLUGINS_NAMES_STRING${CHIEF_NO_COLOR}"
+  if [[ -n $CHIEF_ALIAS ]]; then
+    echo -e "${CHIEF_COLOR_GREEN}Chief alias: ${CHIEF_COLOR_CYAN}${CHIEF_ALIAS}${CHIEF_NO_COLOR}"
+  fi
 }
 
 # Display "hints" text and dynamically display alias if necessary.

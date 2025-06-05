@@ -24,7 +24,9 @@ function _chief.banner {
   echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/  ${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_COLOR_CYAN}https://chief.reonetlabs.us${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_CYAN}Thank you for using Chief! ${CHIEF_COLOR_GREEN}Feel free to send us feedback at chief@randyoyarzabal.com${CHIEF_NO_COLOR}"
 }
+
 function _chief_confirm() {
   local USAGE="Usage: $FUNCNAME <msg/question>
 
@@ -97,7 +99,7 @@ This action cannot be undone. Proceed with uninstallation?")
     for line in "${CHIEF_CONFIG_LINES[@]}"; do
       echo -e "${CHIEF_COLOR_BLUE}Removing line from ~/.bashrc: $line${CHIEF_NO_COLOR}"
       # sed -i "/$(echo "$line" | sed 's/[\/&]/\\&/g')/d" "$HOME/.bashrc"
-      # Portable sed reference: https://unix.stackexchange.com/a/381201
+      # Portable sed usage; reference: https://unix.stackexchange.com/a/381201
       sed -i.bak -e "/$(echo "$line" | sed 's/[\/&]/\\&/g')/d" -- "${BASHRC_FILE}" && rm -- "${BASHRC_FILE}.bak"
     done
     echo -e "${CHIEF_COLOR_GREEN}Chief lines removed from ~/.bashrc.${CHIEF_NO_COLOR}"
@@ -107,9 +109,7 @@ This action cannot be undone. Proceed with uninstallation?")
   fi 
   _chief.banner
   echo -e "${CHIEF_COLOR_GREEN}Chief was successfully uninstalled.${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_CYAN}Thank you for using Chief!${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_CYAN}Plugin files and directories were NOT removed.${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_CYAN}You can remove them manually if you wish.${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_YELLOW}Plugin files and directories were NOT removed. You can remove them manually if you wish.${CHIEF_NO_COLOR}"
 }
 
 _chief_uninstall

@@ -1,11 +1,24 @@
 # Updates
 
-## v1.1
+## v1.3.0
 
 - Updated git completion/prompt scripts.
 - Standard SSH keys (id_rsa, id_ed25519, etc.) are no longer loaded via ssh-add.
 - Added install.sh for simplifying adoption.
 - Disabled custom prompt on default installation.
-- Default plugin will be auto-created if necessary.
+- User plugins have been revamped:
+  - Plugins loaded in alphabetical order to account for dependencies.
+  - Default plugin will be auto-created if necessary.
+  - Plugins will be created if not exists.
+  - All files named `*_chief-plugin.sh` will be loaded automatically (prefix will be the plugin name.)
+  - Loaded plugins will show in the banner as well as help text of `chief.plugin`.
+  - No longer necessary to define individual plugins in config file.
+- Deprecated CONTRIB plugins for simplicity.
 - Added chief.update to update Chief itself.
-- Deprecated ability to change `chief.` alias.
+- Chief alias is enabled. If defined, `chief.*` commands will be aliased as `alias.*`
+
+### TODO Items
+
+### In Progress
+
+- Doc updates

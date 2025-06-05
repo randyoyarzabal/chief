@@ -4,10 +4,20 @@
 #   All settings and commands are done via the chief.* commands
 ###################################################################################################################
 
-CHIEF_VERSION="v1.2.1 (2025-Jun-3)"
+CHIEF_VERSION="v1.3.0 (2025-Jun-5)"
 CHIEF_REPO="https://github.com/randyoyarzabal/chief"
 CHIEF_WEBSITE="https://chief.reonetlabs.us"
 CHIEF_AUTHOR="Randy E. Oyarzabal"
+CHIEF_LIBRARY="${CHIEF_PATH}/libs/core/chief_library.sh"
+CHIEF_GIT_TOOLS="${CHIEF_PATH}/libs/extras/git"
+
+# Load prerequisite library
+source ${CHIEF_PATH}/libs/core/chief_library_helpers.sh
+
+# Load config file AFTER the helper functions
+source ${CHIEF_CONFIG}
+
+__load_file ${CHIEF_LIBRARY} 
 
 # MAIN BEGINS HERE
 
@@ -25,9 +35,6 @@ if [[ -z ${CHIEF_PATH} ]] || [[ -z ${CHIEF_CONFIG} ]]; then
   return 1
 fi
 
-# Load prerequisite library
-source ${CHIEF_PATH}/libs/core/chief_library_pre.sh
-
 # Core library loading definition
 __load_library 
 
@@ -37,11 +44,13 @@ if [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIE
   echo -e "${tmp_out}"
 fi
 
+# Load banner and hints
 if ${CHIEF_CFG_BANNER}; then
   __chief.banner
   __chief.hints_text
 fi
 
+# Check for updates
 if ${CHIEF_CHECK_UPDATES}; then
   chief.update
 fi
@@ -62,39 +71,42 @@ else
   fi
 fi
 
-# Apply either a short (current dir) prompt or full (full path) one
-if ${CHIEF_CFG_CWD_ONLY_PROMPT}; then
-  prompt_tag='\W'
-else
-  prompt_tag='\w'
-fi
+# Apply prompt configuration
+if ${CHIEF_CFG_PROMPT}; then
+  # Apply either a short (current dir) prompt or full (full path) one
+  if ${CHIEF_CFG_CWD_ONLY_PROMPT}; then
+    prompt_tag='\W'
+  else
+    prompt_tag='\w'
+  fi
 
-# Apply default prompt
-if ${CHIEF_CFG_COLORED_PROMPT}; then
-  export PS1="${CHIEF_COLOR_CYAN}\u${CHIEF_NO_COLOR}@${CHIEF_COLOR_GREEN}\h${NC}:${CHIEF_COLOR_YELLOW}${prompt_tag}${CHIEF_NO_COLOR}\$ "
-# else
-#   export PS1="\u@\h:${prompt_tag}$ "
-fi
-
-# Apply Git Tools (completion/prompt)
-if ${CHIEF_CFG_TOOL_GIT}; then
-  __print "Applying git prompt/completion..."
-
-  # Variables and their respective output: https://blog.backslasher.net/git-prompt-variables.html
-  export GIT_PS1_SHOWDIRTYSTATE=true     # '*'=unstaged, '+'=staged
-  export GIT_PS1_SHOWSTASHSTATE=true     # '$'=stashed
-  export GIT_PS1_SHOWUNTRACKEDFILES=true # '%'=untracked
-  export GIT_PS1_SHOWUPSTREAM="auto"
-  export GIT_PS1_STATESEPARATOR='|'
-
-  source ${CHIEF_GIT_TOOLS}/git-prompt.sh
-  source ${CHIEF_GIT_TOOLS}/git-completion.bash
+  __print "Applying default prompt..."
+  export PS1="\u@\h:${prompt_tag}$ "
 
   if ${CHIEF_CFG_COLORED_PROMPT}; then
-    export GIT_PS1_SHOWCOLORHINTS=true
-    __print "Applying colored git prompt..."
-  else
-    __print "Applying default non-colored git prompt..."
+    export PS1="${CHIEF_COLOR_CYAN}\u${CHIEF_NO_COLOR}@${CHIEF_COLOR_GREEN}\h${NC}:${CHIEF_COLOR_YELLOW}${prompt_tag}${CHIEF_NO_COLOR}\$ "
   fi
-  PROMPT_COMMAND='__build_git_prompt'
+
+  # Apply Git Tools (completion/prompt)
+  if ${CHIEF_CFG_GIT_PROMPT}; then
+    __print "Applying git prompt/completion..."
+
+    # Variables and their respective output: https://blog.backslasher.net/git-prompt-variables.html
+    export GIT_PS1_SHOWDIRTYSTATE=true     # '*'=unstaged, '+'=staged
+    export GIT_PS1_SHOWSTASHSTATE=true     # '$'=stashed
+    export GIT_PS1_SHOWUNTRACKEDFILES=true # '%'=untracked
+    export GIT_PS1_SHOWUPSTREAM="auto"
+    export GIT_PS1_STATESEPARATOR='|'
+
+    source ${CHIEF_GIT_TOOLS}/git-prompt.sh
+    source ${CHIEF_GIT_TOOLS}/git-completion.bash
+
+    if ${CHIEF_CFG_COLORED_PROMPT}; then
+      export GIT_PS1_SHOWCOLORHINTS=true
+      __print "Applying colored git prompt..."
+    else
+      __print "Applying default non-colored git prompt..."
+    fi
+    PROMPT_COMMAND='__build_git_prompt'
+  fi
 fi
