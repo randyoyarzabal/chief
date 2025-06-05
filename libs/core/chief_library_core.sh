@@ -302,7 +302,7 @@ function __edit_user_plugin() {
 
     # Replace the plugin name in the template
     # Portable sed usage; reference: https://unix.stackexchange.com/a/381201
-    sed -i.bak -e "s/\$CHIEF_PLUGIN_NAME/${plugin_name}/g" -- "${plugin_file}" && rm -- "${plugin_file}.bak"
+    sed -i.bak -e "s/\$CHIEF_PLUGIN_NAME/${plugin_name}/g" -- "${plugin_file}" && rm -rf "${plugin_file}.bak"
     #sed -i "s/\$CHIEF_PLUGIN_NAME/${plugin_name}/g" ${plugin_file}
     __edit_file ${plugin_file}
   fi
@@ -345,7 +345,10 @@ function __chief.hints_text() {
   # Usage: __chief.hints_text
   if ${CHIEF_CFG_HINTS}; then
     echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
-    echo -e "${CHIEF_COLOR_GREEN}User plugins loaded: ${CHIEF_COLOR_GREEN}$(__get_plugins)${CHIEF_NO_COLOR}"
+    local plugin_list=$(__get_plugins)
+    if [[ -z ${plugin_list} ]]; then
+      echo -e "${CHIEF_COLOR_GREEN}User plugins loaded: ${CHIEF_COLOR_CYAN}${plugin_list}${CHIEF_NO_COLOR}"
+    fi
     echo -e "${CHIEF_COLOR_YELLOW}Chief tool hints:${CHIEF_NO_COLOR}"
     echo -e "${CHIEF_COLOR_GREEN}chief.<command> -?${CHIEF_NO_COLOR} to display help text."
     echo -e "${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to enable/disable hints, banner, enable prompt customizations etc."
