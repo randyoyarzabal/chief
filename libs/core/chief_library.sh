@@ -112,7 +112,7 @@ Edit the Chief utility configuration."
   }
 }
 
-function chief.plugins.root() {
+function chief.plugins() {
   local USAGE="Usage: $FUNCNAME
 
 Change directory (cd) into the Chief utility plugins directory root."
