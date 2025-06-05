@@ -144,7 +144,8 @@ function __apply_chief-alias() {
     sed "s/function chief./function $alias./g" ${source_file} >${tmp_lib} # Replace into a temp file.
     sed -i.bak -e "s/alias chief./alias $alias./g" -- "${tmp_lib}" 
 
-    source ${tmp_lib} # Source the library as its alias
+    source ${tmp_lib} &> /dev/null # Source the library as its alias and 
+    # Suppress output because it will be loaded a second time as "chief.*"
 
     # Destroy / delete the temp library
     rm -rf ${tmp_lib}
@@ -327,7 +328,7 @@ function __chief.banner {
   echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
   echo -e "${CHIEF_COLOR_GREEN}User plugins loaded: ${CHIEF_COLOR_GREEN}$(__get_plugins)${CHIEF_NO_COLOR}"
   if [[ -n $CHIEF_ALIAS ]]; then
-    echo -e "${CHIEF_COLOR_GREEN}Chief alias: ${CHIEF_COLOR_CYAN}${CHIEF_ALIAS}${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_GREEN}Chief alias is set to: ${CHIEF_COLOR_CYAN}${CHIEF_ALIAS}${CHIEF_NO_COLOR}"
   fi
 }
 
