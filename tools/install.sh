@@ -130,7 +130,7 @@ function _chief_install_main () {
   response=$(_chief_confirm "Would you like to enable Chief's git-aware prompt?
   Note that you can disable this later by running 'chief.configure'.")
   if [[ $response == 'yes' ]]; then
-      echo -e "${CHIEF_COLOR_BLUE}Enabling CHIEF_CFG_PROMPT in $CHIEF_CONFIG.{CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_BLUE}Enabling CHIEF_CFG_PROMPT in $CHIEF_CONFIG.${CHIEF_NO_COLOR}"
       # Portable sed usage; reference: https://unix.stackexchange.com/a/381201
       sed -i.bak -e "s/CHIEF_CFG_PROMPT\=false/CHIEF_CFG_PROMPT\=true/g" -- "${CHIEF_CONFIG}" && rm -- "${CHIEF_CONFIG}.bak"
   fi
