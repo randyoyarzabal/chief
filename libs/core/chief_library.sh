@@ -71,19 +71,12 @@ Update the Chief utility library to the latest version."
       chief.reload_library
       cd - > /dev/null 2>&1
       echo -e "${CHIEF_COLOR_GREEN}Updated Chief to [${CHIEF_VERSION}].${CHIEF_NO_COLOR}"
+    else
+      echo -e "${CHIEF_COLOR_YELLOW}Update skipped.${CHIEF_NO_COLOR}"
     fi
   else
     echo -e "${CHIEF_COLOR_YELLOW}No Chief updates found.${CHIEF_NO_COLOR}"
   fi
-
-  # chief.root; 
-  # if [[ $(chief.git_update -p) == *"changed"* ]]; then
-  #   echo -e "${CHIEF_COLOR_YELLOW}Updates found [${CHIEF_VERSION}] and applied.${CHIEF_NO_COLOR}"
-  #   chief.reload_library
-  # else
-  #   echo -e "${CHIEF_COLOR_YELLOW}No updates found.${CHIEF_NO_COLOR}"
-  # fi
-  # cd - > /dev/null 2>&1
 }
 
 function chief.uninstall() {

@@ -401,7 +401,7 @@ function __load_ssh_keys() {
     if ${CHIEF_CFG_VERBOSE} || [[ "${1}" == '--force' ]]; then
       ${load} ${rsa_key}
     else
-      ${load} ${rsa_key} >/dev/null 2>&1
+      ${load} ${rsa_key} &> /dev/null
     fi
   done
 
@@ -410,7 +410,7 @@ function __load_ssh_keys() {
   #   if ${CHIEF_CFG_VERBOSE}; then
   #     ${load} ~/.ssh/id_rsa
   #   else
-  #     ${load} ~/.ssh/id_rsa >/dev/null 2>&1
+  #     ${load} ~/.ssh/id_rsa &> /dev/null
   #   fi
   # fi
 }

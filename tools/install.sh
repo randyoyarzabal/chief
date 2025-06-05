@@ -59,7 +59,7 @@ function _chief_install {
 
   echo -e "${CHIEF_COLOR_BLUE}Cloning Chief...${CHIEF_NO_COLOR}"
   umask g-w,o-w
-  type -P git &>/dev/null || {
+  type -P git &> /dev/null || {
     echo -e "${CHIEF_COLOR_RED}Error: git is not installed.${CHIEF_NO_COLOR}"
     return 1
   }
