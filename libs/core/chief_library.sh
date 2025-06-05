@@ -28,6 +28,7 @@ Change directory (cd) into the Chief utility root installation directory."
   fi
 
   cd ${CHIEF_PATH}
+  echo -e "${CHIEF_COLOR_GREEN}Changed directory to CHIEF_PATH=${CHIEF_PATH}.${CHIEF_NO_COLOR}"
 }
 
 function chief.ssh_load_keys() {
@@ -123,6 +124,7 @@ Change directory (cd) into the Chief utility plugins directory root."
   fi
 
   cd ${CHIEF_USER_PLUGINS}
+  echo -e "${CHIEF_COLOR_GREEN}Changed directory to CHIEF_USER_PLUGINS=${CHIEF_USER_PLUGINS}.${CHIEF_NO_COLOR}"
 }
 
 function chief.plugin() {
