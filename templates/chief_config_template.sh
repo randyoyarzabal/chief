@@ -12,7 +12,7 @@
 # The banner will display the current version and the platform.
 CHIEF_CFG_BANNER=true
 
-# If set to true, will display output when plugins and SSH keys loaded at start-up.
+# If set to true, will display output when plugins and SSH keys are loaded at start-up.
 CHIEF_CFG_VERBOSE=false
 
 # If set to true, will display hints at start-up.
