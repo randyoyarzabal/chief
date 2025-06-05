@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-CHIEF_VERSION="v1.3.7 (2025-Jun-5)"
+CHIEF_VERSION="v1.3.8 (2025-Jun-5)"
 CHIEF_REPOSITORY="https://github.com/randyoyarzabal/chief.git"
 CHIEF_PATH="$HOME/.chief"
 CHIEF_CONFIG="$HOME/.chief_config.sh" 
@@ -128,7 +128,8 @@ function _chief_install_main () {
   }
 
   response=$(_chief_confirm "Would you like to enable Chief's git-aware prompt?
-  Note that you can disable this later by running 'chief.configure'.")
+  If you are using a custom prompt, such as Oh-My-BASH, this will have no effect.
+  Note that you can disable this later by running 'chief.configure'. Try 'chief.git_legend' for details.")
   if [[ $response == 'yes' ]]; then
       echo -e "${CHIEF_COLOR_BLUE}Enabling CHIEF_CFG_PROMPT in $CHIEF_CONFIG.${CHIEF_NO_COLOR}"
       # Portable sed usage; reference: https://unix.stackexchange.com/a/381201

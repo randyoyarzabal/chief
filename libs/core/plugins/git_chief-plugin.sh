@@ -208,8 +208,8 @@ Untrack a file from being versioned in Git."
 function chief.git_legend() {
   local USAGE="Usage: $FUNCNAME
 
-Display character legend for git prompt."
-  echo "Git Prompt Legend:"
+Display character legend for git prompt when CHIEF_CFG_GIT_PROMPT is set."
+  echo "Git prompt legend when CHIEF_CFG_GIT_PROMPT is set:"
   echo "  '=' = local / remote version matches"
   echo "  '<' = pull needed to get remote changes to local"
   echo "  '>' = push needed to push local changes to remote"
