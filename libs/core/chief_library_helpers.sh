@@ -30,9 +30,6 @@ CHIEF_CFG_LOAD_NON_ALIAS=true # Load non-alias functions from plugins by default
 # This is used to store the sorted plugins array.
 export __CHIEF_PLUGINS_ARR_SORTED=()
 
-#This is used to store the names of the plugins as a string.
-export __CHIEF_PLUGINS_NAMES_STRING=""
-
 # Detect platform
 uname_out="$(uname -s)"
 case "${uname_out}" in
@@ -208,17 +205,45 @@ function __load_plugins_dir() {
           __load_file "${plugin}" # Apply alias and source the plugin
           __print "   plugin: ${plugin_name} loaded." "$2"
         fi
-        if [[ $1 == 'user' ]]; then
-          __CHIEF_PLUGINS_NAMES_STRING="$__CHIEF_PLUGINS_NAMES_STRING|$plugin_name" # Append plugin name to var_arg
-        fi
       done
-      if [[ $1 == 'user' ]]; then
-        __CHIEF_PLUGINS_NAMES_STRING=$(echo ${__CHIEF_PLUGINS_NAMES_STRING#?}) # Trim first character
-      fi
     else
       __print "   $1 plugins directory does not exist." "$2"
     fi
   fi
+}
+
+# Generate a list of user plugins as a string separated by '|'.
+#   This is used to display the list of plugins in the banner, hints, and chief.plugin help text.
+#   This process is meant to run in addition to the __load_plugins_dir function because it accounts for 
+#   new user plugins that are created once the terminal is already started.
+# Usage: __get_plugins
+__get_plugins() {
+  local plugin_file
+  local plugin_name
+  local dir_path
+  local plugin_list_str
+
+  dir_path=${CHIEF_USER_PLUGINS}
+
+  local plugins=() # Array to hold plugin names
+
+  if [[ -d ${dir_path} ]]; then
+    for plugin in "${dir_path}/"*"${CHIEF_PLUGIN_SUFFIX}"; do
+      plugins+=("${plugin}") # Collect plugin names
+    done
+
+    # Sort the plugins alphabetically
+    mapfile -t __CHIEF_PLUGINS_ARR_SORTED < <(printf "%s\n" "${plugins[@]}" | sort)
+
+    # Loop through sorted plugins and print them
+    for plugin in "${__CHIEF_PLUGINS_ARR_SORTED[@]}"; do
+      plugin_file=${plugin##*/}
+      plugin_name=${plugin_file%%_*}
+      plugin_list_str="$plugin_list_str|$plugin_name" # Append plugin name
+    done
+    plugin_list_str=$(echo ${plugin_list_str#?}) # Trim first character
+  fi
+  echo "${plugin_list_str}" # Return the plugin list string
 }
 
 # Edit a plugin file and reload into memory if changed.
@@ -300,7 +325,7 @@ function __chief.banner {
   echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
   echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_COLOR_CYAN}${CHIEF_WEBSITE}${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
-  echo -e "${CHIEF_COLOR_GREEN}User plugins loaded: ${CHIEF_COLOR_GREEN}$__CHIEF_PLUGINS_NAMES_STRING${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_GREEN}User plugins loaded: ${CHIEF_COLOR_GREEN}$(__get_plugins)${CHIEF_NO_COLOR}"
   if [[ -n $CHIEF_ALIAS ]]; then
     echo -e "${CHIEF_COLOR_GREEN}Chief alias: ${CHIEF_COLOR_CYAN}${CHIEF_ALIAS}${CHIEF_NO_COLOR}"
   fi

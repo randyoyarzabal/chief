@@ -132,7 +132,7 @@ Change directory (cd) into the Chief utility plugins directory root."
 }
 
 function chief.plugin() {
-  local USAGE="Usage: $FUNCNAME [$__CHIEF_PLUGINS_NAMES_STRING]
+  local USAGE="Usage: $FUNCNAME [$(__get_plugins)]
 
 Edit a user Chief plugin library.  If no parameter is passed, the default plug-in will be edited."
 
