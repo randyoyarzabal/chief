@@ -19,7 +19,7 @@ fi
 # CHIEF DEFAULTS
 ###################################################################################################################
 
-CHIEF_VERSION="v1.3.6 (2025-Jun-5)"
+CHIEF_VERSION="v1.3.7 (2025-Jun-5)"
 CHIEF_REPO="https://github.com/randyoyarzabal/chief"
 CHIEF_WEBSITE="https://chief.reonetlabs.us"
 CHIEF_AUTHOR="Randy E. Oyarzabal"
@@ -338,16 +338,14 @@ function __chief.banner {
   fi
   echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${CHIEF_COLOR_CYAN}${CHIEF_WEBSITE}${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
-  if ${CHIEF_CFG_HINTS}; then
-    echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
-    echo -e "${CHIEF_COLOR_GREEN}User plugins loaded: ${CHIEF_COLOR_GREEN}$(__get_plugins)${CHIEF_NO_COLOR}"
-  fi
 }
 
 # Display "hints" text and dynamically display alias if necessary.
 function __chief.hints_text() {
   # Usage: __chief.hints_text
   if ${CHIEF_CFG_HINTS}; then
+    echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
+    echo -e "${CHIEF_COLOR_GREEN}User plugins loaded: ${CHIEF_COLOR_GREEN}$(__get_plugins)${CHIEF_NO_COLOR}"
     echo -e "${CHIEF_COLOR_YELLOW}Chief tool hints:${CHIEF_NO_COLOR}"
     echo -e "${CHIEF_COLOR_GREEN}chief.<command> -?${CHIEF_NO_COLOR} to display help text."
     echo -e "${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to enable/disable hints, banner, enable prompt customizations etc."

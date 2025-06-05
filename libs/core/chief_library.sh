@@ -61,6 +61,7 @@ Update the Chief utility library to the latest version."
     return
   fi
 
+  __chief.banner
   chief.etc_spinner "Checking for updates..." "__check_for_updates" tmp_out
   echo -e "${tmp_out}"
   if [[ ${tmp_out} == *"available"* ]]; then
