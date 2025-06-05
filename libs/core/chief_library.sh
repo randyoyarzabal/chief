@@ -12,9 +12,6 @@ if [[ $0 = $BASH_SOURCE ]]; then
   exit 1
 fi
 
-# Load config file.
-source ${CHIEF_CONFIG}
-
 # MAIN FUNCTIONS
 ###################################################################################################################
 
@@ -23,7 +20,7 @@ alias chief.ver='__chief.info'
 function chief.root() {
   local USAGE="Usage: $FUNCNAME
 
-Change directory (cd) into the $CHIEF_ALIAS utility root installation directory."
+Change directory (cd) into the Chief utility root installation directory."
 
   if [[ $1 == "-?" ]]; then
     echo "${USAGE}"
@@ -57,7 +54,7 @@ Note: All private keys must end with the suffix '.rsa'. Symlinks are allowed.
 function chief.update() {
   local USAGE="Usage: $FUNCNAME
 
-Update the $CHIEF_ALIAS utility library to the latest version."
+Update the Chief utility library to the latest version."
 
   if [[ $1 == "-?" ]]; then
     echo "${USAGE}"
@@ -89,7 +86,7 @@ Update the $CHIEF_ALIAS utility library to the latest version."
   # cd - > /dev/null 2>&1
 }
 
-function  chief.uninstall() {
+function chief.uninstall() {
   local USAGE="Usage: $FUNCNAME
 
 Uninstall the Chief utility.
@@ -108,7 +105,7 @@ This command will prompt for confirmation before proceeding with the uninstallat
 function chief.config() {
   local USAGE="Usage: $FUNCNAME
 
-Edit the $CHIEF_ALIAS utility configuration."
+Edit the Chief utility configuration."
 
   if [[ $1 == "-?" ]]; then
     echo "${USAGE}"
@@ -122,7 +119,7 @@ Edit the $CHIEF_ALIAS utility configuration."
 function chief.plugins.root() {
   local USAGE="Usage: $FUNCNAME
 
-Change directory (cd) into the $CHIEF_ALIAS utility plugins directory root."
+Change directory (cd) into the Chief utility plugins directory root."
 
   if [[ $1 == "-?" ]]; then
     echo "${USAGE}"
@@ -133,24 +130,9 @@ Change directory (cd) into the $CHIEF_ALIAS utility plugins directory root."
 }
 
 function chief.plugin() {
-  # Dynamically read plug-ins
-  local plugin_variable
-  local plugin_name
-  local var_arg
+  local USAGE="Usage: $FUNCNAME [$__CHIEF_PLUGINS_NAMES_STRING]
 
-  # # Find all plugin declarations in config file
-  # for bash_var in $(cat ${CHIEF_CONFIG} | grep -E "^CHIEF_USER_PLUGIN_"); do
-  #   plugin_variable=$(echo $bash_var | cut -d'=' -f 1)
-  #   plugin_name=$(__lower $(echo $plugin_variable | cut -d'_' -f 4))
-  #   var_arg="$plugin_name|$var_arg"
-  # done
-
-  # var_arg=$(echo ${var_arg%?}) # Trim last character
-  var_arg=$(__get_plugins)
-
-  local USAGE="Usage: $FUNCNAME [$var_arg]
-
-Edit a user $CHIEF_ALIAS plugin library.  If no parameter is passed, the default plug-in will be edited."
+Edit a user Chief plugin library.  If no parameter is passed, the default plug-in will be edited."
 
   if [[ $1 == "-?" ]]; then
     echo "${USAGE}"
@@ -206,7 +188,7 @@ Edit the user .profile file and reload into memory if changed."
 function chief.reload_library() {
   local USAGE="Usage: $FUNCNAME
 
-Reload the $CHIEF_ALIAS utility library/environment."
+Reload the Chief utility library/environment."
 
   if [[ $1 == "-?" ]]; then
     echo "${USAGE}"
