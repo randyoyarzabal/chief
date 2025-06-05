@@ -19,6 +19,13 @@ fi
 # CHIEF DEFAULTS
 ###################################################################################################################
 
+CHIEF_VERSION="v1.3.1 (2025-Jun-5)"
+CHIEF_REPO="https://github.com/randyoyarzabal/chief"
+CHIEF_WEBSITE="https://chief.reonetlabs.us"
+CHIEF_AUTHOR="Randy E. Oyarzabal"
+CHIEF_LIBRARY="${CHIEF_PATH}/libs/core/chief_library.sh"
+CHIEF_GIT_TOOLS="${CHIEF_PATH}/libs/extras/git"
+
 CHIEF_PLUGINS_CORE="${CHIEF_PATH}/libs/core/plugins"
 CHIEF_PLUGIN_SUFFIX="_chief-plugin.sh"
 CHIEF_DEFAULT_USER_PLUGIN_TEMPLATE="${CHIEF_PATH}/templates/chief_user_plugin_template.sh"
