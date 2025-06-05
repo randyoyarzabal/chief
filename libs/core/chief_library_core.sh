@@ -276,13 +276,13 @@ function __edit_user_plugin() {
     echo "Chief plugin: ${plugin_name} plugin file does not exist."
     response=$(chief.etc_ask_yes_or_no "Create it?")
     if [[ $response == 'no' ]]; then
-      echo "${CHIEF_COLOR_YELLOW}Plugin file not created.${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_YELLOW}Plugin file not created.${CHIEF_NO_COLOR}"
       return 1
     fi
 
     # Get the user plugin template file
     if [[ -z ${CHIEF_CFG_USER_PLUGIN_TEMPLATE} ]] || [[ ! -f ${CHIEF_CFG_USER_PLUGIN_TEMPLATE} ]]; then
-      echo "${CHIEF_COLOR_RED}Chief user plugin template not defined or does not exist. Using default template.${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_RED}Chief user plugin template not defined or does not exist. Using default template.${CHIEF_NO_COLOR}"
       CHIEF_CFG_USER_PLUGIN_TEMPLATE=${CHIEF_DEFAULT_USER_PLUGIN_TEMPLATE}
     fi
 
