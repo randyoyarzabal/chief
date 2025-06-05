@@ -261,7 +261,7 @@ function __edit_user_plugin() {
   local plugin_file
 
   # Check if user plugins are enabled.
-  if [[ -z ${CHIEF_USER_PLUGINS} ]] || [[ ! -d ${CHIEF_USER_PLUGINS} ]]; then
+  if [[ -z ${CHIEF_USER_PLUGINS} ]]; then
     echo "Chief user plugins are not enabled."
     return
   fi
