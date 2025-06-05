@@ -346,7 +346,7 @@ function __chief.hints_text() {
   if ${CHIEF_CFG_HINTS}; then
     echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
     local plugin_list=$(__get_plugins)
-    if [[ ${plugin_list} == "" ]]; then
+    if [[ ${plugin_list} != "" ]]; then
       echo -e "${CHIEF_COLOR_GREEN}User plugins loaded: ${CHIEF_COLOR_CYAN}${plugin_list}${CHIEF_NO_COLOR}"
     fi
     echo -e "${CHIEF_COLOR_YELLOW}Chief tool hints:${CHIEF_NO_COLOR}"
