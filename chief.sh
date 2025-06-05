@@ -4,7 +4,7 @@
 #   All settings and commands are done via the chief.* commands
 ###################################################################################################################
 
-CHIEF_VERSION="v1.3.0 (2025-Jun-5)"
+CHIEF_VERSION="v1.3.1 (2025-Jun-5)"
 CHIEF_REPO="https://github.com/randyoyarzabal/chief"
 CHIEF_WEBSITE="https://chief.reonetlabs.us"
 CHIEF_AUTHOR="Randy E. Oyarzabal"
