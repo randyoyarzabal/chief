@@ -34,9 +34,6 @@ CHIEF_CFG_LOAD_NON_ALIAS=true # Load non-alias functions from plugins by default
 # CORE HELPER FUNCTIONS
 ###################################################################################################################
 
-# This is used to store the sorted plugins array.
-export __CHIEF_PLUGINS_ARR_SORTED=()
-
 # Detect platform
 uname_out="$(uname -s)"
 case "${uname_out}" in
@@ -192,6 +189,7 @@ function __load_plugins_dir() {
   fi
 
   local plugins=() # Array to hold plugin names
+  local sorted_plugins=() # Array to hold sorted plugin names
   if ! ${load_flag}; then
     __print "   plugins: ${1} not enabled." "$2"
   else
@@ -202,10 +200,10 @@ function __load_plugins_dir() {
       done
 
       # Sort the plugins alphabetically
-      mapfile -t __CHIEF_PLUGINS_ARR_SORTED < <(printf "%s\n" "${plugins[@]}" | sort)
+      mapfile -t sorted_plugins < <(printf "%s\n" "${plugins[@]}" | sort)
 
       # Loop through sorted plugins and print them
-      for plugin in "${__CHIEF_PLUGINS_ARR_SORTED[@]}"; do
+      for plugin in "${sorted_plugins[@]}"; do
         plugin_file=${plugin##*/}
         plugin_name=${plugin_file%%_*}
 
@@ -234,6 +232,7 @@ __get_plugins() {
   dir_path=${CHIEF_USER_PLUGINS}
 
   local plugins=() # Array to hold plugin names
+  local sorted_plugins=() # Array to hold sorted plugin names
 
   if [[ -d ${dir_path} ]]; then
     for plugin in "${dir_path}/"*"${CHIEF_PLUGIN_SUFFIX}"; do
@@ -241,10 +240,10 @@ __get_plugins() {
     done
 
     # Sort the plugins alphabetically
-    mapfile -t __CHIEF_PLUGINS_ARR_SORTED < <(printf "%s\n" "${plugins[@]}" | sort)
+    mapfile -t sorted_plugins < <(printf "%s\n" "${plugins[@]}" | sort)
 
     # Loop through sorted plugins and print them
-    for plugin in "${__CHIEF_PLUGINS_ARR_SORTED[@]}"; do
+    for plugin in "${sorted_plugins[@]}"; do
       plugin_file=${plugin##*/}
       plugin_name=${plugin_file%%_*}
       plugin_list_str="$plugin_list_str|$plugin_name" # Append plugin name
@@ -332,13 +331,16 @@ function __load_library() {
 function __chief.banner {
   echo -e "${CHIEF_COLOR_YELLOW}        __    _      ____${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW}  _____/ /_  (_)__  / __/${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
-  echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_COLOR_CYAN}${CHIEF_WEBSITE}${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
-  echo -e "${CHIEF_COLOR_GREEN}User plugins loaded: ${CHIEF_COLOR_GREEN}$(__get_plugins)${CHIEF_NO_COLOR}"
   if [[ -n $CHIEF_ALIAS ]]; then
-    echo -e "${CHIEF_COLOR_GREEN}Chief alias is set to: ${CHIEF_COLOR_CYAN}${CHIEF_ALIAS}${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  alias: ${CHIEF_COLOR_CYAN}${CHIEF_ALIAS}${CHIEF_NO_COLOR}"
+  else
+  echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${CHIEF_NO_COLOR}"
+  fi
+  echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${CHIEF_COLOR_CYAN}${CHIEF_WEBSITE}${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
+  if ${CHIEF_CFG_HINTS}; then
+    echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
+    echo -e "${CHIEF_COLOR_GREEN}User plugins loaded: ${CHIEF_COLOR_GREEN}$(__get_plugins)${CHIEF_NO_COLOR}"
   fi
 }
 
@@ -348,10 +350,11 @@ function __chief.hints_text() {
   if ${CHIEF_CFG_HINTS}; then
     echo -e "${CHIEF_COLOR_YELLOW}Chief tool hints:${CHIEF_NO_COLOR}"
     echo -e "${CHIEF_COLOR_GREEN}chief.<command> -?${CHIEF_NO_COLOR} to display help text."
-    echo -e "${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit the configuration to turn off these hints, banner, enable prompt customizations etc."
+    echo -e "${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to enable/disable hints, banner, enable prompt customizations etc."
+    echo -e "${CHIEF_COLOR_GREEN}chief.reload${CHIEF_NO_COLOR} to reload Chief core libs and plugins."
     echo -e "${CHIEF_COLOR_GREEN}chief.plugin${CHIEF_NO_COLOR} to edit the default plugin."
-    echo -e "${CHIEF_COLOR_GREEN}chief.plugin [plugin_name]${CHIEF_NO_COLOR} to edit a specific user plugin file."
-    echo -e "${CHIEF_COLOR_GREEN}chief.bash_profile${CHIEF_NO_COLOR} and ${CHIEF_COLOR_GREEN}chief.bashrc{CHIEF_NO_COLOR} to edit and autoload accordingly."
+    echo -e "${CHIEF_COLOR_GREEN}chief.plugin [plugin_name]${CHIEF_NO_COLOR} to create/edit a specific user plugin."
+    echo -e "${CHIEF_COLOR_GREEN}chief.bash_profile${CHIEF_NO_COLOR} and ${CHIEF_COLOR_GREEN}chief.bashrc${CHIEF_NO_COLOR} to edit and autoload accordingly."
     echo -e "${CHIEF_COLOR_CYAN}**Disable this hint by setting ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS=false${CHIEF_NO_COLOR} in ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}"
   fi
 }

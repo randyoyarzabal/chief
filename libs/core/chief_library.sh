@@ -68,7 +68,7 @@ Update the Chief utility library to the latest version."
     if [[ $response == 'yes' ]]; then
       chief.root
       chief.git_update -p
-      chief.reload_library
+      chief.reload
       cd - > /dev/null 2>&1
       echo -e "${CHIEF_COLOR_GREEN}Updated Chief to [${CHIEF_VERSION}].${CHIEF_NO_COLOR}"
     else
@@ -180,7 +180,7 @@ Edit the user .profile file and reload into memory if changed."
   __edit_file "$HOME/.profile"
 }
 
-function chief.reload_library() {
+function chief.reload() {
   local USAGE="Usage: $FUNCNAME
 
 Reload the Chief utility library/environment."
