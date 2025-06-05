@@ -109,7 +109,7 @@ function __edit_file() {
       __load_file ${file}
     else
       if [[ $3 == 'reload' ]]; then
-        __load_library
+        __load_library --force  
       fi
     fi
 
