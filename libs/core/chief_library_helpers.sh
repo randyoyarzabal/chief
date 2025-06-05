@@ -118,6 +118,9 @@ function __edit_file() {
     else
       echo "${2} was modified, therefore, reloaded."
     fi
+    return 0 # Changes were made to the file.
+  else
+    return 1 # No changes made to the file.
   fi
 }
 
