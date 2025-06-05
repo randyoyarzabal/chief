@@ -4,18 +4,6 @@
 #   All settings and commands are done via the chief.* commands
 ###################################################################################################################
 
-# Load prerequisite library
-source ${CHIEF_PATH}/libs/core/chief_library_core.sh
-
-# Load config file AFTER the helper functions
-source ${CHIEF_CONFIG}
-
-__load_file ${CHIEF_LIBRARY} 
-
-# MAIN BEGINS HERE
-
-# shopt -s expand_aliases
-
 # Block interactive execution
 if [[ $0 = $BASH_SOURCE ]]; then
   echo "Error: $0 (Chief) must be sourced; not executed interactively."
@@ -25,10 +13,11 @@ fi
 # Check for prerequisite environment variable
 if [[ -z ${CHIEF_PATH} ]] || [[ -z ${CHIEF_CONFIG} ]]; then
   echo 'Error: $CHIEF_PATH and/or $CHIEF_CONFIG environment var must be set before using Chief.'
-  return 1
+  exit 1
 fi
 
-# Core library loading definition
+# Load core libraries
+source ${CHIEF_PATH}/libs/core/chief_library_core.sh
 __load_library 
 
 # Load RSA/SSH keys if directory is defined

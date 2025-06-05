@@ -19,7 +19,7 @@ fi
 # CHIEF DEFAULTS
 ###################################################################################################################
 
-CHIEF_VERSION="v1.3.3 (2025-Jun-5)"
+CHIEF_VERSION="v1.3.4 (2025-Jun-5)"
 CHIEF_REPO="https://github.com/randyoyarzabal/chief"
 CHIEF_WEBSITE="https://chief.reonetlabs.us"
 CHIEF_AUTHOR="Randy E. Oyarzabal"
@@ -311,6 +311,9 @@ function __edit_user_plugin() {
 
 # Load/source Chief library
 function __load_library() {
+  source ${CHIEF_PATH}/libs/core/chief_library_core.sh
+  __load_file ${CHIEF_LIBRARY} 
+
   # Usage: __load_library
   __load_file ${CHIEF_CONFIG}
 
