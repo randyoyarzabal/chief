@@ -129,7 +129,8 @@ function _chief_install_main () {
 
   response=$(_chief_confirm "Would you like to enable Chief's git-aware prompt?
   If you are using a custom prompt, such as Oh-My-BASH, this will have no effect.
-  Note that you can disable this later by running 'chief.configure'. Try 'chief.git_legend' for details.")
+  Note that you can disable this later by running 'chief.configure'. 
+  Try 'chief.git_legend' for details.")
   if [[ $response == 'yes' ]]; then
       echo -e "${CHIEF_COLOR_BLUE}Enabling CHIEF_CFG_PROMPT in $CHIEF_CONFIG.${CHIEF_NO_COLOR}"
       # Portable sed usage; reference: https://unix.stackexchange.com/a/381201
