@@ -114,6 +114,7 @@ Edit the Chief utility configuration."
 
   # Third parameter is to reload entire library if config is modified.
   __edit_file ${CHIEF_CONFIG} "Chief Configuration" "reload"
+  echo -e "${CHIEF_COLOR_YELLOW}Terminal restart is required for some changes to take effect.${CHIEF_NO_COLOR}"
 }
 
 function chief.plugins.root() {

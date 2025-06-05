@@ -25,6 +25,8 @@ function _chief.banner {
   echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${CHIEF_NO_COLOR}${CHIEF_VERSION}"
   echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_COLOR_CYAN}https://chief.reonetlabs.us${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_GREEN}Chief is now installed and configured. Configure it using the 'chief.configure' command.${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_BLUE}Get your BASH together! ${CHIEF_COLOR_YELLOW}Restart your terminal or reload your ~/.bashrc file to start Chief.${CHIEF_NO_COLOR}"
 }
 
 function _chief_confirm() {
@@ -125,9 +127,14 @@ function _chief_install_main () {
     exit 1
   }
 
+  response=$(_chief_confirm "Would you like to enable Chief's git-aware prompt?
+  Note that you can disable this later by running 'chief.configure'.")
+  if [[ $response == 'yes' ]]; then
+      echo -e "${CHIEF_COLOR_BLUE}Enabling CHIEF_CFG_PROMPT in $CHIEF_CONFIG.{CHIEF_NO_COLOR}"
+      # Portable sed usage; reference: https://unix.stackexchange.com/a/381201
+      sed -i.bak -e "s/CHIEF_CFG_PROMPT\=false/CHIEF_CFG_PROMPT\=true/g" -- "${CHIEF_CONFIG}" && rm -- "${CHIEF_CONFIG}.bak"
+  fi
   _chief.banner
-  echo -e "${CHIEF_COLOR_GREEN}Chief is now installed and configured.${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_BLUE}Get your BASH together! ${CHIEF_COLOR_YELLOW}Restart your terminal or reload your ~/.bashrc file to start Chief.${CHIEF_NO_COLOR}"
 }
 
 _chief_install_main
