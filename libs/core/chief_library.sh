@@ -34,7 +34,7 @@ Change directory (cd) into the Chief utility root installation directory."
 function chief.ssh_load_keys() {
   local USAGE="Usage: $FUNCNAME
 
-Load SSH keys from CHIEF_RSA_KEYS_PATH defined in the Chief configuration.
+Load SSH keys from CHIEF_CFG_RSA_KEYS_PATH defined in the Chief configuration.
 Note: All private keys must end with the suffix '.rsa'. Symlinks are allowed.
 "
 
@@ -43,13 +43,30 @@ Note: All private keys must end with the suffix '.rsa'. Symlinks are allowed.
     return
   fi
 
-  if [[ -z ${CHIEF_RSA_KEYS_PATH}  ]]; then
-    echo -e "${CHIEF_COLOR_RED}Error: CHIEF_RSA_KEYS_PATH is not set in ${CHIEF_CONFIG}. Please set it to the path where your SSH keys are stored.${CHIEF_NO_COLOR}"
+  if [[ -z ${CHIEF_CFG_RSA_KEYS_PATH}  ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error: CHIEF_CFG_RSA_KEYS_PATH is not set in ${CHIEF_CONFIG}. Please set it to the path where your SSH keys are stored.${CHIEF_NO_COLOR}"
     echo "${USAGE}"
     return 1
   fi
-  chief.etc_spinner "Loading SSH keys..." "__load_ssh_keys --force" tmp_out
+  chief.etc_spinner "Loading SSH keys..." "__load_ssh_keys --verbose" tmp_out
   echo -e "${tmp_out}"
+}
+
+function chief.plugins_update() {
+  local USAGE="Usage: $FUNCNAME
+
+Update and reload the remote Chief plugins.
+This command will update all plugins to the latest version available in the remote repository."
+
+  if [[ $1 == "-?" ]]; then
+    echo "${USAGE}"
+    return
+  fi
+  __load_remote_plugins "--verbose" "--force" && {
+    echo -e "${CHIEF_COLOR_GREEN}Updated all plugins to the latest version.${CHIEF_NO_COLOR}"
+  } || {
+    echo -e "${CHIEF_COLOR_RED}Error: Failed to update plugins.${CHIEF_NO_COLOR}"
+  }
 }
 
 function chief.update() {
@@ -123,14 +140,14 @@ Change directory (cd) into the Chief utility plugins directory root."
     return
   fi
 
-  cd ${CHIEF_USER_PLUGINS}
-  echo -e "${CHIEF_COLOR_GREEN}Changed directory to CHIEF_USER_PLUGINS=${CHIEF_USER_PLUGINS}.${CHIEF_NO_COLOR}"
+  cd ${CHIEF_CFG_PLUGINS}
+  echo -e "${CHIEF_COLOR_GREEN}Changed directory to CHIEF_CFG_PLUGINS=${CHIEF_CFG_PLUGINS}.${CHIEF_NO_COLOR}"
 }
 
 function chief.plugin() {
   local USAGE="Usage: $FUNCNAME [$(__get_plugins)]
 
-Edit a user Chief plugin library.  If no parameter is passed, the default plug-in will be edited."
+Edit a Chief plugin library. If no parameter is passed, the default plug-in will be edited."
 
   if [[ $1 == "-?" ]]; then
     echo "${USAGE}"
@@ -138,9 +155,9 @@ Edit a user Chief plugin library.  If no parameter is passed, the default plug-i
   fi
 
   if [[ -z $1 ]]; then
-    __edit_user_plugin default
+    __edit_plugin default
   else
-    __edit_user_plugin $1
+    __edit_plugin $1
   fi
 }
 
@@ -193,5 +210,5 @@ Reload the Chief utility library/environment."
     return
   fi
 
-  __load_library --force
+  __load_library --verbose
 }

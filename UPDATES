@@ -1,12 +1,21 @@
 # Updates
 
+## v2.0
+
+- Chief alias is enabled. If defined, `chief.*` commands will be aliased as `alias.*`
+- Streamlined plugin loading and management.
+- Streamlined plugin creation and editing.
+- Enhanced `chief.plugin` command to create, edit, and load plugins.
+- Added `chief.plugins_update` to update remote plugins.
+- Added remote plugins support from a git repository.
+
 ## v1.3.0
 
 - Updated git completion/prompt scripts.
 - Standard SSH keys (id_rsa, id_ed25519, etc.) are no longer loaded via ssh-add.
 - Added install.sh for simplifying adoption.
 - Disabled custom prompt on default installation.
-- User plugins have been revamped:
+- Plugins have been revamped:
   - Plugins loaded in alphabetical order to account for dependencies.
   - Default plugin will be auto-created if necessary.
   - Plugins will be created if not exists.
@@ -15,12 +24,13 @@
   - No longer necessary to define individual plugins in config file.
 - Deprecated CONTRIB plugins for simplicity.
 - Added chief.update to update Chief itself.
-- Chief alias is enabled. If defined, `chief.*` commands will be aliased as `alias.*`
 
-### TODO Items
+### Features planned for v2.1
 
-- Separate chief core version from core plugin version.
+- Separate versioning of chief core and plugins
+- Consolidate new utilities: vault, ssl, openshift, chief.whereis
+- Create chief.help (similar to hints)
+- Check for BASH loading errors
 
-### In Progress
+### In development
 
-- Doc updates

@@ -21,7 +21,7 @@ source ${CHIEF_PATH}/libs/core/chief_library_core.sh
 __load_library 
 
 # Load RSA/SSH keys if directory is defined
-if [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIEF_RSA_KEYS_PATH} && ${PLATFORM} == "Linux" ]]; then
+if [[ ! -z ${CHIEF_CFG_RSA_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIEF_CFG_RSA_KEYS_PATH} && ${PLATFORM} == "Linux" ]]; then
   chief.etc_spinner "Loading SSH keys..." "__load_ssh_keys" tmp_out
   echo -e "${tmp_out}"
 fi
@@ -33,7 +33,7 @@ if ${CHIEF_CFG_BANNER}; then
 fi
 
 # Check for updates
-if ${CHIEF_CHECK_UPDATES}; then
+if ${CHIEF_CFG_AUTOCHECK_UPDATES}; then
   chief.update
 fi
 

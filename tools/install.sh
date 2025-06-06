@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-CHIEF_VERSION="v1.3.8 (2025-Jun-5)"
+CHIEF_VERSION="v2.0 (2025-Jun-6)"
 CHIEF_REPOSITORY="https://github.com/randyoyarzabal/chief.git"
 CHIEF_PATH="$HOME/.chief"
 CHIEF_CONFIG="$HOME/.chief_config.sh" 
