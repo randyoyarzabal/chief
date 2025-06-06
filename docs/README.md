@@ -2,7 +2,7 @@
 
 ## What is Chief?
 
-Chief is BASH library system to help organize functions, aliases, and environment variables with extra features such as prompt customization and SSH keys management.  It also installs  with various function utilities relating to git, SSL, openshift, vault, etc. Once installed, checkout `chief.[tab]` to explore what's available.
+Chief is a Bash library system designed to help organize functions, aliases, and environment variables through "plug-ins."  It has additional features, including prompt customization and private SSH key management. It also installs various utility functions related to Git, SSL, OpenShift, Vault, etc. Once installed, checkout `chief.[tab]` to explore what's available.
 
 ## Getting Started
 
@@ -59,7 +59,7 @@ Tired of passing SSH keys when logging to remote hosts?  Try Chief's SSH key aut
 
 ## Configurable Features
 
-- Management of BASH variables, aliases and functions
+- Management of Bash variables, aliases and functions
   - Support for local and remote git plugins
   - Auto creation of plugin
 - Automated reload of edited files
@@ -112,4 +112,4 @@ All contributions are welcome. Feel free to create your own branch and pull-requ
 
 Helpful Reference Sites:
 
-- [BASH Reference Page](https://www.gnu.org/software/bash/manual/bash.html)
+- [Bash Reference Page](https://www.gnu.org/software/bash/manual/bash.html)
