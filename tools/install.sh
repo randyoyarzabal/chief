@@ -51,14 +51,19 @@ Example:
   esac
 }
 
-function _chief_install {
+function _chief_install (){
+  echo "_chief_install \$1=$1"
+  if [[ -n "$1" ]]; then
+    CHIEF_GIT_BRANCH="$1"
+  fi
+
   if [[ -d $CHIEF_PATH ]]; then
     echo -e "${CHIEF_COLOR_YELLOW}You already have Chief installed.${CHIEF_NO_COLOR}"
     echo -e "You'll need to remove '$CHIEF_PATH' if you want to re-install it."
     return 1
   fi
 
-  echo -e "${CHIEF_COLOR_BLUE}Cloning Chief...${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_BLUE}Cloning Chief (branch: $CHIEF_GIT_BRANCH)...${CHIEF_NO_COLOR}"
   umask g-w,o-w
   type -P git &> /dev/null || {
     echo -e "${CHIEF_COLOR_RED}Error: git is not installed.${CHIEF_NO_COLOR}"
@@ -79,7 +84,7 @@ function _chief_install {
   echo -e "${CHIEF_COLOR_GREEN}Chief was successfully installed in '${CHIEF_PATH}'.${CHIEF_NO_COLOR}"
 }
 
-function _chief_install_config {
+function _chief_install_config () {
   echo -e "${CHIEF_COLOR_BLUE}Configuring Chief...${CHIEF_NO_COLOR}"
   if [[ ! -f "$CHIEF_CONFIG" ]]; then
     cp $CHIEF_PATH/templates/chief_config_template.sh $CHIEF_CONFIG
@@ -118,14 +123,7 @@ function _chief_install_config {
 }
 
 function _chief_install_main () {
-  # If branch is not set, default to main
-  if [[ -z "$1" ]]; then
-    CHIEF_GIT_BRANCH="main"
-  else
-    CHIEF_GIT_BRANCH="$1"
-  fi
-
-  _chief_install || {
+  _chief_install "$@" || {
     echo -e "${CHIEF_COLOR_RED}Chief installation failed.${CHIEF_NO_COLOR}"
     exit 1
   }
@@ -147,6 +145,7 @@ function _chief_install_main () {
   _chief.banner
 }
 
+echo "main \$1=$1"
 _chief_install_main "$@"
 
 if [[ $? -ne 0 ]]; then

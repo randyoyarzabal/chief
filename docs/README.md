@@ -1,3 +1,5 @@
+[![GitHub release](https://img.shields.io/badge/Download-Release%20v2.0-lightgrey.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![GitHub commits (since latest release)](https://img.shields.io/github/commits-since/randyoyarzabal/chief/latest.svg?style=social)](https://github.com/randyoyarzabal/chief/commits/master)
+
 ## Installation
 
 ```bash
