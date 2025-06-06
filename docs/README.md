@@ -58,7 +58,10 @@ Plugin-related:
 - `chief.plugins` to cd into your plugins directory.
 - `chief.plugin -?` to find your plugin name.
 
-**Note:** `chief.plugin`, `chief.bash_profile`, and `chief.bashrc` will automatically load (source) if changes are detected.  There's no need to restart your terminal!
+**Notes:** 
+
+- `chief.plugin`, `chief.bash_profile`, and `chief.bashrc` will automatically load (source) if changes are detected.  There's no need to restart your terminal!
+- You can enable the above text in Chief by setting `CHIEF_CFG_HINTS=true`
 
 ***But wait, there's more...:-D***
 

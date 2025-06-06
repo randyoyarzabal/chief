@@ -464,13 +464,20 @@ function __chief.hints_text() {
       echo -e "${CHIEF_COLOR_YELLOW}Remote plugins are not set to auto-update (CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false). '${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW}' to update.${CHIEF_NO_COLOR}"
     fi
 
-    echo -e "${CHIEF_COLOR_YELLOW}Chief tool hints:${CHIEF_NO_COLOR}"
-    echo -e "${CHIEF_COLOR_GREEN}chief.<command> -?${CHIEF_NO_COLOR} to display help text."
-    echo -e "${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to enable/disable hints, banner, enable prompt customizations etc."
-    echo -e "${CHIEF_COLOR_GREEN}chief.reload${CHIEF_NO_COLOR} to reload Chief core libs and plugins."
-    echo -e "${CHIEF_COLOR_GREEN}chief.plugin${CHIEF_NO_COLOR} to edit the default plugin."
-    echo -e "${CHIEF_COLOR_GREEN}chief.plugin [plugin_name]${CHIEF_NO_COLOR} to create/edit a specific plugin."
-    echo -e "${CHIEF_COLOR_GREEN}chief.bash_profile${CHIEF_NO_COLOR} and ${CHIEF_COLOR_GREEN}chief.bashrc${CHIEF_NO_COLOR} to edit and autoload accordingly."
+    echo -e "${CHIEF_COLOR_YELLOW}Explore the following Chief commands:${CHIEF_NO_COLOR}"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} to see available built-in commands.${CHIEF_NO_COLOR}"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit the configuration and explore features.${CHIEF_NO_COLOR}"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to pull the latest version or set ${CHIEF_COLOR_GREEN}CHIEF_CFG_AUTOCHECK_UPDATES=true${CHIEF_NO_COLOR}"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.bash_profile${CHIEF_NO_COLOR} to edit your .bash_profile file.${CHIEF_NO_COLOR}"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.bashrc${CHIEF_NO_COLOR} to edit your .bashrc file.${CHIEF_NO_COLOR}"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.* -? ${CHIEF_NO_COLOR} to display the help-text for any chief command. ${CHIEF_NO_COLOR}"
+    echo -e "- ${CHIEF_COLOR_GREEN}type chief.* ${CHIEF_NO_COLOR} on any command if you\'re curious or want to reuse the internal functions.${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_YELLOW}Plugin-related:${CHIEF_NO_COLOR}"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin${CHIEF_NO_COLOR} to edit the default plugin.${CHIEF_NO_COLOR}"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin [plug-in name] ${CHIEF_NO_COLOR} to create/edit a plugin.${CHIEF_NO_COLOR}"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.plugins${CHIEF_NO_COLOR} to cd into your plugins directory.${CHIEF_NO_COLOR}"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR} to find your plugin name.${CHIEF_NO_COLOR}"
+
     echo -e "${CHIEF_COLOR_CYAN}** Disable this hint by setting ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS=false${CHIEF_NO_COLOR} \
 ${CHIEF_COLOR_CYAN}in ${CHIEF_COLOR_GREEN}chief.config ${CHIEF_COLOR_CYAN}**${CHIEF_NO_COLOR}"
   fi
