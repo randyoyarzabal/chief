@@ -19,6 +19,13 @@ fi
 # CHIEF DEFAULTS
 ###################################################################################################################
 
+CHIEF_VERSION="v1.3.8 (2025-Jun-5)"
+CHIEF_REPO="https://github.com/randyoyarzabal/chief"
+CHIEF_WEBSITE="https://chief.reonetlabs.us"
+CHIEF_AUTHOR="Randy E. Oyarzabal"
+CHIEF_LIBRARY="${CHIEF_PATH}/libs/core/chief_library.sh"
+CHIEF_GIT_TOOLS="${CHIEF_PATH}/libs/extras/git"
+
 CHIEF_PLUGINS_CORE="${CHIEF_PATH}/libs/core/plugins"
 CHIEF_PLUGIN_SUFFIX="_chief-plugin.sh"
 CHIEF_DEFAULT_USER_PLUGIN_TEMPLATE="${CHIEF_PATH}/templates/chief_user_plugin_template.sh"
@@ -26,9 +33,6 @@ CHIEF_CFG_LOAD_NON_ALIAS=true # Load non-alias functions from plugins by default
 
 # CORE HELPER FUNCTIONS
 ###################################################################################################################
-
-# This is used to store the sorted plugins array.
-export __CHIEF_PLUGINS_ARR_SORTED=()
 
 # Detect platform
 uname_out="$(uname -s)"
@@ -144,7 +148,8 @@ function __apply_chief-alias() {
     sed "s/function chief./function $alias./g" ${source_file} >${tmp_lib} # Replace into a temp file.
     sed -i.bak -e "s/alias chief./alias $alias./g" -- "${tmp_lib}" 
 
-    source ${tmp_lib} # Source the library as its alias
+    source ${tmp_lib} &> /dev/null # Source the library as its alias and 
+    # Suppress output because it will be loaded a second time as "chief.*"
 
     # Destroy / delete the temp library
     rm -rf ${tmp_lib}
@@ -184,6 +189,7 @@ function __load_plugins_dir() {
   fi
 
   local plugins=() # Array to hold plugin names
+  local sorted_plugins=() # Array to hold sorted plugin names
   if ! ${load_flag}; then
     __print "   plugins: ${1} not enabled." "$2"
   else
@@ -194,10 +200,12 @@ function __load_plugins_dir() {
       done
 
       # Sort the plugins alphabetically
-      mapfile -t __CHIEF_PLUGINS_ARR_SORTED < <(printf "%s\n" "${plugins[@]}" | sort)
+      #mapfile -t sorted_plugins < <(printf "%s\n" "${plugins[@]}" | sort)
+      sorted_plugins=($(printf '%s\n' "${plugins[@]}"|sort))
+
 
       # Loop through sorted plugins and print them
-      for plugin in "${__CHIEF_PLUGINS_ARR_SORTED[@]}"; do
+      for plugin in "${sorted_plugins[@]}"; do
         plugin_file=${plugin##*/}
         plugin_name=${plugin_file%%_*}
 
@@ -226,6 +234,7 @@ __get_plugins() {
   dir_path=${CHIEF_USER_PLUGINS}
 
   local plugins=() # Array to hold plugin names
+  local sorted_plugins=() # Array to hold sorted plugin names
 
   if [[ -d ${dir_path} ]]; then
     for plugin in "${dir_path}/"*"${CHIEF_PLUGIN_SUFFIX}"; do
@@ -233,10 +242,11 @@ __get_plugins() {
     done
 
     # Sort the plugins alphabetically
-    mapfile -t __CHIEF_PLUGINS_ARR_SORTED < <(printf "%s\n" "${plugins[@]}" | sort)
+    #mapfile -t sorted_plugins < <(printf "%s\n" "${plugins[@]}" | sort)
+    sorted_plugins=($(printf '%s\n' "${plugins[@]}"|sort))
 
     # Loop through sorted plugins and print them
-    for plugin in "${__CHIEF_PLUGINS_ARR_SORTED[@]}"; do
+    for plugin in "${sorted_plugins[@]}"; do
       plugin_file=${plugin##*/}
       plugin_name=${plugin_file%%_*}
       plugin_list_str="$plugin_list_str|$plugin_name" # Append plugin name
@@ -254,7 +264,7 @@ function __edit_user_plugin() {
   local plugin_file
 
   # Check if user plugins are enabled.
-  if [[ -z ${CHIEF_USER_PLUGINS} ]] || [[ ! -d ${CHIEF_USER_PLUGINS} ]]; then
+  if [[ -z ${CHIEF_USER_PLUGINS} ]]; then
     echo "Chief user plugins are not enabled."
     return
   fi
@@ -269,13 +279,13 @@ function __edit_user_plugin() {
     echo "Chief plugin: ${plugin_name} plugin file does not exist."
     response=$(chief.etc_ask_yes_or_no "Create it?")
     if [[ $response == 'no' ]]; then
-      echo "${CHIEF_COLOR_YELLOW}Plugin file not created.${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_YELLOW}Plugin file not created.${CHIEF_NO_COLOR}"
       return 1
     fi
 
     # Get the user plugin template file
     if [[ -z ${CHIEF_CFG_USER_PLUGIN_TEMPLATE} ]] || [[ ! -f ${CHIEF_CFG_USER_PLUGIN_TEMPLATE} ]]; then
-      echo "${CHIEF_COLOR_RED}Chief user plugin template not defined or does not exist. Using default template.${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_RED}Chief user plugin template not defined or does not exist. Using default template.${CHIEF_NO_COLOR}"
       CHIEF_CFG_USER_PLUGIN_TEMPLATE=${CHIEF_DEFAULT_USER_PLUGIN_TEMPLATE}
     fi
 
@@ -295,7 +305,7 @@ function __edit_user_plugin() {
 
     # Replace the plugin name in the template
     # Portable sed usage; reference: https://unix.stackexchange.com/a/381201
-    sed -i.bak -e "s/\$CHIEF_PLUGIN_NAME/${plugin_name}/g" -- "${plugin_file}" && rm -- "${plugin_file}.bak"
+    sed -i.bak -e "s/\$CHIEF_PLUGIN_NAME/${plugin_name}/g" -- "${plugin_file}" && rm -rf "${plugin_file}.bak"
     #sed -i "s/\$CHIEF_PLUGIN_NAME/${plugin_name}/g" ${plugin_file}
     __edit_file ${plugin_file}
   fi
@@ -303,6 +313,9 @@ function __edit_user_plugin() {
 
 # Load/source Chief library
 function __load_library() {
+  source ${CHIEF_PATH}/libs/core/chief_library_core.sh
+  __load_file ${CHIEF_LIBRARY} 
+
   # Usage: __load_library
   __load_file ${CHIEF_CONFIG}
 
@@ -321,26 +334,31 @@ function __load_library() {
 function __chief.banner {
   echo -e "${CHIEF_COLOR_YELLOW}        __    _      ____${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW}  _____/ /_  (_)__  / __/${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
-  echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_COLOR_CYAN}${CHIEF_WEBSITE}${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
-  echo -e "${CHIEF_COLOR_GREEN}User plugins loaded: ${CHIEF_COLOR_GREEN}$(__get_plugins)${CHIEF_NO_COLOR}"
   if [[ -n $CHIEF_ALIAS ]]; then
-    echo -e "${CHIEF_COLOR_GREEN}Chief alias: ${CHIEF_COLOR_CYAN}${CHIEF_ALIAS}${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  alias: ${CHIEF_COLOR_CYAN}${CHIEF_ALIAS}${CHIEF_NO_COLOR}"
+  else
+  echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${CHIEF_NO_COLOR}"
   fi
+  echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${CHIEF_COLOR_CYAN}${CHIEF_WEBSITE}${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
 }
 
 # Display "hints" text and dynamically display alias if necessary.
 function __chief.hints_text() {
   # Usage: __chief.hints_text
   if ${CHIEF_CFG_HINTS}; then
+    echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
+    local plugin_list=$(__get_plugins)
+    if [[ ${plugin_list} != "" ]]; then
+      echo -e "${CHIEF_COLOR_GREEN}User plugins loaded: ${CHIEF_COLOR_CYAN}${plugin_list}${CHIEF_NO_COLOR}"
+    fi
     echo -e "${CHIEF_COLOR_YELLOW}Chief tool hints:${CHIEF_NO_COLOR}"
     echo -e "${CHIEF_COLOR_GREEN}chief.<command> -?${CHIEF_NO_COLOR} to display help text."
-    echo -e "${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit the configuration to turn off these hints, banner, enable prompt customizations etc."
+    echo -e "${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to enable/disable hints, banner, enable prompt customizations etc."
+    echo -e "${CHIEF_COLOR_GREEN}chief.reload${CHIEF_NO_COLOR} to reload Chief core libs and plugins."
     echo -e "${CHIEF_COLOR_GREEN}chief.plugin${CHIEF_NO_COLOR} to edit the default plugin."
-    echo -e "${CHIEF_COLOR_GREEN}chief.plugin [plugin_name]${CHIEF_NO_COLOR} to edit a specific user plugin file."
-    echo -e "${CHIEF_COLOR_GREEN}chief.bash_profile${CHIEF_NO_COLOR} and ${CHIEF_COLOR_GREEN}chief.bashrc{CHIEF_NO_COLOR} to edit and autoload accordingly."
+    echo -e "${CHIEF_COLOR_GREEN}chief.plugin [plugin_name]${CHIEF_NO_COLOR} to create/edit a specific user plugin."
+    echo -e "${CHIEF_COLOR_GREEN}chief.bash_profile${CHIEF_NO_COLOR} and ${CHIEF_COLOR_GREEN}chief.bashrc${CHIEF_NO_COLOR} to edit and autoload accordingly."
     echo -e "${CHIEF_COLOR_CYAN}**Disable this hint by setting ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS=false${CHIEF_NO_COLOR} in ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}"
   fi
 }
@@ -390,7 +408,7 @@ function __load_ssh_keys() {
     if ${CHIEF_CFG_VERBOSE} || [[ "${1}" == '--force' ]]; then
       ${load} ${rsa_key}
     else
-      ${load} ${rsa_key} >/dev/null 2>&1
+      ${load} ${rsa_key} &> /dev/null
     fi
   done
 
@@ -399,7 +417,7 @@ function __load_ssh_keys() {
   #   if ${CHIEF_CFG_VERBOSE}; then
   #     ${load} ~/.ssh/id_rsa
   #   else
-  #     ${load} ~/.ssh/id_rsa >/dev/null 2>&1
+  #     ${load} ~/.ssh/id_rsa &> /dev/null
   #   fi
   # fi
 }

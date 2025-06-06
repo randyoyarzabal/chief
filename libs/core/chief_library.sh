@@ -28,6 +28,7 @@ Change directory (cd) into the Chief utility root installation directory."
   fi
 
   cd ${CHIEF_PATH}
+  echo -e "${CHIEF_COLOR_GREEN}Changed directory to CHIEF_PATH=${CHIEF_PATH}.${CHIEF_NO_COLOR}"
 }
 
 function chief.ssh_load_keys() {
@@ -61,6 +62,7 @@ Update the Chief utility library to the latest version."
     return
   fi
 
+  __chief.banner
   chief.etc_spinner "Checking for updates..." "__check_for_updates" tmp_out
   echo -e "${tmp_out}"
   if [[ ${tmp_out} == *"available"* ]]; then
@@ -68,22 +70,15 @@ Update the Chief utility library to the latest version."
     if [[ $response == 'yes' ]]; then
       chief.root
       chief.git_update -p
-      chief.reload_library
+      chief.reload
       cd - > /dev/null 2>&1
       echo -e "${CHIEF_COLOR_GREEN}Updated Chief to [${CHIEF_VERSION}].${CHIEF_NO_COLOR}"
+    else
+      echo -e "${CHIEF_COLOR_YELLOW}Update skipped.${CHIEF_NO_COLOR}"
     fi
   else
     echo -e "${CHIEF_COLOR_YELLOW}No Chief updates found.${CHIEF_NO_COLOR}"
   fi
-
-  # chief.root; 
-  # if [[ $(chief.git_update -p) == *"changed"* ]]; then
-  #   echo -e "${CHIEF_COLOR_YELLOW}Updates found [${CHIEF_VERSION}] and applied.${CHIEF_NO_COLOR}"
-  #   chief.reload_library
-  # else
-  #   echo -e "${CHIEF_COLOR_YELLOW}No updates found.${CHIEF_NO_COLOR}"
-  # fi
-  # cd - > /dev/null 2>&1
 }
 
 function chief.uninstall() {
@@ -118,7 +113,7 @@ Edit the Chief utility configuration."
   }
 }
 
-function chief.plugins.root() {
+function chief.plugins() {
   local USAGE="Usage: $FUNCNAME
 
 Change directory (cd) into the Chief utility plugins directory root."
@@ -129,6 +124,7 @@ Change directory (cd) into the Chief utility plugins directory root."
   fi
 
   cd ${CHIEF_USER_PLUGINS}
+  echo -e "${CHIEF_COLOR_GREEN}Changed directory to CHIEF_USER_PLUGINS=${CHIEF_USER_PLUGINS}.${CHIEF_NO_COLOR}"
 }
 
 function chief.plugin() {
@@ -187,7 +183,7 @@ Edit the user .profile file and reload into memory if changed."
   __edit_file "$HOME/.profile"
 }
 
-function chief.reload_library() {
+function chief.reload() {
   local USAGE="Usage: $FUNCNAME
 
 Reload the Chief utility library/environment."

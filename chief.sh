@@ -4,25 +4,6 @@
 #   All settings and commands are done via the chief.* commands
 ###################################################################################################################
 
-CHIEF_VERSION="v1.3.1 (2025-Jun-5)"
-CHIEF_REPO="https://github.com/randyoyarzabal/chief"
-CHIEF_WEBSITE="https://chief.reonetlabs.us"
-CHIEF_AUTHOR="Randy E. Oyarzabal"
-CHIEF_LIBRARY="${CHIEF_PATH}/libs/core/chief_library.sh"
-CHIEF_GIT_TOOLS="${CHIEF_PATH}/libs/extras/git"
-
-# Load prerequisite library
-source ${CHIEF_PATH}/libs/core/chief_library_helpers.sh
-
-# Load config file AFTER the helper functions
-source ${CHIEF_CONFIG}
-
-__load_file ${CHIEF_LIBRARY} 
-
-# MAIN BEGINS HERE
-
-# shopt -s expand_aliases
-
 # Block interactive execution
 if [[ $0 = $BASH_SOURCE ]]; then
   echo "Error: $0 (Chief) must be sourced; not executed interactively."
@@ -32,10 +13,11 @@ fi
 # Check for prerequisite environment variable
 if [[ -z ${CHIEF_PATH} ]] || [[ -z ${CHIEF_CONFIG} ]]; then
   echo 'Error: $CHIEF_PATH and/or $CHIEF_CONFIG environment var must be set before using Chief.'
-  return 1
+  exit 1
 fi
 
-# Core library loading definition
+# Load core libraries
+source ${CHIEF_PATH}/libs/core/chief_library_core.sh
 __load_library 
 
 # Load RSA/SSH keys if directory is defined

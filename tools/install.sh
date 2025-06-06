@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-CHIEF_VERSION="v1.3.1 (2025-Jun-5)"
+CHIEF_VERSION="v1.3.8 (2025-Jun-5)"
 CHIEF_REPOSITORY="https://github.com/randyoyarzabal/chief.git"
 CHIEF_PATH="$HOME/.chief"
 CHIEF_CONFIG="$HOME/.chief_config.sh" 
@@ -59,7 +59,7 @@ function _chief_install {
 
   echo -e "${CHIEF_COLOR_BLUE}Cloning Chief...${CHIEF_NO_COLOR}"
   umask g-w,o-w
-  type -P git &>/dev/null || {
+  type -P git &> /dev/null || {
     echo -e "${CHIEF_COLOR_RED}Error: git is not installed.${CHIEF_NO_COLOR}"
     return 1
   }
@@ -128,9 +128,11 @@ function _chief_install_main () {
   }
 
   response=$(_chief_confirm "Would you like to enable Chief's git-aware prompt?
-  Note that you can disable this later by running 'chief.configure'.")
+  If you are using a custom prompt, such as Oh-My-BASH, this will have no effect.
+  Note that you can disable this later by running 'chief.configure'. 
+  Try 'chief.git_legend' for details.")
   if [[ $response == 'yes' ]]; then
-      echo -e "${CHIEF_COLOR_BLUE}Enabling CHIEF_CFG_PROMPT in $CHIEF_CONFIG.{CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_BLUE}Enabling CHIEF_CFG_PROMPT in $CHIEF_CONFIG.${CHIEF_NO_COLOR}"
       # Portable sed usage; reference: https://unix.stackexchange.com/a/381201
       sed -i.bak -e "s/CHIEF_CFG_PROMPT\=false/CHIEF_CFG_PROMPT\=true/g" -- "${CHIEF_CONFIG}" && rm -- "${CHIEF_CONFIG}.bak"
   fi

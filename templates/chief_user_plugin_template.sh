@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 
 # Chief plugin name: $CHIEF_PLUGIN_NAME
-echo "Chief plugin: $CHIEF_PLUGIN_NAME loaded."
-
 ###################################################################################################
 # THIS IS A TEMPLATE FOR THE CHIEF UTILITY LIBRARY. 
 # The variable $CHIEF_PLUGIN_NAME will be replaced with the name of the plugin upon creation.
@@ -24,6 +22,8 @@ if [[ $0 = $BASH_SOURCE ]]; then
   echo "Error: $0 (Chief user plugin) must be sourced; not executed interactively."
   exit 1
 fi
+
+echo "Chief plugin: $CHIEF_PLUGIN_NAME loaded."
 
 # Sample alias 
 alias $CHIEF_PLUGIN_NAME.weather='curl -s --connect-timeout 3 -m 5 http://wttr.in/Sitka,AK?0/u'
