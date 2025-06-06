@@ -51,7 +51,7 @@ Example:
   esac
 }
 
-function _chief_install {
+function _chief_install (){
   if [[ -z "$1" ]]; then
     CHIEF_GIT_BRANCH="main"
   else
@@ -85,7 +85,7 @@ function _chief_install {
   echo -e "${CHIEF_COLOR_GREEN}Chief was successfully installed in '${CHIEF_PATH}'.${CHIEF_NO_COLOR}"
 }
 
-function _chief_install_config {
+function _chief_install_config () {
   echo -e "${CHIEF_COLOR_BLUE}Configuring Chief...${CHIEF_NO_COLOR}"
   if [[ ! -f "$CHIEF_CONFIG" ]]; then
     cp $CHIEF_PATH/templates/chief_config_template.sh $CHIEF_CONFIG
