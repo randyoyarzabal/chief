@@ -192,7 +192,7 @@ Configured values:
   CHIEF_CFG_PLUGINS_GIT_BRANCH=${CHIEF_CFG_PLUGINS_GIT_BRANCH}
   CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}
   CHIEF_CFG_PLUGINS=${CHIEF_CFG_PLUGINS}
-Note that you can also run 'chief.plugins_update' anytime.")
+Note that you can also run 'chief.plugins_update' anytime or set CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=true")
     if [[ $response == 'yes' ]]; then
       good_to_load=true
     fi  
@@ -236,7 +236,7 @@ Note that you can also run 'chief.plugins_update' anytime.")
   else
     # Check if plugins directory is empty.
     if [[ $(__get_plugins) == "" ]] && ! ${CHIEF_CFG_HINTS}; then
-      echo -e "${CHIEF_COLOR_YELLOW}Remote plugins are not set to auto-update. Use '${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW}' to update.${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_YELLOW}Remote plugins are not set to auto-update (CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false). '${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW}' to update.${CHIEF_NO_COLOR}"
     fi
   fi
   # Load plugins from the remote repository.
@@ -461,7 +461,7 @@ function __chief.hints_text() {
 
     # If plugins are not set to auto-update, display a message.
     if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]] && ! ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE}; then   
-      echo -e "${CHIEF_COLOR_YELLOW}Remote plugins are not set to auto-update. Use '${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW}' to update.${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_YELLOW}Remote plugins are not set to auto-update (CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false). '${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW}' to update.${CHIEF_NO_COLOR}"
     fi
 
     echo -e "${CHIEF_COLOR_YELLOW}Chief tool hints:${CHIEF_NO_COLOR}"
