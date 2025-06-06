@@ -461,7 +461,7 @@ function __chief.hints_text() {
 
     # If plugins are not set to auto-update, display a message.
     if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]] && ! ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE}; then   
-      echo -e "${CHIEF_COLOR_YELLOW}Remote plugins are not set to auto-update (CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false). '${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW}' to update.${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_YELLOW}CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false '${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW}' to update/load plugins.${CHIEF_NO_COLOR}"
     fi
 
     echo -e "${CHIEF_COLOR_YELLOW}Explore the following Chief commands:${CHIEF_NO_COLOR}"
