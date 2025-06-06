@@ -13,6 +13,7 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
+########################################################################
 
 # $1 sets CHIEF_GIT_BRANCH, $2 sets CHIEF_PATH, $3 sets CHIEF_CONFIG
 
