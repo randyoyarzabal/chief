@@ -51,20 +51,20 @@ Experiment and try the following commands:
 - `chief.plugin [plug-in name]` to create/edit a plugin.
 - `type chief.*` on any command if you're curious or want to reuse the internal functions.
 
-Don't have a git-aware prompt? Try Chief's custom prompt, set `CHIEF_CFG_PROMPT=true`.
+**Don't have a git-aware prompt?** Try Chief's custom prompt, set `CHIEF_CFG_PROMPT=true`.
 
-Want to load and manage plugins from a git repo? Enable remote repo by setting `CHIEF_CFG_PLUGINS_TYPE='remote'` and set other git options in the configuration.
+**Want to load and manage plugins from a git repo?** Enable remote repo by setting `CHIEF_CFG_PLUGINS_TYPE='remote'` and set other git options in the configuration.
 
-Tired of passing SSH keys when logging to remote hosts?  Try Chief's SSH key auto-loader, set `CHIEF_CFG_RSA_KEYS_PATH=<ssh keys path>`.  Just make sure your private keys end with `*.rsa`; you can also use symplinks.  This is so you can pick and choose what you want to load.
+**Tired of passing SSH keys when logging to remote hosts?**  Try Chief's SSH key auto-loader, set `CHIEF_CFG_RSA_KEYS_PATH=<ssh keys path>`.  Just ensure that your private keys end with `*.rsa`; you can also use symbolic links.  This allows you to select and choose what you want to load.
 
 ## Configurable Features
 
-- Management of Bash variables, aliases and functions
+- Management of Bash variables, aliases, and functions
   - Support for local and remote git plugins
   - Auto creation of plugin
 - Automated reload of edited files
 - Private SSH key auto-loading
-- Custom prompt if you're not already using one (i.e. Oh-My-Bash)
+- Custom prompt if you're not already using one (i.e., Oh-My-Bash)
   - Git prompt
   - Colored prompt
   - Working directory
@@ -77,15 +77,15 @@ Tired of passing SSH keys when logging to remote hosts?  Try Chief's SSH key aut
     git clone --depth=1 https://github.com/randyoyarzabal/chief.git $HOME/.chief
     ```
 
-2. Make a copy a config template from the 'templates' directory. Note that it need to be placed outside the root of Chief.
+2. Make a copy a config template from the 'templates' directory. Note that it needs to be placed outside the root of Chief.
 
     ```bash
     cp templates/chief_config_template.sh ~/.chief_config.sh
     ```
 
-    Change the configuration to suit.
+    Modify the configuration with `chief.config` to suit your needs.
 
-3. Define the following variables and source call in your start-up script (.bash_profile for example).
+3. Define the following variables and source call in your start-up script (.bash_profile, for example).
 
     For example:
 
