@@ -186,7 +186,12 @@ __load_remote_plugins() {
     good_to_load=true
   # If the git path isn't set Or path doesn't exist Or it is empty.
   elif [[ -z ${CHIEF_CFG_PLUGINS_GIT_PATH} ]] || [[ ! -d ${CHIEF_CFG_PLUGINS_GIT_PATH} ]] || [[ -z "$(ls -A ${CHIEF_CFG_PLUGINS_GIT_PATH})" ]]; then
-    local response=$(chief.etc_ask_yes_or_no "Your plugins directory is empty/doesn't exist, do you want to run the update now?
+    local response=$(chief.etc_ask_yes_or_no "Your Chief plugins directory is empty/doesn't exist, do you want to run the update now?
+Configured values:
+  CHIEF_CFG_PLUGINS_GIT_REPO=${CHIEF_CFG_PLUGINS_GIT_REPO}
+  CHIEF_CFG_PLUGINS_GIT_BRANCH=${CHIEF_CFG_PLUGINS_GIT_BRANCH}
+  CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}
+  CHIEF_CFG_PLUGINS=${CHIEF_CFG_PLUGINS}
 Note that you can also run 'chief.plugins_update' anytime.")
     if [[ $response == 'yes' ]]; then
       good_to_load=true
