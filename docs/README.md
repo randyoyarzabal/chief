@@ -51,11 +51,15 @@ Experiment and try the following commands:
 - `chief.plugin [plug-in name]` to create/edit a plugin.
 - `type chief.*` on any command if you're curious or want to reuse the internal functions.
 
+***But wait, there's more...:-D***
+
 **Don't have a git-aware prompt?** Try Chief's custom prompt, set `CHIEF_CFG_PROMPT=true`.
 
 **Want to load and manage plugins from a git repo?** Enable remote repo by setting `CHIEF_CFG_PLUGINS_TYPE='remote'` and set other git options in the configuration.
 
 **Tired of passing SSH keys when logging to remote hosts?**  Try Chief's SSH key auto-loader, set `CHIEF_CFG_RSA_KEYS_PATH=<ssh keys path>`.  Just ensure that your private keys end with `*.rsa`; you can also use symbolic links.  This allows you to select and choose what you want to load.
+
+**Don't want to keep typing `chief.`?**  Try setting the Chief alias. For example, `CHIEF_CFG_ALIAS=cf`.
 
 ## Configurable Features
 
