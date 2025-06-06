@@ -52,9 +52,8 @@ Example:
 }
 
 function _chief_install (){
-  if [[ -z "$1" ]]; then
-    CHIEF_GIT_BRANCH="main"
-  else
+  echo "_chief_install \$1=$1"
+  if [[ -n "$1" ]]; then
     CHIEF_GIT_BRANCH="$1"
   fi
 
@@ -146,6 +145,7 @@ function _chief_install_main () {
   _chief.banner
 }
 
+echo "main \$1=$1"
 _chief_install_main "$@"
 
 if [[ $? -ne 0 ]]; then
