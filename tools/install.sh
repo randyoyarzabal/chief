@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 
 CHIEF_VERSION="v2.0 (2025-Jun-6)"
-CHIEF_REPOSITORY="https://github.com/randyoyarzabal/chief.git"
+CHIEF_GIT_REPO="https://github.com/randyoyarzabal/chief.git"
+CHIEF_GIT_BRANCH="main"
 CHIEF_PATH="$HOME/.chief"
 CHIEF_CONFIG="$HOME/.chief_config.sh" 
 
@@ -71,7 +72,7 @@ function _chief_install {
       return 1
     fi
   fi
-  git clone --depth=1 "$CHIEF_REPOSITORY" "$CHIEF_PATH" || {
+  git clone --branch "$CHIEF_GIT_BRANCH" --depth=1 "$CHIEF_GIT_REPO" "$CHIEF_PATH" || {
     echo -e "${CHIEF_COLOR_RED}Error: git clone of Chief repo failed.${CHIEF_NO_COLOR}"
     return 1
   }
@@ -117,6 +118,13 @@ function _chief_install_config {
 }
 
 function _chief_install_main () {
+  # If branch is not set, default to main
+  if [[ -z "$1" ]]; then
+    CHIEF_GIT_BRANCH="main"
+  else
+    CHIEF_GIT_BRANCH="$1"
+  fi
+
   _chief_install || {
     echo -e "${CHIEF_COLOR_RED}Chief installation failed.${CHIEF_NO_COLOR}"
     exit 1
@@ -139,4 +147,9 @@ function _chief_install_main () {
   _chief.banner
 }
 
-_chief_install_main
+_chief_install_main "$@"
+
+if [[ $? -ne 0 ]]; then
+  echo -e "${CHIEF_COLOR_RED}Chief installation failed. Please check the error messages above.${CHIEF_NO_COLOR}"
+  exit 1
+fi
