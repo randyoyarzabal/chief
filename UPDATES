@@ -1,5 +1,11 @@
 # Updates
 
+## v2.0.1
+
+- Added license headers.
+- Added parameters to install/uninstall scripts.
+- Improved git plugin loading.
+
 ## v2.0
 
 - Chief alias is enabled. If defined, `chief.*` commands will be aliased as `alias.*`

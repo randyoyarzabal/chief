@@ -1,6 +1,12 @@
 [![GitHub release](https://img.shields.io/badge/Download-Release%20v2.0-lightgrey.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![GitHub commits (since latest release)](https://img.shields.io/github/commits-since/randyoyarzabal/chief/latest.svg?style=social)](https://github.com/randyoyarzabal/chief/commits/master)
 
-## Installation
+## What is Chief?
+
+Chief is BASH library system to help organize functions, aliases, and environment variables with extra features such as prompt customization and SSH keys management.  It also installs  with various function utilities relating to git, SSL, openshift, vault, etc. Once installed, checkout `chief.[tab]` to explore what's available.
+
+## Getting Started
+
+Simply run this command on your terminal to install:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
@@ -8,7 +14,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 
 Running the `install` command will:
 
-- Install Chief by cloning the git repo to `$HOME/.chief`
+- Install latest version of Chief by cloning the git repo to `$HOME/.chief`
 - Configure using a copy of default configuration template to `$HOME/.chief_config.sh`
 - Add the library loading lines to `$HOME/.bashrc` (file will be created if it doesn't exist)
 - To start Chief, restart your terminal or `source ~/.bashrc`.
@@ -33,28 +39,32 @@ Running the `uninstall` command will:
 - Remove the library loading lines from `$HOME/.bashrc`
 - Restart your terminal to complete uninstallation.
 
-## What is Chief?
+## What's next?
 
-Chief is BASH library system to help organize functions, aliases, and environment variables with extra features such as prompt customization and SSH keys management.  It also installs  with various function utilities relating to git, SSL, openshift, vault, etc. Once installed, checkout `chief.[tab]` to explore what's available.
+Experiment and try the following commands:
 
-## What can Chief do for you?
+- `chief.[tab]` to see available built-in commands.
+- `chief.config` to edit the configuration and explore features.
+- `chief.bash_profile` to edit your .bash_profile (this will automatically reload the file if changes are detected.)
+- `chief.bashrc` to edit your .bashrc (this will automatically reload the file if changes are detected.)
+- `chief.plugin` to edit the default plugin.
+- `chief.plugin [plug-in name]` to create/edit a plugin.
+- `type chief.*` on any command if you're curious or want to reuse the internal functions.
 
-TODO
+Don't have a git-aware prompt? Try Chief's custom prompt, set `CHIEF_CFG_PROMPT=true`.
 
-## Configuration Options
+Want to load and manage plugins from a git repo? Enable remote repo by setting `CHIEF_CFG_PLUGINS_TYPE='remote'` and set other git options in the configuration.
 
-TODO: Table of config options
-
-## Built-in Plug-ins
-
-TODO: Table of core plugins
+Tired of passing SSH keys when logging to remote hosts?  Try Chief's SSH key auto-loader, set `CHIEF_CFG_RSA_KEYS_PATH=<ssh keys path>`.  Just make sure your private keys end with `*.rsa`; you can also use symplinks.  This is so you can pick and choose what you want to load.
 
 ## Configurable Features
 
 - Management of BASH variables, aliases and functions
+  - Support for local and remote git plugins
+  - Auto creation of plugin
 - Automated reload of edited files
-- RSA Key Management
-- Prompt Management
+- Private SSH key auto-loading
+- Custom prompt if you're not already using one (i.e. Oh-My-Bash)
   - Git prompt
   - Colored prompt
   - Working directory
@@ -88,15 +98,13 @@ TODO: Table of core plugins
 
 4. That's it. You're ready to use Chief! Restart your terminal.
 
-## Post Installation
+## Configuration Options
 
-Experiment and try the following commands:
+TODO: Table of config options
 
-- `chief.[tab]` to see available built-in commands.
-- `chief.config` to edit your config.
-- `chief.bash_profile` to edit your bash start-up file.
-- `chief.plugin` to edit the default plugin.
-- `chief.plugin [plug-in name]` to edit a plugin.
+## Built-in Plug-ins
+
+TODO: Table of core plugins
 
 ## Contribute
 
