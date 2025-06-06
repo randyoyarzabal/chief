@@ -93,8 +93,8 @@ Experiment and try the following commands:
 - `chief.[tab]` to see available built-in commands.
 - `chief.config` to edit your config.
 - `chief.bash_profile` to edit your bash start-up file.
-- `chief.plugin` to edit the default user plugin.
-- `chief.plugin [user plug-in name]` to edit a user plugin.
+- `chief.plugin` to edit the default plugin.
+- `chief.plugin [plug-in name]` to edit a plugin.
 
 ## Contribute
 

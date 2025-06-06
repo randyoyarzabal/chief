@@ -19,7 +19,7 @@ fi
 # CHIEF DEFAULTS
 ###################################################################################################################
 
-CHIEF_VERSION="v1.3.8 (2025-Jun-5)"
+CHIEF_VERSION="v2.0 (2025-Jun-6)"
 CHIEF_REPO="https://github.com/randyoyarzabal/chief"
 CHIEF_WEBSITE="https://chief.reonetlabs.us"
 CHIEF_AUTHOR="Randy E. Oyarzabal"
@@ -28,7 +28,10 @@ CHIEF_GIT_TOOLS="${CHIEF_PATH}/libs/extras/git"
 
 CHIEF_PLUGINS_CORE="${CHIEF_PATH}/libs/core/plugins"
 CHIEF_PLUGIN_SUFFIX="_chief-plugin.sh"
-CHIEF_DEFAULT_USER_PLUGIN_TEMPLATE="${CHIEF_PATH}/templates/chief_user_plugin_template.sh"
+CHIEF_DEFAULT_PLUGINS_TYPE="local" 
+CHIEF_DEFAULT_PLUGINS_GIT_BRANCH="main"
+CHIEF_DEFAULT_PLUGINS="${HOME}/chief_plugins"
+CHIEF_DEFAULT_PLUGIN_TEMPLATE="${CHIEF_PATH}/templates/chief_plugin_template.sh"
 CHIEF_CFG_LOAD_NON_ALIAS=true # Load non-alias functions from plugins by default.
 
 # CORE HELPER FUNCTIONS
@@ -47,7 +50,7 @@ esac
 # Echo string to screen if CHIEF_CFG_VERBOSE is true.
 function __print() {
   # Usage: __print <string>
-  if ${CHIEF_CFG_VERBOSE} || [[ "${2}" == '--force' ]]; then
+  if ${CHIEF_CFG_VERBOSE} || [[ "${2}" == '--verbose' ]]; then
     echo "${1}"
   fi
 }
@@ -110,7 +113,7 @@ function __edit_file() {
       __load_file ${file}
     else
       if [[ $3 == 'reload' ]]; then
-        __load_library --force  
+        __load_library --verbose  
       fi
     fi
 
@@ -132,7 +135,7 @@ function __load_file() {
   __apply_chief-alias ${1} # Apply alias if defined, then source the file.
 }
 
-# Apply the alias defined in CHIEF_ALIAS to the file passed.
+# Apply the alias defined in CHIEF_CFG_ALIAS to the file passed.
 #  Note: this only applied to any function/alias starting with "chief."
 # Usage: __apply_chief-alias <library file>
 function __apply_chief-alias() {
@@ -140,9 +143,9 @@ function __apply_chief-alias() {
   local tmp_lib=$(__get_tmpfile) # Temporary library file.
   local source_file=${1} # File to source
 
-  if [[ -n ${CHIEF_ALIAS} ]]; then
+  if [[ -n ${CHIEF_CFG_ALIAS} ]]; then
     # Substitute chief.* with alias if requested
-    local alias=$(__lower ${CHIEF_ALIAS})
+    local alias=$(__lower ${CHIEF_CFG_ALIAS})
     
     # Apply alias to functions
     sed "s/function chief./function $alias./g" ${source_file} >${tmp_lib} # Replace into a temp file.
@@ -158,29 +161,72 @@ function __apply_chief-alias() {
   source ${source_file}
 }
 
+# Load remote plugins from the git repository.
+# This is only called if CHIEF_CFG_PLUGINS_TYPE is set to "remote".
+# Usage: __load_remote_plugins
+__load_remote_plugins() {
+  if ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE} || [[ "$2" == "--force" ]]; then
+    # Check if git is installed.
+    if ! command -v git &> /dev/null; then
+      echo -e "${CHIEF_COLOR_RED}Error: git is not installed. Please install git to use remote plugins.${CHIEF_NO_COLOR}"
+      return 1
+    fi
+
+    if [[ -z ${CHIEF_CFG_PLUGINS_GIT_PATH} ]] || [[ ! -d ${CHIEF_CFG_PLUGINS_GIT_PATH} ]]; then
+      mkdir -p ${CHIEF_CFG_PLUGINS_GIT_PATH} || {
+        echo -e "${CHIEF_COLOR_RED}Error: Unable to create directory '${CHIEF_CFG_PLUGINS_GIT_PATH}'.${CHIEF_NO_COLOR}"
+        return 1
+      }
+    fi
+
+    # Check if a git branch is defined, if not, set to default.
+    if [[ -z ${CHIEF_CFG_PLUGINS_GIT_BRANCH} ]]; then
+      CHIEF_CFG_PLUGINS_GIT_BRANCH=${CHIEF_DEFAULT_PLUGINS_GIT_BRANCH}
+    fi
+
+    # Check if the git repository exists, if not, clone it.
+    if [[ ! -d ${CHIEF_CFG_PLUGINS_GIT_PATH}/.git ]]; then
+      echo "Cloning remote plugins repository..."
+      git clone --branch ${CHIEF_CFG_PLUGINS_GIT_BRANCH} ${CHIEF_CFG_PLUGINS_GIT_REPO} ${CHIEF_CFG_PLUGINS_GIT_PATH}
+    else
+      echo "Updating remote plugins repository..."
+      cd ${CHIEF_CFG_PLUGINS_GIT_PATH}
+      # Check if local branch is different from $CHIEF_CFG_PLUGINS_GIT_BRANCH
+      local current_branch=$(git rev-parse --abbrev-ref HEAD)
+      if [[ ${current_branch} != ${CHIEF_CFG_PLUGINS_GIT_BRANCH} ]]; then
+        echo "Switching to branch: ${CHIEF_CFG_PLUGINS_GIT_BRANCH}"
+        git checkout ${CHIEF_CFG_PLUGINS_GIT_BRANCH}
+      fi
+      git pull origin ${CHIEF_CFG_PLUGINS_GIT_BRANCH}
+      cd - > /dev/null 2>&1
+    fi
+  else
+    # Check if plugins directory is empty.
+    if [[ $(__get_plugins) == "" ]] && ! ${CHIEF_CFG_HINTS}; then
+      echo -e "${CHIEF_COLOR_YELLOW}Remote plugins are not set to auto-update. Use '${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW}' to update.${CHIEF_NO_COLOR}"
+    fi
+  fi
+  # Load plugins from the remote repository.
+  __load_plugins 'user' "$1"
+}
+
 # Source the library/plugin module passed.
-function __load_plugins_dir() {
-  # Usage: __load_plugins_dir <plug-in module> (user/core)
+function __load_plugins() {
+  # Usage: __load_plugins <plug-in module> (user/core)
   __print "Loading Chief ${1}-plugins..." "$2"
 
   local plugin_file
   local plugin_name
-  local plugin_switch
   local dir_path
   local load_flag
 
-  plugin_switch="CHIEF_$(__upper ${1})_PLUGINS"
   load_flag=false # Default to false, unless plugin switch is defined.
   if [[ $1 == 'core' ]]; then
     dir_path=${CHIEF_PLUGINS_CORE}
-    # If plugin var exists, AND is enabled, load core plugin files into memory
-    # Evaluate string as a variable, '!' is a dereference for the dynamic variable name
-    if [[ -n ${!plugin_switch} ]] && ${!plugin_switch}; then
-      load_flag=true
-    fi
+    load_flag=true
   elif [[ $1 == 'user' ]]; then
-    dir_path=${CHIEF_USER_PLUGINS}
-    if [[ -n ${!plugin_switch} ]]; then
+    dir_path=${CHIEF_CFG_PLUGINS}
+    if [[ -n ${CHIEF_CFG_PLUGINS} ]]; then
       load_flag=true
     fi
   else
@@ -203,7 +249,6 @@ function __load_plugins_dir() {
       #mapfile -t sorted_plugins < <(printf "%s\n" "${plugins[@]}" | sort)
       sorted_plugins=($(printf '%s\n' "${plugins[@]}"|sort))
 
-
       # Loop through sorted plugins and print them
       for plugin in "${sorted_plugins[@]}"; do
         plugin_file=${plugin##*/}
@@ -220,10 +265,10 @@ function __load_plugins_dir() {
   fi
 }
 
-# Generate a list of user plugins as a string separated by '|'.
+# Generate a list of plugins as a string separated by '|'.
 #   This is used to display the list of plugins in the banner, hints, and chief.plugin help text.
-#   This process is meant to run in addition to the __load_plugins_dir function because it accounts for 
-#   new user plugins that are created once the terminal is already started.
+#   This process is meant to run in addition to the __load_plugins function because it accounts for 
+#   new plugins that are created once the terminal is already started.
 # Usage: __get_plugins
 __get_plugins() {
   local plugin_file
@@ -231,7 +276,7 @@ __get_plugins() {
   local dir_path
   local plugin_list_str
 
-  dir_path=${CHIEF_USER_PLUGINS}
+  dir_path=${CHIEF_CFG_PLUGINS}
 
   local plugins=() # Array to hold plugin names
   local sorted_plugins=() # Array to hold sorted plugin names
@@ -242,7 +287,6 @@ __get_plugins() {
     done
 
     # Sort the plugins alphabetically
-    #mapfile -t sorted_plugins < <(printf "%s\n" "${plugins[@]}" | sort)
     sorted_plugins=($(printf '%s\n' "${plugins[@]}"|sort))
 
     # Loop through sorted plugins and print them
@@ -258,19 +302,19 @@ __get_plugins() {
 
 # Edit a plugin file and reload into memory if changed.
 #   Note, will only succeed if plug-in is enabled in settings.
-# Usage: __edit_plugin <user plug-in name>
-function __edit_user_plugin() {
+# Usage: __edit_plugin <plug-in name>
+function __edit_plugin() {
   local plugin_name
   local plugin_file
 
-  # Check if user plugins are enabled.
-  if [[ -z ${CHIEF_USER_PLUGINS} ]]; then
-    echo "Chief user plugins are not enabled."
+  # Check if plugins are enabled.
+  if [[ -z ${CHIEF_CFG_PLUGINS} ]]; then
+    echo "Chief plugins are not enabled."
     return
   fi
 
   plugin_name=$(__lower ${1})
-  plugin_file="${CHIEF_USER_PLUGINS}/${plugin_name}${CHIEF_PLUGIN_SUFFIX}"
+  plugin_file="${CHIEF_CFG_PLUGINS}/${plugin_name}${CHIEF_PLUGIN_SUFFIX}"
 
   # Check if the plugin file exists, if not, prompt to create it.
   if [[ -f ${plugin_file} ]]; then
@@ -283,22 +327,27 @@ function __edit_user_plugin() {
       return 1
     fi
 
-    # Get the user plugin template file
-    if [[ -z ${CHIEF_CFG_USER_PLUGIN_TEMPLATE} ]] || [[ ! -f ${CHIEF_CFG_USER_PLUGIN_TEMPLATE} ]]; then
-      echo -e "${CHIEF_COLOR_RED}Chief user plugin template not defined or does not exist. Using default template.${CHIEF_NO_COLOR}"
-      CHIEF_CFG_USER_PLUGIN_TEMPLATE=${CHIEF_DEFAULT_USER_PLUGIN_TEMPLATE}
+    # Get the plugin template file
+    if [[ -z ${CHIEF_CFG_PLUGIN_TEMPLATE} ]] || [[ ! -f ${CHIEF_CFG_PLUGIN_TEMPLATE} ]]; then
+      echo -e "${CHIEF_COLOR_RED}Chief plugin template not defined or does not exist. Using default template.${CHIEF_NO_COLOR}"
+      CHIEF_CFG_PLUGIN_TEMPLATE=${CHIEF_DEFAULT_PLUGIN_TEMPLATE}
     fi
 
-    # Create the user plugins directory if it does not exist.
-    if [[ ! -d ${CHIEF_USER_PLUGINS} ]]; then
-      mkdir -p ${CHIEF_USER_PLUGINS} || {
-        echo -e "${CHIEF_COLOR_RED}Error: Unable to create directory '${CHIEF_USER_PLUGINS}'.${CHIEF_NO_COLOR}"
+    # Check if a plugin directory is defined, if not, set to default.
+    if [[ -z ${CHIEF_CFG_PLUGINS} ]]; then
+      CHIEF_CFG_PLUGINS=${CHIEF_DEFAULT_PLUGINS}
+    fi
+
+    # Create the plugins directory if it does not exist.
+    if [[ ! -d ${CHIEF_CFG_PLUGINS} ]]; then
+      mkdir -p ${CHIEF_CFG_PLUGINS} || {
+        echo -e "${CHIEF_COLOR_RED}Error: Unable to create directory '${CHIEF_CFG_PLUGINS}'.${CHIEF_NO_COLOR}"
         return 1
       }
     fi
 
     # Copy the template to the plugin file
-    cp ${CHIEF_CFG_USER_PLUGIN_TEMPLATE} ${plugin_file} || {
+    cp ${CHIEF_CFG_PLUGIN_TEMPLATE} ${plugin_file} || {
       echo -e "${CHIEF_COLOR_RED}Error: Unable to create '${plugin_file}'.${CHIEF_NO_COLOR}"
       return 1
     }
@@ -320,25 +369,49 @@ function __load_library() {
   __load_file ${CHIEF_CONFIG}
 
   # Set a default alias if none defined.
-  if [[ -n ${CHIEF_ALIAS} ]]; then
-    __print "Chief is aliased as ${CHIEF_ALIAS}."
+  if [[ -n ${CHIEF_CFG_ALIAS} ]]; then
+    __print "Chief is aliased as ${CHIEF_CFG_ALIAS}."
   fi
 
-  __load_plugins_dir 'core' "$1"
-  __load_plugins_dir 'user' "$1"
+  __load_plugins 'core' "$1"
+
+  if [[ -z ${CHIEF_CFG_PLUGINS_TYPE} ]]; then
+    # If not set, default to local plugins.
+    CHIEF_CFG_PLUGINS_TYPE=${CHIEF_DEFAULT_PLUGINS_TYPE}
+  fi
+
+  if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]]; then
+    __load_remote_plugins "$1"
+  elif [[ ${CHIEF_CFG_PLUGINS_TYPE} == "local" ]]; then
+    __load_plugins 'user' "$1"
+  fi
 
   __print "Chief BASH library/environment (re)loaded." "$1"
 }
 
 # Display Chief banner
 function __chief.banner {
-  echo -e "${CHIEF_COLOR_YELLOW}        __    _      ____${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_YELLOW}  _____/ /_  (_)__  / __/${CHIEF_NO_COLOR}"
-  if [[ -n $CHIEF_ALIAS ]]; then
-  echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  alias: ${CHIEF_COLOR_CYAN}${CHIEF_ALIAS}${CHIEF_NO_COLOR}"
+  local git_status
+  local alias_status
+
+  if [[ -n $CHIEF_CFG_ALIAS ]]; then
+    alias_status="alias: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_ALIAS}"
   else
-  echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${CHIEF_NO_COLOR}"
+    alias_status=""
   fi
+
+  if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]]; then
+    if $CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE; then
+      git_status="plugins: ${CHIEF_COLOR_CYAN}git [auto-update ${CHIEF_COLOR_GREEN}enabled]"
+    else
+      git_status="plugins: ${CHIEF_COLOR_CYAN}git [auto-update ${CHIEF_COLOR_RED}disabled]"
+    fi
+  else
+    git_status="plugins: ${CHIEF_COLOR_CYAN}local${CHIEF_NO_COLOR}"
+  fi
+  echo -e "${CHIEF_COLOR_YELLOW}        __    _      ____${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_YELLOW}  _____/ /_  (_)__  / __/ ${alias_status}${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${git_status}${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${CHIEF_COLOR_CYAN}${CHIEF_WEBSITE}${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
 }
@@ -350,16 +423,23 @@ function __chief.hints_text() {
     echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
     local plugin_list=$(__get_plugins)
     if [[ ${plugin_list} != "" ]]; then
-      echo -e "${CHIEF_COLOR_GREEN}User plugins loaded: ${CHIEF_COLOR_CYAN}${plugin_list}${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_GREEN}Plugins loaded: ${CHIEF_COLOR_CYAN}${plugin_list}${CHIEF_NO_COLOR}"
     fi
+
+    # If plugins are not set to auto-update, display a message.
+    if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]] && ! ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE}; then   
+      echo -e "${CHIEF_COLOR_YELLOW}Remote plugins are not set to auto-update. Use '${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW}' to update.${CHIEF_NO_COLOR}"
+    fi
+
     echo -e "${CHIEF_COLOR_YELLOW}Chief tool hints:${CHIEF_NO_COLOR}"
     echo -e "${CHIEF_COLOR_GREEN}chief.<command> -?${CHIEF_NO_COLOR} to display help text."
     echo -e "${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to enable/disable hints, banner, enable prompt customizations etc."
     echo -e "${CHIEF_COLOR_GREEN}chief.reload${CHIEF_NO_COLOR} to reload Chief core libs and plugins."
     echo -e "${CHIEF_COLOR_GREEN}chief.plugin${CHIEF_NO_COLOR} to edit the default plugin."
-    echo -e "${CHIEF_COLOR_GREEN}chief.plugin [plugin_name]${CHIEF_NO_COLOR} to create/edit a specific user plugin."
+    echo -e "${CHIEF_COLOR_GREEN}chief.plugin [plugin_name]${CHIEF_NO_COLOR} to create/edit a specific plugin."
     echo -e "${CHIEF_COLOR_GREEN}chief.bash_profile${CHIEF_NO_COLOR} and ${CHIEF_COLOR_GREEN}chief.bashrc${CHIEF_NO_COLOR} to edit and autoload accordingly."
-    echo -e "${CHIEF_COLOR_CYAN}**Disable this hint by setting ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS=false${CHIEF_NO_COLOR} in ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_CYAN}** Disable this hint by setting ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS=false${CHIEF_NO_COLOR} \
+${CHIEF_COLOR_CYAN}in ${CHIEF_COLOR_GREEN}chief.config ${CHIEF_COLOR_CYAN}**${CHIEF_NO_COLOR}"
   fi
 }
 
@@ -384,7 +464,7 @@ function __start_agent {
 }
 
 function __load_ssh_keys() {
-    __print "Loading SSH keys from: ${CHIEF_RSA_KEYS_PATH}..." "$1"
+    __print "Loading SSH keys from: ${CHIEF_CFG_RSA_KEYS_PATH}..." "$1"
 
   if [[ ${PLATFORM} == "MacOS" ]]; then
     load="/usr/bin/ssh-add --apple-use-keychain"
@@ -403,9 +483,9 @@ function __load_ssh_keys() {
     fi
   fi
 
-  # Load all keys.  Skip authorized_keys, environment, and known_hosts.
-  for rsa_key in ${CHIEF_RSA_KEYS_PATH}/*.rsa; do
-    if ${CHIEF_CFG_VERBOSE} || [[ "${1}" == '--force' ]]; then
+  # Load all keys. Skip authorized_keys, environment, and known_hosts.
+  for rsa_key in ${CHIEF_CFG_RSA_KEYS_PATH}/*.rsa; do
+    if ${CHIEF_CFG_VERBOSE} || [[ "${1}" == '--verbose' ]]; then
       ${load} ${rsa_key}
     else
       ${load} ${rsa_key} &> /dev/null

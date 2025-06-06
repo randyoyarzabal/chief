@@ -19,7 +19,7 @@
 
 # Block interactive execution
 if [[ $0 = $BASH_SOURCE ]]; then
-  echo "Error: $0 (Chief user plugin) must be sourced; not executed interactively."
+  echo "Error: $0 (Chief plugin) must be sourced; not executed interactively."
   exit 1
 fi
 

@@ -146,7 +146,7 @@ Delete a git branch and push remotely."
 function chief.git_cred_cache() {
   local USAGE="Usage: $FUNCNAME <# of seconds>
 
-Cache git credentials for the passed # of seconds.  Default is 1 day."
+Cache git credentials for the passed # of seconds. Default is 1 day."
   re='^[0-9]+$'
   if [[ -z $1 ]]; then
     git config --global credential.helper "cache --timeout=86400"
