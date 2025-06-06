@@ -1,4 +1,19 @@
 #!/usr/bin/env bash
+# Copyright (C) 2025 Randy E. Oyarzabal <github@randyoyarzabal.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+########################################################################
 
 # Prerequisite environment variables and functions for Chief.
 
@@ -19,7 +34,7 @@ fi
 # CHIEF DEFAULTS
 ###################################################################################################################
 
-CHIEF_VERSION="v2.0 (2025-Jun-6)"
+CHIEF_VERSION="v2.0.1 (2025-Jun-6)"
 CHIEF_REPO="https://github.com/randyoyarzabal/chief"
 CHIEF_WEBSITE="https://chief.reonetlabs.us"
 CHIEF_AUTHOR="Randy E. Oyarzabal"
@@ -165,7 +180,25 @@ function __apply_chief-alias() {
 # This is only called if CHIEF_CFG_PLUGINS_TYPE is set to "remote".
 # Usage: __load_remote_plugins
 __load_remote_plugins() {
+  local good_to_load=false
+  # If autoupdate is disabled or --force was used.
   if ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE} || [[ "$2" == "--force" ]]; then
+    good_to_load=true
+  # If the git path isn't set Or path doesn't exist Or it is empty.
+  elif [[ -z ${CHIEF_CFG_PLUGINS_GIT_PATH} ]] || [[ ! -d ${CHIEF_CFG_PLUGINS_GIT_PATH} ]] || [[ -z "$(ls -A ${CHIEF_CFG_PLUGINS_GIT_PATH})" ]]; then
+    local response=$(chief.etc_ask_yes_or_no "Your Chief plugins directory is empty/doesn't exist, do you want to run the update now?
+Configured values:
+  CHIEF_CFG_PLUGINS_GIT_REPO=${CHIEF_CFG_PLUGINS_GIT_REPO}
+  CHIEF_CFG_PLUGINS_GIT_BRANCH=${CHIEF_CFG_PLUGINS_GIT_BRANCH}
+  CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}
+  CHIEF_CFG_PLUGINS=${CHIEF_CFG_PLUGINS}
+You can run 'chief.plugins_update' anytime or set CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=true")
+    if [[ $response == 'yes' ]]; then
+      good_to_load=true
+    fi  
+  fi
+
+  if ${good_to_load}; then
     # Check if git is installed.
     if ! command -v git &> /dev/null; then
       echo -e "${CHIEF_COLOR_RED}Error: git is not installed. Please install git to use remote plugins.${CHIEF_NO_COLOR}"
@@ -203,7 +236,7 @@ __load_remote_plugins() {
   else
     # Check if plugins directory is empty.
     if [[ $(__get_plugins) == "" ]] && ! ${CHIEF_CFG_HINTS}; then
-      echo -e "${CHIEF_COLOR_YELLOW}Remote plugins are not set to auto-update. Use '${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW}' to update.${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_YELLOW}Remote plugins are not set to auto-update (CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false). ${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW}' to update.${CHIEF_NO_COLOR}"
     fi
   fi
   # Load plugins from the remote repository.
@@ -428,7 +461,7 @@ function __chief.hints_text() {
 
     # If plugins are not set to auto-update, display a message.
     if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]] && ! ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE}; then   
-      echo -e "${CHIEF_COLOR_YELLOW}Remote plugins are not set to auto-update. Use '${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW}' to update.${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_YELLOW}Remote plugins are not set to auto-update (CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false). '${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW}' to update.${CHIEF_NO_COLOR}"
     fi
 
     echo -e "${CHIEF_COLOR_YELLOW}Chief tool hints:${CHIEF_NO_COLOR}"

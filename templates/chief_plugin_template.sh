@@ -1,5 +1,4 @@
 #!/usr/bin/env bash
-
 # Chief plugin name: $CHIEF_PLUGIN_NAME
 ###################################################################################################
 # THIS IS A TEMPLATE FOR THE CHIEF UTILITY LIBRARY. 

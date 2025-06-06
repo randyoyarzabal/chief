@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# CHIEF BASH LIBRARY CONFIGURATION
+# CHIEF CONFIGURATION file, referred to from the $CHIEF_CONFIG variable set.
 ####################################
 
 # Configure items to suit. For all variables:
@@ -42,13 +42,6 @@ CHIEF_CFG_PLUGINS_GIT_BRANCH="main"
 # This is the path where the remote repository will be cloned to.
 CHIEF_CFG_PLUGINS_GIT_PATH="$HOME/dev/chief_plugins"
 
-# Load/update remote plugins when Chief starts.
-# If this is set to true, it will clone/update the remote repository when Chief starts.
-# If set to false, you will need to manually update the plugins with the command:
-# $> chief.plugins_update
-CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="false"
-####################################
-
 # If using remote plugins, this is the path should set within CHIEF_CFG_PLUGINS_GIT_PATH
 # For example, if CHIEF_CFG_PLUGINS_GIT_PATH is set to "$HOME/dev/my_common_utils",
 # then CHIEF_CFG_PLUGINS could be "${CHIEF_CFG_PLUGINS_GIT_PATH}/library/bash/chief". Assuming 
@@ -56,6 +49,12 @@ CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="false"
 # If CHIEF_CFG_PLUGINS_TYPE is set to "local", then this is the path where the plugins will be loaded from.
 # by default it is set to "${HOME}/chief_plugins" if CHIEF_CFG_PLUGINS_TYPE is set to "local".
 CHIEF_CFG_PLUGINS="${HOME}/chief_plugins"
+
+# Load/update remote plugins when Chief starts.
+# If this is set to true, it will clone/update the remote repository when Chief starts.
+# If set to false, you will need to manually update the plugins with the command:
+# $> chief.plugins_update
+CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="false"
 
 # Plugins are loaded in alphabetical order, so you can control the order of loading by naming them accordingly.
 # If the directory does not exist, it will be created automatically.
@@ -83,6 +82,7 @@ CHIEF_CFG_PLUGIN_DEFAULT="$CHIEF_CFG_PLUGINS/default_chief-plugin.sh"
 # You can define your own starting template for plugins, otherwise 
 # the default template will be used: "${CHIEF_PATH}/templates/chief_plugin_template.sh"
 CHIEF_CFG_PLUGIN_TEMPLATE="${CHIEF_PATH}/templates/chief_plugin_template.sh"
+####################################
 
 # PROMPT CONFIGURATION
 ####################################

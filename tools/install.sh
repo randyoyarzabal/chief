@@ -1,10 +1,51 @@
 #!/usr/bin/env bash
+# Copyright (C) 2025 Randy E. Oyarzabal <github@randyoyarzabal.com>
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <https://www.gnu.org/licenses/>.
+########################################################################
 
-CHIEF_VERSION="v2.0 (2025-Jun-6)"
+# $1 sets CHIEF_GIT_BRANCH, $2 sets CHIEF_PATH, $3 sets CHIEF_CONFIG
+
+CHIEF_VERSION="v2.0.1 (2025-Jun-6)"
 CHIEF_GIT_REPO="https://github.com/randyoyarzabal/chief.git"
 CHIEF_GIT_BRANCH="main"
+
+# Set default .bashrc vars
+CHIEF_CONFIG="$HOME/.chief_config.sh"
 CHIEF_PATH="$HOME/.chief"
-CHIEF_CONFIG="$HOME/.chief_config.sh" 
+
+# Check for any overrides from defaults
+if [[ -n "$1" ]]; then
+  CHIEF_GIT_BRANCH="$1"
+fi
+
+if [[ -n "$2" ]]; then
+  CHIEF_PATH="$2"
+fi
+
+if [[ -n "$3" ]]; then
+  CHIEF_CONFIG="$3"
+fi
+
+# Chief loading lines for .bashrc
+CHIEF_CONFIG_LINES=(
+  "export CHIEF_PATH=$CHIEF_PATH"
+  "export CHIEF_CONFIG=$CHIEF_CONFIG"
+  "source $CHIEF_PATH/chief.sh"
+)
+
+CHIEF_BASHRC="$HOME/.bashrc"
 
 CHIEF_COLOR_RED='\033[0;31m'
 CHIEF_COLOR_BLUE='\033[0;34m'
@@ -12,13 +53,6 @@ CHIEF_COLOR_CYAN='\033[0;36m'
 CHIEF_COLOR_GREEN='\033[0;32m'
 CHIEF_COLOR_YELLOW='\033[1;33m'
 CHIEF_NO_COLOR='\033[0m' # Reset color/style
-
-# Chief Environment
-CHIEF_CONFIG_LINES=(
-  "export CHIEF_CONFIG=\"\$HOME/.chief_config.sh\""
-  "export CHIEF_PATH=\"\$HOME/.chief\""
-  "source \${CHIEF_PATH}/chief.sh"
-)
 
 function _chief.banner {
   echo -e "${CHIEF_COLOR_YELLOW}        __    _      ____${CHIEF_NO_COLOR}"
@@ -52,10 +86,10 @@ Example:
 }
 
 function _chief_install (){
-  echo "_chief_install \$1=$1"
-  if [[ -n "$1" ]]; then
-    CHIEF_GIT_BRANCH="$1"
-  fi
+  echo "Installation parameters:
+  CHIEF_GIT_BRANCH=$CHIEF_GIT_BRANCH
+  CHIEF_PATH=$CHIEF_PATH
+  CHIEF_CONFIG=$CHIEF_CONFIG"
 
   if [[ -d $CHIEF_PATH ]]; then
     echo -e "${CHIEF_COLOR_YELLOW}You already have Chief installed.${CHIEF_NO_COLOR}"
@@ -94,13 +128,13 @@ function _chief_install_config () {
   fi
 
   # Check if .bashrc exists
-  if [[ ! -f "$HOME/.bashrc" ]]; then
+  if [[ ! -f "$CHIEF_BASHRC" ]]; then
     echo -e "${CHIEF_COLOR_RED}Error: ~/.bashrc file does not exist.${CHIEF_NO_COLOR}"
     response=$(_chief_confirm "Create it?")
     if [[ $response == 'yes' ]]; then
-      touch "$HOME/.bashrc"
+      touch "$CHIEF_BASHRC"
       for line in "${CHIEF_CONFIG_LINES[@]}"; do
-        echo "$line" >> "$HOME/.bashrc"
+        echo "$line" >> "$CHIEF_BASHRC"
       done
     else
       echo -e "${CHIEF_COLOR_YELLOW}Chief wasn't auto-added to your start-up scripts.${CHIEF_NO_COLOR}"
@@ -128,7 +162,7 @@ function _chief_install_main () {
     exit 1
   }
 
-  _chief_install_config || {
+  _chief_install_config "$@" || {
     echo -e "${CHIEF_COLOR_RED}Chief configuration failed.${CHIEF_NO_COLOR}"
     exit 1
   }
@@ -145,7 +179,6 @@ function _chief_install_main () {
   _chief.banner
 }
 
-echo "main \$1=$1"
 _chief_install_main "$@"
 
 if [[ $? -ne 0 ]]; then
