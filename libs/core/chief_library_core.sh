@@ -202,7 +202,7 @@ __load_remote_plugins() {
     fi
   else
     # Check if plugins directory is empty.
-    if [[ $(__get_plugins) == "" ]]; then
+    if [[ $(__get_plugins) == "" ]] && ! ${CHIEF_CFG_HINTS}; then
       echo -e "${CHIEF_COLOR_YELLOW}Remote plugins are not set to auto-update. Use '${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW}' to update.${CHIEF_NO_COLOR}"
     fi
   fi

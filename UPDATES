@@ -8,6 +8,7 @@
 - Enhanced `chief.plugin` command to create, edit, and load plugins.
 - Added `chief.plugins_update` to update remote plugins.
 - Added remote plugins support from a git repository.
+- Plugin templates feature added.
 
 ## v1.3.0
 

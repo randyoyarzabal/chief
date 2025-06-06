@@ -26,7 +26,7 @@ CHIEF_CFG_AUTOCHECK_UPDATES=false
 ####################################
 
 # This is the type of plugins to use. Valid options are "local" or "remote".
-# If set to "remote", it will clone the remote repository and load plugins from the local clone.
+# If set to "remote", it will clone the remote git repository and load plugins from the local clone.
 # If set to "local", it will load plugins from the local directory.
 CHIEF_CFG_PLUGINS_TYPE="local"
 
