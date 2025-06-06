@@ -180,7 +180,19 @@ function __apply_chief-alias() {
 # This is only called if CHIEF_CFG_PLUGINS_TYPE is set to "remote".
 # Usage: __load_remote_plugins
 __load_remote_plugins() {
+  # If autoupdate is disabled or --force was used.
   if ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE} || [[ "$2" == "--force" ]]; then
+    good_to_load=true
+  # If the git path isn't set Or path doesn't exist Or it is empty.
+  elif [[ -z ${CHIEF_CFG_PLUGINS_GIT_PATH} ]] || [[ ! -d ${CHIEF_CFG_PLUGINS_GIT_PATH} ]] || [[ -z "$(ls -A ${CHIEF_CFG_PLUGINS_GIT_PATH})" ]]; then
+    local response=$(chief.etc_ask_yes_or_no "Your plugins directory is empty/doesn't exist, do you want to run the update now?
+Note that you can also run 'chief.plugins_update' anytime.")
+    if [[ $response == 'no' ]]; then
+      good_to_load=true
+    fi  
+  fi
+
+  if ${good_to_load}; then
     # Check if git is installed.
     if ! command -v git &> /dev/null; then
       echo -e "${CHIEF_COLOR_RED}Error: git is not installed. Please install git to use remote plugins.${CHIEF_NO_COLOR}"
