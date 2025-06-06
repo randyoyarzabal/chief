@@ -192,7 +192,7 @@ Configured values:
   CHIEF_CFG_PLUGINS_GIT_BRANCH=${CHIEF_CFG_PLUGINS_GIT_BRANCH}
   CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}
   CHIEF_CFG_PLUGINS=${CHIEF_CFG_PLUGINS}
-Note that you can also run 'chief.plugins_update' anytime or set CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=true")
+You can run 'chief.plugins_update' anytime or set CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=true")
     if [[ $response == 'yes' ]]; then
       good_to_load=true
     fi  
