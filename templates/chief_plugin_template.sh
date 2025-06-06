@@ -2,6 +2,7 @@
 # Chief plugin name: $CHIEF_PLUGIN_NAME
 ###################################################################################################
 # THIS IS A TEMPLATE FOR THE CHIEF UTILITY LIBRARY. 
+# You can edit this template defined in $CHIEF_CFG_PLUGIN_TEMPLATE
 # The variable $CHIEF_PLUGIN_NAME will be replaced with the name of the plugin upon creation.
 # 
 # Here are sample alias and function definitions for the plugin.
@@ -13,8 +14,10 @@
 # FEEL FREE TO REMOVE THIS HEADER UPON CREATION OF YOUR PLUGIN.
 ###################################################################################################
 
-# This file will be loaded as a plugin and can be edited with: $>chief.plugin $CHIEF_PLUGIN_NAME
-# Once created, try the command: $>$CHIEF_PLUGIN_NAME.[tab]
+# This file will be loaded as a plugin and can be edited with: 
+# $>chief.plugin $CHIEF_PLUGIN_NAME
+# Once created, try the command: 
+# $>$CHIEF_PLUGIN_NAME.[tab]
 
 # Block interactive execution
 if [[ $0 = $BASH_SOURCE ]]; then

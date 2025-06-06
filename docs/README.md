@@ -41,15 +41,24 @@ Running the `uninstall` command will:
 
 ## What's next?
 
-Experiment and try the following commands:
+Explore the following commands:
 
 - `chief.[tab]` to see available built-in commands.
 - `chief.config` to edit the configuration and explore features.
-- `chief.bash_profile` to edit your .bash_profile (this will automatically reload the file if changes are detected.)
-- `chief.bashrc` to edit your .bashrc (this will automatically reload the file if changes are detected.)
-- `chief.plugin` to edit the default plugin.
-- `chief.plugin [plug-in name]` to create/edit a plugin.
+- `chief.update` to pull the latest version or set `CHIEF_CFG_AUTOCHECK_UPDATES=true`
+- `chief.bash_profile` to edit your .bash_profile file.
+- `chief.bashrc` to edit your .bashrc file.
+- `chief.* -?` to display the help-text for any chief command.
 - `type chief.*` on any command if you're curious or want to reuse the internal functions.
+
+Plugin-related:
+
+- `chief.plugin` to edit the default plugin.
+- `chief.plugin [plug-in name]` to create/edit a plugin. Don't worry, if the plugin doesn't it can automatically create it.
+- `chief.plugins` to cd into your plugins directory.
+- `chief.plugin -?` to find your plugin name.
+
+**Note:** `chief.plugin`, `chief.bash_profile`, and `chief.bashrc` will automatically load (source) if changes are detected.  There's no need to restart your terminal!
 
 ***But wait, there's more...:-D***
 
