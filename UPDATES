@@ -38,6 +38,7 @@
 - Consolidate new utilities: vault, ssl, openshift, chief.whereis
 - Create chief.help (similar to hints)
 - Check for BASH loading errors
+- Implement "__load_remote_plugins" console logging verbosity "--verbose"
 
 ### In development
 

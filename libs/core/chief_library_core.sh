@@ -187,11 +187,6 @@ __load_remote_plugins() {
   # If the git path isn't set Or path doesn't exist Or it is empty.
   elif [[ -z ${CHIEF_CFG_PLUGINS_GIT_PATH} ]] || [[ ! -d ${CHIEF_CFG_PLUGINS_GIT_PATH} ]] || [[ -z "$(ls -A ${CHIEF_CFG_PLUGINS_GIT_PATH})" ]]; then
     local response=$(chief.etc_ask_yes_or_no "Your Chief plugins directory is empty/doesn't exist, do you want to run the update now?
-Configured values:
-  CHIEF_CFG_PLUGINS_GIT_REPO=${CHIEF_CFG_PLUGINS_GIT_REPO}
-  CHIEF_CFG_PLUGINS_GIT_BRANCH=${CHIEF_CFG_PLUGINS_GIT_BRANCH}
-  CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}
-  CHIEF_CFG_PLUGINS=${CHIEF_CFG_PLUGINS}
 You can run 'chief.plugins_update' anytime or set CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=true")
     if [[ $response == 'yes' ]]; then
       good_to_load=true
@@ -199,6 +194,12 @@ You can run 'chief.plugins_update' anytime or set CHIEF_CFG_PLUGINS_GIT_AUTOUPDA
   fi
 
   if ${good_to_load}; then
+  echo "Configured values:
+CHIEF_CFG_PLUGINS_GIT_REPO=${CHIEF_CFG_PLUGINS_GIT_REPO}
+CHIEF_CFG_PLUGINS_GIT_BRANCH=${CHIEF_CFG_PLUGINS_GIT_BRANCH}
+CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}
+CHIEF_CFG_PLUGINS=${CHIEF_CFG_PLUGINS}"
+
     # Check if git is installed.
     if ! command -v git &> /dev/null; then
       echo -e "${CHIEF_COLOR_RED}Error: git is not installed. Please install git to use remote plugins.${CHIEF_NO_COLOR}"
@@ -471,6 +472,7 @@ function __chief.hints_text() {
     echo -e "- ${CHIEF_COLOR_GREEN}chief.bashrc${CHIEF_NO_COLOR} to edit your .bashrc file.${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.* -? ${CHIEF_NO_COLOR} to display the help-text for any chief command. ${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}type chief.* ${CHIEF_NO_COLOR} on any command if you're curious or want to reuse the internal functions.${CHIEF_NO_COLOR}"
+    echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Plugin-related:${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin${CHIEF_NO_COLOR} to edit the default plugin.${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin [plug-in name] ${CHIEF_NO_COLOR} to create/edit a plugin.${CHIEF_NO_COLOR}"
@@ -576,7 +578,7 @@ function __build_git_prompt() {
 }
 
 function __check_for_updates (){
-  chief.root
+  cd ${CHIEF_PATH}
   local CHANGE_MSG="${CHIEF_COLOR_GREEN}**Chief updates available**${CHIEF_NO_COLOR}"
 
   # Get local branch name
