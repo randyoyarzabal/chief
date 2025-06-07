@@ -453,7 +453,7 @@ function __chief.banner {
 function __chief.hints_text() {
   # Usage: __chief.hints_text
   if ${CHIEF_CFG_HINTS}; then
-    echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
+    echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands.${CHIEF_NO_COLOR}"
     local plugin_list=$(__get_plugins)
     if [[ ${plugin_list} != "" ]]; then
       echo -e "${CHIEF_COLOR_GREEN}Plugins loaded: ${CHIEF_COLOR_CYAN}${plugin_list}${CHIEF_NO_COLOR}"
@@ -465,7 +465,6 @@ function __chief.hints_text() {
     fi
 
     echo -e "${CHIEF_COLOR_YELLOW}Explore the following Chief commands:${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} to see available built-in commands.${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit the configuration and explore features.${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to pull the latest version or set ${CHIEF_COLOR_GREEN}CHIEF_CFG_AUTOCHECK_UPDATES=true${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.bash_profile${CHIEF_NO_COLOR} to edit your .bash_profile file.${CHIEF_NO_COLOR}"
