@@ -470,7 +470,7 @@ function __chief.hints_text() {
     echo -e "- ${CHIEF_COLOR_GREEN}chief.bash_profile${CHIEF_NO_COLOR} to edit your .bash_profile file.${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.bashrc${CHIEF_NO_COLOR} to edit your .bashrc file.${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.* -? ${CHIEF_NO_COLOR} to display the help-text for any chief command. ${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}type chief.* ${CHIEF_NO_COLOR} on any command if you\'re curious or want to reuse the internal functions.${CHIEF_NO_COLOR}"
+    echo -e "- ${CHIEF_COLOR_GREEN}type chief.* ${CHIEF_NO_COLOR} on any command if you're curious or want to reuse the internal functions.${CHIEF_NO_COLOR}"
     echo -e "${CHIEF_COLOR_YELLOW}Plugin-related:${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin${CHIEF_NO_COLOR} to edit the default plugin.${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin [plug-in name] ${CHIEF_NO_COLOR} to create/edit a plugin.${CHIEF_NO_COLOR}"
