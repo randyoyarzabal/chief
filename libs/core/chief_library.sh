@@ -100,7 +100,7 @@ Update the Chief utility library to the latest version."
   if [[ ${tmp_out} == *"available"* ]]; then
     response=$(chief.etc_ask_yes_or_no "Updates are available, update now?")
     if [[ $response == 'yes' ]]; then
-      chief.root
+      ${CHIEF_PATH}
       chief.git_update -p
       chief.reload
       cd - > /dev/null 2>&1

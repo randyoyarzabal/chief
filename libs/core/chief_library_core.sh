@@ -578,7 +578,7 @@ function __build_git_prompt() {
 }
 
 function __check_for_updates (){
-  chief.root
+  cd ${CHIEF_PATH}
   local CHANGE_MSG="${CHIEF_COLOR_GREEN}**Chief updates available**${CHIEF_NO_COLOR}"
 
   # Get local branch name
