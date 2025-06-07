@@ -477,8 +477,7 @@ function __chief.hints_text() {
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugins${CHIEF_NO_COLOR} to cd into your plugins directory.${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR} to find your plugin name.${CHIEF_NO_COLOR}"
 
-    echo -e "${CHIEF_COLOR_CYAN}** Disable this hint by setting ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS=false${CHIEF_NO_COLOR} \
-${CHIEF_COLOR_CYAN}in ${CHIEF_COLOR_GREEN}chief.config ${CHIEF_COLOR_CYAN}**${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_CYAN}** Disable this hint by setting ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS=false${CHIEF_NO_COLOR}."
   fi
 }
 
