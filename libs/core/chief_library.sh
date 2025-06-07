@@ -70,18 +70,22 @@ Note: All private keys must end with the suffix '.rsa'. Symlinks are allowed.
 function chief.plugins_update() {
   local USAGE="Usage: $FUNCNAME
 
-Update and reload the remote Chief plugins.
-This command will update all plugins to the latest version available in the remote repository."
+Update and reload the remote Chief plugins when CHIEF_CFG_PLUGINS_TYPE} == 'remote'.
+This command will update all plugins to the latest version available from the git repository."
 
   if [[ $1 == "-?" ]]; then
     echo "${USAGE}"
     return
   fi
-  __load_remote_plugins "--verbose" "--force" && {
-    echo -e "${CHIEF_COLOR_GREEN}Updated all plugins to the latest version.${CHIEF_NO_COLOR}"
-  } || {
-    echo -e "${CHIEF_COLOR_RED}Error: Failed to update plugins.${CHIEF_NO_COLOR}"
-  }
+  if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]]; then
+    __load_remote_plugins "--verbose" "--force" && {
+      echo -e "${CHIEF_COLOR_GREEN}Updated all plugins to the latest version.${CHIEF_NO_COLOR}"
+    } || {
+      echo -e "${CHIEF_COLOR_RED}Error: Failed to update plugins.${CHIEF_NO_COLOR}"
+    }
+  else
+    echo -e "${CHIEF_COLOR_YELLOW}This function is used only when CHIEF_CFG_PLUGINS_TYPE='remote'.${CHIEF_NO_COLOR}"
+  fi
 }
 
 function chief.update() {
@@ -109,7 +113,7 @@ Update the Chief utility library to the latest version."
       echo -e "${CHIEF_COLOR_YELLOW}Update skipped.${CHIEF_NO_COLOR}"
     fi
   else
-    echo -e "${CHIEF_COLOR_YELLOW}No Chief updates found.${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_YELLOW}You're running the latest version [${CHIEF_VERSION}] of Chief.${CHIEF_NO_COLOR}"
   fi
 }
 
