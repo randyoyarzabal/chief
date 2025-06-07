@@ -64,8 +64,6 @@ Plugin-related:
 - `chief.plugin`, `chief.bash_profile`, and `chief.bashrc` will automatically load (source) if changes are detected.  There's no need to restart your terminal!
 - You can enable the above text in Chief by setting `CHIEF_CFG_HINTS=true`
 
-***But wait, there's more...:-D***
-
 **Don't have a git-aware prompt?** Try Chief's custom prompt, set `CHIEF_CFG_PROMPT=true`.
 
 **Want to load and manage plugins from a git repo?** Enable remote repo by setting `CHIEF_CFG_PLUGINS_TYPE='remote'` and set other git options in the configuration.
