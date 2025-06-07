@@ -34,7 +34,7 @@ fi
 # CHIEF DEFAULTS
 ###################################################################################################################
 
-CHIEF_VERSION="v2.0.1 (2025-Jun-6)"
+CHIEF_VERSION="v2.0.2 (2025-Jun-6)"
 CHIEF_REPO="https://github.com/randyoyarzabal/chief"
 CHIEF_WEBSITE="https://chief.reonetlabs.us"
 CHIEF_AUTHOR="Randy E. Oyarzabal"
@@ -447,24 +447,23 @@ function __chief.banner {
   echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${git_status}${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${CHIEF_COLOR_CYAN}${CHIEF_WEBSITE}${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
-  echo ""
 }
 
 # Display "hints" text and dynamically display alias if necessary.
 function __chief.hints_text() {
   # Usage: __chief.hints_text
   if ${CHIEF_CFG_HINTS}; then
-    echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands.${CHIEF_NO_COLOR}"
+    # If plugins are not set to auto-update, display a message.
+    if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]] && ! ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE}; then   
+      echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands. | ${CHIEF_COLOR_GREEN}chief.plugins_update${CHIEF_NO_COLOR} to update/load plugins."
+    else
+      echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands.${CHIEF_NO_COLOR}"
+    fi
     local plugin_list=$(__get_plugins)
     if [[ ${plugin_list} != "" ]]; then
       echo -e "${CHIEF_COLOR_GREEN}Plugins loaded: ${CHIEF_COLOR_CYAN}${plugin_list}${CHIEF_NO_COLOR}"
     fi
-
-    # If plugins are not set to auto-update, display a message.
-    if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]] && ! ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE}; then   
-      echo -e "${CHIEF_COLOR_YELLOW}CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false Run ${CHIEF_COLOR_GREEN}chief.plugins_update${CHIEF_COLOR_YELLOW} to update/load plugins.${CHIEF_NO_COLOR}"
-    fi
-
+    echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Explore the following Chief commands:${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit the configuration and explore features.${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to pull the latest version or set ${CHIEF_COLOR_GREEN}CHIEF_CFG_AUTOCHECK_UPDATES=true${CHIEF_NO_COLOR}"
@@ -479,6 +478,9 @@ function __chief.hints_text() {
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR} to find your plugin name.${CHIEF_NO_COLOR}"
 
     echo -e "${CHIEF_COLOR_CYAN}** Set ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS=false${CHIEF_COLOR_CYAN} to disable these hints. **${CHIEF_NO_COLOR}"
+    echo ""
+  else
+    echo ""
   fi
 }
 

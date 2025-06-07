@@ -112,7 +112,9 @@ CHIEF_CFG_COLORED_LS=false
 # Chief will automatically enable (ssh-add) auto-load and auto-cleanup of ssh-agent.
 #
 # If you have a directory with your private keys, you can set the path here.
-# If you do not set this variable, it will not load any keys.
+# Setting this variable will automatically load your SSH keys, you can also run $>chief.ssh_load_keys
+# to manually load them. 
+# If you do not set or comment this variable, it will not load any keys.
 #CHIEF_CFG_RSA_KEYS_PATH="$HOME/.ssh"
 
 # If you want to create a custom alias for the chief command, you can do so here.
