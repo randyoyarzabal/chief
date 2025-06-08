@@ -482,6 +482,7 @@ function __chief.hints_text() {
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugins${CHIEF_NO_COLOR} to cd into your plugins directory.${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR} to list plugins.${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.whereis <function | alias>${CHIEF_NO_COLOR} to locate exact location of function or alias.${CHIEF_NO_COLOR}"
+    echo ""
     echo -e "${CHIEF_COLOR_CYAN}** Set ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS=false${CHIEF_COLOR_CYAN} to disable these hints. **${CHIEF_NO_COLOR}"
     echo ""
   else
