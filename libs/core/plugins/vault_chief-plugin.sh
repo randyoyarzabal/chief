@@ -80,12 +80,9 @@ If no vault-file is passed, it will use '$CHIEF_SECRETS_FILE' or set CHIEF_SECRE
       ansible-vault encrypt $vault_file
   else
     echo "Decrypt and edit $vault_file..."
-    # Check if file is ansible-vault encrypted.
-    if ! ansible-vault view "$vault_file" >/dev/null 2>&1; then
-      echo "Vault file: $vault_file is not encrypted or is not a valid ansible-vault file."
-      echo "Please check the file or create a new one using 'chief.vault_file-edit'."
-      return 1
-    else    
+    # Check if file is ansible-vault encrypted without decrypting it.
+    # This is done by checking if the first line starts with 'ANSIBLE_VAULT;'.
+    if grep -q '^$ANSIBLE_VAULT;' "$vault_file"; then
       ansible-vault edit $vault_file
       # If the --no-load option is passed, we will not load the vault file after editing.
       if $no_load; then
@@ -93,6 +90,10 @@ If no vault-file is passed, it will use '$CHIEF_SECRETS_FILE' or set CHIEF_SECRE
       else
         chief.vault_file-load $vault_file
       fi
+    else    
+      echo "Vault file: $vault_file is not encrypted or is not a valid ansible-vault file."
+      echo "Please check the file or create a new one using 'chief.vault_file-edit'."
+      return 1
     fi
   fi
 }
