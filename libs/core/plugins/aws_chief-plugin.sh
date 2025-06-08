@@ -17,7 +17,7 @@
 
 # Chief Plugin File: aws_chief.plugin
 # Author: Randy E. Oyarzabal
-# ver. 1.0
+# ver. 1.0.1
 # AWS related functions and aliases
 
 # Note this library requires python3
@@ -29,6 +29,11 @@ function aws.set_role() {
 
 Set role as default role in AWS credentials file.
 "
+  # Check if Python3 is installed
+  if ! command -v python3 &>/dev/null; then
+    echo "Python3 is required to run this script. Please install Python3 and try again."
+    return 1
+  fi
   unset AWS_SECRET_ACCESS_KEY
   unset AWS_ACCESS_KEY_ID
   unset AWS_SESSION_TOKEN
@@ -48,6 +53,12 @@ function aws.export_creds() {
 
 Export role and rename AWS credentials file.
 "
+  # Check if Python3 is installed
+  if ! command -v python3 &>/dev/null; then
+    echo "Python3 is required to run this script. Please install Python3 and try again."
+    return 1
+  fi
+
   if [[ -z $2 ]] || [[ $1 == "-?" ]]; then
     echo "${USAGE}"
     return

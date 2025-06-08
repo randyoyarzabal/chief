@@ -17,7 +17,7 @@
 
 # Chief Plugin File: etc_chief.plugin
 # Author: Randy E. Oyarzabal
-# ver. 1.0
+# ver. 1.0.1
 # Functions and aliases that don't belong on any other category.
 
 function chief.etc_create_cipher() {
@@ -175,26 +175,45 @@ Check if an IP address is valid."
 }
 
 function chief.etc_ask_yes_or_no() {
-  local USAGE="Usage: $FUNCNAME <msg/question>
-
-Display a yes/no user prompt and echo the response.
-Returns 'yes' or 'no' string.
-
-Example:
-   response=\$($FUNCNAME 'Do you want to continue?')
-"
+  local USAGE="Usage: $FUNCNAME <message>
+Prompt the user with a yes/no question. Returns 0 for yes, 1 for no."
 
   if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
-    echo "${USAGE}"
-    return
+    echo "$USAGE"
+    return 1
   fi
 
-  read -p "$1 ([y]es or [N]o): "
-  case $(echo $REPLY | tr '[A-Z]' '[a-z]') in
-  y | yes) echo "yes" ;;
-  *) echo "no" ;;
-  esac
+  while true; do
+    read -p "$1 ([y]es or [N]o): " REPLY
+    case "$(echo "$REPLY" | tr '[:upper:]' '[:lower:]')" in
+      y|yes) return 0 ;;
+      n|no|"") return 1 ;;
+      *) echo "Please answer yes or no (y/n)." ;;
+    esac
+  done
 }
+
+# function chief.etc_ask_yes_or_no() {
+#   local USAGE="Usage: $FUNCNAME <msg/question>
+
+# Display a yes/no user prompt and echo the response.
+# Returns 'yes' or 'no' string.
+
+# Example:
+#    response=\$($FUNCNAME 'Do you want to continue?')
+# "
+
+#   if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
+#     echo "${USAGE}"
+#     return
+#   fi
+
+#   read -p "$1 ([y]es or [N]o): "
+#   case $(echo $REPLY | tr '[A-Z]' '[a-z]') in
+#   y | yes) echo "yes" ;;
+#   *) echo "no" ;;
+#   esac
+# }
 
 function chief.etc_prompt() {
   local USAGE="Usage: $FUNCNAME <msg/prompt>
@@ -277,6 +296,7 @@ Display a spinner progress indicator that an operation is currently in progress.
   # Destroy / delete the temp file
   rm -rf $tmp_file
 }
+
 
 # HELPER FUNCTIONS
 ##################################################

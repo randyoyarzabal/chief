@@ -1,4 +1,12 @@
-# Updates
+# Chief Updates
+
+## v2.1
+
+- Fixed issue #31 for main library functions
+- Added new core functions for Openshift and Vault
+- Added `chief.whereis`
+- Consolidated library into one file.
+- Added `--lib-only` option when sourcing Chief.  Allowing library-only use of Chief.
 
 ## v2.0.1
 
@@ -31,14 +39,3 @@
   - No longer necessary to define individual plugins in config file.
 - Deprecated CONTRIB plugins for simplicity.
 - Added chief.update to update Chief itself.
-
-### Features planned for v2.1
-
-- Separate versioning of chief core and plugins
-- Consolidate new utilities: vault, ssl, openshift, chief.whereis
-- Create chief.help (similar to hints)
-- Check for BASH loading errors
-- Implement "__load_remote_plugins" console logging verbosity "--verbose"
-
-### In development
-

@@ -15,26 +15,54 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ########################################################################
 
-###################################################################################################################
-# WARNING: This file is not meant to be edited/configured directly unless you know what you are doing.
-#   All settings and commands are done via the chief.* commands
-###################################################################################################################
+# Chief - A Bash-based configuration and management tool for Linux/MacOS
+# https://github.com/randyoyarzabal/chief
+
+########################################################################
+#             NO USER-SERVICEABLE PARTS BEYOND THIS POINT
+# This file is part of the Chief configuration and management tool.
+# It is designed to be sourced, not executed directly.
+########################################################################
+
+########################################################################
+# WARNING: This file is not meant to be edited/configured/used directly. 
+# All settings and commands are available via 'chief.*'' commands when 
+# "${CHIEF_PATH}/chief.sh" is sourced.
+# Use the 'chief.config' command to configure and manage Chief.
+########################################################################
 
 # Block interactive execution
 if [[ $0 = $BASH_SOURCE ]]; then
   echo "Error: $0 (Chief) must be sourced; not executed interactively."
+  echo 'To use Chief, source it in your shell or add it to your shell configuration file (e.g. ~/.bashrc).'
+  echo 'Be sure that the environment variables $CHIEF_PATH and $CHIEF_CONFIG are set before sourcing.'
+  echo "To use the libraries only, use: source ${BASH_SOURCE[0]} --lib-only"
   exit 1
 fi
 
 # Check for prerequisite environment variable
 if [[ -z ${CHIEF_PATH} ]] || [[ -z ${CHIEF_CONFIG} ]]; then
   echo 'Error: $CHIEF_PATH and/or $CHIEF_CONFIG environment var must be set before using Chief.'
+  
   exit 1
 fi
 
+# Load the Chief configuration file and core library.
+CHIEF_LIBRARY="${CHIEF_PATH}/libs/core/chief_library.sh"
+source ${CHIEF_CONFIG}
+source ${CHIEF_LIBRARY}
+
+########################################################################
+# Main script starts here
+########################################################################
+
 # Load core libraries
-source ${CHIEF_PATH}/libs/core/chief_library_core.sh
 __load_library 
+
+# Allow the script to be called with --lib-only to load only the libraries
+if [[ $1 == "--lib-only" ]]; then
+  return 0
+fi
 
 # Load RSA/SSH keys if directory is defined
 if [[ ! -z ${CHIEF_CFG_RSA_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIEF_CFG_RSA_KEYS_PATH} && ${PLATFORM} == "Linux" ]]; then
