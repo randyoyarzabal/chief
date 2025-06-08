@@ -37,7 +37,7 @@ This will create a new vault file if it doesn't exist, or edit an existing one.
 
 On a single-user system, it is recommended to set ANSIBLE_VAULT_PASSWORD_FILE for convenience so that you don't have to enter the password every time you edit the vault file; this is not recommended on a shared system.
 
-If no vault-file is passed, it will use \$CHIEF_SECRETS_FILE=$CHIEF_SECRETS_FILE or set this variable to your preferred vault file path.
+If no vault-file is passed, it will use '$CHIEF_SECRETS_FILE' or set CHIEF_SECRETS_FILE to your preferred vault file path.
 "
   if [[ $1 == "-?" ]]; then
     echo "${USAGE}"
@@ -109,7 +109,7 @@ This will create a new vault file if it doesn't exist, or edit an existing one.
 
 On a single-user system, it is recommended to set ANSIBLE_VAULT_PASSWORD_FILE for convenience so that you don't have to enter the password every time you edit the vault file; this is not recommended on a shared system.
 
-If no vault-file is passed, it will use \$CHIEF_SECRETS_FILE=$CHIEF_SECRETS_FILE or set this variable to your preferred vault file path.
+If no vault-file is passed, it will use '$CHIEF_SECRETS_FILE' or set CHIEF_SECRETS_FILE to your preferred vault file path.
 "
   # Check if ansible-vault at least version 2.18.2 is installed.
   if ! type ansible-vault >/dev/null 2>&1; then
