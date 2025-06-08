@@ -98,8 +98,12 @@ If no vault-file is passed, it will use \$CHIEF_SECRETS_FILE=$CHIEF_SECRETS_FILE
 }
 
 function chief.vault_file-load() {
+  if [[ -z $CHIEF_SECRETS_FILE ]]; then
+    CHIEF_SECRETS_FILE="$HOME/.chief_secret-vault"
+  fi
+
   local USAGE="Usage: $FUNCNAME [vault-file]
-  
+
 Load a Bash-compliant vault file using ansible-vault.
 This will create a new vault file if it doesn't exist, or edit an existing one.
 
