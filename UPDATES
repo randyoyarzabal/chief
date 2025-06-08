@@ -2,11 +2,11 @@
 
 ## v2.1
 
-- Added chief.whereis
-- Added new core functions for Openshift and Vault 
+- Fixed issue #31 for main library functions
+- Added new core functions for Openshift and Vault
+- Added `chief.whereis`
 - Consolidated library into one file.
-- Fixed issue #31 for main library functions.
-- Added --lib-only option to allow library-only use of Chief.
+- Added `--lib-only` option when sourcing Chief.  Allowing library-only use of Chief.
 
 ## v2.0.1
 
