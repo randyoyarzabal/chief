@@ -20,6 +20,24 @@
 #   All settings and commands are done via the chief.* commands
 ###################################################################################################################
 
+# CHIEF DEFAULTS
+###################################################################################################################
+
+CHIEF_VERSION="v2.0.2 (2025-Jun-6)"
+CHIEF_REPO="https://github.com/randyoyarzabal/chief"
+CHIEF_WEBSITE="https://chief.reonetlabs.us"
+CHIEF_AUTHOR="Randy E. Oyarzabal"
+CHIEF_LIBRARY="${CHIEF_PATH}/libs/core/chief_library.sh"
+CHIEF_GIT_TOOLS="${CHIEF_PATH}/libs/extras/git"
+
+CHIEF_PLUGINS_CORE="${CHIEF_PATH}/libs/core/plugins"
+CHIEF_PLUGIN_SUFFIX="_chief-plugin.sh"
+CHIEF_DEFAULT_PLUGINS_TYPE="local" 
+CHIEF_DEFAULT_PLUGINS_GIT_BRANCH="main"
+CHIEF_DEFAULT_PLUGINS="${HOME}/chief_plugins"
+CHIEF_DEFAULT_PLUGIN_TEMPLATE="${CHIEF_PATH}/templates/chief_plugin_template.sh"
+CHIEF_CFG_LOAD_NON_ALIAS=true # Load non-alias functions from plugins by default.
+
 # Block interactive execution
 if [[ $0 = $BASH_SOURCE ]]; then
   echo "Error: $0 (Chief) must be sourced; not executed interactively."
@@ -32,8 +50,15 @@ if [[ -z ${CHIEF_PATH} ]] || [[ -z ${CHIEF_CONFIG} ]]; then
   exit 1
 fi
 
+# Load the Chief configuration file and core library.
+source ${CHIEF_CONFIG}
+source ${CHIEF_LIBRARY}
+
+#####################################################
+# Main script starts here
+#####################################################
+
 # Load core libraries
-source ${CHIEF_PATH}/libs/core/chief_library_core.sh
 __load_library 
 
 # Load RSA/SSH keys if directory is defined

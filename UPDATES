@@ -4,6 +4,8 @@
 
 - Added chief.whereis
 - Added new core functions for Openshift and Vault 
+- Consolidated library into one file.
+- Fixed issue #31 for main library functions.
 
 ## v2.0.1
 
