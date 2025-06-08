@@ -57,7 +57,8 @@ Plugin-related:
 - `chief.plugin [plug-in name]` to create/edit a plugin. Don't worry, if the plugin doesn't it can automatically create it.
 - `chief.plugins` to cd into your plugins directory.
 - `chief.plugins_update` to update/load from git repository when `CHIEF_CFG_PLUGINS_TYPE='remote'`.
-- `chief.plugin -?` to find your plugin name.
+- `chief.plugin -?` to list plugins.
+- `chief.whereis <function | alias>` to locate exact location of function or alias.
 
 **Notes:** 
 
