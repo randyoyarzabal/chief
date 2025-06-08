@@ -75,8 +75,18 @@ If no vault-file is passed, it will use '$CHIEF_SECRETS_FILE' or set CHIEF_SECRE
         return 1
       fi
       vi $vault_file
+      # Check if the file was created successfully.
+      if [ ! -f "$vault_file" ]; then
+        echo "Failed to create vault file (or was not saved): $vault_file"
+        return 1
+      fi
       echo "Loading (Bash source) vault file: $vault_file..."
-      source $vault_file
+      if $no_load; then
+        echo "Vault file: $vault_file created, but not loaded to memory. Use 'chief.vault_file-load' to load it."
+      else
+        echo "If you don't want to load the vault file, use 'chief.vault_file-edit --no-load'."
+        source $vault_file
+      fi
       ansible-vault encrypt $vault_file
   else
     echo "Decrypt and edit $vault_file..."
@@ -88,6 +98,7 @@ If no vault-file is passed, it will use '$CHIEF_SECRETS_FILE' or set CHIEF_SECRE
       if $no_load; then
         echo "Vault file: $vault_file edited, but changes were not loaded to memory. Use 'chief.vault_file-load' to load it."
       else
+        echo "If you don't want to load the vault file, use 'chief.vault_file-edit --no-load'."
         chief.vault_file-load $vault_file
       fi
     else    
