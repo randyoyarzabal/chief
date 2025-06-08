@@ -104,6 +104,7 @@ If no vault-file is passed, it will use '$CHIEF_SECRETS_FILE' or set CHIEF_SECRE
     else    
       echo "Vault file: $vault_file is not encrypted or is not a valid ansible-vault file."
       echo "Please check the file or create a new one using 'chief.vault_file-edit'."
+      echo "You can also manually encrypt the file using 'ansible-vault encrypt $vault_file'."
       return 1
     fi
   fi
@@ -122,6 +123,8 @@ This will create a new vault file if it doesn't exist, or edit an existing one.
 On a single-user system, it is recommended to set ANSIBLE_VAULT_PASSWORD_FILE for convenience so that you don't have to enter the password every time you edit the vault file; this is not recommended on a shared system.
 
 If no vault-file is passed, it will use '$CHIEF_SECRETS_FILE' or set CHIEF_SECRETS_FILE to your preferred vault file path.
+
+KNOWN ISSUE: If you are using a Mac and have an older version of ansible-vault, you may need to decrypt the file before loading it, then re-encrypt it. This is due to a bug in older versions of ansible-vault that prevents sourcing the file directly. If you are using ansible-vault 2.18.0 or later, this should not be an issue.
 "
   # Check if ansible-vault at least version 2.18.2 is installed.
   if ! type ansible-vault >/dev/null 2>&1; then
@@ -140,18 +143,6 @@ If no vault-file is passed, it will use '$CHIEF_SECRETS_FILE' or set CHIEF_SECRE
     vault_file=$1
   fi
 
-  # Commenting out the source line for now, since it seems to be working fine on ansible-vault 2.18 and above.
-  # Since the line: 'source <(ansible-vault view "$vault_file");' doesn't work on a Mac
-  #  let's decrypt the file before loading, then re-encrypt.
-  # if [[ $(uname) == "Darwin" ]]; then
-  #   # on a Mac
-  #   ansible-vault decrypt "$vault_file" > /dev/null
-  #   source "$vault_file"
-  #   ansible-vault encrypt "$vault_file" > /dev/null
-  # else
-  #   # on Linux
-  #   source <(ansible-vault view "$vault_file"); 
-  # fi
   if [[ ! -f $vault_file ]]; then
     echo "Vault file: $vault_file does not exist. Please create it first using 'chief.vault_file-edit'."
     return 1
@@ -160,14 +151,24 @@ If no vault-file is passed, it will use '$CHIEF_SECRETS_FILE' or set CHIEF_SECRE
     # Load the vault file into memory.
     # This will source the file and make the variables available in the current shell.
     # If the vault file is encrypted, it will prompt for the password.
-    # Load the vault file and check for errors.
-    if ! source <(ansible-vault view "$vault_file"); then
-      echo "Failed to decrypt the vault file: $vault_file. Please check your password or the file's integrity."
-      echo "Be sure you are using the latest version of ansible-vault."
-      return 1
+    
+    # Check if file is ansible-vault encrypted without decrypting it.
+    # This is done by checking if the first line starts with 'ANSIBLE_VAULT;'.
+    if grep -q '^$ANSIBLE_VAULT;' "$vault_file"; then
+      # Load the vault file and check for errors.
+      if ! source <(ansible-vault view "$vault_file"); then
+        echo "Failed to decrypt the vault file: $vault_file. Please check your password or the file's integrity."
+        echo "Be sure you are using the latest version of ansible-vault."
+        return 1
+      else
+        # If the source command was successful, we can assume the file was loaded correctly.
+        echo "Vault file: $vault_file loaded to memory."
+      fi
     else
-      # If the source command was successful, we can assume the file was loaded correctly.
-      echo "Vault file: $vault_file loaded to memory."
+      echo "Vault file: $vault_file is not encrypted or is not a valid ansible-vault file."
+      echo "Please check the file or create a new one using 'chief.vault_file-edit'."
+      echo "You can also manually encrypt the file using 'ansible-vault encrypt $vault_file'."
+      return 1
     fi
   fi
 }
