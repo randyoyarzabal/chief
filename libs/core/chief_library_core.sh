@@ -186,9 +186,8 @@ __load_remote_plugins() {
     good_to_load=true
   # If the git path isn't set Or path doesn't exist Or it is empty.
   elif [[ -z ${CHIEF_CFG_PLUGINS_GIT_PATH} ]] || [[ ! -d ${CHIEF_CFG_PLUGINS_GIT_PATH} ]] || [[ -z "$(ls -A ${CHIEF_CFG_PLUGINS_GIT_PATH})" ]]; then
-    local response=$(chief.etc_ask_yes_or_no "Your Chief plugins directory is empty/doesn't exist, do you want to run the update now?
-You can run 'chief.plugins_update' anytime or set CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=true")
-    if [[ $response == 'yes' ]]; then
+    if chief.etc_ask_yes_or_no "Your Chief plugins directory is empty/doesn't exist, do you want to run the update now?
+You can run 'chief.plugins_update' anytime or set CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=true"; then
       good_to_load=true
     fi  
   fi
@@ -355,8 +354,7 @@ function __edit_plugin() {
     __edit_file ${plugin_file}
   else
     echo "Chief plugin: ${plugin_name} plugin file does not exist."
-    response=$(chief.etc_ask_yes_or_no "Create it?")
-    if [[ $response == 'no' ]]; then
+    if ! chief.etc_ask_yes_or_no "Create it?"; then
       echo -e "${CHIEF_COLOR_YELLOW}Plugin file not created.${CHIEF_NO_COLOR}"
       return 1
     fi

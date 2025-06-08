@@ -102,8 +102,7 @@ Update the Chief utility library to the latest version."
   chief.etc_spinner "Checking for updates..." "__check_for_updates" tmp_out
   echo -e "${tmp_out}"
   if [[ ${tmp_out} == *"available"* ]]; then
-    response=$(chief.etc_ask_yes_or_no "Updates are available, update now?")
-    if [[ $response == 'yes' ]]; then
+    if chief.etc_ask_yes_or_no "Updates are available, update now?"; then
       ${CHIEF_PATH}
       chief.git_update -p
       chief.reload
