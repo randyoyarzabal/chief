@@ -28,11 +28,13 @@ function chief.vault_file-edit() {
 
   local USAGE="Usage: $FUNCNAME [vault-file] [--no-load]
 
+This function requires the ansible-vault binary to be installed.
+
 Optional arguments: 
-[vault-file] to specify a different vault file path.
+[vault-file] to specify a non-default vault file. If the file and path does not exist, it will be created.
 [--no-load] to prevent loading the vault file after editing.
 
-Edit a Bash-compliant vault file using ansible-vault.
+Edit/create a Bash shell file vault file using ansible-vault.
 This will create a new vault file if it doesn't exist, or edit an existing one.
 
 On a single-user system, it is recommended to set ANSIBLE_VAULT_PASSWORD_FILE for convenience so that you don't have to enter the password every time you edit the vault file; this is not recommended on a shared system.
@@ -117,7 +119,9 @@ function chief.vault_file-load() {
 
   local USAGE="Usage: $FUNCNAME [vault-file]
 
-Load a Bash-compliant vault file using ansible-vault.
+This function requires the ansible-vault binary to be installed.
+
+Load (source) a Bash shell file vault file using ansible-vault.
 This will create a new vault file if it doesn't exist, or edit an existing one.
 
 On a single-user system, it is recommended to set ANSIBLE_VAULT_PASSWORD_FILE for convenience so that you don't have to enter the password every time you edit the vault file; this is not recommended on a shared system.
