@@ -230,3 +230,35 @@ Reload the Chief utility library/environment."
 
   __load_library --verbose
 }
+
+function chief.whereis() {
+  local USAGE="Usage: $FUNCNAME <function or alias name>
+
+Display the location of a function or alias."
+
+  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
+    echo "${USAGE}"
+    return
+  fi
+
+  # Check if it's a function...
+  local param="${1}"
+  local found=$(shopt -s extdebug; declare -F "${param}")
+  
+  if [[ -n $found ]]; then
+    local tmpsplit=(${found// / })
+    echo "Function '${param}' found in file: ${tmpsplit[2]}"
+    echo "  Line #: ${tmpsplit[1]}"
+  else  
+    # It's not a function, check if it's an alias...
+    tmp="'\${BASH_ALIASES[\""${param}"\"]+\"FINDMYMARK\"} \${BASH_SOURCE}:\$LINENO '"
+    found=$(PS4="$tmp" bash -lixc : |& grep 'FINDMYMARK' -m1 -B1 | grep "${param}" | awk '{print $2}')
+    if [[ -n $found ]]; then
+      tmpsplit=(${found//:/ })
+      echo "Alias '${param}' found in file: ${tmpsplit[0]}"
+      echo "  Line #: ${tmpsplit[1]}"
+    else
+      echo "Function/Alias not found."
+    fi
+  fi 
+}

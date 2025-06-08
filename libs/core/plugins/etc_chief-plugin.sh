@@ -297,6 +297,7 @@ Display a spinner progress indicator that an operation is currently in progress.
   rm -rf $tmp_file
 }
 
+
 # HELPER FUNCTIONS
 ##################################################
 function __spinner() {

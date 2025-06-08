@@ -1,5 +1,10 @@
 # Updates
 
+## v2.1
+
+- Added chief.whereis
+- Added new core functions for Openshift and Vault 
+
 ## v2.0.1
 
 - Added license headers.
