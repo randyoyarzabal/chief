@@ -16,10 +16,38 @@
 ########################################################################
 
 # Core Chief user functionality such as settings and various helper functions.
-###################################################################################################################
-# WARNING: This file is not meant to be edited/configured/used directly unless you know what you are doing.
-#   All settings and commands are available via the chief.* commands when "chief.sh" is sourced.
-###################################################################################################################
+# Chief - A Bash-based configuration and management tool for Linux/MacOS
+# https://github.com/randyoyarzabal/chief
+
+########################################################################
+#             NO USER-SERVICEABLE PARTS BEYOND THIS POINT
+# This file is part of the Chief configuration and management tool.
+# It is designed to be sourced, not executed directly.
+########################################################################
+
+########################################################################
+# WARNING: This file is not meant to be edited/configured/used directly. 
+# All settings and commands are available via 'chief.*'' commands when 
+# "${CHIEF_PATH}/chief.sh" is sourced.
+# Use the 'chief.config' command to configure and manage Chief.
+########################################################################
+
+# CHIEF DEFAULTS
+########################################################################
+
+CHIEF_VERSION="v2.1"
+CHIEF_REPO="https://github.com/randyoyarzabal/chief"
+CHIEF_WEBSITE="https://chief.reonetlabs.us"
+CHIEF_AUTHOR="Randy E. Oyarzabal"
+CHIEF_GIT_TOOLS="${CHIEF_PATH}/libs/extras/git"
+
+CHIEF_PLUGINS_CORE="${CHIEF_PATH}/libs/core/plugins"
+CHIEF_PLUGIN_SUFFIX="_chief-plugin.sh"
+CHIEF_DEFAULT_PLUGINS_TYPE="local" 
+CHIEF_DEFAULT_PLUGINS_GIT_BRANCH="main"
+CHIEF_DEFAULT_PLUGINS="${HOME}/chief_plugins"
+CHIEF_DEFAULT_PLUGIN_TEMPLATE="${CHIEF_PATH}/templates/chief_plugin_template.sh"
+CHIEF_CFG_LOAD_NON_ALIAS=true # Load non-alias functions from plugins by default.
 
 # Block interactive execution
 if [[ $0 = $BASH_SOURCE ]]; then
@@ -28,7 +56,7 @@ if [[ $0 = $BASH_SOURCE ]]; then
 fi
 
 # CORE HELPER FUNCTIONS
-###################################################################################################################
+########################################################################
 
 # Detect platform
 uname_out="$(uname -s)"
@@ -573,7 +601,7 @@ function __check_for_updates (){
 }
 
 # TEXT COLOR VARIABLES
-###################################################################################################################
+########################################################################
 
 # Color guide from Stack Overflow
 # https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
@@ -644,7 +672,7 @@ prompt_end() {
 }
 
 # MAIN FUNCTIONS
-###################################################################################################################
+########################################################################
 
 alias chief.ver='__chief.info'
 
