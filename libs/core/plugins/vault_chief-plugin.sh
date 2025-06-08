@@ -91,7 +91,6 @@ If no vault-file is passed, it will use '$CHIEF_SECRETS_FILE' or set CHIEF_SECRE
       fi
       ansible-vault encrypt $vault_file
   else
-    echo "Decrypt and edit $vault_file..."
     # Check if file is ansible-vault encrypted without decrypting it.
     # This is done by checking if the first line starts with 'ANSIBLE_VAULT;'.
     if grep -q '^$ANSIBLE_VAULT;' "$vault_file"; then
@@ -151,7 +150,6 @@ KNOWN ISSUE: If you are using a Mac and have an older version of ansible-vault, 
     echo "Vault file: $vault_file does not exist. Please create it first using 'chief.vault_file-edit'."
     return 1
   else
-    echo "Loading vault file: $vault_file..."
     # Load the vault file into memory.
     # This will source the file and make the variables available in the current shell.
     # If the vault file is encrypted, it will prompt for the password.
