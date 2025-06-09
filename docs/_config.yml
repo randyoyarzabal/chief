@@ -1,5 +1,5 @@
 title: Chief
-tagline: Get your BASH together!
+tagline: [Get your BASH together!]
 author: Randy E. Oyarzabal
 author_email: github@randyoyarzabal.com
 url: https://chief.reonetlabs.us
@@ -7,4 +7,4 @@ show_downloads: true
 enable_copy_code_button: true
 categories: [bash, git, openshift, kubernetes, linux, command-line]
 tags: [bash, git, openshift, kubernetes, linux, command-line, open-source]
-theme: jekyll-theme-minimal
+remote_theme: "jekyll/minima@1e8a445"
