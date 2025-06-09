@@ -23,6 +23,7 @@ Type `chief.config` to edit the configuration to do things such as turn off the 
 
 To uninstall:
 
+{% include codeHeader.html %}
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh)"
 ```
