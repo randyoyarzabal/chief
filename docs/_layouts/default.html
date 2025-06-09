@@ -1,0 +1,10 @@
+{% if page.assets.js %}
+  {% for js in page.assets.js %}
+    <script src="{{ js | relative_url }}"></script>
+  {% endfor %}
+{% endif %}
+{% if page.assets.css %}
+  {% for css in page.assets.css %}
+    <link rel="stylesheet" href="{{ css | relative_url }}">
+  {% endfor %}
+{% endif %}
