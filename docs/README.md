@@ -2,11 +2,11 @@
 
 ## What is Chief?
 
-Chief is a Bash library system designed to help organize functions, aliases, and environment variables through "plug-ins."  It has additional features, including prompt customization and private SSH key management. It also installs various utility functions related to Git, SSL, OpenShift, Vault, etc. Once installed, checkout `chief.[tab]` to explore what's available.
+Chief is a Bash library system designed to help organize functions, aliases, and environment variables through "plug-ins."  It has additional features, including prompt customization and private SSH key management. It also installs various utility functions related to Git, SSL, OpenShift, Vault, and other services. Once installed, check out `chief.[tab]` to explore what's available.
 
 ## Getting Started
 
-Simply run this command on your terminal to install and you're good to go!
+Run this command in your terminal to install, and you're all set!
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
@@ -14,12 +14,12 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 
 Running the `install` command will:
 
-- Install latest version of Chief by cloning the git repo to `$HOME/.chief`
-- Configure using a copy of default configuration template to `$HOME/.chief_config.sh`
+- Install the latest version of Chief by cloning the git repo to `$HOME/.chief`
+- Configure using a copy of the default configuration template to `$HOME/.chief_config.sh`
 - Add the library loading lines to `$HOME/.bashrc` (file will be created if it doesn't exist)
-- To start Chief, restart your terminal or `source ~/.bashrc`.
+- To start, Chief, restart your terminal or `source ~/.bashrc`.
 
-Type `chief.config` to edit the configuration to do things such as turn off the banner, hints, enable prompt customizations etc.
+Type `chief.config` to edit the configuration to do things such as turn off the banner, hints, enable prompt customizations, etc.
 
 To uninstall:
 
@@ -37,14 +37,14 @@ Running the `uninstall` command will:
 - Backup `$HOME/.chief_config.sh` to `$HOME/.chief_config.sh.backup`
 - Remove `$HOME/.chief_config.sh`
 - Remove the library loading lines from `$HOME/.bashrc`
-- Restart your terminal to complete uninstallation.
+- Restart your terminal to complete the uninstallation.
 
 ## What's next?
 
 Get your functions, aliases, and all things Bash organized with plugins:
 
 - `chief.plugin` to edit the default plugin.
-- `chief.plugin [plug-in name]` to create/edit a plugin. Don't worry, if the plugin doesn't it can automatically create it.
+- `chief.plugin [plug-in name]` to create/edit a plugin. Don't worry, if the plugin doesn't, it can automatically create it.
 - `chief.plugins` to cd into your plugins directory.
 - `chief.plugins_update` to update/load from git repository when `CHIEF_CFG_PLUGINS_TYPE='remote'`.
 - `chief.plugin -?` to list plugins.
@@ -57,12 +57,12 @@ Explore the following commands:
 - `chief.update` to pull the latest version or set `CHIEF_CFG_AUTOCHECK_UPDATES=true`
 - `chief.bash_profile` to edit your .bash_profile file.
 - `chief.bashrc` to edit your .bashrc file.
-- `chief.* -?` to display the help-text for any chief command.
+- `chief.* -?` to display the help text for any chief command.
 - `type chief.*` on any command if you're curious or want to reuse the internal functions.
 
 **Notes:**
 
-- `chief.plugin`, `chief.bash_profile`, and `chief.bashrc` will automatically load (source) if changes are detected.  There's no need to restart your terminal!
+- `chief.plugin`, `chief.bash_profile`, and `chief.bashrc` will automatically load (source) if changes are detected.  You don't need to restart your terminal anymore!
 - You can enable the above text in Chief by setting `CHIEF_CFG_HINTS=true`
 
 **Don't have a git-aware prompt?** Try Chief's custom prompt, set `CHIEF_CFG_PROMPT=true`.
