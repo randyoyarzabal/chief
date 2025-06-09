@@ -60,7 +60,7 @@ Explore the following commands:
 - `chief.* -?` to display the help-text for any chief command.
 - `type chief.*` on any command if you're curious or want to reuse the internal functions.
 
-**Notes:** 
+**Notes:**
 
 - `chief.plugin`, `chief.bash_profile`, and `chief.bashrc` will automatically load (source) if changes are detected.  There's no need to restart your terminal!
 - You can enable the above text in Chief by setting `CHIEF_CFG_HINTS=true`
