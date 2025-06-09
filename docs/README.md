@@ -6,7 +6,7 @@ Chief is a Bash library system designed to help organize functions, aliases, and
 
 ## Getting Started
 
-Simply run this command on your terminal to install:
+Simply run this command on your terminal to install and you're good to go!
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
@@ -41,6 +41,15 @@ Running the `uninstall` command will:
 
 ## What's next?
 
+Get your functions, aliases, and all things Bash organized with plugins:
+
+- `chief.plugin` to edit the default plugin.
+- `chief.plugin [plug-in name]` to create/edit a plugin. Don't worry, if the plugin doesn't it can automatically create it.
+- `chief.plugins` to cd into your plugins directory.
+- `chief.plugins_update` to update/load from git repository when `CHIEF_CFG_PLUGINS_TYPE='remote'`.
+- `chief.plugin -?` to list plugins.
+- `chief.whereis <function | alias>` to locate exact location of function or alias.
+
 Explore the following commands:
 
 - `chief.[tab]` to see available built-in commands.
@@ -50,15 +59,6 @@ Explore the following commands:
 - `chief.bashrc` to edit your .bashrc file.
 - `chief.* -?` to display the help-text for any chief command.
 - `type chief.*` on any command if you're curious or want to reuse the internal functions.
-
-Plugin-related:
-
-- `chief.plugin` to edit the default plugin.
-- `chief.plugin [plug-in name]` to create/edit a plugin. Don't worry, if the plugin doesn't it can automatically create it.
-- `chief.plugins` to cd into your plugins directory.
-- `chief.plugins_update` to update/load from git repository when `CHIEF_CFG_PLUGINS_TYPE='remote'`.
-- `chief.plugin -?` to list plugins.
-- `chief.whereis <function | alias>` to locate exact location of function or alias.
 
 **Notes:** 
 
