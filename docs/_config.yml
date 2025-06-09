@@ -9,33 +9,14 @@ categories: [bash, git, openshift, kubernetes, linux, command-line]
 tags: [bash, git, openshift, kubernetes, linux, command-line, open-source]
 theme: jekyll-theme-leap-day
 
-sass:
-  sass_dir: _sass
-  style: compressed
-
-collections:
-  # Enable collections if needed for organizing code blocks
-  code-blocks:
-    output: true
-
 defaults:
   - scope:
-      path: "" # applies to all files
+      path: ""
     values:
       layout: default
       assets:
         js:
-          - copyCode.js
+          - assets/js/copyCode.js
         css:
-          - style.scss
+          - assets/css/copy-code.css
 
-include:
-  - _includes
-  - assets/js
-  - assets/css
-
-exclude:
-  - vendor
-  - node_modules
-  - Gemfile
-  - Gemfile.lock

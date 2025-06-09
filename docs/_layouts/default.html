@@ -1,12 +1,10 @@
-<!-- _layouts/default.html -->
-<!DOCTYPE html>
-<html>
-<head>
-  <!-- ... existing head content ... -->
-  <link rel="stylesheet" href="{{ '/assets/css/style.css' | relative_url }}">
-</head>
-<body>
-  <!-- ... existing body content ... -->
-  <script src="{{ '/assets/js/copyCode.js' | relative_url }}"></script>
-</body>
-</html>
+{% if page.assets.js %}
+  {% for js in page.assets.js %}
+    <script src="{{ js | relative_url }}"></script>
+  {% endfor %}
+{% endif %}
+{% if page.assets.css %}
+  {% for css in page.assets.css %}
+    <link rel="stylesheet" href="{{ css | relative_url }}">
+  {% endfor %}
+{% endif %}
