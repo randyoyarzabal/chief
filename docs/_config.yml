@@ -5,7 +5,6 @@ author_email: github@randyoyarzabal.com
 url: https://chief.reonetlabs.us
 show_downloads: true
 enable_copy_code_button: true
-overflow-x: scroll
 categories: [bash, git, openshift, kubernetes, linux, command-line]
 tags: [bash, git, openshift, kubernetes, linux, command-line, open-source]
-theme: jekyll-theme-minimal
+theme: jekyll-theme-leap-day

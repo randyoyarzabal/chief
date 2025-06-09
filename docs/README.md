@@ -107,7 +107,7 @@ Plugin-related:
 
     ```bash
     # Chief Environment
-    CHIEF_CONFIG="$HOME/.chief_config.sh"                                                                                                          
+    CHIEF_CONFIG="$HOME/.chief_config.sh"
     CHIEF_PATH="$HOME/.chief"
     source ${CHIEF_PATH}/chief.sh
     ```
