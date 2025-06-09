@@ -20,6 +20,7 @@
 # Set default .bashrc vars
 CHIEF_PATH="$HOME/.chief"
 CHIEF_CONFIG="$HOME/.chief_config.sh"
+CHIEF_BASHRC="$HOME/.bashrc"
 
 # Check for any overrides from defaults
 if [[ -n "$1" ]]; then
@@ -29,15 +30,6 @@ fi
 if [[ -n "$2" ]]; then
   CHIEF_CONFIG="$3"
 fi
-
-# Chief loading lines for .bashrc
-CHIEF_CONFIG_LINES=(
-  "export CHIEF_CONFIG=$CHIEF_CONFIG"
-  "export CHIEF_PATH=$CHIEF_PATH"
-  "source $CHIEF_PATH/chief.sh"
-)
-
-CHIEF_BASHRC="$HOME/.bashrc"
 
 CHIEF_COLOR_RED='\033[0;31m'
 CHIEF_COLOR_BLUE='\033[0;34m'
@@ -125,15 +117,14 @@ This action cannot be undone. Proceed with uninstallation?")
   fi
 
   # Remove lines from .bashrc
-  if [[ -f "$HOME/.bashrc" ]]; then
+  if [[ -f "${CHIEF_BASHRC}" ]]; then
     echo -e "${CHIEF_COLOR_BLUE}Removing Chief lines from ~/.bashrc...${CHIEF_NO_COLOR}"
-    for line in "${CHIEF_CONFIG_LINES[@]}"; do
-      echo -e "${CHIEF_COLOR_BLUE}Removing line from ~/.bashrc: $line${CHIEF_NO_COLOR}"
-      # Portable sed usage; reference: https://unix.stackexchange.com/a/381201
-      sed -i.bak -e "/$(echo "$line" | sed 's/[\/&]/\\&/g')/d" -- "${CHIEF_BASHRC}" && rm -- "${CHIEF_BASHRC}.bak"
-    done
-    echo -e "${CHIEF_COLOR_GREEN}Chief lines removed from ~/.bashrc.${CHIEF_NO_COLOR}"
-    # fi
+    # Portable sed usage; reference: https://unix.stackexchange.com/a/381201
+    sed -i.bak \
+      -e '/^[^#]*export CHIEF_PATH=/d' \
+      -e '/^[^#]*export CHIEF_CONFIG=/d' \
+      -e '/^[^#].*chief\.sh$/d' \
+      -- "${CHIEF_BASHRC}" && rm -- "${CHIEF_BASHRC}.bak"
   else
     echo -e "${CHIEF_COLOR_YELLOW}~/.bashrc does not exist, nothing to remove.${CHIEF_NO_COLOR}"
   fi 

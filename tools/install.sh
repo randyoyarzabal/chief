@@ -22,6 +22,7 @@ CHIEF_GIT_REPO="https://github.com/randyoyarzabal/chief.git"
 CHIEF_GIT_BRANCH="main"
 
 # Set default .bashrc vars
+CHIEF_BASHRC="$HOME/.bashrc"
 CHIEF_CONFIG="$HOME/.chief_config.sh"
 CHIEF_PATH="$HOME/.chief"
 
@@ -44,8 +45,6 @@ CHIEF_CONFIG_LINES=(
   "export CHIEF_CONFIG=$CHIEF_CONFIG"
   "source $CHIEF_PATH/chief.sh"
 )
-
-CHIEF_BASHRC="$HOME/.bashrc"
 
 CHIEF_COLOR_RED='\033[0;31m'
 CHIEF_COLOR_BLUE='\033[0;34m'
