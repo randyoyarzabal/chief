@@ -5,7 +5,7 @@ url: https://chief.reonetlabs.us
 show_downloads: true
 enable_copy_code_button: true
 toc: true
-categories: [bash, git, openshift, kubernetes, linux, command-line]
+categories: [bash, git, openshift, kubernetes, linux, vault, command-line]
 tags: [bash, git, openshift, kubernetes, linux, command-line, open-source]
 remote_theme: pages-themes/dinky@v0.2.0
 plugins:
