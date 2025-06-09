@@ -7,6 +7,7 @@
 - Added `chief.whereis`
 - Consolidated library into one file.
 - Added `--lib-only` option when sourcing Chief.  Allowing library-only use of Chief.
+- Fixed documentation.
 
 ## v2.0.1
 
