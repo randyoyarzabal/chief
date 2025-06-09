@@ -7,4 +7,4 @@ show_downloads: true
 enable_copy_code_button: true
 categories: [bash, git, openshift, kubernetes, linux, command-line]
 tags: [bash, git, openshift, kubernetes, linux, command-line, open-source]
-theme: just-the-docs
+theme: jekyll-theme-minimal
