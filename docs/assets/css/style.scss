@@ -1,7 +1,5 @@
 ---
----
-// This file is used to style the copy button for code blocks in the documentation.
-@import "{{ site.theme }}"; 
+@import "{{ site.theme }}";
 
 .copy-button-container {
     position: absolute;
@@ -13,9 +11,9 @@
 .copy-button.phind-style {
     width: 32px;
     height: 32px;
-    background-color: #24292e;
-    border: 1px solid #444d56;
-    border-radius: 50%;  // Ensures perfect circle
+    background-color: #{$leap-day-primary};
+    border: 1px solid #{$leap-day-border};
+    border-radius: 50%;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -25,7 +23,7 @@
     overflow: hidden;
     
     &:hover {
-        background-color: #30363d;
+        background-color: #{$leap-day-primary-dark};
         transform: translateY(-1px);
     }
     
@@ -43,7 +41,7 @@
 }
 
 .copy-button.copied {
-    background-color: #28a745;
+    background-color: #{$leap-day-success};
     
     svg {
         opacity: 1;
@@ -52,7 +50,7 @@
 }
 
 .copy-button.error {
-    background-color: #dc3545;
+    background-color: #{$leap-day-error};
     
     svg {
         opacity: 1;

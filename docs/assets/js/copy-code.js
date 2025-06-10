@@ -12,9 +12,9 @@ document.addEventListener('DOMContentLoaded', function() {
         const svgNS = "http://www.w3.org/2000/svg";
         const svg = document.createElementNS(svgNS, "svg");
         svg.setAttribute("viewBox", "0 0 24 24");
-        svg.setAttribute("width", "16");  // Fixed width for proper scaling
-        svg.setAttribute("height", "16"); // Fixed height for proper scaling
-        svg.style.position = "absolute";  // Position absolutely within button
+        svg.setAttribute("width", "16");
+        svg.setAttribute("height", "16");
+        svg.style.position = "absolute";
         svg.style.top = "50%";
         svg.style.left = "50%";
         svg.style.transform = "translate(-50%, -50%)";
@@ -22,7 +22,7 @@ document.addEventListener('DOMContentLoaded', function() {
         
         const path = document.createElementNS(svgNS, "path");
         path.setAttribute("d", "M9 16.17L4.83 12l1.42-1.41L9 14.17l4.75-4.75L13.41 12L9 16.17z");
-        path.setAttribute("fill", "#ffffff");
+        path.setAttribute("fill", "currentColor");
         
         svg.appendChild(path);
         copyButton.appendChild(svg);
