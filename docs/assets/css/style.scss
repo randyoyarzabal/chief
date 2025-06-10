@@ -9,21 +9,38 @@
     z-index: 10;
 }
 
-.copy-button {
-    background-color: #fff;
-    border: 1px solid #ddd;
+.copy-button.github-style {
+    background-color: #24292e;
+    border: 1px solid #444d56;
     border-radius: 4px;
     padding: 4px 8px;
     cursor: pointer;
-    transition: all 0.2s ease;
-
+    color: white;
+    font-size: 12px;
+    transition: opacity 0.2s ease, transform 0.2s ease;
+    
     &:hover {
-        background-color: #f0f0f0;
+        background-color: #30363d;
+        transform: translateY(-1px);
     }
-
+    
     &:focus {
         outline: none;
-        box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
+        box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.25),
+                   0 0 0 4px rgba(3, 102, 214, 0.35);
+    }
+    
+    &.copied {
+        animation: fadeOut 0.5s ease forwards;
+    }
+}
+
+@keyframes fadeOut {
+    0% { opacity: 1; transform: scale(1); }
+    100% { 
+        opacity: 0; 
+        transform: scale(0.8);
+        pointer-events: none;
     }
 }
 
