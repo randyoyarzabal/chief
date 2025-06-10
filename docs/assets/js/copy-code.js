@@ -1,53 +1,54 @@
-document.addEventListener('DOMContentLoaded', function() {
-    const codeBlocks = document.querySelectorAll('pre.highlight');
-    codeBlocks.forEach(block => {
-        const buttonContainer = document.createElement('div');
-        buttonContainer.className = 'copy-button-container';
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.highlight').forEach(codeBlock => {
+    const container = document.createElement('div');
+    container.className = 'copy-button-container';
+    
+    const copyBtn = document.createElement('button');
+    copyBtn.className = 'copy-button';
+    copyBtn.setAttribute('aria-label', 'Copy code');
+    
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute('viewBox', '0 0 24 24');
+    svg.setAttribute('fill', 'none');
+    svg.setAttribute('stroke', 'currentColor');
+    svg.setAttribute('stroke-width', '2');
+    svg.innerHTML = `
+      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+    `;
+    
+    const copiedSvg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    copiedSvg.setAttribute('viewBox', '0 0 24 24');
+    copiedSvg.setAttribute('fill', 'none');
+    copiedSvg.setAttribute('stroke', 'currentColor');
+    copiedSvg.setAttribute('stroke-width', '2');
+    copiedSvg.style.display = 'none';
+    copiedSvg.innerHTML = `
+      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+      <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2"/>
+    `;
+    
+    copyBtn.appendChild(svg);
+    copyBtn.appendChild(copiedSvg);
+    
+    container.appendChild(codeBlock);
+    container.insertBefore(copyBtn, container.firstChild);
+    codeBlock.parentNode.replaceChild(container, codeBlock);
+    
+    copyBtn.addEventListener('click', async () => {
+      try {
+        await navigator.clipboard.writeText(codeBlock.textContent);
+        svg.style.display = 'none';
+        copiedSvg.style.display = 'block';
+        copyBtn.classList.add('copied');
         
-        const copyButton = document.createElement('button');
-        copyButton.className = 'copy-button phind-style';
-        copyButton.setAttribute('aria-label', 'Copy code to clipboard');
-        
-        // Create centered SVG checkmark
-        const svgNS = "http://www.w3.org/2000/svg";
-        const svg = document.createElementNS(svgNS, "svg");
-        svg.setAttribute("viewBox", "0 0 24 24");
-        svg.setAttribute("width", "16");
-        svg.setAttribute("height", "16");
-        svg.style.position = "absolute";
-        svg.style.top = "50%";
-        svg.style.left = "50%";
-        svg.style.transform = "translate(-50%, -50%)";
-        svg.style.opacity = "0";
-        
-        const path = document.createElementNS(svgNS, "path");
-        path.setAttribute("d", "M9 16.17L4.83 12l1.42-1.41L9 14.17l4.75-4.75L13.41 12L9 16.17z");
-        path.setAttribute("fill", "currentColor");
-        
-        svg.appendChild(path);
-        copyButton.appendChild(svg);
-        
-        copyButton.addEventListener('click', async () => {
-            try {
-                await navigator.clipboard.writeText(block.querySelector('code').textContent);
-                copyButton.classList.add('copied');
-                
-                // Reset after animation completes
-                setTimeout(() => {
-                    copyButton.classList.remove('copied');
-                }, 1500);
-            } catch (err) {
-                console.error('Failed to copy:', err);
-                copyButton.classList.add('error');
-                
-                // Reset error state
-                setTimeout(() => {
-                    copyButton.classList.remove('error');
-                }, 1000);
-            }
-        });
-        
-        buttonContainer.appendChild(copyButton);
-        block.insertBefore(buttonContainer, block.firstChild);
+        setTimeout(() => {
+          svg.style.display = 'block';
+          copiedSvg.style.display = 'none';
+          copyBtn.classList.remove('copied');
+        }, 2000);
+      } catch (err) {
+        console.error('Failed to copy:', err);
+      }
     });
+  });
 });

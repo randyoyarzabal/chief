@@ -1,0 +1,192 @@
+<!DOCTYPE html>
+<html>
+<head>
+<style>
+.copy-code-block {
+  position: relative;
+  margin: 1em 0;
+}
+
+.code-fence {
+  position: relative;
+  background: #f6f8fa;
+  border-radius: 6px;
+  padding: 16px;
+  margin: 0;
+  font-family: SFMono-Regular,Consolas,Liberation Mono,Menlo,monospace;
+}
+
+.code-content {
+  position: relative;
+  z-index: 1;
+  white-space: pre;
+  overflow-x: auto;
+  color: #24292e;
+}
+
+.copy-button {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  background: none;
+  border: none;
+  cursor: pointer;
+  padding: 4px 8px;
+  border-radius: 4px;
+  opacity: 0.6;
+  transition: all 0.2s ease;
+}
+
+.copy-button:hover {
+  background-color: rgba(27,31,35,.08);
+  opacity: 1;
+}
+
+.copy-button::before {
+  content: "Copy";
+  font-size: 14px;
+  color: #24292e;
+}
+
+.copy-button.copied::before {
+  content: "Copied!";
+  color: #28a745;
+}
+
+.copy-button.error::before {
+  content: "Error!";
+  color: #dc3545;
+}
+
+/* Configuration styles */
+.config-panel {
+  margin-top: 20px;
+  padding: 15px;
+  background: #f8f9fa;
+  border-radius: 6px;
+}
+
+.config-item {
+  margin-bottom: 10px;
+}
+
+.config-label {
+  font-weight: bold;
+  margin-right: 10px;
+}
+
+.config-value {
+  background: #fff;
+  padding: 4px 8px;
+  border: 1px solid #dee2e6;
+  border-radius: 4px;
+}
+</style>
+
+<script>
+// Configuration object for managing copy widget settings
+const copyWidgetConfig = {
+  timeoutDuration: 2000,
+  errorColor: '#dc3545',
+  successColor: '#28a745',
+  
+  // Initialize configuration
+  init() {
+    const configPanel = document.createElement('div');
+    configPanel.className = 'config-panel';
+    
+    Object.entries(this).forEach(([key, value]) => {
+      if (typeof value !== 'function') {
+        const item = document.createElement('div');
+        item.className = 'config-item';
+        
+        const label = document.createElement('span');
+        label.className = 'config-label';
+        label.textContent = `${key}: `;
+        
+        const valueSpan = document.createElement('span');
+        valueSpan.className = 'config-value';
+        valueSpan.textContent = value;
+        
+        item.appendChild(label);
+        item.appendChild(valueSpan);
+        configPanel.appendChild(item);
+      }
+    });
+    
+    document.body.appendChild(configPanel);
+  }
+};
+
+// Copy handler with error management
+function handleCopy(text, button) {
+  return navigator.clipboard.writeText(text)
+    .then(() => {
+      button.classList.add('copied');
+      setTimeout(() => button.classList.remove('copied'), 
+                 copyWidgetConfig.timeoutDuration);
+    })
+    .catch(error => {
+      button.classList.add('error');
+      console.error('Failed to copy text:', error);
+      setTimeout(() => button.classList.remove('error'),
+                 copyWidgetConfig.timeoutDuration);
+    });
+}
+
+// Initialize configuration panel
+copyWidgetConfig.init();
+
+// Add event listeners to buttons
+document.addEventListener('DOMContentLoaded', () => {
+  const copyButtons = document.querySelectorAll('.copy-button');
+  
+  copyButtons.forEach(button => {
+    button.addEventListener('click', async () => {
+      const codeBlock = button.parentElement.querySelector('.code-content');
+      const text = codeBlock.textContent.trim();
+      
+      try {
+        await handleCopy(text, button);
+      } catch (err) {
+        console.error('Error handling copy operation:', err);
+      }
+    });
+  });
+});
+
+// Add configuration management
+const configForm = document.createElement('form');
+configForm.innerHTML = `
+  <div class="config-panel">
+    <h3>Configure Copy Widget</h3>
+    <div class="config-item">
+      <label class="config-label">Timeout Duration:</label>
+      <input type="number" 
+             value="${copyWidgetConfig.timeoutDuration}"
+             onchange="copyWidgetConfig.timeoutDuration = parseInt(this.value)">
+    </div>
+    <div class="config-item">
+      <label class="config-label">Error Color:</label>
+      <input type="color" 
+             value="${copyWidgetConfig.errorColor}"
+             onchange="copyWidgetConfig.errorColor = this.value;
+                      document.querySelectorAll('.error::before').forEach(el => el.style.color = this.value)">
+    </div>
+    <div class="config-item">
+      <label class="config-label">Success Color:</label>
+      <input type="color" 
+             value="${copyWidgetConfig.successColor}"
+             onchange="copyWidgetConfig.successColor = this.value;
+                      document.querySelectorAll('.copied::before').forEach(el => el.style.color = this.value)">
+    </div>
+  </div>
+`;
+
+document.body.appendChild(configForm);</script>
+
+<div class="copy-code-block">
+  <pre><code class="code-content">def hello_world():
+    print("Hello, World!")</code></pre>
+  <button class="copy-button" aria-label="Copy code"></button>
+</div>
