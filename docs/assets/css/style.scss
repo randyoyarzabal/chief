@@ -9,15 +9,19 @@
     z-index: 10;
 }
 
-.copy-button.github-style {
+.copy-button.phind-style {
+    width: 32px;
+    height: 32px;
     background-color: #24292e;
     border: 1px solid #444d56;
-    border-radius: 4px;
-    padding: 4px 8px;
+    border-radius: 50%;
     cursor: pointer;
-    color: white;
-    font-size: 12px;
-    transition: opacity 0.2s ease, transform 0.2s ease;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    position: relative;
+    overflow: hidden;
     
     &:hover {
         background-color: #30363d;
@@ -30,17 +34,28 @@
                    0 0 0 4px rgba(3, 102, 214, 0.35);
     }
     
-    &.copied {
-        animation: fadeOut 0.5s ease forwards;
+    svg {
+        opacity: 0;
+        transform: scale(0.5);
+        transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 }
 
-@keyframes fadeOut {
-    0% { opacity: 1; transform: scale(1); }
-    100% { 
-        opacity: 0; 
-        transform: scale(0.8);
-        pointer-events: none;
+.copy-button.copied {
+    background-color: #28a745;
+    
+    svg {
+        opacity: 1;
+        transform: scale(1);
+    }
+}
+
+.copy-button.error {
+    background-color: #dc3545;
+    
+    svg {
+        opacity: 1;
+        transform: scale(1);
     }
 }
 
