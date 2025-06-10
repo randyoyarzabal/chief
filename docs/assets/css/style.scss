@@ -1,6 +1,6 @@
 ---
 ---
-@import "{{ site.theme }}";
+@import "{{ site.theme }}"; 
 
 .copy-button-container {
     position: absolute;
@@ -14,7 +14,7 @@
     height: 32px;
     background-color: #24292e;
     border: 1px solid #444d56;
-    border-radius: 50%;
+    border-radius: 50%;  // Ensures perfect circle
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -36,7 +36,7 @@
     
     svg {
         opacity: 0;
-        transform: scale(0.5);
+        transform: translate(-50%, -50%) scale(0.5);
         transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
     }
 }
@@ -46,7 +46,7 @@
     
     svg {
         opacity: 1;
-        transform: scale(1);
+        transform: translate(-50%, -50%) scale(1);
     }
 }
 
@@ -55,7 +55,7 @@
     
     svg {
         opacity: 1;
-        transform: scale(1);
+        transform: translate(-50%, -50%) scale(1);
     }
 }
 

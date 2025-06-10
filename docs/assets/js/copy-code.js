@@ -8,12 +8,16 @@ document.addEventListener('DOMContentLoaded', function() {
         copyButton.className = 'copy-button phind-style';
         copyButton.setAttribute('aria-label', 'Copy code to clipboard');
         
-        // Create SVG checkmark
+        // Create centered SVG checkmark
         const svgNS = "http://www.w3.org/2000/svg";
         const svg = document.createElementNS(svgNS, "svg");
         svg.setAttribute("viewBox", "0 0 24 24");
-        svg.setAttribute("width", "16");
-        svg.setAttribute("height", "16");
+        svg.setAttribute("width", "16");  // Fixed width for proper scaling
+        svg.setAttribute("height", "16"); // Fixed height for proper scaling
+        svg.style.position = "absolute";  // Position absolutely within button
+        svg.style.top = "50%";
+        svg.style.left = "50%";
+        svg.style.transform = "translate(-50%, -50%)";
         svg.style.opacity = "0";
         
         const path = document.createElementNS(svgNS, "path");
