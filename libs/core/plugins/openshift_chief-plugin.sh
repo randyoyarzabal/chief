@@ -149,6 +149,7 @@ Examples:
         __print_warn "Warning: Password is empty for user '${username}' in CHIEF_OC_CLUSTERS. Using passwordless login."
         oc login -u "${username}" --server="${api_url}" ${tls_option}
       else
+        __print_info "Using user: ${username} and password: [REDACTED]"
         oc login -u "${username}" -p "${password}" --server="${api_url}" ${tls_option}
       fi
       echo ""
@@ -243,6 +244,7 @@ Examples:
       return 1
     fi
     if [[ -n "${CHIEF_OC_PASSWORD}" ]]; then
+      __print_info "Using CHIEF_OC_USERNAME: ${CHIEF_OC_USERNAME} and CHIEF_OC_PASSWORD: [REDACTED]"
       oc login -u "${CHIEF_OC_USERNAME}" -p "${CHIEF_OC_PASSWORD}" --server="${api_url}" ${tls_option}
     else
       __print_warn "Warning: Password is empty for user '${CHIEF_OC_USERNAME}' in CHIEF_OC_CLUSTERS. Using passwordless login."
