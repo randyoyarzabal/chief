@@ -24,9 +24,9 @@ pre {
         margin: 0 !important;
         
         &.single-line {
-            white-space: nowrap;
-            overflow-x: auto;
-            max-width: 100%;
+            white-space: nowrap !important;
+            overflow-x: auto !important;
+            max-width: none !important;
             
             &:hover {
                 background-color: #f8f8f8;
@@ -46,9 +46,9 @@ pre {
     top: 16px;
     width: 24px;
     height: 24px;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="#666" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>');
-    background-size: contain;
-    background-repeat: no-repeat;
+    background-color: transparent !important;
+    background-size: contain !important;
+    background-repeat: no-repeat !important;
     border: none;
     cursor: pointer;
     padding: 0;
