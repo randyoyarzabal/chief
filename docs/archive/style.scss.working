@@ -3,6 +3,11 @@
 
 @import "{{ site.theme }}";
 
+// Variables from Dinky theme
+$background-color: #ffffff;
+$border-color: #dddddd;
+$text-color: #333333;
+
 pre {
     position: relative;
     margin: 20px 0;
@@ -20,6 +25,10 @@ pre {
             white-space: nowrap;
             overflow-x: auto;
             max-width: 100%;
+            
+            &:hover {
+                background-color: #f8f8f8;
+            }
         }
         
         &.multi-line {
@@ -33,25 +42,21 @@ pre {
     position: absolute;
     right: 16px;
     top: 16px;
-    width: 24px;
-    height: 24px;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23666" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>');
-    background-size: contain;
-    background-repeat: no-repeat;
-    border: none;
+    padding: 4px 8px;
+    background-color: transparent;
+    border: 1px solid $border-color;
+    border-radius: 4px;
     cursor: pointer;
-    padding: 0;
+    font-size: 14px;
+    color: $text-color;
+    z-index: 1;
     
     &:hover {
-        filter: brightness(0.8);
+        background-color: #f0f0f0;
     }
     
     &:focus {
         outline: 2px solid #0066cc;
         outline-offset: 2px;
-    }
-    
-    &:active {
-        filter: brightness(0.6);
     }
 }
