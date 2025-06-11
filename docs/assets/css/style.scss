@@ -29,37 +29,17 @@ pre {
     position: absolute;
     right: 16px;
     top: 16px;
-    width: 24px;
-    height: 24px;
+    padding: 4px 8px;
     background-color: #f0f0f0;
     border: 1px solid $border-color;
-    border-radius: 50%;
+    border-radius: 4px;
     cursor: pointer;
     z-index: 1;
     transition: all 0.3s ease;
-    display: flex;
-    align-items: center;
-    justify-content: center;
     
     &:hover {
         background-color: #e0e0e0;
-        transform: scale(1.05);
     }
     
     &:focus {
-        outline: 2px solid #0066cc;
-        outline-offset: 2px;
-    }
-    
-    &::before {
-        content: "\270e";
-        font-size: 16px;
-        color: #666666;
-    }
-    
-    &.copied {
-        opacity: 0;
-        pointer-events: none;
-        transform: scale(0.8);
-    }
-}
+        outline: 2px solid #006
