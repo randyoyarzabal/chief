@@ -11,8 +11,3 @@ enable_copy_code_button: true
 toc: true
 categories: [bash, git, openshift, kubernetes, linux, vault, command-line]
 tags: [bash, git, openshift, kubernetes, linux, command-line, open-source]
-description: |
-  Chief is a collection of command-line tools and scripts that help you manage your development environment, automate tasks, and improve your productivity.
-  It includes tools for working with Git, OpenShift, Kubernetes, Linux, and more.
-  Chief is designed to be easy to use and customizable, so you can tailor it to your specific needs.
-  Whether you're a developer, system administrator, or DevOps engineer, Chief has something for you.
