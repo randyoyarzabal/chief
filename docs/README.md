@@ -83,7 +83,7 @@ Explore the following commands:
   - Auto creation of plugins
 - Automated reload of edited files
 - Private SSH key auto-loading
-- Custom prompt if you're not already using one
+- Custom prompt; if you're not already using one
   - Git prompt
   - Colored prompt
   - Working directory
