@@ -8,24 +8,19 @@ $background-color: #ffffff;
 $border-color: #dddddd;
 $text-color: #333333;
 
-.code-block {
+pre {
     position: relative;
     margin: 20px 0;
-    border-radius: 4px;
+    padding: 48px 16px 16px 16px;
     background-color: $background-color;
+    border-radius: 4px;
     border: 1px solid $border-color;
-    padding: 40px 0 16px 16px; // Added padding to accommodate button
     
-    pre {
+    code {
+        display: block;
+        padding: 0 !important;
         margin: 0 !important;
-        padding: 16px !important;
-        
-        code {
-            display: block;
-            padding: 0 !important;
-            margin: 0 !important;
-            white-space: pre-wrap;
-        }
+        white-space: pre-wrap;
     }
 }
 
