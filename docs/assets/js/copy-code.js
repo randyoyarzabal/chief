@@ -13,8 +13,6 @@ document.addEventListener('DOMContentLoaded', function() {
         button.className = 'copy-button';
         button.setAttribute('aria-label', 'Copy code');
         button.type = 'button';
-        // Set default icon (matches CSS)
-        button.style.backgroundImage = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 16 16\'><rect width=\'10\' height=\'12\' x=\'3\' y=\'2\' stroke=\'%23666\' stroke-width=\'1.5\' rx=\'2\'/><path stroke=\'%23666\' stroke-width=\'1.5\' d=\'M6 2V1a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1\'/></svg>")';
 
         // Insert button as first child of <pre>
         pre.style.position = 'relative';
@@ -23,17 +21,16 @@ document.addEventListener('DOMContentLoaded', function() {
         button.addEventListener('click', async () => {
             try {
                 await navigator.clipboard.writeText(codeBlock.textContent);
-                // Show check mark
-                button.style.backgroundImage = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'><path fill=\'%23008800\' d=\'M6.003 11.414l-3.707-3.707 1.414-1.414L6 8.586l6.293-6.293 1.414 1.414z\'/></svg>")';
+                button.classList.remove('copy-error');
+                button.classList.add('copied');
                 setTimeout(() => {
-                    // Restore default icon
-                    button.style.backgroundImage = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 16 16\'><rect width=\'10\' height=\'12\' x=\'3\' y=\'2\' stroke=\'%23666\' stroke-width=\'1.5\' rx=\'2\'/><path stroke=\'%23666\' stroke-width=\'1.5\' d=\'M6 2V1a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1\'/></svg>")';
+                    button.classList.remove('copied');
                 }, 1500);
             } catch (err) {
-                // Show error icon
-                button.style.backgroundImage = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'><circle cx=\'8\' cy=\'8\' r=\'7\' fill=\'%23d32\'/><text x=\'8\' y=\'12\' text-anchor=\'middle\' font-size=\'10\' fill=\'white\'>!</text></svg>")';
+                button.classList.remove('copied');
+                button.classList.add('copy-error');
                 setTimeout(() => {
-                    button.style.backgroundImage = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 16 16\'><rect width=\'10\' height=\'12\' x=\'3\' y=\'2\' stroke=\'%23666\' stroke-width=\'1.5\' rx=\'2\'/><path stroke=\'%23666\' stroke-width=\'1.5\' d=\'M6 2V1a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1\'/></svg>")';
+                    button.classList.remove('copy-error');
                 }, 3000);
             }
         });
