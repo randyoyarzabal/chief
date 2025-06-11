@@ -20,29 +20,76 @@
 # ver. 1.0
 # Functions and aliases that are Openshift related.
 
+# Repeated from Chief core library to avoid dependency on core library for this plugin.
+# Color codes for printing messages
+CHIEF_COLOR_RED='\033[0;31m'
+CHIEF_COLOR_BLUE='\033[0;34m'
+CHIEF_COLOR_CYAN='\033[0;36m'
+CHIEF_COLOR_GREEN='\033[0;32m'
+CHIEF_COLOR_YELLOW='\033[1;33m'
+CHIEF_NO_COLOR='\033[0m' # Reset color/style
+
+function __print_error(){
+  echo -e "${CHIEF_COLOR_RED}Error: $1${CHIEF_NO_COLOR}"
+}
+
+function __print_warn(){
+  echo -e "${CHIEF_COLOR_YELLOW}Warning: $1${CHIEF_NO_COLOR}"
+}
+
+function __print_success(){
+  echo -e "${CHIEF_COLOR_GREEN}$1${CHIEF_NO_COLOR}"
+}
+
+function __print_info(){
+  echo -e "${CHIEF_COLOR_CYAN}$1${CHIEF_NO_COLOR}"
+}
+
 function chief.oc.login() {
   local USAGE="Usage: $FUNCNAME <host> [-kc (kubeconfig login)] [-ka (kubeadmin)] [-i (for no tls)]
 
 Login to an OpenShift cluster using kubeconfig, kubeadmin or user credentials.
 
-This function requires:
-  - Hashicorp 'vault' CLI tool to be installed and configured with VAULT_ADDR and VAULT_TOKEN environment variables.
-  - 'oc' CLI tool to be installed and configured in your PATH.
-  - CHIEF_VAULT_OC_PATH environment variable set to the path where your Vault secrets are stored.
-      For example: 'secrets/openshift', all hosts should be under this path.
-  - A Vault server with the following secrets structure:
-    - 'secrets/openshift/<host>' containing:
-      - kubeconfig : kubeconfig file content
-      - kubeadmin : kubeadmin password
-      - api : API url of Openshift cluster
+OpenShift CLI tool (oc) is required to be installed and available in your PATH.
+
+This function requires either option below or both (will try both in order):
+
+  - CHIEF_OC_CLUSTERS environment variable to be set with cluster information in the format:
+    CHIEF_OC_CLUSTERS['<cluster_name>']=<api_url>,<username>,<password>
+    Example:
+
+    declare -gA CHIEF_OC_CLUSTERS
+    CHIEF_OC_CLUSTERS['hub']='https://api.hub.example.com,admin,password123'
+    CHIEF_OC_CLUSTERS['tenant']='https://api.tenant.example.com,admin,password123'
+    ...
+
+    This allows you to login without using Vault.
+
+  Or:
+
+  - CHIEF_VAULT_OC_PATH environment variable to be set with the path where your OpenShift secrets are stored in Vault.
+    Example: export CHIEF_VAULT_OC_PATH='secrets/openshift'
+    This allows you to login using Vault secrets.
+    Requirements:
+      - Vault server to be running and accessible.
+      - VAULT_ADDR and VAULT_TOKEN environment variables to be set for Vault access.
+      - Vault secrets structure:
+        - 'secrets/openshift/<host>' containing:
+          - kubeconfig : kubeconfig file content
+          - kubeadmin : kubeadmin password
+          - api : API url of Openshift cluster
+
+  Requirements for this function:
+    - Hashicorp Vault CLI tool (vault) to be installed and configured with VAULT_ADDR and VAULT_TOKEN environment variables.
 
 Optional Environment Variables:
   - CHIEF_OC_USERNAME : Username for OpenShift login (if not using kubeconfig or kubeadmin).
   - CHIEF_OC_PASSWORD : Password for OpenShift login (if not using kubeconfig or kubeadmin).
 
 Options:
-  -kc : Use kubeconfig to login.
-  -ka : Use kubeadmin credentials to login.
+  -kc : Use kubeconfig to login. 
+  -ka : Use kubeadmin credentials to login. 
+  Note: -kc or -ka will not work if cluster is set in CHIEF_OC_CLUSTERS list.
   -i  : Skip TLS verification (insecure).
 
 Examples: 
@@ -57,37 +104,82 @@ Examples:
     $> oc.login hub_cluster -ka -i  
 "
   local cluster=$1
+  local api_url
+  local username
+  local password
+  local tls_option=""
 
   if [[ -z $1 || $1 == "-?" ]]; then
     echo "${USAGE}"
-    return
+    return 0
   fi
+
+  for arg in "$@"; do
+    if [[ "$arg" == "-i" ]]; then
+      tls_option="--insecure-skip-tls-verify=true"
+      break
+    fi
+  done
 
   # Check if required environment variables and binaries are set
   if ! type oc >/dev/null 2>&1; then
-    echo "Error: 'oc' CLI tool is not installed or not in your PATH."
-    echo "Please install the OpenShift CLI tool (oc) to use this function."
-    return
+    __print_error "Error: 'oc' CLI tool is not installed or not in your PATH."
+    __print_info "Please install the OpenShift CLI tool (oc) to use this function."
+    return 1
   fi
 
+  # If CHIEF_OC_CLUSTERS is set, use it to get the cluster information
+  if [[ -n ${CHIEF_OC_CLUSTERS[$cluster]} ]]; then
+    IFS=',' read -r api_url username password <<< "${CHIEF_OC_CLUSTERS[$cluster]}"
+    if [[ -z ${api_url} || -z ${username} || -z ${password} ]]; then
+      __print_error "Error: Cluster information for '${cluster}' is incomplete in CHIEF_OC_CLUSTERS."
+    else
+      # Do not allow use of -kc or -ka options if CHIEF_OC_CLUSTERS is used
+      if [[ ${2} == "-kc" || ${2} == "-ka" ]]; then
+        __print_error "Error: Cannot use -kc or -ka options when cluster is defined in CHIEF_OC_CLUSTERS."
+        return 1
+      fi
+    fi
+    __print_info "Using cluster information from CHIEF_OC_CLUSTERS for '${cluster}'."
+
+    oc login -u "${username}" -p "${password}" --server="${api_url}" ${tls_option}
+    oc login -u "${username}" --server="${api_url}" ${tls_option}
+
+    echo ""
+    __print_success "Currently logged in as user: $(oc whoami) - Console: $(oc whoami --show-console)"
+    return 0
+  else
+    __print_warn "Warning: No cluster information found for '${cluster}' in CHIEF_OC_CLUSTERS, falling back to Vault."
+  fi
+
+  # Use Vault to retrieve cluster information
   if ! type vault >/dev/null 2>&1; then
-    echo "Error: 'vault' CLI tool is not installed or not in your PATH."
-    echo "Please install the Hashicorp Vault CLI tool to use this function."
-    return
+    __print_error "Error: 'vault' CLI tool is not installed or not in your PATH."
+    __print_info "Please install the Hashicorp Vault CLI tool to use this function."
+    return 1
   fi
 
+  # Ensure VAULT_ADDR and VAULT_TOKEN are set
+  if [[ -z ${VAULT_ADDR} || -z ${VAULT_TOKEN} ]]; then
+    __print_error "Error: VAULT_ADDR and VAULT_TOKEN environment variables must be set."
+    __print_info "Please set them to connect to your Vault server."
+    return 1
+  fi
+
+  # Ensure CHIEF_VAULT_OC_PATH is set
+  if [[ -z ${CHIEF_VAULT_OC_PATH} ]]; then
+    __print_error "Error: CHIEF_VAULT_OC_PATH environment variable is not set."
+    __print_info "Please set CHIEF_VAULT_OC_PATH to the path where your OpenShift secrets are stored in Vault."
+    __print_info "Example: export CHIEF_VAULT_OC_PATH='secrets/openshift'"
+    return 1
+  fi
+
+  # Check if the cluster secret exists in Vault
   if ! vault kv get ${CHIEF_VAULT_OC_PATH}/${cluster} >/dev/null 2>&1; then
-    echo "Secret for ${cluster} does not exist in Vault at ${CHIEF_VAULT_OC_PATH}/${cluster}."
-    return
+    __print_error "Secret for ${cluster} does not exist in Vault at ${CHIEF_VAULT_OC_PATH}/${cluster}."
+    return 1
   fi
 
-  if [[ -z ${VAULT_ADDR} && -z ${VAULT_TOKEN} ]]; then
-    echo "Error: VAULT_ADDR and VAULT_TOKEN must be set to read credentials from Vault."
-    return
-  fi
-
-  local url
-  local tls_option=""
   local secret_keys=(
     "api"
     "kubeconfig"
@@ -97,34 +189,28 @@ Examples:
   # Loop through the secret keys and check if they exist in Vault
   for key in "${secret_keys[@]}"; do
     if ! vault kv get -field=${key} ${CHIEF_VAULT_OC_PATH}/${cluster} >/dev/null 2>&1; then
-      echo "Error: '${key}' key not found in Vault at ${CHIEF_VAULT_OC_PATH}/${cluster}."
+      __print_error "Error: '${key}' key not found in Vault at ${CHIEF_VAULT_OC_PATH}/${cluster}."
       if [[ ${key} == "kubeconfig" ]]; then
-        echo "  If this is an HCP cluster, HCP clusters don't have kubeconfig, use -ka instead."
+        __print_info "  If this is an HCP cluster, HCP clusters don't have kubeconfig, use -ka instead."
       fi
-      return
+      return 1
     fi
   done
 
-  for arg in "$@"; do
-    if [[ "$arg" == "-i" ]]; then
-      tls_option="--insecure-skip-tls-verify=true"
-      break
-    fi
-  done
+  api_url=$(vault kv get -field=api ${CHIEF_VAULT_OC_PATH}/${cluster})
 
-  url=$(vault kv get -field=api ${CHIEF_VAULT_OC_PATH}/${cluster})
+  __print_info "Logging in to OpenShift cluster '${cluster}' at '${api_url}'..."
+  __print_info "Using tls_option: ${tls_option:-none}" 
+  __print_info "Using Vault path: ${CHIEF_VAULT_OC_PATH}/${cluster}"
 
-  echo "Logging in to OpenShift cluster '${cluster}' at '${url}'..."
-  echo "Using Vault path: ${CHIEF_VAULT_OC_PATH}/${cluster}"
-  echo "Using tls_option: ${tls_option:-none}" 
   echo ""
 
   # Logon using kubeconfig
   if [[ ${2} == "-kc" ]]; then
     local kubeconfig=$(vault kv get -field=kubeconfig ${CHIEF_VAULT_OC_PATH}/${cluster})
     if [[ -z "${kubeconfig}" ]]; then
-      echo "Error: kubeconfig not found in Vault."
-      return
+      __print_error "Error: kubeconfig not found in Vault."
+      return 1
     fi
     rm -rf /tmp/kubeconfig
     echo "${kubeconfig}" > /tmp/kubeconfig
@@ -135,25 +221,25 @@ Examples:
   elif [[ ${2} == "-ka" ]]; then
     local kubepass=$(vault kv get -field=kubeadmin ${CHIEF_VAULT_OC_PATH}/${cluster})
     if [[ -z "${kubepass}" ]]; then
-      echo "Error: kubeadmin password not found in Vault."
-      echo "  If this is an HCP cluster, HCP clusters don't have kubeadmin, use -kc instead."
-      return
+      __print_error "Error: kubeadmin password not found in Vault."
+      __print_info "  If this is an HCP cluster, HCP clusters don't have kubeadmin, use -kc instead."
+      return 1
     fi
-    oc login -u "kubeadmin" -p "${kubepass}" "${url}" ${tls_option}
-
+    oc login -u "kubeadmin" -p "${kubepass}" "${api_url}" ${tls_option}
   else
     # Logon using user credentials
+    __print_info "Logging in with user credentials..."
     if [[ -z "${CHIEF_OC_USERNAME}" ]]; then
-      echo "Error: CHIEF_OC_USERNAME must be set (exported). Optionally, CHIEF_OC_PASSWORD can be set as well."
-      return
+      __print_error "Error: CHIEF_OC_USERNAME must be set (exported). Optionally, CHIEF_OC_PASSWORD can be set as well."
+      return 1
     fi
     if [[ -n "${CHIEF_OC_PASSWORD}" ]]; then
-      oc login -u "${CHIEF_OC_USERNAME}" -p "${CHIEF_OC_PASSWORD}" --server="${url}" ${tls_option}
+      oc login -u "${CHIEF_OC_USERNAME}" -p "${CHIEF_OC_PASSWORD}" --server="${api_url}" ${tls_option}
     else
-      oc login -u "${CHIEF_OC_USERNAME}" --server="${url}" ${tls_option}
+      oc login -u "${CHIEF_OC_USERNAME}" --server="${api_url}" ${tls_option}
     fi
   fi
 
   echo ""
-  echo "Currently logged in as user: $(oc whoami) - Console: $(oc whoami --show-console)"
+  __print_success "Currently logged in as user: $(oc whoami) - Console: $(oc whoami --show-console)"
 }
