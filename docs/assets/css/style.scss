@@ -20,7 +20,21 @@ pre {
         display: block;
         padding: 0 !important;
         margin: 0 !important;
-        white-space: pre-wrap;
+        
+        &.single-line {
+            white-space: nowrap;
+            overflow-x: auto;
+            max-width: 100%;
+            
+            &:hover {
+                background-color: #f8f8f8;
+            }
+        }
+        
+        &.multi-line {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
     }
 }
 
