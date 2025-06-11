@@ -31,10 +31,10 @@ pre {
 }
 
 .copy-button {
-    position: sticky; // Changed from absolute
+    position: sticky;
     right: 16px;
-    top: 50%;
-    transform: translateY(-50%);
+    top: 16px; // Fixed position at top
+    transform: none; // Removed translateY
     padding: 4px 8px;
     background-color: #ffffff;
     border: 1px solid $border-color;
@@ -43,7 +43,7 @@ pre {
     font-size: 14px;
     color: $text-color;
     box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    z-index: 3; // Above both code and scroll area
+    z-index: 3;
     
     &:hover {
         background-color: #f0f0f0;
