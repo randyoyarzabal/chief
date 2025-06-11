@@ -14,22 +14,25 @@ $text-color: #333333;
     border-radius: 4px;
     background-color: $background-color;
     border: 1px solid $border-color;
+    padding: 40px 0 16px 16px; // Added padding to accommodate button
     
     pre {
-        margin-top: 32px !important; // Override default theme margins
+        margin: 0 !important;
+        padding: 16px !important;
         
         code {
             display: block;
             padding: 0 !important;
             margin: 0 !important;
+            white-space: pre-wrap;
         }
     }
 }
 
 .copy-button {
     position: absolute;
-    right: 8px;
-    top: 8px;
+    right: 16px;
+    top: 16px;
     padding: 4px 8px;
     background-color: transparent;
     border: 1px solid $border-color;
@@ -37,6 +40,7 @@ $text-color: #333333;
     cursor: pointer;
     font-size: 14px;
     color: $text-color;
+    z-index: 1;
     
     &:hover {
         background-color: #f0f0f0;
