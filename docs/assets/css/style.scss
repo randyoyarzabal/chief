@@ -1,6 +1,4 @@
 ---
----
-
 @import "{{ site.theme }}";
 
 // Variables from Dinky theme
@@ -39,4 +37,11 @@ pre {
     z-index: 1;
     
     &:hover {
-        background-color: #f
+        background-color: #f0f0f0;
+    }
+    
+    &:focus {
+        outline: 2px solid #0066cc;
+        outline-offset: 2px;
+    }
+}
