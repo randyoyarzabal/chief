@@ -80,10 +80,10 @@ Explore the following commands:
 - Safely run alongside Zsh and use custom prompts, such as Oh My Bash or Oh My Zsh.
 - Management of Bash variables, aliases, and functions
   - Support for local and remote git plugins
-  - Auto creation of plugin
+  - Auto creation of plugins
 - Automated reload of edited files
 - Private SSH key auto-loading
-- Custom prompt if you're not already using one (i.e., Oh-My-Bash)
+- Custom prompt if you're not already using one
   - Git prompt
   - Colored prompt
   - Working directory
