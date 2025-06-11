@@ -4,12 +4,15 @@
 
 Chief is a Bash library system designed to help organize functions, aliases, and environment variables through "plug-ins."  It has additional features, including prompt customization and private SSH key management. It also installs various utility functions related to Git, SSL, OpenShift, Vault, and other services. Once installed, check out `chief.[tab]` to explore what's available.
 
-## Quick start installation
+## Quick Start Installation
 
 Run this command in your terminal to install, and you're all set!
 
-```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
+```sh
+bash -c "$(\
+  curl -fsSL \
+  https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh\
+)"
 ```
 
 Running the `install` command will:
@@ -23,8 +26,11 @@ Type `chief.config` to edit the configuration to do things such as turn off the 
 
 To uninstall:
 
-```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh)"
+```sh
+bash -c "$(\
+  curl -fsSL \
+  https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh\
+)"
 ```
 
 Or
@@ -87,15 +93,19 @@ Explore the following commands:
 
 ## Manual Installation
 
+These are the steps that are automated by the [Quick start installation](#quick-start-installation) therefore not needed unless you want to install Chief manually.
+
 1. Clone the repo to your desired location, for example: `$HOME/.chief`
 
-    ```bash
-    git clone --depth=1 https://github.com/randyoyarzabal/chief.git $HOME/.chief
+    ```sh
+    git clone --depth=1 \
+      https://github.com/randyoyarzabal/chief.git \
+      $HOME/.chief
     ```
 
 2. Make a copy a config template from the 'templates' directory. Note that it needs to be placed outside the root of Chief.
 
-    ```bash
+    ```sh
     cp templates/chief_config_template.sh ~/.chief_config.sh
     ```
 
@@ -105,7 +115,7 @@ Explore the following commands:
 
     For example:
 
-    ```bash
+    ```sh
     # Chief Environment
     CHIEF_CONFIG="$HOME/.chief_config.sh"
     CHIEF_PATH="$HOME/.chief"
