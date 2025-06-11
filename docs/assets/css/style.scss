@@ -31,19 +31,19 @@ pre {
 }
 
 .copy-button {
-    position: absolute;
+    position: sticky; // Changed from absolute
     right: 16px;
     top: 50%;
     transform: translateY(-50%);
     padding: 4px 8px;
-    background-color: #ffffff; // Made opaque
+    background-color: #ffffff;
     border: 1px solid $border-color;
     border-radius: 4px;
     cursor: pointer;
     font-size: 14px;
     color: $text-color;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1); // Added subtle shadow
-    z-index: 1; // Below code text
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+    z-index: 3; // Above both code and scroll area
     
     &:hover {
         background-color: #f0f0f0;
