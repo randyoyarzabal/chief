@@ -20,7 +20,12 @@ document.addEventListener('DOMContentLoaded', function() {
 
         button.addEventListener('click', async () => {
             try {
-                await navigator.clipboard.writeText(codeBlock.textContent);
+                // Remove leading spaces from each line
+                const text = codeBlock.textContent
+                    .split('\n')
+                    .map(line => line.replace(/^\s+/, ''))
+                    .join('\n');
+                await navigator.clipboard.writeText(text);
                 button.classList.remove('copy-error');
                 button.classList.add('copied');
                 setTimeout(() => {
