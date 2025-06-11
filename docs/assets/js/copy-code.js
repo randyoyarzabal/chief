@@ -1,41 +1,39 @@
 document.addEventListener('DOMContentLoaded', function() {
     const codeBlocks = document.querySelectorAll('pre > code');
-    
+
     codeBlocks.forEach(codeBlock => {
-        const wrapper = document.createElement('div');
-        wrapper.className = 'code-block';
-        
+        const pre = codeBlock.parentNode;
+
+        // Add single-line or multi-line class
+        const lines = codeBlock.textContent.split('\n').length;
+        codeBlock.classList.add(lines === 1 ? 'single-line' : 'multi-line');
+
+        // Create copy button
         const button = document.createElement('button');
         button.className = 'copy-button';
         button.setAttribute('aria-label', 'Copy code');
-        
-        const parent = codeBlock.parentNode;
-        parent.replaceChild(wrapper, codeBlock);
-        wrapper.appendChild(codeBlock);
-        wrapper.insertBefore(button, codeBlock);
-        
-        // Determine if content is single line
-        const lines = codeBlock.textContent.split('\n').length;
-        codeBlock.classList.add(lines === 1 ? 'single-line' : 'multi-line');
-        
+        button.type = 'button';
+        // Set default icon (matches CSS)
+        button.style.backgroundImage = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 16 16\'><rect width=\'10\' height=\'12\' x=\'3\' y=\'2\' stroke=\'%23666\' stroke-width=\'1.5\' rx=\'2\'/><path stroke=\'%23666\' stroke-width=\'1.5\' d=\'M6 2V1a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1\'/></svg>")';
+
+        // Insert button as first child of <pre>
+        pre.style.position = 'relative';
+        pre.insertBefore(button, codeBlock);
+
         button.addEventListener('click', async () => {
             try {
                 await navigator.clipboard.writeText(codeBlock.textContent);
-                
-                // Show check mark animation
-                button.style.backgroundImage = 'url("data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23008800" d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2h2l2 2h14a2 2 0 0 1 2 2z"/></svg>")';
-                
+                // Show check mark
+                button.style.backgroundImage = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'><path fill=\'%23008800\' d=\'M6.003 11.414l-3.707-3.707 1.414-1.414L6 8.586l6.293-6.293 1.414 1.414z\'/></svg>")';
                 setTimeout(() => {
-                    button.style.backgroundImage = 'url("data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23666" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>")';
+                    // Restore default icon
+                    button.style.backgroundImage = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 16 16\'><rect width=\'10\' height=\'12\' x=\'3\' y=\'2\' stroke=\'%23666\' stroke-width=\'1.5\' rx=\'2\'/><path stroke=\'%23666\' stroke-width=\'1.5\' d=\'M6 2V1a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1\'/></svg>")';
                 }, 1500);
             } catch (err) {
-                console.error('Failed to copy:', err);
-                
-                // Show error state
-                button.style.backgroundImage = 'url("data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23d32" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm1 15h-2v-2h2v2zm0-4h-2V7h2v6z"/></svg>")';
-                
+                // Show error icon
+                button.style.backgroundImage = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' viewBox=\'0 0 16 16\'><circle cx=\'8\' cy=\'8\' r=\'7\' fill=\'%23d32\'/><text x=\'8\' y=\'12\' text-anchor=\'middle\' font-size=\'10\' fill=\'white\'>!</text></svg>")';
                 setTimeout(() => {
-                    button.style.backgroundImage = 'url("data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill="%23666" d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>")';
+                    button.style.backgroundImage = 'url("data:image/svg+xml;utf8,<svg xmlns=\'http://www.w3.org/2000/svg\' fill=\'none\' viewBox=\'0 0 16 16\'><rect width=\'10\' height=\'12\' x=\'3\' y=\'2\' stroke=\'%23666\' stroke-width=\'1.5\' rx=\'2\'/><path stroke=\'%23666\' stroke-width=\'1.5\' d=\'M6 2V1a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v1\'/></svg>")';
                 }, 3000);
             }
         });
