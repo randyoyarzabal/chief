@@ -54,7 +54,7 @@ Get your functions, aliases, and all things Bash organized with plugins:
 - `chief.plugins` to cd into your plugins directory.
 - `chief.plugins_update` to update/load from git repository when `CHIEF_CFG_PLUGINS_TYPE='remote'`.
 - `chief.plugin -?` to list plugins.
-- `chief.whereis <function | alias>` to locate exact location of function or alias.
+- `chief.whereis <function | alias>` to locate the exact location of the function or alias.
 
 Explore the following commands:
 
@@ -93,7 +93,7 @@ Explore the following commands:
 
 ## Manual Installation
 
-These are the steps that are automated by the [Quick start installation](#quick-start-installation) therefore not needed unless you want to install Chief manually.
+These steps are automated by the [Quick Start Installation](#quick-start-installation); therefore, they are not necessary unless you want to install Chief manually.
 
 1. Clone the repo to your desired location, for example: `$HOME/.chief`
 
@@ -134,7 +134,7 @@ TODO: Table of core plugins
 
 ## Contribute
 
-All contributions are welcome. Feel free to create your own branch and pull-request against main.
+All contributions are welcome. You can create your branch and submit a pull request against the main branch.
 
 Helpful Reference Sites:
 
