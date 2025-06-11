@@ -15,14 +15,18 @@ pre {
     background-color: $background-color;
     border-radius: 4px;
     border: 1px solid $border-color;
-    overflow-x: auto; // Enable horizontal scrolling
-    white-space: nowrap; // Disable line wrapping
+    overflow-x: auto;
+    white-space: nowrap;
     
     code {
         display: inline-block;
         padding: 0 !important;
         margin: 0 !important;
         vertical-align: middle;
+        
+        // Ensure text remains visible under button
+        position: relative;
+        z-index: 2;
     }
 }
 
@@ -32,16 +36,18 @@ pre {
     top: 50%;
     transform: translateY(-50%);
     padding: 4px 8px;
-    background-color: transparent;
+    background-color: #ffffff; // Made opaque
     border: 1px solid $border-color;
     border-radius: 4px;
     cursor: pointer;
     font-size: 14px;
     color: $text-color;
-    z-index: 1;
+    box-shadow: 0 2px 4px rgba(0,0,0,0.1); // Added subtle shadow
+    z-index: 1; // Below code text
     
     &:hover {
         background-color: #f0f0f0;
+        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     }
     
     &:focus {
