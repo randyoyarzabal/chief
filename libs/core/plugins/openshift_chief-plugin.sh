@@ -129,10 +129,12 @@ Examples:
   fi
 
   # If CHIEF_OC_CLUSTERS is set, use it to get the cluster information
+  local vault_fallback=false
   if [[ -n ${CHIEF_OC_CLUSTERS[$cluster]} ]]; then
     IFS=',' read -r api_url username password <<< "${CHIEF_OC_CLUSTERS[$cluster]}"
-    if [[ -z ${api_url} || -z ${username} || -z ${password} ]]; then
+    if [[ -z ${api_url} || -z ${username} ]]; then # Password can be empty
       __print_error "Error: Cluster information for '${cluster}' is incomplete in CHIEF_OC_CLUSTERS."
+      vault_fallback=true
     else
       # Do not allow use of -kc or -ka options if CHIEF_OC_CLUSTERS is used
       if [[ ${2} == "-kc" || ${2} == "-ka" ]]; then
@@ -140,14 +142,19 @@ Examples:
         return 1
       fi
     fi
-    __print_info "Using cluster information from CHIEF_OC_CLUSTERS for '${cluster}'."
+    if ! $vault_fallback; then
+      __print_info "Logging in to OpenShift cluster '${cluster}' at '${api_url}' with credentials from CHIEF_OC_CLUSTERS."
 
-    oc login -u "${username}" -p "${password}" --server="${api_url}" ${tls_option}
-    oc login -u "${username}" --server="${api_url}" ${tls_option}
-
-    echo ""
-    __print_success "Currently logged in as user: $(oc whoami) - Console: $(oc whoami --show-console)"
-    return 0
+      if [[ -z $password ]]; then
+        __print_warn "Warning: Password is empty for user '${username}' in CHIEF_OC_CLUSTERS. Using passwordless login."
+        oc login -u "${username}" --server="${api_url}" ${tls_option}
+      else
+        oc login -u "${username}" -p "${password}" --server="${api_url}" ${tls_option}
+      fi
+      echo ""
+      __print_success "Currently logged in as user: $(oc whoami) - Console: $(oc whoami --show-console)"
+      return 0
+    fi
   else
     __print_warn "Warning: No cluster information found for '${cluster}' in CHIEF_OC_CLUSTERS, falling back to Vault."
   fi
@@ -207,6 +214,7 @@ Examples:
 
   # Logon using kubeconfig
   if [[ ${2} == "-kc" ]]; then
+    __print_info "Logging in with kubeconfig credentials..."
     local kubeconfig=$(vault kv get -field=kubeconfig ${CHIEF_VAULT_OC_PATH}/${cluster})
     if [[ -z "${kubeconfig}" ]]; then
       __print_error "Error: kubeconfig not found in Vault."
@@ -219,6 +227,7 @@ Examples:
 
   # Logon using kubeadmin
   elif [[ ${2} == "-ka" ]]; then
+    __print_info "Logging in with user (kubeadmin, kubeadmin password) credentials..."
     local kubepass=$(vault kv get -field=kubeadmin ${CHIEF_VAULT_OC_PATH}/${cluster})
     if [[ -z "${kubepass}" ]]; then
       __print_error "Error: kubeadmin password not found in Vault."
@@ -228,14 +237,16 @@ Examples:
     oc login -u "kubeadmin" -p "${kubepass}" "${api_url}" ${tls_option}
   else
     # Logon using user credentials
-    __print_info "Logging in with user credentials..."
+    __print_info "Logging in with user (CHIEF_OC_USERNAME, CHIEF_OC_PASSWORD) credentials..."
     if [[ -z "${CHIEF_OC_USERNAME}" ]]; then
       __print_error "Error: CHIEF_OC_USERNAME must be set (exported). Optionally, CHIEF_OC_PASSWORD can be set as well."
       return 1
     fi
     if [[ -n "${CHIEF_OC_PASSWORD}" ]]; then
+      __print_info "Logging in to OpenShift cluster '${cluster}' at '${api_url}' with user '${CHIEF_OC_USERNAME}'..."
       oc login -u "${CHIEF_OC_USERNAME}" -p "${CHIEF_OC_PASSWORD}" --server="${api_url}" ${tls_option}
     else
+      __print_warn "Warning: Password is empty for user '${CHIEF_OC_USERNAME}' in CHIEF_OC_CLUSTERS. Using passwordless login."
       oc login -u "${CHIEF_OC_USERNAME}" --server="${api_url}" ${tls_option}
     fi
   fi
