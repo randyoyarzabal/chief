@@ -3,70 +3,41 @@
 
 @import "{{ site.theme }}";
 
-.copy-button-container {
-  position: relative;
-  margin: 20px 0;
+.code-wrapper {
+    position: relative;
+    margin: 1rem 0;
+}
 
-  &::before {
-    counter-increment: code-counter;
-    content: counter(code-counter);
+.copy-button {
     position: absolute;
-    top: 8px;
-    left: 8px;
-    font-size: 12px;
-    color: #666;
-  }
-
-  .copy-button {
-    position: absolute;
-    top: 8px;
     right: 8px;
-    width: 32px;
-    height: 32px;
-    padding: 6px;
-    background: rgba(27, 31, 36, 0.08);
-    border: 1px solid rgba(27, 31, 36, 0.15);
-    border-radius: 20px;
-    color: #666;
+    top: 8px;
+    padding: 4px 8px;
+    background-color: #f0f0f0;
+    border: 1px solid #ddd;
+    border-radius: 4px;
     cursor: pointer;
-    transition: all 0.2s ease;
-
+    font-size: 12px;
+    z-index: 1;
+    
     &:hover {
-      background: rgba(27, 31, 36, 0.12);
-      border-color: rgba(27, 31, 36, 0.2);
+        background-color: #e0e0e0;
     }
+}
 
-    &:focus {
-      outline: none;
-      border-color: #0969da;
-      box-shadow: 0 0 0 3px rgba(9, 105, 218, 0.3);
-    }
+.tooltip {
+    display: none;
+    position: absolute;
+    bottom: 100%;
+    right: 0;
+    background-color: #333;
+    color: white;
+    padding: 4px 8px;
+    border-radius: 4px;
+    font-size: 12px;
+    margin-bottom: 4px;
+}
 
-    &.copied {
-      background: #2c974b;
-      border-color: #2c974b;
-      color: white;
-    }
-
-    .copy-icon {
-      display: block;
-      width: 16px;
-      height: 16px;
-    }
-
-    .copy-icon path {
-      fill: currentColor;
-    }
-
-    &.copied .copy-icon {
-      width: 20px;
-      height: 20px;
-    }
-
-    &.copied .copy-icon path {
-      stroke-width: 2;
-      stroke-linecap: round;
-      stroke-linejoin: round;
-    }
-  }
+.tooltip.visible {
+    display: block;
 }
