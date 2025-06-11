@@ -494,8 +494,7 @@ function __chief.hints_text() {
 function __chief.info() {
   # Usage: __chief.info
   __chief.banner
-  echo -e "by: ${CHIEF_AUTHOR}"
-  echo ''
+  echo -e "${CHIEF_COLOR_CYAN}GitHub Repo: ${CHIEF_REPO}${CHIEF_NO_COLOR}"
   __chief.hints_text
 }
 
