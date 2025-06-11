@@ -9,10 +9,7 @@ Chief is a Bash library system designed to help organize functions, aliases, and
 Run this command in your terminal to install, and you're all set!
 
 ```sh
-bash -c "$(\
-  curl -fsSL \
-  https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh\
-)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
 ```
 
 Running the `install` command will:
@@ -27,10 +24,7 @@ Type `chief.config` to edit the configuration to do things such as turn off the 
 To uninstall:
 
 ```sh
-bash -c "$(\
-  curl -fsSL \
-  https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh\
-)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh)"
 ```
 
 Or
@@ -111,14 +105,14 @@ These steps are automated by the [Quick Start Installation](#quick-start-install
 
     Modify the configuration with `chief.config` to suit your needs.
 
-3. Define the following variables and source call in your start-up script (.bash_profile, for example).
+3. Define the following variables and 'source' chief.sh in your start-up script (.bash_profile, for example).
 
     For example:
 
     ```sh
     # Chief Environment
-    CHIEF_CONFIG="$HOME/.chief_config.sh"
-    CHIEF_PATH="$HOME/.chief"
+    export CHIEF_CONFIG="$HOME/.chief_config.sh"
+    export CHIEF_PATH="$HOME/.chief"
     source ${CHIEF_PATH}/chief.sh
     ```
 
