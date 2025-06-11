@@ -96,28 +96,28 @@ These steps are automated by the [Quick Start Installation](#quick-start-install
 
 1. Clone the repo to your desired location, for example: `$HOME/.chief`
 
-  ```sh
-  git clone --depth=1 https://github.com/randyoyarzabal/chief.git $HOME/.chief
-  ```
+    ```sh
+    git clone --depth=1 https://github.com/randyoyarzabal/chief.git $HOME/.chief
+    ```
 
 2. Make a copy a config template from the 'templates' directory. Note that it needs to be placed outside the root of Chief.
 
-  ```sh
-  cp templates/chief_config_template.sh ~/.chief_config.sh
-  ```
+    ```sh
+    cp templates/chief_config_template.sh ~/.chief_config.sh
+    ```
 
-  Modify the configuration with `chief.config` to suit your needs.
+    Modify the configuration with `chief.config` to suit your needs.
 
 3. Define the following variables and 'source' chief.sh in your start-up script (.bash_profile, for example).
 
-  For example:
+    For example:
 
-  ```sh
-  # Chief Environment
-  export CHIEF_CONFIG="$HOME/.chief_config.sh"
-  export CHIEF_PATH="$HOME/.chief"
-  source ${CHIEF_PATH}/chief.sh
-  ```
+    ```sh
+    # Chief Environment
+    export CHIEF_CONFIG="$HOME/.chief_config.sh"
+    export CHIEF_PATH="$HOME/.chief"
+    source ${CHIEF_PATH}/chief.sh
+    ```
 
 4. That's it. You're ready to use Chief! Restart your terminal.
 
