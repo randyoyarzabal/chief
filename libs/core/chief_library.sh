@@ -483,11 +483,19 @@ function __chief.hints_text() {
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR} to list plugins.${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.whereis <function | alias>${CHIEF_NO_COLOR} to locate exact location of function or alias.${CHIEF_NO_COLOR}"
     echo ""
-    echo -e "${CHIEF_COLOR_CYAN}** Set ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS=false${CHIEF_COLOR_CYAN} to disable these hints. **${CHIEF_NO_COLOR}"
-    echo ""
+    if [[ ${1} != '--verbose' ]]; then
+      echo -e "${CHIEF_COLOR_CYAN}** Set ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS=false${CHIEF_COLOR_CYAN} to disable these hints. **${CHIEF_NO_COLOR}"
+      echo ""
+    fi
   else
     echo ""
   fi
+}
+
+# Force display of Chief banner and hints text.
+function chief.help() {
+  __chief.banner
+  __chief.hints_text --verbose
 }
 
 # Display Chief version info.
