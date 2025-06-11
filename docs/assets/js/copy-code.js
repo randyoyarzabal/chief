@@ -1,48 +1,30 @@
 document.addEventListener('DOMContentLoaded', function() {
-    // Create copy buttons for all code blocks
-    const codeBlocks = document.querySelectorAll('pre.highlight');
-    
-    codeBlocks.forEach(block => {
-        // Create copy button
+    // Add copy buttons to all code blocks
+    const codeBlocks = document.querySelectorAll('pre > code');
+    codeBlocks.forEach(codeBlock => {
+        const wrapper = document.createElement('div');
+        wrapper.className = 'code-block';
+        
         const button = document.createElement('button');
         button.className = 'copy-button';
         button.textContent = 'Copy';
+        button.setAttribute('aria-label', 'Copy code');
         
-        // Add tooltip container
-        const tooltip = document.createElement('span');
-        tooltip.className = 'tooltip';
-        tooltip.textContent = 'Copied!';
-        button.appendChild(tooltip);
+        const parent = codeBlock.parentNode;
+        parent.replaceChild(wrapper, codeBlock);
+        wrapper.appendChild(codeBlock);
+        wrapper.insertBefore(button, codeBlock);
         
-        // Add button to code block
-        const wrapper = document.createElement('div');
-        wrapper.className = 'code-wrapper';
-        wrapper.appendChild(button);
-        wrapper.appendChild(block);
-        block.parentNode.replaceChild(wrapper, block);
-        
-        // Add click handler
         button.addEventListener('click', async () => {
             try {
-                await navigator.clipboard.writeText(block.textContent);
-                
-                // Show copied status
-                tooltip.textContent = 'Copied!';
-                tooltip.classList.add('visible');
-                
-                // Reset after delay
+                await navigator.clipboard.writeText(codeBlock.textContent);
+                button.textContent = 'Copied!';
                 setTimeout(() => {
-                    tooltip.textContent = 'Copy';
-                    tooltip.classList.remove('visible');
+                    button.textContent = 'Copy';
                 }, 2000);
             } catch (err) {
                 console.error('Failed to copy:', err);
-                tooltip.textContent = 'Failed!';
-                tooltip.classList.add('visible');
-                
-                setTimeout(() => {
-                    tooltip.classList.remove('visible');
-                }, 2000);
+                button.textContent = 'Error';
             }
         });
     });
