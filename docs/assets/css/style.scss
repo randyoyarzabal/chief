@@ -34,9 +34,8 @@ pre {
     border: 1px solid $border-color;
     border-radius: 4px;
     cursor: pointer;
-    font-size: 14px;
-    color: $text-color;
     z-index: 1;
+    transition: all 0.3s ease;
     
     &:hover {
         background-color: #f0f0f0;
@@ -45,5 +44,17 @@ pre {
     &:focus {
         outline: 2px solid #0066cc;
         outline-offset: 2px;
+    }
+    
+    &::before {
+        content: "\270e";
+        font-size: 14px;
+        color: $text-color;
+    }
+    
+    &.copied {
+        opacity: 0;
+        pointer-events: none;
+        transform: scale(0.8);
     }
 }
