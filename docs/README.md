@@ -12,7 +12,7 @@ Run this command to install, and you're all set!
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
 ```
 
-_Don't worry; If Bash isn't your default shell, the installation only affects your Bash shell when you invoke it. This won't interfere with any other shell, esp. if you are currently using `zsh` or a custom prompt, such as Oh My Bash or Oh My Zsh._
+_Don't worry; In case Bash isn't your default shell, the installation only affects your Bash shell when you invoke it. This won't interfere with any other shell, esp. if you are currently using `zsh` or a custom prompt, such as Oh My Bash or Oh My Zsh._
 
 Running the `install` command above will:
 
