@@ -243,7 +243,6 @@ Examples:
       return 1
     fi
     if [[ -n "${CHIEF_OC_PASSWORD}" ]]; then
-      __print_info "Logging in to OpenShift cluster '${cluster}' at '${api_url}' with user '${CHIEF_OC_USERNAME}'..."
       oc login -u "${CHIEF_OC_USERNAME}" -p "${CHIEF_OC_PASSWORD}" --server="${api_url}" ${tls_option}
     else
       __print_warn "Warning: Password is empty for user '${CHIEF_OC_USERNAME}' in CHIEF_OC_CLUSTERS. Using passwordless login."
