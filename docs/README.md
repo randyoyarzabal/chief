@@ -6,11 +6,14 @@ Chief is a Bash library system designed to help organize functions, aliases, and
 
 ## Quick Start Installation
 
-Run this command in your terminal to install, and you're all set!
+Run this command to install, and you're all set!
 
 ```sh
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
 ```
+
+_Don't worry; If Bash isn't your default shell, this only affects your Bash shell when you invoke it. The installation won't interfere with any other shell, esp. if you are currently using `zsh` or a custom prompt, such as Oh My Bash or Oh My Zsh._
+
 
 Running the `install` command will:
 
@@ -92,9 +95,7 @@ These steps are automated by the [Quick Start Installation](#quick-start-install
 1. Clone the repo to your desired location, for example: `$HOME/.chief`
 
     ```sh
-    git clone --depth=1 \
-      https://github.com/randyoyarzabal/chief.git \
-      $HOME/.chief
+    git clone --depth=1 https://github.com/randyoyarzabal/chief.git $HOME/.chief
     ```
 
 2. Make a copy a config template from the 'templates' directory. Note that it needs to be placed outside the root of Chief.
