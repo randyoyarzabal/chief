@@ -6,7 +6,7 @@ Chief is a Bash library system designed to help organize functions, aliases, and
 
 ## Quick Start Installation
 
-Run this command to install, and you're all set!
+Run this command (one-line) to install, and you're all set!
 
 ```sh
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
@@ -25,7 +25,7 @@ Type `chief.config` to edit the configuration to do things such as turn off the 
 
 ## Uninstallation
 
-Run this command to uninstall. _All user-plugin files and plugin directories will not be removed._:
+Run this command (one-line) to uninstall. _All user-plugin files and plugin directories will not be removed._:
 
 ```sh
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh)"
