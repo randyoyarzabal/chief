@@ -3,11 +3,27 @@
 
 @import "{{ site.theme }}";
 
+// Variables from Dinky theme
+$background-color: #ffffff;
+$border-color: #dddddd;
+$text-color: #333333;
+
 .code-block {
     position: relative;
     margin: 20px 0;
     border-radius: 4px;
     background-color: $background-color;
+    border: 1px solid $border-color;
+    
+    pre {
+        margin-top: 32px !important; // Override default theme margins
+        
+        code {
+            display: block;
+            padding: 0 !important;
+            margin: 0 !important;
+        }
+    }
 }
 
 .copy-button {
@@ -15,18 +31,19 @@
     right: 8px;
     top: 8px;
     padding: 4px 8px;
-    background-color: rgba($primary-color, 0.1);
-    border: 1px solid rgba($primary-color, 0.2);
+    background-color: transparent;
+    border: 1px solid $border-color;
     border-radius: 4px;
     cursor: pointer;
     font-size: 14px;
-    color: $primary-color;
-}
-
-.copy-button:hover {
-    background-color: rgba($primary-color, 0.2);
-}
-
-.code-block pre {
-    margin-top: 32px;
+    color: $text-color;
+    
+    &:hover {
+        background-color: #f0f0f0;
+    }
+    
+    &:focus {
+        outline: 2px solid #0066cc;
+        outline-offset: 2px;
+    }
 }
