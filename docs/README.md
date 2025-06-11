@@ -23,7 +23,9 @@ Running the `install` command above will:
 
 Type `chief.config` to edit the configuration to do things such as turn off the banner, hints, enable prompt customizations, etc.
 
-To uninstall:
+## Uninstallation
+
+Run this command to uninstall. _All user-plugin files and plugin directories will not be removed._:
 
 ```sh
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh)"
