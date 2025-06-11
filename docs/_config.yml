@@ -2,7 +2,7 @@ title: Chief
 author: Randy E. Oyarzabal
 author_email: github@randyoyarzabal.com
 url: https://chief.reonetlabs.us
-show_downloads: true
+show_downloads: false
 enable_copy_code_button: true
 toc: true
 remote_theme: pages-themes/dinky@v0.2.0
