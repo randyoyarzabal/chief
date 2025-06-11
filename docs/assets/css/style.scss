@@ -11,43 +11,34 @@ $text-color: #333333;
 pre {
     position: relative;
     margin: 20px 0;
-    padding: 16px;
+    padding: 48px 16px 16px 16px;
     background-color: $background-color;
     border-radius: 4px;
     border: 1px solid $border-color;
-    overflow-x: auto;
-    white-space: normal; // Allow natural line breaks
     
     code {
         display: block;
         padding: 0 !important;
         margin: 0 !important;
-        word-break: keep-all; // Prevent breaking within words
-        overflow-wrap: break-word; // Break at whitespace
-        
-        // Ensure text remains visible under button
-        position: relative;
-        z-index: 2;
+        white-space: pre-wrap;
     }
 }
 
 .copy-button {
-    position: sticky;
+    position: absolute;
     right: 16px;
     top: 16px;
     padding: 4px 8px;
-    background-color: #ffffff;
+    background-color: transparent;
     border: 1px solid $border-color;
     border-radius: 4px;
     cursor: pointer;
     font-size: 14px;
     color: $text-color;
-    box-shadow: 0 2px 4px rgba(0,0,0,0.1);
-    z-index: 3;
+    z-index: 1;
     
     &:hover {
         background-color: #f0f0f0;
-        box-shadow: 0 2px 6px rgba(0,0,0,0.15);
     }
     
     &:focus {
