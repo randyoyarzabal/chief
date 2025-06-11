@@ -14,8 +14,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 
 _Don't worry; If Bash isn't your default shell, this only affects your Bash shell when you invoke it. The installation won't interfere with any other shell, esp. if you are currently using `zsh` or a custom prompt, such as Oh My Bash or Oh My Zsh._
 
-
-Running the `install` command will:
+Running the `install` command above will:
 
 - Install the latest version of Chief by cloning the git repo to `$HOME/.chief`
 - Configure using a copy of the default configuration template to `$HOME/.chief_config.sh`
