@@ -1,5 +1,10 @@
 # Chief Updates
 
+## 2.1.1
+
+- Bug fix release
+- Improved vault and oc plugin commands.
+
 ## v2.1
 
 - Fixed issue #31 for main library functions

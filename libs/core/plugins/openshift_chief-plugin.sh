@@ -58,9 +58,10 @@ This function requires either option below or both (will try both in order):
     CHIEF_OC_CLUSTERS['<cluster_name>']=<api_url>,<username>,<password>
     Example:
 
-    declare -gA CHIEF_OC_CLUSTERS
-    CHIEF_OC_CLUSTERS['hub']='https://api.hub.example.com,admin,password123'
-    CHIEF_OC_CLUSTERS['tenant']='https://api.tenant.example.com,admin,password123'
+    declare -gA CHIEF_OC_CLUSTERS=(
+      ['hub']='https://api.hub.example.com,admin,password123'
+      ['tenant']='https://api.tenant.example.com,admin,password123'
+    )
     ...
 
     This allows you to login without using Vault.

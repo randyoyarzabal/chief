@@ -35,7 +35,7 @@
 # CHIEF DEFAULTS
 ########################################################################
 
-CHIEF_VERSION="v2.1"
+CHIEF_VERSION="v2.1.1"
 CHIEF_REPO="https://github.com/randyoyarzabal/chief"
 CHIEF_WEBSITE="https://chief.reonetlabs.us"
 CHIEF_AUTHOR="Randy E. Oyarzabal"
@@ -456,7 +456,7 @@ function __chief.banner {
 # Display "hints" text and dynamically display alias if necessary.
 function __chief.hints_text() {
   # Usage: __chief.hints_text
-  if ${CHIEF_CFG_HINTS}; then
+  if ${CHIEF_CFG_HINTS} || [[ ${1} == '--verbose' ]]; then
     # If plugins are not set to auto-update, display a message.
     if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]] && ! ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE}; then   
       echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands. | ${CHIEF_COLOR_GREEN}chief.plugins_update${CHIEF_NO_COLOR} to update/load plugins."
