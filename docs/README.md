@@ -47,7 +47,7 @@ Explore the following commands:
 **Notes:**
 
 - `chief.plugin`, `chief.bash_profile`, and `chief.bashrc` will automatically load (source) if changes are detected.  You don't need to restart your terminal anymore!
-- You can enable the above text in Chief by setting `CHIEF_CFG_HINTS=true`
+- You can enable the above text in Chief by setting `CHIEF_CFG_HINTS=true` or `chief.help`
 
 **Don't have a git-aware prompt?** Try Chief's custom prompt, set `CHIEF_CFG_PROMPT=true`.
 
