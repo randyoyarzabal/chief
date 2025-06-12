@@ -23,26 +23,6 @@ Running the `install` command above will:
 
 Type `chief.config` to edit the configuration to do things such as turn off the banner, hints, enable prompt customizations, etc.
 
-## Uninstallation
-
-Run this command (one-line) to uninstall. _All user-plugin files and plugin directories will not be removed._:
-
-```sh
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh)"
-```
-
-Or
-
-`chief.uninstall` within the tool.
-
-Running the `uninstall` command will:
-
-- Remove the installation from `$HOME/.chief`
-- Backup `$HOME/.chief_config.sh` to `$HOME/.chief_config.sh.backup`
-- Remove `$HOME/.chief_config.sh`
-- Remove the library loading lines from `$HOME/.bashrc`
-- Restart your terminal to complete the uninstallation.
-
 ## What's next?
 
 Get your functions, aliases, and all things Bash organized with plugins:
@@ -120,6 +100,26 @@ These steps are automated by the [Quick Start Installation](#quick-start-install
     ```
 
 4. That's it. You're ready to use Chief! Restart your terminal.
+
+## Uninstallation
+
+Run this command (one-line) to uninstall. _All user-plugin files and plugin directories will not be removed._:
+
+```sh
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh)"
+```
+
+Or
+
+`chief.uninstall` within the tool.
+
+Running the `uninstall` command will:
+
+- Remove the installation from `$HOME/.chief`
+- Backup `$HOME/.chief_config.sh` to `$HOME/.chief_config.sh.backup`
+- Remove `$HOME/.chief_config.sh`
+- Remove the library loading lines from `$HOME/.bashrc`
+- Restart your terminal to complete the uninstallation.
 
 ## Configuration Options
 
