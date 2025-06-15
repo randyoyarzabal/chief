@@ -24,7 +24,7 @@
 
 AWS_CREDS_SCRIPT="$CHIEF_PATH/libs/plugins/python/aws_creds.py"
 
-function aws.set_role() {
+function chief.aws.set_role() {
   local USAGE="Usage: $FUNCNAME <role> <region>
 
 Set role as default role in AWS credentials file.
@@ -48,7 +48,7 @@ Set role as default role in AWS credentials file.
   $AWS_CREDS_SCRIPT -u "$1" -r "$2"
 }
 
-function aws.export_creds() {
+function chief.aws.export_creds() {
   local USAGE="Usage: $FUNCNAME <role> <region>
 
 Export role and rename AWS credentials file.
@@ -67,6 +67,6 @@ Export role and rename AWS credentials file.
   local output=$(eval "$AWS_CREDS_SCRIPT -u $1 -r $2 -e")
   source <(echo "$output")
 
-  echo "$1 credentials exported. Be sure to aws.set_role to revert back if needed."
+  echo "$1 credentials exported. Be sure to chief.aws.set_role to revert back if needed."
   echo "$output" | grep '#' | sed 's/\# //'
 }

@@ -679,6 +679,22 @@ prompt_end() {
   printf "\n ➜";
 }
 
+function __print_error(){
+  echo -e "${CHIEF_COLOR_RED}Error: $1${CHIEF_NO_COLOR}"
+}
+
+function __print_warn(){
+  echo -e "${CHIEF_COLOR_YELLOW}Warning: $1${CHIEF_NO_COLOR}"
+}
+
+function __print_success(){
+  echo -e "${CHIEF_COLOR_GREEN}$1${CHIEF_NO_COLOR}"
+}
+
+function __print_info(){
+  echo -e "${CHIEF_COLOR_CYAN}$1${CHIEF_NO_COLOR}"
+}
+
 # MAIN FUNCTIONS
 ########################################################################
 
