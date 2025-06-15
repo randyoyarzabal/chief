@@ -35,7 +35,7 @@
 # CHIEF DEFAULTS
 ########################################################################
 
-CHIEF_VERSION="v2.1.1"
+CHIEF_VERSION="v2.1.2"
 CHIEF_REPO="https://github.com/randyoyarzabal/chief"
 CHIEF_WEBSITE="https://chief.reonetlabs.us"
 CHIEF_AUTHOR="Randy E. Oyarzabal"
@@ -677,6 +677,22 @@ prompt_end() {
 
   #Adds the new line and ➜ as the start character.
   printf "\n ➜";
+}
+
+function __print_error(){
+  echo -e "${CHIEF_COLOR_RED}Error: $1${CHIEF_NO_COLOR}"
+}
+
+function __print_warn(){
+  echo -e "${CHIEF_COLOR_YELLOW}Warning: $1${CHIEF_NO_COLOR}"
+}
+
+function __print_success(){
+  echo -e "${CHIEF_COLOR_GREEN}$1${CHIEF_NO_COLOR}"
+}
+
+function __print_info(){
+  echo -e "${CHIEF_COLOR_CYAN}$1${CHIEF_NO_COLOR}"
 }
 
 # MAIN FUNCTIONS
