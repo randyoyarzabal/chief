@@ -35,7 +35,7 @@
 # CHIEF DEFAULTS
 ########################################################################
 
-CHIEF_VERSION="v2.1.1"
+CHIEF_VERSION="v2.1.2"
 CHIEF_REPO="https://github.com/randyoyarzabal/chief"
 CHIEF_WEBSITE="https://chief.reonetlabs.us"
 CHIEF_AUTHOR="Randy E. Oyarzabal"

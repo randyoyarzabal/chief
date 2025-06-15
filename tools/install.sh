@@ -17,7 +17,7 @@
 
 # $1 sets CHIEF_GIT_BRANCH, $2 sets CHIEF_PATH, $3 sets CHIEF_CONFIG
 
-CHIEF_VERSION="v2.1.1"
+CHIEF_VERSION="v2.1.2"
 CHIEF_GIT_REPO="https://github.com/randyoyarzabal/chief.git"
 CHIEF_GIT_BRANCH="main"
 

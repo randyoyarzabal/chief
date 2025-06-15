@@ -2,7 +2,8 @@
 
 ## 2.1.2
 
-- I fixed the bug
+- Fixed #63, (aws functions prefixed with chief.*)
+- Implements #59 (Adds __print functions to core.)
 
 ## 2.1.1
 
