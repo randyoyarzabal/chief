@@ -581,10 +581,17 @@ function __build_git_prompt() {
     fi
   fi
 
-  if ${CHIEF_CFG_COLORED_PROMPT}; then
-    __git_ps1 "${ve_name}${CHIEF_COLOR_MAGENTA}\u${CHIEF_NO_COLOR}@${CHIEF_COLOR_GREEN}\h${CHIEF_NO_COLOR}:${CHIEF_COLOR_YELLOW}${prompt_tag}${CHIEF_NO_COLOR}" "\\\$ "
+  # If CHIEF_HOST is set, use it in the prompt
+  if [[ -n ${CHIEF_HOST} ]]; then
+    host="${CHIEF_HOST}"
   else
-    __git_ps1 "${ve_name}\u@\h:${prompt_tag}" "\\\$ "
+    host=$(hostname -s)  # Short hostname
+  fi
+
+  if ${CHIEF_CFG_COLORED_PROMPT}; then
+    __git_ps1 "${ve_name}${CHIEF_COLOR_MAGENTA}\u${CHIEF_NO_COLOR}@${CHIEF_COLOR_GREEN}${host}${CHIEF_NO_COLOR}:${CHIEF_COLOR_YELLOW}${prompt_tag}${CHIEF_NO_COLOR}" "\\\$ "
+  else
+    __git_ps1 "${ve_name}\u@${host}:${prompt_tag}" "\\\$ "
   fi
 }
 

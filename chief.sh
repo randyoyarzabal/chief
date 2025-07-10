@@ -107,10 +107,18 @@ if ${CHIEF_CFG_PROMPT}; then
   fi
 
   __print "Applying default prompt..."
-  export PS1="\u@\h:${prompt_tag}$ "
+  
+  # If CHIEF_HOST is set, use it in the prompt
+  if [[ -n ${CHIEF_HOST} ]]; then
+    host="${CHIEF_HOST}"
+  else
+    host=$(hostname -s)  # Short hostname
+  fi
+
+  export PS1="\u@${host}:${prompt_tag}$ "
 
   if ${CHIEF_CFG_COLORED_PROMPT}; then
-    export PS1="${CHIEF_COLOR_CYAN}\u${CHIEF_NO_COLOR}@${CHIEF_COLOR_GREEN}\h${NC}:${CHIEF_COLOR_YELLOW}${prompt_tag}${CHIEF_NO_COLOR}\$ "
+    export PS1="${CHIEF_COLOR_CYAN}\u${CHIEF_NO_COLOR}@${CHIEF_COLOR_GREEN}${host}${NC}:${CHIEF_COLOR_YELLOW}${prompt_tag}${CHIEF_NO_COLOR}\$ "
   fi
 
   # Apply Git Tools (completion/prompt)
