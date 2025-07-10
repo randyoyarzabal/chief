@@ -118,7 +118,7 @@ This action cannot be undone. Proceed with uninstallation?")
 
   # Remove lines from .bashrc
   if [[ -f "${CHIEF_BASHRC}" ]]; then
-    echo -e "${CHIEF_COLOR_BLUE}Removing Chief lines from ~/.bashrc...${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_BLUE}Removing Chief lines from ${CHIEF_BASHRC}...${CHIEF_NO_COLOR}"
     # Portable sed usage; reference: https://unix.stackexchange.com/a/381201
     sed -i.bak \
       -e '/^[^#]*export CHIEF_PATH=/d' \
@@ -126,7 +126,7 @@ This action cannot be undone. Proceed with uninstallation?")
       -e '/^[^#].*chief\.sh$/d' \
       -- "${CHIEF_BASHRC}" && rm -- "${CHIEF_BASHRC}.bak"
   else
-    echo -e "${CHIEF_COLOR_YELLOW}~/.bashrc does not exist, nothing to remove.${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_YELLOW}${CHIEF_BASHRC} does not exist, nothing to remove.${CHIEF_NO_COLOR}"
   fi 
   _chief.banner
   echo -e "${CHIEF_COLOR_GREEN}Chief was successfully uninstalled.${CHIEF_NO_COLOR}"

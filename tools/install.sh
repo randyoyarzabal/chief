@@ -21,25 +21,39 @@ CHIEF_VERSION="v2.1.2"
 CHIEF_GIT_REPO="https://github.com/randyoyarzabal/chief.git"
 CHIEF_GIT_BRANCH="main"
 
-# Set default .bashrc vars
 CHIEF_BASHRC="$HOME/.bashrc"
 CHIEF_CONFIG="$HOME/.chief_config.sh"
 CHIEF_PATH="$HOME/.chief"
+LOCAL_INSTALL=false
 
 # Check for any overrides from defaults
 if [[ -n "$1" ]]; then
-  CHIEF_GIT_BRANCH="$1"
+  if [[ "$1" == "--local" ]]; then
+    LOCAL_INSTALL=true
+    if [[ -n "$2" ]]; then
+      CHIEF_GIT_BRANCH="$2"
+    fi
+
+    if [[ -n "$3" ]]; then
+      CHIEF_PATH="$3"
+    fi
+
+    if [[ -n "$4" ]]; then
+      CHIEF_CONFIG="$4"
+    fi
+  else
+    CHIEF_GIT_BRANCH="$1"
+
+    if [[ -n "$2" ]]; then
+      CHIEF_PATH="$2"
+    fi
+
+    if [[ -n "$3" ]]; then
+      CHIEF_CONFIG="$3"
+    fi
+  fi
 fi
 
-if [[ -n "$2" ]]; then
-  CHIEF_PATH="$2"
-fi
-
-if [[ -n "$3" ]]; then
-  CHIEF_CONFIG="$3"
-fi
-
-# Chief loading lines for .bashrc
 CHIEF_CONFIG_LINES=(
   "export CHIEF_PATH=$CHIEF_PATH"
   "export CHIEF_CONFIG=$CHIEF_CONFIG"
@@ -60,7 +74,7 @@ function _chief.banner {
   echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${CHIEF_NO_COLOR}${CHIEF_VERSION}"
   echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_COLOR_CYAN}https://chief.reonetlabs.us${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_GREEN}Chief is now installed and configured. Configure it using the 'chief.configure' command.${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_BLUE}Get your BASH together! ${CHIEF_COLOR_YELLOW}Restart your terminal or reload your ~/.bashrc file to start Chief.${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_BLUE}Get your BASH together! ${CHIEF_COLOR_YELLOW}Restart your terminal or reload your ${CHIEF_BASHRC} file to start Chief.${CHIEF_NO_COLOR}"
 }
 
 function _chief_confirm() {
@@ -96,24 +110,29 @@ function _chief_install (){
     return 1
   fi
 
-  echo -e "${CHIEF_COLOR_BLUE}Cloning Chief (branch: $CHIEF_GIT_BRANCH)...${CHIEF_NO_COLOR}"
-  umask g-w,o-w
-  type -P git &> /dev/null || {
-    echo -e "${CHIEF_COLOR_RED}Error: git is not installed.${CHIEF_NO_COLOR}"
-    return 1
-  }
-  # The Windows (MSYS) Git is not compatible with normal use on cygwin
-  if [[ $OSTYPE == cygwin ]]; then
-    if command git --version | command grep msysgit > /dev/null; then
-      echo "Error: Windows/MSYS Git is not supported on Cygwin"
-      echo "Error: Make sure the Cygwin git package is installed and is first on the path"
+  if ${LOCAL_INSTALL}; then
+    local source_path="$(cd "$(dirname "$0")/.." && pwd)"
+    cp -a "$source_path" "$CHIEF_PATH"
+  else
+    echo -e "${CHIEF_COLOR_BLUE}Cloning Chief (branch: $CHIEF_GIT_BRANCH)...${CHIEF_NO_COLOR}"
+    umask g-w,o-w
+    type -P git &> /dev/null || {
+      echo -e "${CHIEF_COLOR_RED}Error: git is not installed.${CHIEF_NO_COLOR}"
       return 1
+    }
+    # The Windows (MSYS) Git is not compatible with normal use on cygwin
+    if [[ $OSTYPE == cygwin ]]; then
+      if command git --version | command grep msysgit > /dev/null; then
+        echo "Error: Windows/MSYS Git is not supported on Cygwin"
+        echo "Error: Make sure the Cygwin git package is installed and is first on the path"
+        return 1
+      fi
     fi
+    git clone --branch "$CHIEF_GIT_BRANCH" --depth=1 "$CHIEF_GIT_REPO" "$CHIEF_PATH" || {
+      echo -e "${CHIEF_COLOR_RED}Error: git clone of Chief repo failed.${CHIEF_NO_COLOR}"
+      return 1
+    }
   fi
-  git clone --branch "$CHIEF_GIT_BRANCH" --depth=1 "$CHIEF_GIT_REPO" "$CHIEF_PATH" || {
-    echo -e "${CHIEF_COLOR_RED}Error: git clone of Chief repo failed.${CHIEF_NO_COLOR}"
-    return 1
-  }
   echo -e "${CHIEF_COLOR_GREEN}Chief was successfully installed in '${CHIEF_PATH}'.${CHIEF_NO_COLOR}"
 }
 
@@ -126,9 +145,8 @@ function _chief_install_config () {
     echo -e "${CHIEF_COLOR_YELLOW}Chief configuration file already exists at $CHIEF_CONFIG.${CHIEF_NO_COLOR}"
   fi
 
-  # Check if .bashrc exists
   if [[ ! -f "$CHIEF_BASHRC" ]]; then
-    echo -e "${CHIEF_COLOR_RED}Error: ~/.bashrc file does not exist.${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_RED}Error: ${CHIEF_BASHRC} file does not exist.${CHIEF_NO_COLOR}"
     response=$(_chief_confirm "Create it?")
     if [[ $response == 'yes' ]]; then
       touch "$CHIEF_BASHRC"
@@ -146,10 +164,10 @@ function _chief_install_config () {
   else
     # Only append the lines if they are not already present
     for line in "${CHIEF_CONFIG_LINES[@]}"; do
-      grep -qxF "$line" "$HOME/.bashrc" || echo "$line" >> "$HOME/.bashrc"
+      grep -qxF "$line" "${CHIEF_BASHRC}" || echo "$line" >> "${CHIEF_BASHRC}"
     done
   fi
-  echo -e "${CHIEF_COLOR_GREEN}These lines were added to your ~/.bashrc (if it didn't already exist):${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_GREEN}These lines were added to your ${CHIEF_BASHRC} (if it didn't already exist):${CHIEF_NO_COLOR}"
   for line in "${CHIEF_CONFIG_LINES[@]}"; do
     echo -e "  $line"
   done
