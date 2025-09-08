@@ -1011,7 +1011,8 @@ You can also manually update by running git pull in the Chief directory.
   echo -e "${tmp_out}"
   if [[ ${tmp_out} == *"available"* ]]; then
     if chief.etc_ask_yes_or_no "Updates are available, update now?"; then
-      ${CHIEF_PATH}
+      echo "Proceeding..."
+      cd "${CHIEF_PATH}"
       chief.git_update -p
       chief.reload
       cd - > /dev/null 2>&1
