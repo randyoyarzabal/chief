@@ -9,7 +9,7 @@ Chief is a lightweight, powerful Bash library system that helps you organize you
 ## 📦 Installation
 
 ```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/dev/tools/install.sh)"
 ```
 
 **That's it!** Restart your terminal and start using Chief.
