@@ -15,122 +15,126 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ########################################################################
 
-# $1 sets CHIEF_PATH, $2 sets CHIEF_CONFIG
+set -e  # Exit on any error
 
-# Set default .bashrc vars
+# Parse command line arguments
 CHIEF_PATH="$HOME/.chief"
 CHIEF_CONFIG="$HOME/.chief_config.sh"
-CHIEF_BASHRC="$HOME/.bashrc"
+CHIEF_BASH_PROFILE="$HOME/.bash_profile"
 
-# Check for any overrides from defaults
-if [[ -n "$1" ]]; then
-  CHIEF_PATH="$2"
-fi
-
-if [[ -n "$2" ]]; then
-  CHIEF_CONFIG="$3"
-fi
-
-CHIEF_COLOR_RED='\033[0;31m'
-CHIEF_COLOR_BLUE='\033[0;34m'
-CHIEF_COLOR_CYAN='\033[0;36m'
-CHIEF_COLOR_GREEN='\033[0;32m'
-CHIEF_COLOR_YELLOW='\033[1;33m'
-CHIEF_NO_COLOR='\033[0m' # Reset color/style
-
-function _chief.banner {
-  echo -e "${CHIEF_COLOR_YELLOW}        __    _      ____${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_YELLOW}  _____/ /_  (_)__  / __/${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/  ${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_COLOR_CYAN}https://chief.reonetlabs.us${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_CYAN}Thank you for using Chief! ${CHIEF_COLOR_GREEN}Feel free to send us feedback at chief@randyoyarzabal.com${CHIEF_NO_COLOR}"
-}
-
-function _chief_confirm() {
-  local USAGE="Usage: $FUNCNAME <msg/question>
-
-Display a yes/no user prompt and echo the response.
-Returns 'yes' or 'no' string.
-
-Example:
-   response=\$($FUNCNAME 'Do you want to continue?')
-"
-  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
-    echo "${USAGE}"
-    return
-  fi
-
-  read -p "$1 ([y]es or [N]o): "
-  case $(echo $REPLY | tr '[A-Z]' '[a-z]') in
-    y | yes) echo "yes" ;;
-    *) echo "no" ;;
+while [[ $# -gt 0 ]]; do
+  case $1 in
+    --path)
+      CHIEF_PATH="$2"
+      shift 2
+      ;;
+    --config)
+      CHIEF_CONFIG="$2"
+      shift 2
+      ;;
+    --help|-h)
+      echo "Usage: $0 [OPTIONS]"
+      echo ""
+      echo "Uninstall Chief - Bash Plugin Manager & Terminal Enhancement Tool"
+      echo ""
+      echo "Options:"
+      echo "  --path PATH       Installation directory (default: ~/.chief)"
+      echo "  --config CONFIG   Configuration file path (default: ~/.chief_config.sh)"
+      echo "  --help, -h        Show this help message"
+      echo ""
+      exit 0
+      ;;
+    *)
+      echo "Unknown option: $1"
+      echo "Use --help for usage information"
+      exit 1
+      ;;
   esac
+done
+
+# Try to source centralized constants for banner
+if [[ -f "${CHIEF_PATH}/VERSION" ]]; then
+  source "${CHIEF_PATH}/VERSION"
+else
+  CHIEF_WEBSITE="https://chief.reonetlabs.us"
+fi
+
+# Colors
+RED='\033[0;31m'
+BLUE='\033[0;34m'
+CYAN='\033[0;36m'
+GREEN='\033[0;32m'
+YELLOW='\033[1;33m'
+NC='\033[0m'
+
+confirm() {
+  read -p "$1 ([y]es or [N]o): " -r
+  [[ $REPLY =~ ^[Yy]$ ]]
 }
 
-function _chief_uninstall {
-  if [[ ! -d $CHIEF_PATH ]]; then
-  echo "Uninstallation parameters:
-  CHIEF_PATH=$CHIEF_PATH
-  CHIEF_CONFIG=$CHIEF_CONFIG"
+print_banner() {
+  echo -e "${YELLOW}        __    _      ____${NC}"
+  echo -e "${YELLOW}  _____/ /_  (_)__  / __/${NC}"
+  echo -e "${YELLOW} / ___/ __ \\/ / _ \\/ /_  ${NC}"
+  echo -e "${YELLOW}/ /__/ / / / /  __/ __/ ${NC}"
+  echo -e "${YELLOW}\\___/_/ /_/_/\\___/_/ ${CYAN}${CHIEF_WEBSITE}${NC}"
+  echo ""
+  echo -e "${GREEN}SUCCESS: Chief uninstalled successfully!${NC}"
+  echo -e "${CYAN}Thank you for using Chief!${NC}"
+}
+
+uninstall_chief() {
+  echo -e "${CYAN}========================================${NC}"
+  echo -e "${CYAN}       CHIEF UNINSTALLATION${NC}"
+  echo -e "${CYAN}========================================${NC}"
+  echo ""
+  echo -e "${CYAN}  Directory: ${NC}$CHIEF_PATH"
+  echo -e "${CYAN}  Config:    ${NC}$CHIEF_CONFIG"
+  echo ""
+
+  # Check if Chief is installed
+  if [[ ! -d "$CHIEF_PATH" ]]; then
+    echo -e "${YELLOW}WARNING: Chief is not installed at $CHIEF_PATH${NC}"
+    exit 1
+  fi
+
+  # Confirm uninstallation
+  echo -e "${RED}WARNING: This will completely remove Chief from your system${NC}"
+  echo -e "${YELLOW}INFO: Your configuration will be backed up as ${CHIEF_CONFIG}.backup${NC}"
+  echo -e "${YELLOW}INFO: Custom plugins will NOT be removed${NC}"
+  echo ""
   
-    echo -e "${CHIEF_COLOR_YELLOW}Chief is not installed, nothing to remove.${CHIEF_NO_COLOR}"
-    return 1
+  if ! confirm "Are you sure you want to uninstall Chief?"; then
+    echo -e "${YELLOW}Uninstallation cancelled${NC}"
+    exit 0
   fi
 
-  # Check if Chief is installed 
-  response=$(_chief_confirm "Are you sure you want to uninstall the Chief utility? 
-Uninstallation parameters:
-  CHIEF_PATH=$CHIEF_PATH
-  CHIEF_CONFIG=$CHIEF_CONFIG
-The configuration file will be backed up as ${CHIEF_CONFIG}.backup.
-All plugin files and plugin directories will NOT be removed.
-This action cannot be undone. Proceed with uninstallation?")
-  if [[ $response == 'no' ]]; then
-    echo -e "${CHIEF_COLOR_YELLOW}Uninstall aborted.${CHIEF_NO_COLOR}"
-    return 0
-  fi
-  # Remove the Chief installation directory
-  echo -e "${CHIEF_COLOR_BLUE}Removing Chief installation directory...${CHIEF_NO_COLOR}"
-  rm -rf "$CHIEF_PATH" || {
-    echo -e "${CHIEF_COLOR_RED}Error: Could not remove Chief installation directory.${CHIEF_NO_COLOR}"
-    return 1
-  }
-  echo -e "${CHIEF_COLOR_GREEN}Chief installation directory removed successfully.${CHIEF_NO_COLOR}"
+  # Remove installation directory
+  echo -e "${BLUE}Removing installation directory...${NC}"
+  rm -rf "$CHIEF_PATH"
+  echo -e "${GREEN}SUCCESS: Installation directory removed${NC}"
 
-  # Remove the Chief configuration file
-  if [[ -f $CHIEF_CONFIG ]]; then
-    # Backup the configuration file before removing it
-    echo -e "${CHIEF_COLOR_BLUE}Backing up Chief configuration file...${CHIEF_NO_COLOR}"
-    cp "$CHIEF_CONFIG" "${CHIEF_CONFIG}.backup" || {
-      echo -e "${CHIEF_COLOR_RED}Error: Could not backup Chief configuration file.${CHIEF_NO_COLOR}"
-      return 1
-    }
-    echo -e "${CHIEF_COLOR_BLUE}Removing Chief configuration file...${CHIEF_NO_COLOR}"
-    rm -f "$CHIEF_CONFIG" || {
-      echo -e "${CHIEF_COLOR_RED}Error: Could not remove Chief configuration file.${CHIEF_NO_COLOR}"
-      return 1
-    }
-    echo -e "${CHIEF_COLOR_GREEN}Chief configuration file removed successfully.${CHIEF_NO_COLOR}"
-  else
-    echo -e "${CHIEF_COLOR_YELLOW}Chief configuration file does not exist, nothing to remove.${CHIEF_NO_COLOR}"
+  # Backup and remove configuration file
+  if [[ -f "$CHIEF_CONFIG" ]]; then
+    echo -e "${BLUE}Backing up configuration file...${NC}"
+    cp "$CHIEF_CONFIG" "${CHIEF_CONFIG}.backup"
+    rm -f "$CHIEF_CONFIG"
+    echo -e "${GREEN}SUCCESS: Configuration backed up and removed${NC}"
   fi
 
-  # Remove lines from .bashrc
-  if [[ -f "${CHIEF_BASHRC}" ]]; then
-    echo -e "${CHIEF_COLOR_BLUE}Removing Chief lines from ${CHIEF_BASHRC}...${CHIEF_NO_COLOR}"
-    # Portable sed usage; reference: https://unix.stackexchange.com/a/381201
+  # Remove lines from .bash_profile
+  if [[ -f "$CHIEF_BASH_PROFILE" ]]; then
+    echo -e "${BLUE}Cleaning up $CHIEF_BASH_PROFILE...${NC}"
     sed -i.bak \
       -e '/^[^#]*export CHIEF_PATH=/d' \
       -e '/^[^#]*export CHIEF_CONFIG=/d' \
       -e '/^[^#].*chief\.sh$/d' \
-      -- "${CHIEF_BASHRC}" && rm -- "${CHIEF_BASHRC}.bak"
-  else
-    echo -e "${CHIEF_COLOR_YELLOW}${CHIEF_BASHRC} does not exist, nothing to remove.${CHIEF_NO_COLOR}"
-  fi 
-  _chief.banner
-  echo -e "${CHIEF_COLOR_GREEN}Chief was successfully uninstalled.${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_YELLOW}Plugin files and directories were NOT removed. You can remove them manually if you wish.${CHIEF_NO_COLOR}"
+      "$CHIEF_BASH_PROFILE" && rm "${CHIEF_BASH_PROFILE}.bak"
+    echo -e "${GREEN}SUCCESS: Shell configuration cleaned${NC}"
+  fi
+
+  print_banner
 }
 
-_chief_uninstall
+# Main uninstallation flow
+uninstall_chief

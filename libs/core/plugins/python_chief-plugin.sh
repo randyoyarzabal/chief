@@ -20,16 +20,44 @@
 # ver. 1.0
 # Functions and aliases related to Python.
 
+# Block interactive execution
+if [[ $0 == "${BASH_SOURCE[0]}" ]]; then
+  echo "Error: $0 (Chief plugin) must be sourced; not executed interactively."
+  exit 1
+fi
+
 function chief.python_ve_dep() {
-  local USAGE="Usage: $FUNCNAME [--ignore_version | -i]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options]
 
-Install all packages within a given a requirements.txt in the current directory.
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Install all packages from requirements.txt in the current directory.
 
-Optionally pass --ignore_version or -i to install the latest version of packages."
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  --ignore_version, -i    Install latest versions (ignore pinned versions)
+  -?                      Show this help
+
+${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
+- Upgrades pip, setuptools, and wheel first
+- Handles both pinned and unpinned requirements
+- Works in virtual environments and system Python
+
+${CHIEF_COLOR_MAGENTA}Requirements:${CHIEF_NO_COLOR}
+- requirements.txt file in current directory
+- Python and pip installed
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME           # Install exact versions from requirements.txt
+  $FUNCNAME -i        # Install latest versions of all packages
+"
 
   if [[ $1 == '-?' ]]; then
-    echo "${USAGE}"
+    echo -e "${USAGE}"
     return
+  fi
+  
+  if [[ ! -f "requirements.txt" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} requirements.txt not found in current directory"
+    return 1
   fi
 
   python -m pip install --upgrade pip setuptools wheel
