@@ -16,6 +16,29 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 
 > **🛡️ Safe for Zsh Users:** Chief only affects your Bash shell environment. If you're currently using Zsh, Oh My Zsh, or any other shell, Chief won't interfere with your existing setup. It only activates when you explicitly run `bash` or switch to a Bash session.
 
+> **💡 Using Oh My Bash or Custom Prompts?** Chief's prompt customizations are **disabled by default** (`CHIEF_CFG_PROMPT=false`). If you have Oh My Bash, Starship, or other prompt tools, keep this setting disabled to avoid conflicts.
+
+## 📑 Table of Contents
+
+- [📦 Installation](#-installation)
+- [🤝 Why Choose Chief?](#-why-choose-chief)
+- [⚡ Quick Start](#-quick-start)
+- [🎯 What is Chief?](#-what-is-chief)
+- [📋 Requirements](#-requirements)
+- [🎪 What You Get Out of the Box](#-what-you-get-out-of-the-box)
+- [💡 Common Use Cases](#-common-use-cases)
+- [🛠️ Configuration Options](#️-configuration-options)
+- [📚 Plugin Development](#-plugin-development)
+- [🌟 Advanced Features](#-advanced-features)
+- [🔧 Built-in Plugins](#-built-in-plugins)
+- [📖 Examples & Tutorials](#-examples--tutorials)
+- [🐚 Shell Compatibility](#-shell-compatibility)
+- [🛟 Troubleshooting](#-troubleshooting)
+- [🤖 Contributing](#-contributing)
+- [📄 License](#-license)
+
+---
+
 ## 🤝 Why Choose Chief?
 
 ### ✅ **Safe & Non-Disruptive**
@@ -238,7 +261,7 @@ Chief is highly customizable. Run `chief.config` to edit settings:
 |---------------|---------|-------------|
 | `CHIEF_CFG_BANNER` | `true` | Show startup banner |
 | `CHIEF_CFG_HINTS` | `true` | Display helpful tips on startup |
-| `CHIEF_CFG_PROMPT` | `false` | Use Chief's custom prompt |
+| `CHIEF_CFG_PROMPT` | `false` | Use Chief's custom prompt (keep disabled if using Oh My Bash/Starship) |
 | `CHIEF_CFG_COLORED_PROMPT` | `true` | Colorize the prompt |
 | `CHIEF_CFG_GIT_PROMPT` | `true` | Git-aware prompt features |
 | `CHIEF_CFG_MULTILINE_PROMPT` | `false` | Enable multiline prompt display |
@@ -353,8 +376,10 @@ CHIEF_CFG_RSA_KEYS_PATH="$HOME/.ssh"
 
 ### Custom Prompt Features
 
+> **⚠️ Important:** Only enable Chief's prompt if you're **not** using Oh My Bash, Starship, or other prompt customization tools. Chief's prompt is **disabled by default** to prevent conflicts.
+
 ```bash
-# Enable git-aware prompt
+# Enable git-aware prompt (only if not using other prompt tools)
 CHIEF_CFG_PROMPT=true
 CHIEF_CFG_GIT_PROMPT=true
 
@@ -444,9 +469,9 @@ Chief is designed specifically for **Bash** and won't interfere with other shell
 
 - **Isolated to Bash only** - No impact on Zsh, Fish, or other shell environments
 - Full compatibility with existing `.bash_profile` files
-- Git-aware prompts using `__git_ps1`
+- Git-aware prompts using `__git_ps1` (when enabled)
 - Tab completion via `complete` builtin
-- Works alongside Oh My Bash
+- **Works alongside Oh My Bash** - Chief's prompt is disabled by default to prevent conflicts
 
 ### Shell Isolation
 
@@ -580,4 +605,4 @@ This project is licensed under the GNU General Public License v3.0 - see the [LI
 
 ---
 
-**Ready to transform your terminal experience?** [Get started now](#-quick-start-30-seconds) or [explore the documentation](docs/) for advanced usage.
+**Ready to transform your terminal experience?** [Get started now](#-installation) or [explore the documentation](docs/) for advanced usage.
