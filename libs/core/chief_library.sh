@@ -1465,32 +1465,67 @@ function __show_plugin_help() {
 # Show configuration help
 function __show_configuration_help() {
   echo -e "${CHIEF_COLOR_YELLOW}Chief Configuration:${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR} All configuration variables below should be prefixed with ${CHIEF_COLOR_GREEN}CHIEF_CFG_${CHIEF_NO_COLOR}"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Configuration File:${CHIEF_NO_COLOR}"
   echo -e "  Location: ${CHIEF_COLOR_CYAN}$CHIEF_CONFIG${CHIEF_NO_COLOR}"
   echo -e "  Edit: ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}"
   echo
-  echo -e "${CHIEF_COLOR_CYAN}Key Configuration Options:${CHIEF_NO_COLOR}"
-  echo -e "  ${CHIEF_COLOR_GREEN}CHIEF_CFG_PROMPT${CHIEF_NO_COLOR}            Enable/disable custom prompt"
-  echo -e "  ${CHIEF_COLOR_GREEN}CHIEF_CFG_SHORT_PATH${CHIEF_NO_COLOR}        Show short paths in prompt"
-  echo -e "  ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS${CHIEF_NO_COLOR}             Show/hide startup hints"
-  echo -e "  ${CHIEF_COLOR_GREEN}CHIEF_CFG_VERBOSE${CHIEF_NO_COLOR}           Enable verbose output"
-  echo -e "  ${CHIEF_COLOR_GREEN}CHIEF_CFG_PLUGINS${CHIEF_NO_COLOR}           Plugin directory path"
-  echo -e "  ${CHIEF_COLOR_GREEN}CHIEF_CFG_PLUGINS_TYPE${CHIEF_NO_COLOR}      Plugin type (local/remote)"
-  echo -e "  ${CHIEF_COLOR_GREEN}CHIEF_CFG_ALIAS${CHIEF_NO_COLOR}             Custom alias for chief commands"
+  
+  echo -e "${CHIEF_COLOR_CYAN}🎨 Display & Interface:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}BANNER${CHIEF_NO_COLOR}               Show/hide startup banner (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}HINTS${CHIEF_NO_COLOR}                Show/hide startup hints (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}VERBOSE${CHIEF_NO_COLOR}              Enable verbose output (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}COLORED_LS${CHIEF_NO_COLOR}           Enable colored ls output (true/false)"
   echo
-  echo -e "${CHIEF_COLOR_CYAN}Current Settings:${CHIEF_NO_COLOR}"
-  echo -e "  Prompt: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PROMPT:-false}${CHIEF_NO_COLOR}"
-  echo -e "  Short path: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_SHORT_PATH:-false}${CHIEF_NO_COLOR}"
-  echo -e "  Hints: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_HINTS:-true}${CHIEF_NO_COLOR}"
-  echo -e "  Plugins: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS_TYPE:-local}${CHIEF_NO_COLOR}"
+  
+  echo -e "${CHIEF_COLOR_CYAN}⚡ Prompt Configuration:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}PROMPT${CHIEF_NO_COLOR}               Enable/disable Chief prompt (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}COLORED_PROMPT${CHIEF_NO_COLOR}       Enable colored prompts (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}GIT_PROMPT${CHIEF_NO_COLOR}           Show git status in prompt (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}MULTILINE_PROMPT${CHIEF_NO_COLOR}     Use multi-line prompt layout (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}SHORT_PATH${CHIEF_NO_COLOR}           Show short paths in prompt (true/false)"
+  echo
+  
+  echo -e "${CHIEF_COLOR_CYAN}📦 Plugin Management:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}PLUGINS${CHIEF_NO_COLOR}              Plugin directory path"
+  echo -e "  ${CHIEF_COLOR_GREEN}PLUGINS_TYPE${CHIEF_NO_COLOR}         Plugin type (local/remote)"
+  echo -e "  ${CHIEF_COLOR_GREEN}PLUGIN_DEFAULT${CHIEF_NO_COLOR}       Default plugin file path"
+  echo -e "  ${CHIEF_COLOR_GREEN}PLUGIN_TEMPLATE${CHIEF_NO_COLOR}      Plugin template file path"
+  echo
+  
+  echo -e "${CHIEF_COLOR_CYAN}🌐 Remote Plugin Options:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(when PLUGINS_TYPE=remote)${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}PLUGINS_GIT_REPO${CHIEF_NO_COLOR}     Git repository URL for remote plugins"
+  echo -e "  ${CHIEF_COLOR_GREEN}PLUGINS_GIT_BRANCH${CHIEF_NO_COLOR}   Git branch to use (default: main)"
+  echo -e "  ${CHIEF_COLOR_GREEN}PLUGINS_GIT_PATH${CHIEF_NO_COLOR}     Local path for remote plugin cache"
+  echo -e "  ${CHIEF_COLOR_GREEN}PLUGINS_GIT_AUTOUPDATE${CHIEF_NO_COLOR} Auto-update remote plugins (true/false)"
+  echo
+  
+  echo -e "${CHIEF_COLOR_CYAN}🔧 System & Security:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}AUTOCHECK_UPDATES${CHIEF_NO_COLOR}    Auto-check for Chief updates (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}RSA_KEYS_PATH${CHIEF_NO_COLOR}        Path to SSH RSA keys directory"
+  echo -e "  ${CHIEF_COLOR_GREEN}ALIAS${CHIEF_NO_COLOR}                Custom alias for chief commands"
+  echo
+  
+  echo -e "${CHIEF_COLOR_CYAN}📊 Current Settings:${CHIEF_NO_COLOR}"
+  echo -e "  Prompt: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PROMPT:-false}${CHIEF_NO_COLOR} | Git prompt: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_GIT_PROMPT:-true}${CHIEF_NO_COLOR} | Multi-line: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_MULTILINE_PROMPT:-false}${CHIEF_NO_COLOR}"
+  echo -e "  Short path: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_SHORT_PATH:-true}${CHIEF_NO_COLOR} | Hints: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_HINTS:-true}${CHIEF_NO_COLOR} | Banner: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_BANNER:-true}${CHIEF_NO_COLOR}"
+  echo -e "  Plugins type: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS_TYPE:-local}${CHIEF_NO_COLOR} | Auto-update: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_AUTOCHECK_UPDATES:-false}${CHIEF_NO_COLOR}"
   if [[ -n "$CHIEF_CFG_ALIAS" ]]; then
-    echo -e "  Alias: ${CHIEF_COLOR_CYAN}$CHIEF_CFG_ALIAS${CHIEF_NO_COLOR}"
+    echo -e "  Custom alias: ${CHIEF_COLOR_CYAN}$CHIEF_CFG_ALIAS${CHIEF_NO_COLOR}"
+  fi
+  if [[ "$CHIEF_CFG_PLUGINS_TYPE" == "remote" ]]; then
+    echo -e "  Remote repo: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS_GIT_REPO:-not set}${CHIEF_NO_COLOR}"
+    echo -e "  Remote branch: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS_GIT_BRANCH:-main}${CHIEF_NO_COLOR}"
+    echo -e "  Remote auto-update: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE:-false}${CHIEF_NO_COLOR}"
   fi
   echo
-  echo -e "${CHIEF_COLOR_BLUE}Quick actions:${CHIEF_NO_COLOR}"
+  
+  echo -e "${CHIEF_COLOR_BLUE}🚀 Quick Actions:${CHIEF_NO_COLOR}"
   echo -e "• Edit config: ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}"
   echo -e "• Reload after changes: ${CHIEF_COLOR_GREEN}chief.reload${CHIEF_NO_COLOR}"
+  echo -e "• View current config: ${CHIEF_COLOR_GREEN}cat $CHIEF_CONFIG${CHIEF_NO_COLOR}"
+  echo -e "• Test prompt: ${CHIEF_COLOR_GREEN}chief.git.legend${CHIEF_NO_COLOR} (if git prompt enabled)"
 }
 
 # Show compact command reference
