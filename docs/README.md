@@ -20,13 +20,13 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 
 ## ✨ Key Features Highlight
 
-- 🔐 **Vault System** - Encrypt sensitive environment variables with `chief.vault.*` (requires ansible-vault)  
+- 🔐 **Vault System** - Encrypt sensitive environment variables with `chief.vault_*` (requires ansible-vault)  
   Store secrets safely, load into memory when needed
 
-- 🌐 **Remote Plugin Sync** - Share plugins across teams via Git repositories  
+- 🌐 **Remote Plugin Sync** - Share plugins across teams via Git repositories (`CHIEF_CFG_PLUGINS_TYPE="remote"`)  
   Automatic updates and version control for your shell tools
 
-- 🎨 **Git-Aware Prompts** - Beautiful, intelligent prompts with branch status  
+- 🎨 **Git-Aware Prompts** - Beautiful, intelligent prompts with branch status (`CHIEF_CFG_PROMPT=true`)  
   See repository info at a glance without cluttering your terminal
 
 - 🔍 **Instant Discovery** - Find any function, alias, or variable with `chief.whereis`  
@@ -35,7 +35,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 - 🚀 **Zero Disruption** - Only affects Bash, won't interfere with existing setups  
   Safe for Zsh, Oh My Zsh, and custom prompt users
 
-- 📦 **Plugin Architecture** - Organize your tools into reusable, shareable plugins  
+- 📦 **Plugin Architecture** - Organize your tools into reusable, shareable plugins (`chief.plugin`)  
   Clean, modular approach to shell environment management  
 
 👉 **[See complete feature list and benefits ↓](#-why-choose-chief)**
