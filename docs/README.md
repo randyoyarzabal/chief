@@ -8,16 +8,39 @@
 
 Chief is a lightweight, powerful Bash library system that helps you organize your shell environment through a plugin-based architecture. Think of it as a package manager for your bash functions, aliases, and tools.
 
-**Why Chief?**
+## 🤝 Why Choose Chief?
 
-- 📦 **Plugin System**: Organize your bash functions and aliases into reusable plugins
-- 🎨 **Enhanced Prompt**: Git-aware, colorized prompts that actually look good
-- 🔐 **SSH Key Management**: Auto-load your SSH keys with intelligent handling
-- 🔄 **Remote Sync**: Sync plugins across machines via Git repositories
-- 🛠️ **Built-in Tools**: Includes utilities for Git, SSL, OpenShift, Vault, and AWS
-- 🔧 **Bash Compatible**: Works seamlessly with existing Bash setups
+### ✅ **Safe & Non-Disruptive**
 
-## ⚡ Quick Start (30 seconds)
+- **Bash-only installation** - Won't interfere with Zsh, Fish, or other shells
+- **Zero impact on existing setups** - Your Oh My Zsh, custom prompts remain untouched
+- **Only activates in Bash** - Chief functions only available when you're in a Bash session
+- Easy to uninstall completely
+
+### ✅ **Plugin System & Organization**
+
+- 📦 **Organize functions & aliases** - Group related tools into reusable plugins
+- 🔄 **Remote sync** - Sync plugins across machines via Git repositories
+- 🔍 **Find anything instantly** - `chief.whereis` locates any function or alias
+- 📂 **Version control** - Track your shell environment changes
+
+### ✅ **Enhanced Terminal Experience**
+
+- 🎨 **Git-aware prompts** - Colorized prompts that actually look good
+- 🔐 **SSH key management** - Auto-load your SSH keys with intelligent handling
+- 🛠️ **Built-in tools** - Utilities for Git, SSL, OpenShift, Vault, and AWS
+- ⚡ **Auto-reload** - No more `source ~/.bash_profile` after edits
+
+### ✅ **Team & Productivity**
+
+- 👥 **Team collaboration** - Share plugins and standardize tooling
+- 📚 **Built-in help** - Every command has help (`chief.* -?`)
+- 🔗 **Tab completion** - All Chief commands are tab-completable
+- 🚀 **Instant onboarding** - New team members get your tools instantly
+
+## 📦 Installation
+
+### ⚡ Quick Install (30 seconds)
 
 ```bash
 # Install Chief with one command
@@ -28,13 +51,43 @@ source ~/.bash_profile
 
 # Start exploring!
 chief.[tab][tab]  # See all available commands
-
-# Optional: Verify your environment meets requirements
-bash --version    # Should be 4.0+
-git --version     # Required for installation
 ```
 
 That's it! Chief is now installed and ready to use.
+
+> **🛡️ Safe for Zsh Users:** Chief only affects your Bash shell environment. If you're currently using Zsh, Oh My Zsh, or any other shell, Chief won't interfere with your existing setup. It only activates when you explicitly run `bash` or switch to a Bash session.
+
+### 🔧 Alternative Installation Methods
+
+<details>
+<summary>Click to see manual installation and other options</summary>
+
+#### Manual Installation
+```bash
+# 1. Clone the repository
+git clone --depth=1 https://github.com/randyoyarzabal/chief.git ~/.chief
+
+# 2. Copy config template
+cp ~/.chief/templates/chief_config_template.sh ~/.chief_config.sh
+
+# 3. Add to your shell config
+echo 'export CHIEF_CONFIG="$HOME/.chief_config.sh"' >> ~/.bash_profile
+echo 'export CHIEF_PATH="$HOME/.chief"' >> ~/.bash_profile
+echo 'source ${CHIEF_PATH}/chief.sh' >> ~/.bash_profile
+
+# 4. Restart terminal or source config
+source ~/.bash_profile
+```
+
+#### Environment Check
+```bash
+# Verify your environment meets requirements
+bash --version    # Should be 4.0+
+git --version     # Required for installation
+ansible-vault --version 2>/dev/null || echo "Ansible not installed (optional)"
+```
+
+</details>
 
 ## 📋 Requirements
 
@@ -311,6 +364,8 @@ chief.plugins_update
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
 ```
 
+> **Note:** This installation only affects your Bash environment. Your current shell (Zsh, Fish, etc.) and any custom configurations remain completely untouched.
+
 ### Method 2: Manual Install
 
 ```bash
@@ -350,32 +405,8 @@ chief.uninstall
 
 **Note:** Your custom plugins in `~/chief_plugins/` are preserved during uninstallation.
 
-## 🤝 Why Choose Chief?
 
-### ✅ **Safe & Non-Disruptive**
-
-- Works in both Bash and Zsh environments
-- Compatible with existing shell setups (Oh My Zsh, Oh My Bash, etc.)
-- Easy to uninstall completely
-
-### ✅ **Organized Development**
-- Group related functions into plugins
-- Find any function instantly with `chief.whereis`
-- Version control your shell environment
-
-### ✅ **Team Collaboration**
-
-- Share plugins via Git repositories
-- Standardize team tooling
-- Onboard new team members instantly
-
-### ✅ **Productivity Focused**
-
-- Auto-reload edited files (no more `source ~/.bash_profile`)
-- Tab completion for all commands
-- Built-in help system (`chief.* -?`)
-
-## 🚀 Quick Tips
+## ⚡ Quick Start Guide
 
 ```bash
 # Explore all commands
@@ -403,14 +434,22 @@ chief.plugin mytools
 
 ## 🐚 Shell Compatibility
 
-Chief is designed specifically for **Bash**:
+Chief is designed specifically for **Bash** and won't interfere with other shells:
 
 ### Bash Integration
 
+- **Isolated to Bash only** - No impact on Zsh, Fish, or other shell environments
 - Full compatibility with existing `.bash_profile` files
 - Git-aware prompts using `__git_ps1`
 - Tab completion via `complete` builtin
 - Works alongside Oh My Bash
+
+### Shell Isolation
+
+- **Chief only loads in Bash sessions** - Your default shell remains unchanged
+- **Zsh users safe** - Oh My Zsh, custom prompts, and plugins remain untouched
+- **Per-shell activation** - Switch to bash when you want Chief features
+- **Clean separation** - No cross-shell pollution or conflicts
 
 ### Features
 
