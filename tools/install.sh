@@ -144,6 +144,32 @@ install_chief() {
   fi
 
   echo -e "${GREEN}SUCCESS: Chief files installed${NC}"
+  
+  # Validate installation
+  echo -e "${CYAN}Validating installation...${NC}"
+  local missing_files=()
+  
+  if [[ ! -f "$CHIEF_PATH/chief.sh" ]]; then
+    missing_files+=("$CHIEF_PATH/chief.sh")
+  fi
+  
+  if [[ ! -f "$CHIEF_PATH/templates/chief_config_template.sh" ]]; then
+    missing_files+=("$CHIEF_PATH/templates/chief_config_template.sh")
+  fi
+  
+  if [[ ! -d "$CHIEF_PATH/libs/core" ]]; then
+    missing_files+=("$CHIEF_PATH/libs/core")
+  fi
+  
+  if [[ ${#missing_files[@]} -gt 0 ]]; then
+    echo -e "${RED}ERROR: Installation incomplete. Missing files:${NC}"
+    for file in "${missing_files[@]}"; do
+      echo -e "${RED}  - $file${NC}"
+    done
+    exit 1
+  fi
+  
+  echo -e "${GREEN}SUCCESS: All required files present${NC}"
 }
 
 setup_config() {
@@ -152,8 +178,13 @@ setup_config() {
   
   # Copy config template if needed
   if [[ ! -f "$CHIEF_CONFIG" ]]; then
-    cp "$CHIEF_PATH/templates/chief_config_template.sh" "$CHIEF_CONFIG"
-    echo -e "${GREEN}SUCCESS: Configuration file created at $CHIEF_CONFIG${NC}"
+    if [[ -f "$CHIEF_PATH/templates/chief_config_template.sh" ]]; then
+      cp "$CHIEF_PATH/templates/chief_config_template.sh" "$CHIEF_CONFIG"
+      echo -e "${GREEN}SUCCESS: Configuration file created at $CHIEF_CONFIG${NC}"
+    else
+      echo -e "${RED}ERROR: Template file not found at $CHIEF_PATH/templates/chief_config_template.sh${NC}"
+      exit 1
+    fi
   else
     echo -e "${YELLOW}INFO: Configuration file already exists at $CHIEF_CONFIG${NC}"
   fi
@@ -183,10 +214,14 @@ setup_config() {
   echo -e "${CYAN}Adding Chief configuration to $CHIEF_BASH_PROFILE...${NC}"
   local added_lines=0
   for line in "${CONFIG_LINES[@]}"; do
-    if ! grep -qxF "$line" "$CHIEF_BASH_PROFILE"; then
-      echo "$line" >> "$CHIEF_BASH_PROFILE"
-      echo -e "${CYAN}  Added: ${YELLOW}$line${NC}"
-      ((added_lines++))
+    if ! grep -qxF "$line" "$CHIEF_BASH_PROFILE" 2>/dev/null; then
+      if echo "$line" >> "$CHIEF_BASH_PROFILE"; then
+        echo -e "${CYAN}  Added: ${YELLOW}$line${NC}"
+        ((added_lines++))
+      else
+        echo -e "${RED}ERROR: Failed to add line to $CHIEF_BASH_PROFILE${NC}"
+        exit 1
+      fi
     else
       echo -e "${CYAN}  Found: ${YELLOW}$line${NC}"
     fi
@@ -207,9 +242,14 @@ setup_prompt() {
   echo ""
   
   if confirm "Enable git-aware prompt?"; then
-    sed -i.bak 's/CHIEF_CFG_PROMPT=false/CHIEF_CFG_PROMPT=true/' "$CHIEF_CONFIG" && rm "$CHIEF_CONFIG.bak"
-    echo -e "${GREEN}SUCCESS: Git-aware prompt enabled${NC}"
-    echo -e "${CYAN}INFO: The prompt will show branch status and repository information${NC}"
+    if sed -i.bak 's/CHIEF_CFG_PROMPT=false/CHIEF_CFG_PROMPT=true/' "$CHIEF_CONFIG" 2>/dev/null; then
+      rm -f "$CHIEF_CONFIG.bak" 2>/dev/null
+      echo -e "${GREEN}SUCCESS: Git-aware prompt enabled${NC}"
+      echo -e "${CYAN}INFO: The prompt will show branch status and repository information${NC}"
+    else
+      echo -e "${RED}ERROR: Failed to update configuration file${NC}"
+      exit 1
+    fi
   else
     echo -e "${YELLOW}INFO: Git-aware prompt disabled (you can enable it later with chief.config)${NC}"
   fi
@@ -221,11 +261,22 @@ echo -e "${CYAN}        CHIEF INSTALLATION${NC}"
 echo -e "${CYAN}========================================${NC}"
 echo ""
 
+echo -e "${BLUE}Step 1: Installing Chief files...${NC}"
 install_chief
+
+echo -e "${BLUE}Step 2: Setting up configuration...${NC}"
 setup_config  
+
+echo -e "${BLUE}Step 3: Configuring prompt...${NC}"
 setup_prompt
+
+echo -e "${BLUE}Step 4: Installation complete!${NC}"
 print_banner
 
+echo ""
 echo -e "${CYAN}NEXT STEPS:${NC}"
 echo -e "${CYAN}  Run 'chief.config' to customize your settings${NC}"
 echo -e "${CYAN}  Run 'chief.plugin -?' to learn about plugins${NC}"
+echo ""
+echo -e "${GREEN}✓ Chief installation completed successfully!${NC}"
+echo -e "${CYAN}Installation script finished at $(date)${NC}"
