@@ -1383,12 +1383,13 @@ function __show_core_commands() {
 # Show plugin-related help
 function __show_plugin_help() {
   echo -e "${CHIEF_COLOR_YELLOW}Plugin Management:${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR} All commands below should be prefixed with ${CHIEF_COLOR_GREEN}chief.${CHIEF_NO_COLOR}"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Plugin Commands:${CHIEF_NO_COLOR}"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugins${CHIEF_NO_COLOR}              Navigate to plugins directory"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugin${CHIEF_NO_COLOR}               Edit default plugin"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugin <name>${CHIEF_NO_COLOR}        Create/edit named plugin"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR}            List all plugins"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugins${CHIEF_NO_COLOR}              Navigate to plugins directory"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin${CHIEF_NO_COLOR}               Edit default plugin"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin <name>${CHIEF_NO_COLOR}        Create/edit named plugin"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin -?${CHIEF_NO_COLOR}            List all plugins"
   echo
   
   local loaded_plugins=$(__get_plugins)
@@ -1398,39 +1399,66 @@ function __show_plugin_help() {
     echo
   fi
   
-  echo -e "${CHIEF_COLOR_CYAN}Available Plugin Commands:${CHIEF_NO_COLOR}"
-  local commands=($(compgen -A function | grep "^chief\." | grep -v "^chief\.\(config\|reload\|update\|help\|hints\|whereis\|plugins\?\|bash\|profile\|uninstall\)" | sort))
-  local current_plugin=""
-  local plugin_commands=()
+  echo -e "${CHIEF_COLOR_CYAN}Available Plugin Functions:${CHIEF_NO_COLOR}"
   
-  for cmd in "${commands[@]}"; do
-    if [[ $cmd =~ ^chief\.([^.]+)\. ]]; then
-      local plugin="${BASH_REMATCH[1]}"
-      if [[ $plugin != $current_plugin ]]; then
-        if [[ -n $current_plugin ]]; then
-          echo -e "    ${plugin_commands[@]}"
-        fi
-        echo -e "  ${CHIEF_COLOR_GREEN}${plugin}:${CHIEF_NO_COLOR}"
-        current_plugin="$plugin"
-        plugin_commands=()
-      fi
-      plugin_commands+=("$(basename "$cmd")")
-    else
-      # Core plugin commands without prefix
-      if [[ $cmd =~ ^chief\.([^.]+)$ ]]; then
-        echo -e "  ${CHIEF_COLOR_GREEN}core:${CHIEF_NO_COLOR} $(basename "$cmd")"
-      fi
-    fi
-  done
+  # Check for each plugin category and show organized functions
+  local found_plugins=false
   
-  if [[ -n $current_plugin ]]; then
-    echo -e "    ${plugin_commands[@]}"
+  if compgen -A function | grep -q "^chief\.git\."; then
+    echo -e "  ${CHIEF_COLOR_GREEN}Git Plugin:${CHIEF_NO_COLOR}"
+    echo "    git.branch, git.commit, git.clone, git.tag, git.delete_branch"
+    echo "    git.delete_tag, git.legend, git.rename_branch, git.reset-local"
+    echo "    git.set_url, git.untrack, git.update, git.cred_cache"
+    found_plugins=true
+  fi
+  
+  if compgen -A function | grep -q "^chief\.vault"; then
+    echo -e "  ${CHIEF_COLOR_GREEN}Vault Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires ansible-vault)${CHIEF_NO_COLOR}"
+    echo "    vault.file-edit, vault.file-load"
+    echo "    Encrypt/decrypt sensitive environment variables"
+    found_plugins=true
+  fi
+  
+  if compgen -A function | grep -q "^chief\.ssh"; then
+    echo -e "  ${CHIEF_COLOR_GREEN}SSH Plugin:${CHIEF_NO_COLOR}"
+    echo "    ssh.create_keypair, ssh.get_publickey, ssh.rm_host, ssh.load_keys"
+    found_plugins=true
+  fi
+  
+  if compgen -A function | grep -q "^chief\.python"; then
+    echo -e "  ${CHIEF_COLOR_GREEN}Python Plugin:${CHIEF_NO_COLOR}"
+    echo "    python.create_ve, python.start_ve, python.stop_ve, python.ve_dep"
+    echo "    Virtual environment management"
+    found_plugins=true
+  fi
+  
+  if compgen -A function | grep -q "^chief\.oc\."; then
+    echo -e "  ${CHIEF_COLOR_GREEN}OpenShift Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires oc CLI)${CHIEF_NO_COLOR}"
+    echo "    oc.login, oc.clusters - OpenShift cluster management"
+    found_plugins=true
+  fi
+  
+  if compgen -A function | grep -q "^chief\.etc"; then
+    echo -e "  ${CHIEF_COLOR_GREEN}Utilities Plugin:${CHIEF_NO_COLOR}"
+    echo "    etc.ask_yes_or_no, etc.spinner, etc.prompt, etc.mount_share"
+    echo "    etc.isvalid_ip, etc.broadcast, etc.at_run, etc.folder_diff"
+    echo "    etc.shared-term_create, etc.shared-term_connect"
+    found_plugins=true
+  fi
+  
+  if [[ "$found_plugins" == false ]]; then
+    echo -e "  ${CHIEF_COLOR_YELLOW}No plugin functions loaded yet${CHIEF_NO_COLOR}"
+    echo
+    echo -e "${CHIEF_COLOR_BLUE}To get started:${CHIEF_NO_COLOR}"
+    echo -e "  • Run ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR} to see available plugins"
+    echo -e "  • Create your first plugin: ${CHIEF_COLOR_GREEN}chief.plugin mytools${CHIEF_NO_COLOR}"
   fi
   
   echo
   echo -e "${CHIEF_COLOR_BLUE}Plugin Development:${CHIEF_NO_COLOR}"
   echo -e "• Plugin location: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS:-~/.chief_plugins}${CHIEF_NO_COLOR}"
   echo -e "• Template: ${CHIEF_COLOR_CYAN}${CHIEF_DEFAULT_PLUGIN_TEMPLATE}${CHIEF_NO_COLOR}"
+  echo -e "• Edit config: ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to set CHIEF_CFG_PLUGINS"
 }
 
 # Show configuration help
@@ -1467,19 +1495,68 @@ function __show_configuration_help() {
 # Show compact command reference
 function __show_compact_reference() {
   echo -e "${CHIEF_COLOR_YELLOW}Chief Quick Reference:${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR} All commands below should be prefixed with ${CHIEF_COLOR_GREEN}chief.${CHIEF_NO_COLOR}"
   echo
-  echo -e "${CHIEF_COLOR_CYAN}Core:${CHIEF_NO_COLOR} config reload update uninstall whereis hints"
-  echo -e "${CHIEF_COLOR_CYAN}Files:${CHIEF_NO_COLOR} bash_profile bashrc profile"
-  echo -e "${CHIEF_COLOR_CYAN}Plugins:${CHIEF_NO_COLOR} plugins plugin"
+  echo -e "${CHIEF_COLOR_CYAN}Core Commands:${CHIEF_NO_COLOR}"
+  echo "  config, reload, update, uninstall, whereis, hints, help"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}File Editors:${CHIEF_NO_COLOR}"
+  echo "  bash_profile, bashrc, profile"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}Plugin Management:${CHIEF_NO_COLOR}"
+  echo "  plugin [name], plugins (navigate), plugin -? (list)"
+  echo
   
-  # Show available plugin namespaces
-  local plugin_namespaces=($(compgen -A function | grep "^chief\." | sed 's/^chief\.\([^.]*\)\..*/\1/' | sort -u))
-  if [[ ${#plugin_namespaces[@]} -gt 0 ]]; then
-    echo -e "${CHIEF_COLOR_CYAN}Available:${CHIEF_NO_COLOR} ${plugin_namespaces[@]}"
+  # Show loaded plugin categories
+  local loaded_plugins=$(__get_plugins)
+  if [[ -n "$loaded_plugins" ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}Loaded Plugins:${CHIEF_NO_COLOR}"
+    
+    # Check for common plugin types and show them organized
+    local plugin_categories=()
+    
+    if compgen -A function | grep -q "^chief\.git\."; then
+      plugin_categories+=("git (git.branch, git.commit, git.clone, git.legend)")
+    fi
+    
+    if compgen -A function | grep -q "^chief\.vault"; then
+      plugin_categories+=("vault (vault.file-edit, vault.file-load) *requires ansible-vault")
+    fi
+    
+    if compgen -A function | grep -q "^chief\.ssh"; then
+      plugin_categories+=("ssh (ssh.create_keypair, ssh.get_publickey)")
+    fi
+    
+    if compgen -A function | grep -q "^chief\.python"; then
+      plugin_categories+=("python (python.create_ve, python.start_ve, python.stop_ve)")
+    fi
+    
+    if compgen -A function | grep -q "^chief\.oc\."; then
+      plugin_categories+=("oc (oc.login, oc.clusters) *requires OpenShift CLI")
+    fi
+    
+    if compgen -A function | grep -q "^chief\.etc"; then
+      plugin_categories+=("etc (etc.ask_yes_or_no, etc.spinner, etc.prompt)")
+    fi
+    
+    if [[ ${#plugin_categories[@]} -gt 0 ]]; then
+      for category in "${plugin_categories[@]}"; do
+        echo "  $category"
+      done
+    else
+      echo "  $loaded_plugins"
+    fi
+    echo
+  else
+    echo -e "${CHIEF_COLOR_CYAN}Plugins:${CHIEF_NO_COLOR}"
+    echo "  No plugins loaded yet - try 'chief.plugin -?' to see available"
+    echo
   fi
   
-  echo
-  echo -e "${CHIEF_COLOR_BLUE}Tip:${CHIEF_NO_COLOR} ${CHIEF_COLOR_GREEN}chief.[tab][tab]${CHIEF_NO_COLOR} for all commands, ${CHIEF_COLOR_GREEN}chief.help${CHIEF_NO_COLOR} for detailed help"
+  echo -e "${CHIEF_COLOR_BLUE}Quick Tips:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.[tab][tab]${CHIEF_NO_COLOR} - see all commands"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.help${CHIEF_NO_COLOR} - detailed help system"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} - customize settings"
 }
 
 # Search through Chief commands and help
