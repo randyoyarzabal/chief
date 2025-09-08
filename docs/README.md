@@ -23,6 +23,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 - [📦 Installation](#-installation)
 - [🤝 Why Choose Chief?](#-why-choose-chief)
 - [⚡ Quick Start](#-quick-start)
+- [📖 Help System](#-help-system)
 - [🎯 What is Chief?](#-what-is-chief)
 - [📋 Requirements](#-requirements)
 - [🎪 What You Get Out of the Box](#-what-you-get-out-of-the-box)
@@ -74,6 +75,12 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 ## ⚡ Quick Start
 
 ```bash
+# Get comprehensive help
+chief.help
+
+# Quick tips and workflow
+chief.hints
+
 # Explore all commands
 chief.[tab][tab]
 
@@ -127,6 +134,68 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 ```
 
 </details>
+
+## 📖 Help System
+
+Chief provides a comprehensive, multi-layered help system to help you discover and use commands effectively.
+
+### 🎯 `chief.help` - Comprehensive Help
+
+The main help system with categorized, searchable documentation:
+
+```bash
+chief.help                    # Full help with banner and categories  
+chief.help commands           # Core Chief commands reference
+chief.help plugins            # Plugin management and available commands
+chief.help config             # Configuration options and current settings
+chief.help --compact          # Quick command reference
+chief.help --search <term>    # Search for commands containing term
+```
+
+**Features:**
+
+- **Dynamic content** - Shows your actual loaded plugins and current settings
+- **Categorized help** - Organized by commands, plugins, configuration
+- **Search functionality** - Find commands by keyword
+- **Status information** - Current Chief status, plugin count, configuration
+- **Quick reference mode** - Compact view for experienced users
+
+### 💡 `chief.hints` - Quick Tips
+
+Compact workflow tips and essential command reference:
+
+```bash
+chief.hints                   # Quick tips and workflow hints
+chief.hints --banner          # Show tips with Chief banner
+```
+
+**Perfect for:**
+
+- Daily workflow reminders
+- Essential command quick reference  
+- New user onboarding
+- Plugin status at-a-glance
+
+### 🔍 Command-Specific Help
+
+Every Chief command has detailed help documentation:
+
+```bash
+chief.config -?               # Help for any command
+chief.plugin -?               # Detailed usage and examples
+chief.whereis -?              # Function-specific documentation
+```
+
+### 🚀 Discovery Methods
+
+Multiple ways to explore available commands:
+
+| Method | Purpose | Example |
+|--------|---------|---------|
+| `chief.[tab][tab]` | Bash completion | See all available commands |
+| `chief.help --search git` | Search commands | Find git-related functions |
+| `chief.help plugins` | Plugin commands | See what plugins provide |
+| `chief.whereis <name>` | Find definitions | Locate where functions are defined |
 
 ## 🎯 What is Chief?
 
@@ -591,6 +660,18 @@ source ~/.chief/chief.sh --lib-only
 ## ⚡ Quick Start Guide
 
 ```bash
+# Get comprehensive help system
+chief.help                    # Full help with categories
+chief.help commands           # Core commands only
+chief.help plugins            # Plugin management  
+chief.help config             # Configuration options
+chief.help --compact          # Quick reference
+chief.help --search git       # Search for git commands
+
+# Quick tips and workflow hints
+chief.hints                   # Compact tips
+chief.hints --banner          # Tips with banner
+
 # Explore all commands
 chief.[tab][tab]
 

@@ -560,10 +560,107 @@ function __chief.hints_text() {
   fi
 }
 
-# Force display of Chief banner and hints text.
-function chief.help() {
-  __chief.banner
+# Display compact Chief hints and tips
+function chief.hints() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--banner]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Display compact Chief tips, hints, and quick command reference.
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  --banner    Show Chief banner with hints
+
+${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
+- Quick command overview
+- Plugin status and suggestions
+- Configuration tips
+- Essential workflow commands
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME                    # Show compact hints
+  $FUNCNAME --banner          # Show banner with hints
+"
+
+  if [[ $1 == "-?" ]]; then
+    echo -e "${USAGE}"
+    return
+  fi
+
+  if [[ $1 == "--banner" ]]; then
+    __chief.banner
+  fi
+  
   __chief.hints_text --verbose
+}
+
+# Comprehensive Chief help system
+function chief.help() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [category] [options]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Display Chief help information, commands, and usage examples.
+
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  category    Help category: commands, plugins, config, search (optional)
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  --compact, -c   Show compact command reference
+  --search <term> Search for specific commands or topics
+
+${CHIEF_COLOR_GREEN}Categories:${CHIEF_NO_COLOR}
+  commands    Core Chief commands and usage
+  plugins     Plugin management and available plugins  
+  config      Configuration options and setup
+  search      Search through available functions
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME                    # Show full help with banner
+  $FUNCNAME commands          # Show only core commands
+  $FUNCNAME plugins           # Show plugin information
+  $FUNCNAME config            # Show configuration help
+  $FUNCNAME --compact         # Compact command reference
+  $FUNCNAME --search git      # Search for git-related commands
+"
+
+  if [[ $1 == "-?" ]]; then
+    echo -e "${USAGE}"
+    return
+  fi
+
+  case "${1:-full}" in
+    commands|cmd)
+      __show_core_commands
+      ;;
+    plugins|plug)
+      __show_plugin_help
+      ;;
+    config|cfg)
+      __show_configuration_help
+      ;;
+    search)
+      __search_help "$2"
+      ;;
+    --compact|-c)
+      __show_compact_reference
+      ;;
+    --search)
+      __search_help "$2"
+      ;;
+    full|*)
+      __chief.banner
+      echo
+      __show_chief_stats
+      echo
+      echo -e "${CHIEF_COLOR_YELLOW}Available help categories:${CHIEF_NO_COLOR}"
+      echo -e "• ${CHIEF_COLOR_GREEN}chief.help commands${CHIEF_NO_COLOR}  - Core commands and usage"
+      echo -e "• ${CHIEF_COLOR_GREEN}chief.help plugins${CHIEF_NO_COLOR}   - Plugin management"
+      echo -e "• ${CHIEF_COLOR_GREEN}chief.help config${CHIEF_NO_COLOR}    - Configuration options"
+      echo -e "• ${CHIEF_COLOR_GREEN}chief.help --compact${CHIEF_NO_COLOR} - Quick reference"
+      echo -e "• ${CHIEF_COLOR_GREEN}chief.hints${CHIEF_NO_COLOR}          - Quick tips and workflow"
+      echo
+      echo -e "${CHIEF_COLOR_CYAN}Quick start: ${CHIEF_COLOR_GREEN}chief.[tab][tab]${CHIEF_NO_COLOR} to see all commands"
+      ;;
+  esac
 }
 
 # Display Chief version info.
@@ -1238,6 +1335,195 @@ Restart your terminal session for a complete reset.
   echo -e "${CHIEF_COLOR_BLUE}Reloading Chief environment...${CHIEF_NO_COLOR}"
   __load_library --verbose
   echo -e "${CHIEF_COLOR_GREEN}Chief environment reloaded successfully${CHIEF_NO_COLOR}"
+}
+
+# Show Chief statistics and status
+function __show_chief_stats() {
+  local total_functions=$(compgen -A function | grep "^chief\." | wc -l | tr -d ' ')
+  local loaded_plugins=$(__get_plugins)
+  local plugin_count=0
+  
+  if [[ -n "$loaded_plugins" ]]; then
+    plugin_count=$(echo "$loaded_plugins" | tr ',' '\n' | wc -l | tr -d ' ')
+  fi
+  
+  echo -e "${CHIEF_COLOR_BLUE}Chief Status:${CHIEF_NO_COLOR}"
+  echo -e "• Functions available: ${CHIEF_COLOR_CYAN}$total_functions${CHIEF_NO_COLOR}"
+  echo -e "• Plugins loaded: ${CHIEF_COLOR_CYAN}$plugin_count${CHIEF_NO_COLOR} ($loaded_plugins)"
+  echo -e "• Configuration: ${CHIEF_COLOR_CYAN}$CHIEF_CONFIG${CHIEF_NO_COLOR}"
+  echo -e "• Version: ${CHIEF_COLOR_CYAN}$CHIEF_VERSION${CHIEF_NO_COLOR} on $PLATFORM"
+}
+
+# Show core Chief commands
+function __show_core_commands() {
+  echo -e "${CHIEF_COLOR_YELLOW}Core Chief Commands:${CHIEF_NO_COLOR}"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}Configuration & Setup:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}        Edit Chief configuration"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.reload${CHIEF_NO_COLOR}        Reload Chief environment"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR}        Update Chief to latest version"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.uninstall${CHIEF_NO_COLOR}     Remove Chief from system"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}File Management:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.bash_profile${CHIEF_NO_COLOR}  Edit ~/.bash_profile"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.bashrc${CHIEF_NO_COLOR}        Edit ~/.bashrc"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.profile${CHIEF_NO_COLOR}       Edit ~/.profile"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}Plugin Management:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugins${CHIEF_NO_COLOR}       Navigate to plugins directory"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugin${CHIEF_NO_COLOR}        Create/edit plugins"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR}     List available plugins"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}Utilities:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.whereis${CHIEF_NO_COLOR}       Find function/variable definitions"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.hints${CHIEF_NO_COLOR}         Show quick tips and workflow"
+  echo
+  echo -e "${CHIEF_COLOR_BLUE}Usage tip:${CHIEF_NO_COLOR} Add ${CHIEF_COLOR_GREEN}-?${CHIEF_NO_COLOR} to any command for detailed help"
+}
+
+# Show plugin-related help
+function __show_plugin_help() {
+  echo -e "${CHIEF_COLOR_YELLOW}Plugin Management:${CHIEF_NO_COLOR}"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}Plugin Commands:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugins${CHIEF_NO_COLOR}              Navigate to plugins directory"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugin${CHIEF_NO_COLOR}               Edit default plugin"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugin <name>${CHIEF_NO_COLOR}        Create/edit named plugin"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR}            List all plugins"
+  echo
+  
+  local loaded_plugins=$(__get_plugins)
+  if [[ -n "$loaded_plugins" ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}Currently Loaded Plugins:${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_CYAN}$loaded_plugins${CHIEF_NO_COLOR}"
+    echo
+  fi
+  
+  echo -e "${CHIEF_COLOR_CYAN}Available Plugin Commands:${CHIEF_NO_COLOR}"
+  local commands=($(compgen -A function | grep "^chief\." | grep -v "^chief\.\(config\|reload\|update\|help\|hints\|whereis\|plugins\?\|bash\|profile\|uninstall\)" | sort))
+  local current_plugin=""
+  local plugin_commands=()
+  
+  for cmd in "${commands[@]}"; do
+    if [[ $cmd =~ ^chief\.([^.]+)\. ]]; then
+      local plugin="${BASH_REMATCH[1]}"
+      if [[ $plugin != $current_plugin ]]; then
+        if [[ -n $current_plugin ]]; then
+          echo -e "    ${plugin_commands[@]}"
+        fi
+        echo -e "  ${CHIEF_COLOR_GREEN}${plugin}:${CHIEF_NO_COLOR}"
+        current_plugin="$plugin"
+        plugin_commands=()
+      fi
+      plugin_commands+=("$(basename "$cmd")")
+    else
+      # Core plugin commands without prefix
+      if [[ $cmd =~ ^chief\.([^.]+)$ ]]; then
+        echo -e "  ${CHIEF_COLOR_GREEN}core:${CHIEF_NO_COLOR} $(basename "$cmd")"
+      fi
+    fi
+  done
+  
+  if [[ -n $current_plugin ]]; then
+    echo -e "    ${plugin_commands[@]}"
+  fi
+  
+  echo
+  echo -e "${CHIEF_COLOR_BLUE}Plugin Development:${CHIEF_NO_COLOR}"
+  echo -e "• Plugin location: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS:-~/.chief_plugins}${CHIEF_NO_COLOR}"
+  echo -e "• Template: ${CHIEF_COLOR_CYAN}${CHIEF_DEFAULT_PLUGIN_TEMPLATE}${CHIEF_NO_COLOR}"
+}
+
+# Show configuration help
+function __show_configuration_help() {
+  echo -e "${CHIEF_COLOR_YELLOW}Chief Configuration:${CHIEF_NO_COLOR}"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}Configuration File:${CHIEF_NO_COLOR}"
+  echo -e "  Location: ${CHIEF_COLOR_CYAN}$CHIEF_CONFIG${CHIEF_NO_COLOR}"
+  echo -e "  Edit: ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}Key Configuration Options:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}CHIEF_CFG_PROMPT${CHIEF_NO_COLOR}            Enable/disable custom prompt"
+  echo -e "  ${CHIEF_COLOR_GREEN}CHIEF_CFG_SHORT_PATH${CHIEF_NO_COLOR}        Show short paths in prompt"
+  echo -e "  ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS${CHIEF_NO_COLOR}             Show/hide startup hints"
+  echo -e "  ${CHIEF_COLOR_GREEN}CHIEF_CFG_VERBOSE${CHIEF_NO_COLOR}           Enable verbose output"
+  echo -e "  ${CHIEF_COLOR_GREEN}CHIEF_CFG_PLUGINS${CHIEF_NO_COLOR}           Plugin directory path"
+  echo -e "  ${CHIEF_COLOR_GREEN}CHIEF_CFG_PLUGINS_TYPE${CHIEF_NO_COLOR}      Plugin type (local/remote)"
+  echo -e "  ${CHIEF_COLOR_GREEN}CHIEF_CFG_ALIAS${CHIEF_NO_COLOR}             Custom alias for chief commands"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}Current Settings:${CHIEF_NO_COLOR}"
+  echo -e "  Prompt: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PROMPT:-false}${CHIEF_NO_COLOR}"
+  echo -e "  Short path: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_SHORT_PATH:-false}${CHIEF_NO_COLOR}"
+  echo -e "  Hints: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_HINTS:-true}${CHIEF_NO_COLOR}"
+  echo -e "  Plugins: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS_TYPE:-local}${CHIEF_NO_COLOR}"
+  if [[ -n "$CHIEF_CFG_ALIAS" ]]; then
+    echo -e "  Alias: ${CHIEF_COLOR_CYAN}$CHIEF_CFG_ALIAS${CHIEF_NO_COLOR}"
+  fi
+  echo
+  echo -e "${CHIEF_COLOR_BLUE}Quick actions:${CHIEF_NO_COLOR}"
+  echo -e "• Edit config: ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}"
+  echo -e "• Reload after changes: ${CHIEF_COLOR_GREEN}chief.reload${CHIEF_NO_COLOR}"
+}
+
+# Show compact command reference
+function __show_compact_reference() {
+  echo -e "${CHIEF_COLOR_YELLOW}Chief Quick Reference:${CHIEF_NO_COLOR}"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}Core:${CHIEF_NO_COLOR} config reload update uninstall whereis hints"
+  echo -e "${CHIEF_COLOR_CYAN}Files:${CHIEF_NO_COLOR} bash_profile bashrc profile"
+  echo -e "${CHIEF_COLOR_CYAN}Plugins:${CHIEF_NO_COLOR} plugins plugin"
+  
+  # Show available plugin namespaces
+  local plugin_namespaces=($(compgen -A function | grep "^chief\." | sed 's/^chief\.\([^.]*\)\..*/\1/' | sort -u))
+  if [[ ${#plugin_namespaces[@]} -gt 0 ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}Available:${CHIEF_NO_COLOR} ${plugin_namespaces[@]}"
+  fi
+  
+  echo
+  echo -e "${CHIEF_COLOR_BLUE}Tip:${CHIEF_NO_COLOR} ${CHIEF_COLOR_GREEN}chief.[tab][tab]${CHIEF_NO_COLOR} for all commands, ${CHIEF_COLOR_GREEN}chief.help${CHIEF_NO_COLOR} for detailed help"
+}
+
+# Search through Chief commands and help
+function __search_help() {
+  local search_term="$1"
+  
+  if [[ -z "$search_term" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Please provide a search term"
+    echo -e "${CHIEF_COLOR_BLUE}Usage:${CHIEF_NO_COLOR} chief.help --search <term>"
+    return 1
+  fi
+  
+  echo -e "${CHIEF_COLOR_CYAN}Searching for: ${CHIEF_COLOR_YELLOW}$search_term${CHIEF_NO_COLOR}"
+  echo
+  
+  # Search function names
+  local matching_functions=($(compgen -A function | grep -i "chief.*$search_term" | sort))
+  if [[ ${#matching_functions[@]} -gt 0 ]]; then
+    echo -e "${CHIEF_COLOR_GREEN}Matching Functions:${CHIEF_NO_COLOR}"
+    for func in "${matching_functions[@]}"; do
+      echo -e "  ${CHIEF_COLOR_CYAN}$func${CHIEF_NO_COLOR}"
+    done
+    echo
+  fi
+  
+  # Search aliases
+  local matching_aliases=($(compgen -A alias | grep -i "chief.*$search_term" | sort))
+  if [[ ${#matching_aliases[@]} -gt 0 ]]; then
+    echo -e "${CHIEF_COLOR_GREEN}Matching Aliases:${CHIEF_NO_COLOR}"
+    for alias_name in "${matching_aliases[@]}"; do
+      echo -e "  ${CHIEF_COLOR_CYAN}$alias_name${CHIEF_NO_COLOR}"
+    done
+    echo
+  fi
+  
+  if [[ ${#matching_functions[@]} -eq 0 && ${#matching_aliases[@]} -eq 0 ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}No matches found for '$search_term'${CHIEF_NO_COLOR}"
+    echo
+    echo -e "${CHIEF_COLOR_BLUE}Try:${CHIEF_NO_COLOR}"
+    echo -e "• ${CHIEF_COLOR_GREEN}chief.help commands${CHIEF_NO_COLOR} - see all core commands"
+    echo -e "• ${CHIEF_COLOR_GREEN}chief.help plugins${CHIEF_NO_COLOR} - see plugin commands"
+    echo -e "• ${CHIEF_COLOR_GREEN}chief.[tab][tab]${CHIEF_NO_COLOR} - bash completion"
+  fi
 }
 
 function chief.whereis() {
