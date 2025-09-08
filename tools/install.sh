@@ -244,12 +244,17 @@ setup_prompt() {
       rm -f "$CHIEF_CONFIG.bak" 2>/dev/null
       echo -e "${GREEN}SUCCESS: Git-aware prompt enabled${NC}"
       echo -e "${CYAN}INFO: The prompt will show branch status and repository information${NC}"
+      echo ""
+      echo -e "${CYAN}Additional prompt options:${NC}"
+      echo -e "${CYAN}  • Enable multi-line prompt: Set CHIEF_CFG_MULTILINE_PROMPT=true in chief.config${NC}"
+      echo -e "${CYAN}  • View prompt legend: Run 'chief.git_legend' to see color meanings${NC}"
     else
       echo -e "${RED}ERROR: Failed to update configuration file${NC}"
       exit 1
     fi
   else
     echo -e "${YELLOW}INFO: Git-aware prompt disabled (you can enable it later with chief.config)${NC}"
+    echo -e "${CYAN}TIP: When you enable it, use 'chief.git_legend' to learn the prompt colors${NC}"
   fi
 }
 
@@ -272,9 +277,14 @@ echo -e "${BLUE}Step 4: Installation complete!${NC}"
 print_banner
 
 echo ""
+echo -e "${YELLOW}⚠️  IMPORTANT: Restart your terminal for changes to take effect${NC}"
+echo -e "${CYAN}   Alternative: Run 'source ~/.bash_profile' in your current terminal${NC}"
+echo ""
 echo -e "${CYAN}NEXT STEPS:${NC}"
-echo -e "${CYAN}  Run 'chief.config' to customize your settings${NC}"
-echo -e "${CYAN}  Run 'chief.plugin -?' to learn about plugins${NC}"
+echo -e "${CYAN}  1. Restart your terminal (or run: source ~/.bash_profile)${NC}"
+echo -e "${CYAN}  2. Run 'chief.config' to customize your settings${NC}"
+echo -e "${CYAN}  3. Run 'chief.plugin -?' to learn about plugins${NC}"
+echo -e "${CYAN}  4. Try 'chief.help' to explore all available commands${NC}"
 echo ""
 echo -e "${GREEN}✓ Chief installation completed successfully!${NC}"
 echo -e "${CYAN}Installation script finished at $(date)${NC}"
