@@ -4,9 +4,17 @@
 
 > **Transform your terminal experience with organized bash functions, aliases, and a powerful plugin system.**
 
-## 🎯 What is Chief?
-
 Chief is a lightweight, powerful Bash library system that helps you organize your shell environment through a plugin-based architecture. Think of it as a package manager for your bash functions, aliases, and tools.
+
+## 📦 Installation
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
+```
+
+**That's it!** Restart your terminal and start using Chief.
+
+> **🛡️ Safe for Zsh Users:** Chief only affects your Bash shell environment. If you're currently using Zsh, Oh My Zsh, or any other shell, Chief won't interfere with your existing setup. It only activates when you explicitly run `bash` or switch to a Bash session.
 
 ## 🤝 Why Choose Chief?
 
@@ -38,29 +46,29 @@ Chief is a lightweight, powerful Bash library system that helps you organize you
 - 🔗 **Tab completion** - All Chief commands are tab-completable
 - 🚀 **Instant onboarding** - New team members get your tools instantly
 
-## 📦 Installation
-
-### ⚡ Quick Install (30 seconds)
+## ⚡ Quick Start
 
 ```bash
-# Install Chief with one command
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
+# Explore all commands
+chief.[tab][tab]
 
-# Restart your terminal or source config file
-source ~/.bash_profile
+# Create your first plugin
+chief.plugin mytools
 
-# Start exploring!
-chief.[tab][tab]  # See all available commands
+# Configure Chief
+chief.config
+
+# Edit shell files with auto-reload
+chief.bash_profile
+
+# Find any function or alias
+chief.whereis my_function
 ```
 
-That's it! Chief is now installed and ready to use.
-
-> **🛡️ Safe for Zsh Users:** Chief only affects your Bash shell environment. If you're currently using Zsh, Oh My Zsh, or any other shell, Chief won't interfere with your existing setup. It only activates when you explicitly run `bash` or switch to a Bash session.
-
-### 🔧 Alternative Installation Methods
+### 🔧 Need More Options?
 
 <details>
-<summary>Click to see manual installation and other options</summary>
+<summary>Manual installation and environment checks</summary>
 
 #### Manual Installation
 ```bash
@@ -87,7 +95,18 @@ git --version     # Required for installation
 ansible-vault --version 2>/dev/null || echo "Ansible not installed (optional)"
 ```
 
+#### Uninstall
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh)"
+```
+
 </details>
+
+## 🎯 What is Chief?
+
+Chief transforms your terminal into a powerful, organized workspace. It's like having a package manager for your bash functions, aliases, and tools - but better.
+
+**Core Philosophy:** Keep your shell environment clean, organized, and team-friendly without breaking existing setups.
 
 ## 📋 Requirements
 
@@ -389,21 +408,6 @@ echo 'source ${CHIEF_PATH}/chief.sh' >> ~/.bash_profile
 source ~/.chief/chief.sh --lib-only
 ```
 
-## 🗑️ Uninstallation
-
-### Quick Uninstall
-
-```bash
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh)"
-```
-
-### Or from within Chief
-
-```bash
-chief.uninstall
-```
-
-**Note:** Your custom plugins in `~/chief_plugins/` are preserved during uninstallation.
 
 
 ## ⚡ Quick Start Guide
