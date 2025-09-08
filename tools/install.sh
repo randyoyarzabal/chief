@@ -27,7 +27,7 @@ else
   # Fallback constants if VERSION file doesn't exist (e.g., standalone install script)
   export CHIEF_VERSION="v3.0"
   export CHIEF_GIT_REPO="https://github.com/randyoyarzabal/chief.git"
-  export CHIEF_INSTALL_GIT_BRANCH="main"
+  export CHIEF_INSTALL_GIT_BRANCH="dev"
   export CHIEF_WEBSITE="https://chief.reonetlabs.us"
 fi
 
