@@ -147,48 +147,71 @@ install_chief() {
 }
 
 setup_config() {
+  echo ""
   echo -e "${BLUE}Setting up configuration...${NC}"
   
   # Copy config template if needed
   if [[ ! -f "$CHIEF_CONFIG" ]]; then
     cp "$CHIEF_PATH/templates/chief_config_template.sh" "$CHIEF_CONFIG"
-    echo -e "${GREEN}SUCCESS: Configuration file created${NC}"
+    echo -e "${GREEN}SUCCESS: Configuration file created at $CHIEF_CONFIG${NC}"
   else
-    echo -e "${YELLOW}WARNING: Configuration file already exists${NC}"
+    echo -e "${YELLOW}INFO: Configuration file already exists at $CHIEF_CONFIG${NC}"
   fi
 
+  echo ""
+  echo -e "${BLUE}Setting up shell integration...${NC}"
+  
   # Setup .bash_profile
   if [[ ! -f "$CHIEF_BASH_PROFILE" ]]; then
+    echo -e "${CYAN}Chief needs to create $CHIEF_BASH_PROFILE to load automatically.${NC}"
     if confirm "Create $CHIEF_BASH_PROFILE?"; then
       touch "$CHIEF_BASH_PROFILE"
+      echo -e "${GREEN}SUCCESS: Created $CHIEF_BASH_PROFILE${NC}"
     else
       echo -e "${YELLOW}WARNING: Skipping automatic shell setup${NC}"
-      echo -e "${CYAN}Add these lines to your shell config manually:${NC}"
-      printf '%s\n' "${CONFIG_LINES[@]}"
+      echo -e "${CYAN}You'll need to add these lines to your shell config manually:${NC}"
+      echo ""
+      for line in "${CONFIG_LINES[@]}"; do
+        echo -e "${YELLOW}  $line${NC}"
+      done
+      echo ""
       return
     fi
   fi
 
   # Add config lines if not already present
+  echo -e "${CYAN}Adding Chief configuration to $CHIEF_BASH_PROFILE...${NC}"
   local added_lines=0
   for line in "${CONFIG_LINES[@]}"; do
     if ! grep -qxF "$line" "$CHIEF_BASH_PROFILE"; then
       echo "$line" >> "$CHIEF_BASH_PROFILE"
+      echo -e "${CYAN}  Added: ${YELLOW}$line${NC}"
       ((added_lines++))
+    else
+      echo -e "${CYAN}  Found: ${YELLOW}$line${NC}"
     fi
   done
 
   if [[ $added_lines -gt 0 ]]; then
-    echo -e "${GREEN}SUCCESS: Added $added_lines line(s) to $CHIEF_BASH_PROFILE${NC}"
+    echo -e "${GREEN}SUCCESS: Added $added_lines new line(s) to $CHIEF_BASH_PROFILE${NC}"
   else
-    echo -e "${YELLOW}INFO: Shell configuration already up to date${NC}"
+    echo -e "${GREEN}SUCCESS: Shell configuration already up to date${NC}"
   fi
 }
 
 setup_prompt() {
-  if confirm "Enable Chief's git-aware prompt?"; then
+  echo ""
+  echo -e "${BLUE}Would you like to enable Chief's git-aware prompt?${NC}"
+  echo -e "${CYAN}  If you are using a custom prompt, such as Oh-My-BASH, this will have no effect.${NC}"
+  echo -e "${CYAN}  Note that you can disable this later by running 'chief.config'.${NC}"
+  echo ""
+  
+  if confirm "Enable git-aware prompt?"; then
     sed -i.bak 's/CHIEF_CFG_PROMPT=false/CHIEF_CFG_PROMPT=true/' "$CHIEF_CONFIG" && rm "$CHIEF_CONFIG.bak"
     echo -e "${GREEN}SUCCESS: Git-aware prompt enabled${NC}"
+    echo -e "${CYAN}INFO: The prompt will show branch status and repository information${NC}"
+  else
+    echo -e "${YELLOW}INFO: Git-aware prompt disabled (you can enable it later with chief.config)${NC}"
   fi
 }
 
