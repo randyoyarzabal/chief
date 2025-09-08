@@ -27,6 +27,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 - [📋 Requirements](#-requirements)
 - [🎪 What You Get Out of the Box](#-what-you-get-out-of-the-box)
 - [💡 Common Use Cases](#-common-use-cases)
+- [👥 Team Collaboration](#-team-collaboration)
 - [🛠️ Configuration Options](#️-configuration-options)
 - [📚 Plugin Development](#-plugin-development)
 - [🌟 Advanced Features](#-advanced-features)
@@ -64,10 +65,11 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 
 ### ✅ **Team & Productivity**
 
-- 👥 **Team collaboration** - Share plugins and standardize tooling
+- 👥 **Team collaboration** - Share plugins via Git and standardize tooling across teams
 - 📚 **Built-in help** - Every command has help (`chief.* -?`)
 - 🔗 **Tab completion** - All Chief commands are tab-completable
-- 🚀 **Instant onboarding** - New team members get your tools instantly
+- 🚀 **Instant onboarding** - New team members get standardized tools immediately
+- 🔄 **Version control** - Track and manage team tool changes over time
 
 ## ⚡ Quick Start
 
@@ -116,6 +118,7 @@ source ~/.bash_profile
 bash --version    # Should be 4.0+
 git --version     # Required for installation
 ansible-vault --version 2>/dev/null || echo "Ansible not installed (optional)"
+oc version --client 2>/dev/null || echo "OpenShift CLI not installed (optional)"
 ```
 
 #### Uninstall
@@ -146,6 +149,11 @@ Chief transforms your terminal into a powerful, organized workspace. It's like h
   - Used for encrypting/decrypting secrets in Chief configurations
   - If not installed, vault functions will show helpful error messages
 
+- **OpenShift CLI (oc)** - Required only for OpenShift-related functions (`chief.oc.*`)
+  - `oc` command must be in PATH
+  - Used for OpenShift cluster operations and authentication
+  - If not installed, OpenShift functions will show helpful error messages
+
 ### Version Compatibility
 
 | Component | Minimum Version | Recommended | Notes |
@@ -153,6 +161,7 @@ Chief transforms your terminal into a powerful, organized workspace. It's like h
 | Bash | 4.0 | 5.0+ | Associative arrays, process substitution |
 | Git | 2.0 | Latest | Clone, fetch, submodules |
 | Ansible Core | 2.9 | Latest | Optional - vault functions only |
+| OpenShift CLI (oc) | 4.0 | Latest | Optional - OpenShift functions only |
 
 ### Check Your Environment
 
@@ -165,6 +174,9 @@ git --version
 
 # Check ansible (optional)
 ansible-vault --version 2>/dev/null || echo "Ansible not installed (optional)"
+
+# Check OpenShift CLI (optional)
+oc version --client 2>/dev/null || echo "OpenShift CLI not installed (optional)"
 ```
 
 ## 🎪 What You Get Out of the Box
@@ -200,7 +212,7 @@ chief.bash_profile  # Edit .bash_profile
 - **Git**: Enhanced git commands and completion
 - **SSH**: Automatic key loading and management
 - **SSL**: Certificate inspection and validation tools
-- **OpenShift**: Container platform utilities
+- **OpenShift**: Container platform utilities (requires `oc` CLI)
 - **Vault**: HashiCorp Vault integration
 - **AWS**: Cloud service helpers
 
@@ -237,21 +249,163 @@ chief.config
 # Now your plugins sync across all your machines!
 ```
 
-### 3. Team Plugin Sharing
+### 3. Enhanced Development Workflow
 
 ```bash
-# Create a team plugin repository
-# Everyone on your team can use the same tools
-chief.plugins_update  # Pull latest team functions
+# Create project-specific environments
+chief.plugin myproject
+
+# Auto-reload configurations when files change
+chief.bash_profile  # Edit and auto-reloads
+
+# Find any function or command instantly
+chief.whereis deploy  # Shows all deploy functions across plugins
 ```
 
-⚠️ **Security Note for Team Sharing**: When sharing Chief plugins with a team, be aware that any variables defined in shared plugin files will be visible to all team members. Personal or sensitive variables such as:
-- `CHIEF_OC_USERNAME` (OpenShift username)
-- `CHIEF_SECRETS_FILE` (path to encrypted secrets)
-- `VAULT_ADDR`, `VAULT_TOKEN` (HashiCorp Vault credentials)
-- API keys, tokens, or personal paths
+## 👥 Team Collaboration
 
-Should be placed in your personal shell configuration files (e.g., `~/.bash_profile`, `~/.bashrc`) rather than in shared plugin repositories. This ensures sensitive information remains private while still allowing team collaboration on shared functions and aliases.
+Chief is designed with teams in mind. Share your bash functions, aliases, and tools across your entire team for consistent development environments.
+
+### 🚀 Quick Team Setup
+
+```bash
+# 1. Create a team plugin repository
+git init my-team-plugins
+cd my-team-plugins
+
+# 2. Create team plugins
+mkdir plugins
+echo '#!/usr/bin/env bash
+# Team DevOps Tools
+
+function team.deploy() {
+    echo "Deploying with team standards..."
+    # Your team deployment logic
+}
+
+function team.test() {
+    echo "Running team test suite..."
+    # Your team testing logic
+}' > plugins/devops_chief-plugin.sh
+
+# 3. Commit and push
+git add .
+git commit -m "Initial team plugins"
+git push origin main
+```
+
+### 🔧 Team Member Setup
+
+Each team member configures Chief to use the shared repository:
+
+```bash
+# Configure Chief for remote plugins
+chief.config
+
+# Set these values:
+# CHIEF_CFG_PLUGINS_TYPE="remote"
+# CHIEF_CFG_PLUGINS_GIT_REPO="git@github.com:yourteam/bash-plugins.git"
+# CHIEF_CFG_PLUGINS_GIT_BRANCH="main"
+# CHIEF_CFG_PLUGINS_GIT_PATH="$HOME/team-plugins"
+# CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="true"
+
+# Restart terminal - team plugins are now available!
+```
+
+### 📦 Managing Team Plugins
+
+```bash
+# Update team plugins to latest version
+chief.plugins_update
+
+# Create new team plugin
+chief.plugin teamtools
+
+# Check which plugins are loaded
+chief.plugin -?
+
+# Find team functions
+chief.whereis team.deploy
+```
+
+### 🔒 Security Best Practices
+
+> **⚠️ Important for Team Sharing**: When sharing plugins with your team, sensitive information will be visible to all team members.
+
+#### ✅ **Safe to Share (in team plugins):**
+- Functions and aliases
+- General configuration templates
+- Team-wide environment variables
+- Shared tool configurations
+
+#### 🚫 **Keep Private (in personal ~/.bash_profile):**
+- `CHIEF_OC_USERNAME` - Personal OpenShift credentials
+- `CHIEF_SECRETS_FILE` - Path to personal encrypted secrets
+- `VAULT_ADDR`, `VAULT_TOKEN` - Personal Vault credentials
+- API keys, tokens, passwords
+- Personal file paths and preferences
+
+#### 📁 **Recommended Structure:**
+
+```
+team-plugins/
+├── plugins/
+│   ├── devops_chief-plugin.sh     # Deployment tools
+│   ├── testing_chief-plugin.sh    # Test automation
+│   ├── docker_chief-plugin.sh     # Container tools
+│   └── k8s_chief-plugin.sh        # Kubernetes helpers
+├── templates/
+│   └── personal_config_template.sh # Template for personal settings
+└── README.md                      # Team onboarding guide
+```
+
+### 🌟 Team Workflow Benefits
+
+#### **Standardized Tooling**
+- Everyone uses the same functions and aliases
+- Consistent deployment and testing procedures
+- Shared knowledge base of team practices
+
+#### **Easy Onboarding**
+- New team members get all tools instantly
+- No manual setup of individual development environments
+- Documentation lives with the code
+
+#### **Version Control for Shell Environment**
+- Track changes to team tools over time
+- Roll back problematic updates
+- Review changes before deployment
+
+#### **Cross-Machine Consistency**
+- Same tools on laptop, server, and CI/CD
+- No "works on my machine" problems
+- Shared configuration across all environments
+
+### 🔄 Advanced Team Features
+
+#### **Multiple Plugin Sources**
+```bash
+# Mix team plugins with personal plugins
+CHIEF_CFG_PLUGINS_TYPE="remote"              # Use team repo
+CHIEF_CFG_PLUGINS="/path/to/personal/plugins" # Plus personal plugins
+```
+
+#### **Branched Development**
+```bash
+# Use development branch for testing
+CHIEF_CFG_PLUGINS_GIT_BRANCH="development"
+
+# Switch back to stable
+CHIEF_CFG_PLUGINS_GIT_BRANCH="main"
+chief.plugins_update
+```
+
+#### **Selective Plugin Loading**
+```bash
+# Team can organize plugins by category
+CHIEF_CFG_PLUGINS_GIT_PATH="$HOME/team-plugins/backend"  # Backend tools only
+CHIEF_CFG_PLUGINS_GIT_PATH="$HOME/team-plugins/frontend" # Frontend tools only
+```
 
 ## 🛠️ Configuration Options
 
@@ -289,7 +443,7 @@ Chief comes with several useful plugins ready to use:
 | **Git** | `chief.git_*` | Enhanced git operations, branch management |
 | **SSH** | `chief.ssh_*` | SSH key management, connection helpers |
 | **AWS** | `chief.aws_*` | AWS credential management, S3 operations |
-| **OpenShift** | `chief.oc_*` | Container platform operations |
+| **OpenShift** | `chief.oc_*` | Container platform operations (requires `oc` CLI) |
 | **Vault** | `chief.vault_*` | HashiCorp Vault secret management |
 | **Python** | `chief.python_*` | Python environment and tool helpers |
 | **ETC** | `chief.etc_*` | Miscellaneous system utilities |
@@ -388,16 +542,15 @@ CHIEF_CFG_GIT_PROMPT=true
 #        user           path  branch +staged -unstaged
 ```
 
-### Remote Plugin Repositories
+### Personal Plugin Sync
 
 ```bash
-# Store your plugins in a Git repo
-# Multiple machines can sync the same plugins
+# Sync your personal plugins across machines
 CHIEF_CFG_PLUGINS_TYPE="remote"
-CHIEF_CFG_PLUGINS_GIT_REPO="git@github.com:yourteam/bash-plugins.git"
+CHIEF_CFG_PLUGINS_GIT_REPO="git@github.com:yourusername/my-bash-plugins.git"
 
-# Auto-update plugins
-chief.plugins_update
+# Auto-update on startup
+CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="true"
 ```
 
 ## 📦 Installation Methods
@@ -552,6 +705,21 @@ ansible-vault --version
 # Install if needed:
 # macOS: brew install ansible
 # Linux: pip3 install ansible-core
+```
+
+#### Q: OpenShift functions not working
+
+```bash
+# Check if OpenShift CLI is installed (optional dependency)
+oc version --client
+
+# Install if needed:
+# macOS: brew install openshift-cli
+# Linux: Download from https://mirror.openshift.com/pub/openshift-v4/clients/ocp/
+# Windows: Download from Red Hat or use package manager
+
+# Verify oc is in PATH
+which oc
 ```
 
 #### Q: Plugins not loading
