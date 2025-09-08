@@ -18,6 +18,49 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 
 > **💡 Using Oh My Bash or Custom Prompts?** Chief's prompt customizations are **disabled by default** (`CHIEF_CFG_PROMPT=false`). If you have Oh My Bash, Starship, or other prompt tools, keep this setting disabled to avoid conflicts.
 
+## ✨ Key Features Highlight
+
+🔐 **Vault System** - Encrypt sensitive environment variables with `chief.vault.*` (requires ansible-vault) - store secrets safely, load into memory when needed  
+🌐 **Remote Plugin Sync** - Share plugins across teams via Git repositories with automatic updates  
+🎨 **Git-Aware Prompts** - Beautiful, intelligent prompts that show branch status and repository info  
+🔍 **Instant Discovery** - Find any function, alias, or variable instantly with `chief.whereis`  
+🚀 **Zero Disruption** - Only affects Bash, won't interfere with Zsh, Oh My Zsh, or existing setups  
+📦 **Plugin Architecture** - Organize your tools into reusable, shareable plugins  
+
+<details>
+<summary><strong>🤝 Why Choose Chief? (Full Feature List)</strong></summary>
+
+### ✅ **Safe & Non-Disruptive**
+
+- **Bash-only installation** - Won't interfere with Zsh, Fish, or other shells
+- **Zero impact on existing setups** - Your Oh My Zsh, custom prompts remain untouched
+- **Only activates in Bash** - Chief functions only available when you're in a Bash session
+- Easy to uninstall completely
+
+### ✅ **Plugin System & Organization**
+
+- 📦 **Organize functions & aliases** - Group related tools into reusable plugins
+- 🔄 **Remote sync** - Sync plugins across machines via Git repositories
+- 🔍 **Find anything instantly** - `chief.whereis` locates any function or alias
+- 📂 **Version control** - Track your shell environment changes
+
+### ✅ **Enhanced Terminal Experience**
+
+- 🎨 **Git-aware prompts** - Colorized prompts that actually look good
+- 🔐 **SSH key management** - Auto-load your SSH keys with intelligent handling
+- 🛠️ **Built-in tools** - Utilities for Git, SSL, OpenShift, Vault, and AWS
+- ⚡ **Auto-reload** - No more `source ~/.bash_profile` after edits
+
+### ✅ **Team & Productivity**
+
+- 👥 **Team collaboration** - Share plugins via Git and standardize tooling across teams
+- 📚 **Built-in help** - Every command has help (`chief.* -?`)
+- 🔗 **Tab completion** - All Chief commands are tab-completable
+- 🚀 **Instant onboarding** - New team members get standardized tools immediately
+- 🔄 **Version control** - Track and manage team tool changes over time
+
+</details>
+
 ## 📑 Table of Contents
 
 - [📦 Installation](#-installation)
