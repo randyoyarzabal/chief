@@ -537,7 +537,7 @@ function __chief.hints_text() {
     fi
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Essential Commands:${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit configuration file | ${CHIEF_COLOR_GREEN}chief.config_set <var> <value>${CHIEF_NO_COLOR} to set config directly"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit configuration file | ${CHIEF_COLOR_GREEN}chief.config_set <option> <value>${CHIEF_NO_COLOR} to set config directly"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.help${CHIEF_NO_COLOR} for comprehensive help | ${CHIEF_COLOR_GREEN}chief.help --compact${CHIEF_NO_COLOR} for quick reference"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.whereis <name>${CHIEF_NO_COLOR} to find any function/alias location"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.vault_*${CHIEF_NO_COLOR} to encrypt/decrypt secrets (requires ansible-vault)"
@@ -1107,7 +1107,7 @@ Some changes require terminal restart to take full effect.
 }
 
 function chief.config_set() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--list|-l] | <config_name> <value>
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--list|-l] | <config_option> <value>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Set a Chief configuration variable and reload the configuration automatically.
@@ -1116,7 +1116,7 @@ ${CHIEF_COLOR_GREEN}Options:${CHIEF_NO_COLOR}
   --list, -l     List all available configuration variables and their current values
 
 ${CHIEF_COLOR_GREEN}Arguments:${CHIEF_NO_COLOR}
-  config_name    Configuration name (without CHIEF_CFG_ prefix, case insensitive)
+  config_option  Configuration option name (without CHIEF_CFG_ prefix, case insensitive)
   value          Boolean (true/false) or string value to set
 
 ${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
@@ -1146,7 +1146,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME rsa_keys_path \"\$HOME/.ssh\" # Set SSH keys path
 
 ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
-- Configuration names are case insensitive
+- Configuration options are case insensitive
 - String values with spaces should be quoted
 - Changes take effect immediately after reload
 - Some changes may require terminal restart
@@ -1194,7 +1194,7 @@ ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
   
   # Validate config name exists in template
   if ! grep -q "^[#]*${config_var}=" "${CHIEF_CONFIG}" 2>/dev/null; then
-    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown configuration variable: ${config_name}"
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown configuration option: ${config_name}"
     echo -e "Run ${CHIEF_COLOR_GREEN}$FUNCNAME --list${CHIEF_NO_COLOR} to see all available variables"
     return 1
   fi
@@ -1666,6 +1666,7 @@ function __show_configuration_help() {
   echo -e "${CHIEF_COLOR_CYAN}Configuration File:${CHIEF_NO_COLOR}"
   echo -e "  Location: ${CHIEF_COLOR_CYAN}$CHIEF_CONFIG${CHIEF_NO_COLOR}"
   echo -e "  Edit: ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}"
+  echo -e "  Set directly: ${CHIEF_COLOR_GREEN}chief.config_set <option> <value>${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(omit CHIEF_CFG_ prefix)${CHIEF_NO_COLOR}"
   echo
   
   echo -e "${CHIEF_COLOR_CYAN}Display & Interface:${CHIEF_NO_COLOR}"
@@ -1717,11 +1718,19 @@ function __show_configuration_help() {
   fi
   echo
   
-  echo -e "${CHIEF_COLOR_BLUE}Quick Actions:${CHIEF_NO_COLOR}"
-  echo -e "• Edit config: ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}"
-  echo -e "• Reload after changes: ${CHIEF_COLOR_GREEN}chief.reload${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_BLUE}Configuration Commands:${CHIEF_NO_COLOR}"
+  echo -e "• Edit config file: ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}"
+  echo -e "• Set config directly: ${CHIEF_COLOR_GREEN}chief.config_set <option> <value>${CHIEF_NO_COLOR}"
+  echo -e "• List all config vars: ${CHIEF_COLOR_GREEN}chief.config_set --list${CHIEF_NO_COLOR}"
   echo -e "• View current config: ${CHIEF_COLOR_GREEN}cat $CHIEF_CONFIG${CHIEF_NO_COLOR}"
+  echo -e "• Reload after changes: ${CHIEF_COLOR_GREEN}chief.reload${CHIEF_NO_COLOR}"
   echo -e "• Test prompt: ${CHIEF_COLOR_GREEN}chief.git.legend${CHIEF_NO_COLOR} (if git prompt enabled)"
+  echo
+  echo -e "${CHIEF_COLOR_BLUE}Configuration Examples:${CHIEF_NO_COLOR}"
+  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set banner false${CHIEF_NO_COLOR}     # Disable startup banner"
+  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set prompt true${CHIEF_NO_COLOR}      # Enable Chief prompt"  
+  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set colored_ls true${CHIEF_NO_COLOR}  # Enable colored ls"
+  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set plugins_type remote${CHIEF_NO_COLOR} # Use remote plugins"
 }
 
 # Show compact command reference

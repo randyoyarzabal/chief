@@ -23,7 +23,7 @@
 
 ### New Configuration Management
 
-- **chief.config_set**: Set configuration variables directly from command line with comprehensive feedback
+- **chief.config_set**: Set configuration options directly from command line with comprehensive feedback
 - Supports case-insensitive config names (without CHIEF_CFG_ prefix)  
 - Shows previous vs new values, handles both boolean and string values
 - `--list` option shows all available configuration variables and current values
