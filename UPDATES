@@ -27,8 +27,10 @@
 - Supports case-insensitive config names (without CHIEF_CFG_ prefix)  
 - Shows previous vs new values, handles both boolean and string values
 - `--list` option shows all available configuration variables and current values
-- Automatic backup creation and config reload after changes
-- Smart validation and "already set" detection
+- **Interactive by default**: Prompts for confirmation before modifying config file
+- `--yes/-y` flag for non-interactive operation (ideal for scripting)
+- Global `CHIEF_CFG_CONFIG_SET_INTERACTIVE` setting to control default behavior
+- Config reload after changes and smart validation
 
 ### Comprehensive Configuration Help
 

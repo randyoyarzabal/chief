@@ -502,19 +502,24 @@ CHIEF_CFG_PLUGINS_GIT_PATH="$HOME/team-plugins/frontend" # Frontend tools only
 
 ## 🛠️ Configuration Options
 
-Chief is highly customizable. Use `chief.config` to edit the config file or `chief.config_set <option> <value>` for direct command-line configuration:
+Chief is highly customizable. Use `chief.config` to edit the config file or `chief.config_set <option> <value>` for direct command-line configuration.
+
+**Interactive Behavior:** By default, `chief.config_set` prompts for confirmation before modifying your configuration file. Use `--yes` (or `-y`) to skip prompts for scripting.
 
 ```bash
 # Edit configuration file
 chief.config
 
 # Set configuration variables directly (use option name without CHIEF_CFG_ prefix)
-chief.config_set banner false         # Sets CHIEF_CFG_BANNER=false
-chief.config_set prompt true          # Sets CHIEF_CFG_PROMPT=true  
-chief.config_set colored_ls true      # Sets CHIEF_CFG_COLORED_LS=true
+chief.config_set banner false         # Sets CHIEF_CFG_BANNER=false (prompts for confirmation)
+chief.config_set --yes prompt true    # Sets CHIEF_CFG_PROMPT=true (no prompt)  
+chief.config_set colored_ls true      # Sets CHIEF_CFG_COLORED_LS=true (prompts for confirmation)
 
 # List all configuration variables and current values  
 chief.config_set --list
+
+# Disable interactive prompts globally
+chief.config_set config_set_interactive false
 ```
 
 | Configuration | Default | Description |
@@ -527,6 +532,7 @@ chief.config_set --list
 | `CHIEF_CFG_MULTILINE_PROMPT` | `false` | Enable multiline prompt display |
 | `CHIEF_CFG_SHORT_PATH` | `false` | Show only current directory name in prompt |
 | `CHIEF_CFG_COLORED_LS` | `false` | Colorize ls command output |
+| `CHIEF_CFG_CONFIG_SET_INTERACTIVE` | `true` | Prompt for confirmation in `chief.config_set` |
 | `CHIEF_CFG_PLUGINS_TYPE` | `"local"` | Use `"local"` or `"remote"` plugins |
 | `CHIEF_CFG_RSA_KEYS_PATH` | _unset_ | Auto-load SSH keys from path |
 | `CHIEF_CFG_ALIAS` | _unset_ | Create short alias (e.g., `"cf"`) |

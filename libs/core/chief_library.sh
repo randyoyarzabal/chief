@@ -1107,43 +1107,49 @@ Some changes require terminal restart to take full effect.
 }
 
 function chief.config_set() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--list|-l] | <config_option> <value>
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--list|-l] | <config_option> <value> [--yes|-y]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Set a Chief configuration variable and reload the configuration automatically.
+By default, prompts for confirmation before modifying config file. Use --yes to skip prompts.
 
 ${CHIEF_COLOR_GREEN}Options:${CHIEF_NO_COLOR}
   --list, -l     List all available configuration variables and their current values
+  --yes, -y      Skip confirmation prompt (non-interactive mode for scripting)
+                 Can be placed anywhere in the argument list
 
 ${CHIEF_COLOR_GREEN}Arguments:${CHIEF_NO_COLOR}
   config_option  Configuration option name (without CHIEF_CFG_ prefix, case insensitive)
   value          Boolean (true/false) or string value to set
 
 ${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
-  BANNER                 Show/hide startup banner (true/false)
-  HINTS                  Show/hide startup hints (true/false)
-  VERBOSE                Enable verbose output (true/false)
-  AUTOCHECK_UPDATES      Auto-check for updates (true/false)
-  PLUGINS_TYPE           Plugin type (\"local\"/\"remote\")
-  PLUGINS_GIT_REPO       Git repository URL for remote plugins
-  PLUGINS_GIT_BRANCH     Git branch to use (default: main)
-  PLUGINS_GIT_PATH       Local path for remote plugin cache
-  PLUGINS_GIT_AUTOUPDATE Auto-update remote plugins (true/false)
-  PROMPT                 Enable/disable Chief prompt (true/false)
-  COLORED_PROMPT         Enable colored prompts (true/false)
-  GIT_PROMPT             Show git status in prompt (true/false)
-  MULTILINE_PROMPT       Use multi-line prompt layout (true/false)
-  SHORT_PATH             Show short paths in prompt (true/false)
-  COLORED_LS             Enable colored ls output (true/false)
-  RSA_KEYS_PATH          Path to SSH RSA keys directory
-  ALIAS                  Custom alias for chief commands
+  BANNER                    Show/hide startup banner (true/false)
+  HINTS                     Show/hide startup hints (true/false)
+  VERBOSE                   Enable verbose output (true/false)
+  AUTOCHECK_UPDATES         Auto-check for updates (true/false)
+  CONFIG_SET_INTERACTIVE    Enable/disable confirmation prompts (true/false)
+  PLUGINS_TYPE              Plugin type (\"local\"/\"remote\")
+  PLUGINS_GIT_REPO          Git repository URL for remote plugins
+  PLUGINS_GIT_BRANCH        Git branch to use (default: main)
+  PLUGINS_GIT_PATH          Local path for remote plugin cache
+  PLUGINS_GIT_AUTOUPDATE    Auto-update remote plugins (true/false)
+  PROMPT                    Enable/disable Chief prompt (true/false)
+  COLORED_PROMPT            Enable colored prompts (true/false)
+  GIT_PROMPT                Show git status in prompt (true/false)
+  MULTILINE_PROMPT          Use multi-line prompt layout (true/false)
+  SHORT_PATH                Show short paths in prompt (true/false)
+  COLORED_LS                Enable colored ls output (true/false)
+  RSA_KEYS_PATH             Path to SSH RSA keys directory
+  ALIAS                     Custom alias for chief commands
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME --list                   # List all configuration variables
-  $FUNCNAME banner true              # Enable startup banner
-  $FUNCNAME COLORED_LS false         # Disable colored ls
-  $FUNCNAME prompt true              # Enable custom prompt
-  $FUNCNAME rsa_keys_path \"\$HOME/.ssh\" # Set SSH keys path
+  $FUNCNAME --list                      # List all configuration variables
+  $FUNCNAME banner true                 # Enable startup banner (with prompt)
+  $FUNCNAME --yes banner false          # Disable startup banner (no prompt)
+  $FUNCNAME colored_ls true --yes       # Enable colored ls (no prompt)
+  $FUNCNAME prompt -y true              # Enable custom prompt (no prompt)
+  $FUNCNAME rsa_keys_path \"\$HOME/.ssh\"  # Set SSH keys path (with prompt)
+  $FUNCNAME config_set_interactive false # Disable prompts globally
 
 ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
 - Configuration options are case insensitive
@@ -1181,6 +1187,26 @@ ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
     
     return
   fi
+
+  # Handle --yes option (non-interactive mode) - can be anywhere in arguments
+  local skip_confirmation=false
+  local args=()
+  
+  # Parse all arguments, extract --yes flag and build clean args array
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --yes|-y)
+        skip_confirmation=true
+        ;;
+      *)
+        args+=("$1")
+        ;;
+    esac
+    shift
+  done
+
+  # Restore arguments without --yes flag
+  set -- "${args[@]}"
 
   if [[ $# -lt 2 ]]; then
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Missing required arguments"
@@ -1231,6 +1257,22 @@ ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
     return 0
   fi
 
+  # Interactive confirmation prompt (unless --yes flag used or global setting disabled)
+  if [[ "${skip_confirmation}" != true ]] && [[ "${CHIEF_CFG_CONFIG_SET_INTERACTIVE:-true}" != "false" ]]; then
+    echo -e "${CHIEF_COLOR_BLUE}About to modify configuration:${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_CYAN}File:${CHIEF_NO_COLOR}     ${CHIEF_CONFIG}"
+    echo -e "  ${CHIEF_COLOR_CYAN}Variable:${CHIEF_NO_COLOR} ${config_var}"
+    echo -e "  ${CHIEF_COLOR_CYAN}Change:${CHIEF_NO_COLOR}   ${previous_value} → ${config_value}"
+    echo
+    echo -en "${CHIEF_COLOR_YELLOW}Overwrite ${CHIEF_CONFIG}? (y/n [n]): ${CHIEF_NO_COLOR}"
+    read -r confirm
+    if [[ "${confirm}" != "y" && "${confirm}" != "Y" ]]; then
+      echo -e "${CHIEF_COLOR_BLUE}Configuration change cancelled.${CHIEF_NO_COLOR}"
+      return 0
+    fi
+    echo
+  fi
+
   echo -e "${CHIEF_COLOR_BLUE}Setting configuration variable:${CHIEF_NO_COLOR}"
   echo -e "  ${CHIEF_COLOR_CYAN}Variable:${CHIEF_NO_COLOR} ${config_var}"
   
@@ -1242,13 +1284,6 @@ ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
   echo -e "  ${CHIEF_COLOR_CYAN}Previous:${CHIEF_NO_COLOR} ${previous_value}${comment_note}"
   echo -e "  ${CHIEF_COLOR_CYAN}New:${CHIEF_NO_COLOR}      ${config_value}"
 
-  # Create backup
-  local backup_file="/tmp/chief_config_backup_$(date +%Y%m%d_%H%M%S)_$$"
-  if cp -L "${CHIEF_CONFIG}" "${backup_file}" >/dev/null 2>&1; then
-    echo -e "${CHIEF_COLOR_BLUE}✓${CHIEF_NO_COLOR} Configuration backed up to ${backup_file}"
-  else
-    echo -e "${CHIEF_COLOR_YELLOW}⚠${CHIEF_NO_COLOR} Warning: Could not create backup"
-  fi
 
   # Update or add the configuration
   echo -e "${CHIEF_COLOR_BLUE}Updating configuration file...${CHIEF_NO_COLOR}"
@@ -1263,7 +1298,7 @@ ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
     set +o noclobber
     rm -f "${temp_file}"
     
-    if sed "s|^[#]*${config_var}=.*|${config_var}=${config_value}|" "${CHIEF_CONFIG}" > "${temp_file}" && cp -f "${temp_file}" "${target_file}"; then
+    if sed "s|^[#]*${config_var}=.*|${config_var}=${config_value}|" "${CHIEF_CONFIG}" > "${temp_file}" && command cp -f "${temp_file}" "${target_file}"; then
       echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Updated ${config_var}"
       rm -f "${temp_file}"
     else
@@ -1674,6 +1709,7 @@ function __show_configuration_help() {
   echo -e "  ${CHIEF_COLOR_GREEN}HINTS${CHIEF_NO_COLOR}                Show/hide startup hints (true/false)"
   echo -e "  ${CHIEF_COLOR_GREEN}VERBOSE${CHIEF_NO_COLOR}              Enable verbose output (true/false)"
   echo -e "  ${CHIEF_COLOR_GREEN}COLORED_LS${CHIEF_NO_COLOR}           Enable colored ls output (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}CONFIG_SET_INTERACTIVE${CHIEF_NO_COLOR} Enable confirmation prompts for config_set (true/false)"
   echo
   
   echo -e "${CHIEF_COLOR_CYAN}Prompt Configuration:${CHIEF_NO_COLOR}"
@@ -1727,10 +1763,10 @@ function __show_configuration_help() {
   echo -e "• Test prompt: ${CHIEF_COLOR_GREEN}chief.git.legend${CHIEF_NO_COLOR} (if git prompt enabled)"
   echo
   echo -e "${CHIEF_COLOR_BLUE}Configuration Examples:${CHIEF_NO_COLOR}"
-  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set banner false${CHIEF_NO_COLOR}     # Disable startup banner"
-  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set prompt true${CHIEF_NO_COLOR}      # Enable Chief prompt"  
-  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set colored_ls true${CHIEF_NO_COLOR}  # Enable colored ls"
-  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set plugins_type remote${CHIEF_NO_COLOR} # Use remote plugins"
+  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set banner false${CHIEF_NO_COLOR}     # Disable startup banner (with prompt)"
+  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set --yes prompt true${CHIEF_NO_COLOR}      # Enable Chief prompt (no prompt)"  
+  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set colored_ls true${CHIEF_NO_COLOR}  # Enable colored ls (with prompt)"
+  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set config_set_interactive false${CHIEF_NO_COLOR} # Disable prompts globally"
 }
 
 # Show compact command reference
