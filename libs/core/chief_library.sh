@@ -537,15 +537,15 @@ function __chief.hints_text() {
     fi
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Essential Commands:${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit configuration and explore features"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit configuration file | ${CHIEF_COLOR_GREEN}chief.config_set <var> <value>${CHIEF_NO_COLOR} to set config directly"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.help${CHIEF_NO_COLOR} for comprehensive help | ${CHIEF_COLOR_GREEN}chief.help --compact${CHIEF_NO_COLOR} for quick reference"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.whereis <name>${CHIEF_NO_COLOR} to find any function/alias location"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.vault_*${CHIEF_NO_COLOR} to encrypt/decrypt secrets (requires ansible-vault)"
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Quick Customization:${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}CHIEF_CFG_PROMPT=true${CHIEF_NO_COLOR} for git-aware prompt | ${CHIEF_COLOR_GREEN}chief.git_legend${CHIEF_NO_COLOR} for colors"
-    echo -e "- ${CHIEF_COLOR_GREEN}CHIEF_CFG_MULTILINE_PROMPT=true${CHIEF_NO_COLOR} for multi-line prompt"
-    echo -e "- ${CHIEF_COLOR_GREEN}CHIEF_CFG_SHORT_PATH=true${CHIEF_NO_COLOR} for compact directory paths"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set prompt true${CHIEF_NO_COLOR} for git-aware prompt | ${CHIEF_COLOR_GREEN}chief.git_legend${CHIEF_NO_COLOR} for colors"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set multiline_prompt true${CHIEF_NO_COLOR} for multi-line prompt"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set short_path true${CHIEF_NO_COLOR} for compact directory paths"
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Plugin Management:${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin [name]${CHIEF_NO_COLOR} to create/edit plugins | ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR} to list"
@@ -1106,6 +1106,201 @@ Some changes require terminal restart to take full effect.
   }
 }
 
+function chief.config_set() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--list|-l] | <config_name> <value>
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Set a Chief configuration variable and reload the configuration automatically.
+
+${CHIEF_COLOR_GREEN}Options:${CHIEF_NO_COLOR}
+  --list, -l     List all available configuration variables and their current values
+
+${CHIEF_COLOR_GREEN}Arguments:${CHIEF_NO_COLOR}
+  config_name    Configuration name (without CHIEF_CFG_ prefix, case insensitive)
+  value          Boolean (true/false) or string value to set
+
+${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
+  BANNER                 Show/hide startup banner (true/false)
+  HINTS                  Show/hide startup hints (true/false)
+  VERBOSE                Enable verbose output (true/false)
+  AUTOCHECK_UPDATES      Auto-check for updates (true/false)
+  PLUGINS_TYPE           Plugin type (\"local\"/\"remote\")
+  PLUGINS_GIT_REPO       Git repository URL for remote plugins
+  PLUGINS_GIT_BRANCH     Git branch to use (default: main)
+  PLUGINS_GIT_PATH       Local path for remote plugin cache
+  PLUGINS_GIT_AUTOUPDATE Auto-update remote plugins (true/false)
+  PROMPT                 Enable/disable Chief prompt (true/false)
+  COLORED_PROMPT         Enable colored prompts (true/false)
+  GIT_PROMPT             Show git status in prompt (true/false)
+  MULTILINE_PROMPT       Use multi-line prompt layout (true/false)
+  SHORT_PATH             Show short paths in prompt (true/false)
+  COLORED_LS             Enable colored ls output (true/false)
+  RSA_KEYS_PATH          Path to SSH RSA keys directory
+  ALIAS                  Custom alias for chief commands
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME --list                   # List all configuration variables
+  $FUNCNAME banner true              # Enable startup banner
+  $FUNCNAME COLORED_LS false         # Disable colored ls
+  $FUNCNAME prompt true              # Enable custom prompt
+  $FUNCNAME rsa_keys_path \"\$HOME/.ssh\" # Set SSH keys path
+
+${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
+- Configuration names are case insensitive
+- String values with spaces should be quoted
+- Changes take effect immediately after reload
+- Some changes may require terminal restart
+- Reports previous and new values for each change
+"
+
+  if [[ $1 == "-?" ]]; then
+    echo -e "${USAGE}"
+    return
+  fi
+
+  # Handle --list option
+  if [[ $1 == "--list" || $1 == "-l" ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}Current Chief Configuration Settings:${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_BLUE}Source:${CHIEF_NO_COLOR} ${CHIEF_CONFIG}"
+    echo
+    
+    # List all CHIEF_CFG_ variables from config file
+    while IFS= read -r line; do
+      if [[ $line =~ ^[#]*CHIEF_CFG_([A-Z_]+)=(.*)$ ]]; then
+        local var_name="${BASH_REMATCH[1]}"
+        local var_value="${BASH_REMATCH[2]}"
+        local is_commented=""
+        
+        if [[ $line =~ ^# ]]; then
+          is_commented=" ${CHIEF_COLOR_RED}(commented/disabled)${CHIEF_NO_COLOR}"
+        fi
+        
+        echo -e "  ${CHIEF_COLOR_GREEN}${var_name}${CHIEF_NO_COLOR}=${CHIEF_COLOR_YELLOW}${var_value}${CHIEF_NO_COLOR}${is_commented}"
+      fi
+    done < "${CHIEF_CONFIG}"
+    
+    return
+  fi
+
+  if [[ $# -lt 2 ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Missing required arguments"
+    echo -e "${USAGE}"
+    return 1
+  fi
+
+  local config_name=$(echo "$1" | tr '[:lower:]' '[:upper:]')
+  local config_value="$2"
+  local config_var="CHIEF_CFG_${config_name}"
+  
+  # Validate config name exists in template
+  if ! grep -q "^[#]*${config_var}=" "${CHIEF_CONFIG}" 2>/dev/null; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown configuration variable: ${config_name}"
+    echo -e "Run ${CHIEF_COLOR_GREEN}$FUNCNAME --list${CHIEF_NO_COLOR} to see all available variables"
+    return 1
+  fi
+
+  # Get previous value
+  local previous_value=""
+  local was_commented=false
+  if grep -q "^${config_var}=" "${CHIEF_CONFIG}"; then
+    previous_value=$(grep "^${config_var}=" "${CHIEF_CONFIG}" | cut -d'=' -f2-)
+  elif grep -q "^#${config_var}=" "${CHIEF_CONFIG}"; then
+    previous_value=$(grep "^#${config_var}=" "${CHIEF_CONFIG}" | cut -d'=' -f2-)
+    was_commented=true
+  else
+    previous_value="<not set>"
+  fi
+
+  # Validate boolean values and prepare new value
+  case "${config_value}" in
+    true|false)
+      # Valid boolean values
+      ;;
+    *)
+      # String value - wrap in quotes if it contains spaces or special chars
+      if [[ "${config_value}" =~ [[:space:]\"\'$] ]]; then
+        config_value="\"${config_value}\""
+      fi
+      ;;
+  esac
+
+  # Check if value is already set to the same value
+  if [[ "${previous_value}" == "${config_value}" && "${was_commented}" == false ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Configuration ${CHIEF_COLOR_CYAN}${config_var}${CHIEF_NO_COLOR} is already set to ${CHIEF_COLOR_YELLOW}${config_value}${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_BLUE}No changes made.${CHIEF_NO_COLOR}"
+    return 0
+  fi
+
+  echo -e "${CHIEF_COLOR_BLUE}Setting configuration variable:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_CYAN}Variable:${CHIEF_NO_COLOR} ${config_var}"
+  
+  local comment_note=""
+  if [[ "${was_commented}" == true ]]; then
+    comment_note=" (was commented)"
+  fi
+  
+  echo -e "  ${CHIEF_COLOR_CYAN}Previous:${CHIEF_NO_COLOR} ${previous_value}${comment_note}"
+  echo -e "  ${CHIEF_COLOR_CYAN}New:${CHIEF_NO_COLOR}      ${config_value}"
+
+  # Create backup
+  local backup_file="/tmp/chief_config_backup_$(date +%Y%m%d_%H%M%S)_$$"
+  if cp -L "${CHIEF_CONFIG}" "${backup_file}" >/dev/null 2>&1; then
+    echo -e "${CHIEF_COLOR_BLUE}✓${CHIEF_NO_COLOR} Configuration backed up to ${backup_file}"
+  else
+    echo -e "${CHIEF_COLOR_YELLOW}⚠${CHIEF_NO_COLOR} Warning: Could not create backup"
+  fi
+
+  # Update or add the configuration
+  echo -e "${CHIEF_COLOR_BLUE}Updating configuration file...${CHIEF_NO_COLOR}"
+  
+  if grep -q "^[#]*${config_var}=" "${CHIEF_CONFIG}"; then
+    # Configuration exists, update it (remove comment if present)
+    local temp_file="/tmp/chief_config_temp_$$"
+    local target_file=$(readlink -f "${CHIEF_CONFIG}" 2>/dev/null || echo "${CHIEF_CONFIG}")
+    
+    # Temporarily disable noclobber and clean up any existing temp file
+    local old_noclobber=$(set +o | grep noclobber)
+    set +o noclobber
+    rm -f "${temp_file}"
+    
+    if sed "s|^[#]*${config_var}=.*|${config_var}=${config_value}|" "${CHIEF_CONFIG}" > "${temp_file}" && cp -f "${temp_file}" "${target_file}"; then
+      echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Updated ${config_var}"
+      rm -f "${temp_file}"
+    else
+      echo -e "${CHIEF_COLOR_RED}✗${CHIEF_NO_COLOR} Failed to update ${config_var}"
+      rm -f "${temp_file}"
+      return 1
+    fi
+    
+    # Restore noclobber setting
+    eval "${old_noclobber}"
+  else
+    # Configuration doesn't exist, add it
+    if echo "${config_var}=${config_value}" >> "${CHIEF_CONFIG}"; then
+      echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Added ${config_var}"
+    else
+      echo -e "${CHIEF_COLOR_RED}✗${CHIEF_NO_COLOR} Failed to add ${config_var}"
+      return 1
+    fi
+  fi
+
+  # Reload configuration
+  echo -e "${CHIEF_COLOR_BLUE}Reloading Chief configuration...${CHIEF_NO_COLOR}"
+  if __load_library --verbose; then
+    echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Configuration reloaded successfully"
+  else
+    echo -e "${CHIEF_COLOR_YELLOW}⚠${CHIEF_NO_COLOR} Configuration file updated but reload had issues"
+  fi
+  
+  # Verify the change
+  local current_value
+  if current_value=$(grep "^${config_var}=" "${CHIEF_CONFIG}" 2>/dev/null | cut -d'=' -f2-); then
+    echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Confirmed: ${config_var}=${current_value}"
+  else
+    echo -e "${CHIEF_COLOR_YELLOW}⚠${CHIEF_NO_COLOR} Could not verify the configuration change"
+  fi
+}
+
 function chief.plugins() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
 
@@ -1359,7 +1554,8 @@ function __show_core_commands() {
   echo -e "${CHIEF_COLOR_YELLOW}Core Chief Commands:${CHIEF_NO_COLOR}"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Configuration & Setup:${CHIEF_NO_COLOR}"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}        Edit Chief configuration"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}        Edit Chief configuration file"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.config_set${CHIEF_NO_COLOR}    Set configuration variables directly"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.reload${CHIEF_NO_COLOR}        Reload Chief environment"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR}        Update Chief to latest version"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.uninstall${CHIEF_NO_COLOR}     Remove Chief from system"
@@ -1534,7 +1730,7 @@ function __show_compact_reference() {
   echo -e "${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR} All commands below should be prefixed with ${CHIEF_COLOR_GREEN}chief.${CHIEF_NO_COLOR}"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Core Commands:${CHIEF_NO_COLOR}"
-  echo "  config, reload, update, uninstall, whereis, hints, help"
+  echo "  config, config_set, reload, update, uninstall, whereis, hints, help"
   echo
   echo -e "${CHIEF_COLOR_CYAN}File Editors:${CHIEF_NO_COLOR}"
   echo "  bash_profile, bashrc, profile"

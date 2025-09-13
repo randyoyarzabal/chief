@@ -3,38 +3,54 @@
 ## 3.0
 
 ### Major System Overhauls
+
 - **Complete Help System Rewrite**: New `chief.help` with categories (commands, plugins, config), search functionality (`--search`), and compact mode (`--compact`). Original help moved to improved `chief.hints`.
 - **chief.whereis Complete Rewrite**: Now finds ALL occurrences of functions, variables, and aliases across system startup scripts, Chief core files, and user plugins. Shows exact line numbers and indicates if definitions are loaded (green) or inactive (red).
 
 ### New Python Virtual Environment Management
+
 - **chief.python_create_ve**: Create virtual environments using venv module, defaults to `~/.venv` in home directory
 - **chief.python_start_ve**: Start/activate virtual environments with smart detection
 - **chief.python_stop_ve**: Stop/deactivate virtual environments
 - All functions use standardized usage and support custom paths
 
 ### Enhanced SSH Key Management
+
 - **chief.ssh_create_keypair**: Now supports both `rsa` and `ed25519` key types with flexible naming
 - Automatically creates `~/.ssh` directory with proper permissions (700)
 - Uses `name_type.private`/`name_type.public` naming convention for custom keys
 - Sets secure permissions: private keys (600), public keys (644)
 
+### New Configuration Management
+
+- **chief.config_set**: Set configuration variables directly from command line with comprehensive feedback
+- Supports case-insensitive config names (without CHIEF_CFG_ prefix)  
+- Shows previous vs new values, handles both boolean and string values
+- `--list` option shows all available configuration variables and current values
+- Automatic backup creation and config reload after changes
+- Smart validation and "already set" detection
+
 ### Comprehensive Configuration Help
+
 - **chief.help config**: Now shows ALL 17+ configuration options organized by category
 - Added missing options: BANNER, COLORED_PROMPT, GIT_PROMPT, MULTILINE_PROMPT, COLORED_LS, AUTOCHECK_UPDATES, plugin templates, remote git settings, RSA_KEYS_PATH
 - Shows current values and conditional information for remote plugin configurations
 
 ### Critical Bug Fixes
+
 - **Fixed chief.update**: Corrected critical bug where `${CHIEF_PATH}` was executed as command instead of changing directory
 - **Installation Script**: Fixed prompt setup and validation issues, added post-installation reminders
 - **Terminal Compatibility**: Removed problematic icons from help system and commands (kept simple ✓/✗ for status)
 
 ### User Experience Improvements
+
 - **Clean Help Output**: Removed repetitive `chief.` prefixes from help text, added clear notes about command usage
 - **Better Documentation**: Added "Key Features Highlight" section to README with anchor links
 - **Improved Installation**: Enhanced messaging, validation steps, and post-install guidance
 - **Standardized Usage**: Consistent usage text formatting across all functions and plugins
 
 ### Code Quality & Compatibility
+
 - **Error Handling**: Improved validation and error messages throughout the system
 - **Documentation Updates**: Comprehensive help system documentation and feature highlights
 

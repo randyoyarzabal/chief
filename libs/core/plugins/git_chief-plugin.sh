@@ -309,6 +309,97 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   echo -e "${CHIEF_COLOR_GREEN}Tag deleted successfully${CHIEF_NO_COLOR}"
 }
 
+function chief.git_amend() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [commit_message]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Amend the last commit with staged changes and/or update the commit message.
+Handles both local-only commits and commits that have been pushed to remote.
+
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  commit_message  Optional new commit message (if omitted, keeps current message)
+
+${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
+1. Stage any new changes (git add .)
+2. Amend last commit with staged changes and/or new message
+3. Intelligently push to remote (force-with-lease if previously pushed)
+
+${CHIEF_COLOR_MAGENTA}Smart Push Logic:${CHIEF_NO_COLOR}
+- If commit was never pushed: performs regular push
+- If commit was already pushed: uses --force-with-lease for safety
+- Automatically detects push status to prevent errors
+
+${CHIEF_COLOR_BLUE}Common Use Cases:${CHIEF_NO_COLOR}
+- Add forgotten files to last commit
+- Fix typos in commit message
+- Add Jira ID required by pre-commit hooks
+- Include additional changes in last commit
+- Correct commit message format
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME                           # Amend with staged changes, keep message
+  $FUNCNAME \"PROJ-123: Fix login bug\"  # Amend with new message
+  $FUNCNAME \"Add missing Jira ID\"       # Fix message for pre-commit hooks
+
+${CHIEF_COLOR_RED}Safety Notes:${CHIEF_NO_COLOR}
+- Only amends the most recent commit
+- Uses --force-with-lease to prevent overwriting others' work
+- Automatically stages changes before amending
+"
+
+  if [[ $1 == "-?" ]]; then
+    echo -e "${USAGE}"
+    return
+  fi
+
+  echo -e "${CHIEF_COLOR_BLUE}Repository:${CHIEF_NO_COLOR} $(git config --get remote.origin.url)"
+  
+  # Stage any new changes
+  echo -e "${CHIEF_COLOR_BLUE}Staging changes...${CHIEF_NO_COLOR}"
+  git add .
+  
+  # Check if there are any staged changes or if we're just changing the message
+  local has_staged_changes
+  has_staged_changes=$(git diff --cached --name-only | wc -l)
+  
+  # Amend the commit
+  if [[ -n "$1" ]]; then
+    echo -e "${CHIEF_COLOR_BLUE}Amending commit with new message:${CHIEF_NO_COLOR} $1"
+    git commit --amend -m "$1"
+  else
+    if [[ $has_staged_changes -gt 0 ]]; then
+      echo -e "${CHIEF_COLOR_BLUE}Amending commit with staged changes (keeping message)...${CHIEF_NO_COLOR}"
+    else
+      echo -e "${CHIEF_COLOR_YELLOW}No staged changes found. Use with a message to update commit message only.${CHIEF_NO_COLOR}"
+      return 1
+    fi
+    git commit --amend --no-edit
+  fi
+  
+  # Check if the commit has been pushed to remote
+  local current_branch
+  local local_commit
+  local remote_commit
+  current_branch=$(git branch --show-current)
+  local_commit=$(git rev-parse HEAD)
+  remote_commit=$(git rev-parse "origin/${current_branch}" 2>/dev/null)
+  
+  if [[ -n "$remote_commit" ]] && git merge-base --is-ancestor "$local_commit" "origin/${current_branch}" 2>/dev/null; then
+    # Commit was already pushed, use force-with-lease
+    echo -e "${CHIEF_COLOR_BLUE}Commit was previously pushed, using force-with-lease...${CHIEF_NO_COLOR}"
+    git push --force-with-lease
+  else
+    # This is a new commit or remote doesn't exist, use regular push
+    echo -e "${CHIEF_COLOR_BLUE}Pushing amended commit...${CHIEF_NO_COLOR}"
+    if ! git push 2>/dev/null; then
+      echo -e "${CHIEF_COLOR_YELLOW}Regular push failed, trying force-with-lease...${CHIEF_NO_COLOR}"
+      git push --force-with-lease
+    fi
+  fi
+  
+  echo -e "${CHIEF_COLOR_GREEN}Commit amended and pushed successfully${CHIEF_NO_COLOR}"
+}
+
 function chief.git_delete_branch() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <branch_name>
 
@@ -446,7 +537,51 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   echo -e "${CHIEF_COLOR_BLUE}New URL:${CHIEF_NO_COLOR} $(git config --get remote.origin.url)"
 }
 
-function chief.git_reset-local() {
+function chief.git_reset-soft() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Undo the last commit while keeping all changes staged for re-commit.
+
+${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
+1. Reset HEAD pointer to previous commit (HEAD~1)
+2. Keep all changes from last commit in staging area
+3. Preserve working directory files unchanged
+
+${CHIEF_COLOR_MAGENTA}Key Benefits:${CHIEF_NO_COLOR}
+- Safe operation (no data loss)
+- Changes remain staged for easy re-commit
+- Allows fixing commit messages or adding forgotten files
+- Ideal for correcting the most recent commit
+
+${CHIEF_COLOR_BLUE}When to Use:${CHIEF_NO_COLOR}
+- Fix typos in the last commit message
+- Add forgotten files to the last commit
+- Split the last commit into multiple commits
+- Correct staging mistakes in recent commit
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME          # Undo last commit, keep changes staged
+  
+${CHIEF_COLOR_BLUE}After running this command:${CHIEF_NO_COLOR}
+- Previous commit is removed from history
+- All files from that commit remain staged
+- Use 'git commit' to create new commit with same or different message
+"
+
+  if [[ $1 == "-?" ]]; then
+    echo -e "${USAGE}"
+    return
+  fi
+
+  echo -e "${CHIEF_COLOR_BLUE}Repository:${CHIEF_NO_COLOR} $(git config --get remote.origin.url)"
+  echo -e "${CHIEF_COLOR_BLUE}Undoing last commit (keeping changes staged)...${CHIEF_NO_COLOR}"
+  git reset --soft HEAD~1
+  echo -e "${CHIEF_COLOR_GREEN}Last commit undone - changes remain staged${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_YELLOW}Tip:${CHIEF_NO_COLOR} Use 'git status' to see staged files"
+}
+
+function chief.git_reset-hard() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}

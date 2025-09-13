@@ -109,8 +109,9 @@ chief.[tab][tab]
 # Create your first plugin
 chief.plugin mytools
 
-# Configure Chief
-chief.config
+# Configure Chief (editor or direct commands)
+chief.config                    # Opens editor
+chief.config_set prompt true    # Direct config (config option without CHIEF_CFG_ prefix)
 
 # Edit shell files with auto-reload
 chief.bash_profile
@@ -289,7 +290,8 @@ chief.whereis my_function
 
 ```bash
 # Configure your experience
-chief.config
+chief.config                     # Edit config file
+chief.config_set banner false    # Quick config (CHIEF_CFG_BANNER=false)
 
 # Update Chief
 chief.update
@@ -500,7 +502,20 @@ CHIEF_CFG_PLUGINS_GIT_PATH="$HOME/team-plugins/frontend" # Frontend tools only
 
 ## 🛠️ Configuration Options
 
-Chief is highly customizable. Run `chief.config` to edit settings:
+Chief is highly customizable. Use `chief.config` to edit the config file or `chief.config_set` for direct command-line configuration:
+
+```bash
+# Edit configuration file
+chief.config
+
+# Set configuration variables directly (use config name without CHIEF_CFG_ prefix)
+chief.config_set banner false         # Sets CHIEF_CFG_BANNER=false
+chief.config_set prompt true          # Sets CHIEF_CFG_PROMPT=true  
+chief.config_set colored_ls true      # Sets CHIEF_CFG_COLORED_LS=true
+
+# List all configuration variables and current values  
+chief.config_set --list
+```
 
 | Configuration | Default | Description |
 |---------------|---------|-------------|
