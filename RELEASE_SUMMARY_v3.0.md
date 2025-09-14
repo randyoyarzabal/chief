@@ -3,25 +3,34 @@
 ## 🚀 Major New Features
 
 ### New Configuration Management
+
 - **`chief.config_set`**: Set configuration options directly from command line
 - Interactive prompts with `--yes` flag for automation
 - `--list` option to view all configuration variables
+- **`chief.config_update`**: Intelligent configuration reconciliation system
+- Automatically adds new config options while preserving user customizations
+- Handles renamed variables (e.g., RSA_KEYS_PATH → SSH_KEYS_PATH) seamlessly
+- Creates timestamped backups and validates syntax before applying changes
 
 ### Complete Help System Rewrite
+
 - **`chief.help`**: New categorized help system with search (`--search`) and compact mode (`--compact`)
 - **`chief.whereis`**: Complete rewrite - finds ALL occurrences with exact line numbers
 
 ### Python Virtual Environment Management
+
 - **`chief.python_create_ve`**: Create virtual environments
 - **`chief.python_start_ve`**: Smart activation with detection
 - **`chief.python_stop_ve`**: Clean deactivation
 
 ### Enhanced SSH Key Management
+
 - Support for **all SSH key types** (RSA, ed25519, ECDSA, etc.)
 - **Selective key loading** via symlinks
 - Improved `chief.ssh_create_keypair` with modern algorithms
 
 ### Plugin Development Enhancements
+
 - **VSCode Integration**: Edit plugins with `chief.plugin --code <name>`
 - Automatic detection and fallback to default editor
 
@@ -30,6 +39,7 @@
 ### SSH Configuration Changes (Action Required)
 
 **1. SSH Key Extension Change:**
+
 ```bash
 # OLD: Keys needed .rsa extension
 ~/.ssh/id_rsa
@@ -39,6 +49,7 @@
 ```
 
 **2. Configuration Variable Renamed:**
+
 ```bash
 # OLD
 CHIEF_CFG_RSA_KEYS_PATH="$HOME/.ssh"
@@ -49,9 +60,30 @@ CHIEF_CFG_SSH_KEYS_PATH="$HOME/.ssh"
 
 ## 📋 Upgrade Instructions
 
-### For v2.x Users
+### 🚀 Automatic Upgrade (Recommended for v2.x Users)
+
+Use the new automated configuration reconciliation to handle all breaking changes:
+
+```bash
+# Step 1: Update Chief to v3.0
+chief.update  # or reinstall: bash -c "$(curl -fsSL ...install.sh)"
+
+# Step 2: Automatically handle all configuration changes
+chief.config_update
+```
+
+**What `chief.config_update` does automatically:**
+
+- ✅ **Renames variables**: `CHIEF_CFG_RSA_KEYS_PATH` → `CHIEF_CFG_SSH_KEYS_PATH`
+- ✅ **Adds new options**: All v3.0 configuration variables
+- ✅ **Preserves settings**: Your existing customizations remain intact
+- ✅ **Creates backup**: Timestamped backup before any changes
+- ✅ **Shows preview**: `--dry-run` option to see changes first
+
+### 🛠️ Manual Upgrade (Alternative)
 
 **1. Update SSH Configuration:**
+
 ```bash
 # Edit your chief.config file and change:
 # CHIEF_CFG_RSA_KEYS_PATH → CHIEF_CFG_SSH_KEYS_PATH
@@ -61,6 +93,7 @@ chief.config_set ssh_keys_path "$HOME/.ssh"
 ```
 
 **2. Update SSH Keys:**
+
 ```bash
 # Option A: Selective loading (recommended)
 cd ~/.ssh
@@ -73,8 +106,9 @@ mv id_ed25519 id_ed25519.key
 ```
 
 **3. Add New Configuration Options:**
+
 ```bash
-# Add these new options to chief.config:
+# Manual addition to chief.config:
 CHIEF_CFG_CONFIG_SET_INTERACTIVE=true
 CHIEF_CFG_MULTILINE_PROMPT=false
 CHIEF_CFG_AUTOCHECK_UPDATES=false
@@ -105,6 +139,9 @@ CHIEF_CFG_COLORED_LS=false
 ## 📖 Quick Start After Upgrade
 
 ```bash
+# Update your configuration with new v3.0 options
+chief.config_update
+
 # Check your configuration
 chief.config_set --list
 

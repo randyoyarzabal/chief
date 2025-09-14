@@ -566,7 +566,8 @@ function __chief.hints_text() {
     fi
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Essential Commands:${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit configuration file | ${CHIEF_COLOR_GREEN}chief.config_set <option> <value>${CHIEF_NO_COLOR} to set config directly"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit configuration file | ${CHIEF_COLOR_GREEN}chief.config_set <option> <value>${CHIEF_NO_COLOR} to set config directly
+    - ${CHIEF_COLOR_GREEN}chief.config_update${CHIEF_NO_COLOR} to update config with new template options"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.help${CHIEF_NO_COLOR} for comprehensive help | ${CHIEF_COLOR_GREEN}chief.help --compact${CHIEF_NO_COLOR} for quick reference"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.whereis <name>${CHIEF_NO_COLOR} to find any function/alias location"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.vault_*${CHIEF_NO_COLOR} to encrypt/decrypt secrets (requires ansible-vault)"
@@ -1368,6 +1369,407 @@ ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
   fi
 }
 
+function __get_config_renames() {
+  # Usage: __get_config_renames
+  # 
+  # Return associative array of old->new config variable names
+  # Used for migrating renamed configuration options
+  
+  # Define config renames (old_name:new_name)
+  local -A renames=(
+    ["CHIEF_CFG_RSA_KEYS_PATH"]="CHIEF_CFG_SSH_KEYS_PATH"
+  )
+  
+  # Output the mappings
+  for old_key in "${!renames[@]}"; do
+    echo "${old_key}:${renames[$old_key]}"
+  done
+}
+
+function __parse_config_template() {
+  # Usage: __parse_config_template <template_file>
+  # 
+  # Parse template config file and extract all configuration options with their comments
+  # Returns format: VARIABLE_NAME|default_value|is_commented|comment_block
+  
+  local template_file="$1"
+  local current_comments=""
+  
+  if [[ ! -f "$template_file" ]]; then
+    echo "Error: Template file not found: $template_file" >&2
+    return 1
+  fi
+  
+  while IFS= read -r line; do
+    # Skip empty lines but preserve section breaks
+    if [[ -z "$line" ]]; then
+      if [[ -n "$current_comments" ]]; then
+        current_comments="${current_comments}\n"
+      fi
+      continue
+    fi
+    
+    # Collect comments and section headers
+    if [[ "$line" =~ ^[[:space:]]*# ]] && [[ ! "$line" =~ ^[[:space:]]*#[[:space:]]*CHIEF_CFG_ ]]; then
+      if [[ -n "$current_comments" ]]; then
+        current_comments="${current_comments}\n${line}"
+      else
+        current_comments="$line"
+      fi
+      continue
+    fi
+    
+    # Parse configuration variables (both commented and uncommented)
+    if [[ "$line" =~ ^[[:space:]]*#?[[:space:]]*CHIEF_CFG_([A-Z_]+)=(.*)$ ]]; then
+      local var_name="CHIEF_CFG_${BASH_REMATCH[1]}"
+      local var_value="${BASH_REMATCH[2]}"
+      local is_commented="active"
+      
+      # Check if the variable line is commented out
+      if [[ "$line" =~ ^[[:space:]]*#[[:space:]]*CHIEF_CFG_ ]]; then
+        is_commented="commented"
+      fi
+      
+      # Output: variable|value|is_commented|comments
+      echo "${var_name}|${var_value}|${is_commented}|${current_comments}"
+      current_comments=""
+    else
+      # Reset comments if we hit a non-config line
+      current_comments=""
+    fi
+  done < "$template_file"
+}
+
+function __parse_user_config() {
+  # Usage: __parse_user_config <user_config_file>
+  # 
+  # Parse user config file and extract current values
+  # Returns format: VARIABLE_NAME|current_value|is_commented
+  
+  local user_config="$1"
+  
+  if [[ ! -f "$user_config" ]]; then
+    echo "Error: User config file not found: $user_config" >&2
+    return 1
+  fi
+  
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^[[:space:]]*#[[:space:]]*CHIEF_CFG_([A-Z_]+)=(.*)$ ]]; then
+      # Commented config option
+      local var_name="CHIEF_CFG_${BASH_REMATCH[1]}"
+      local var_value="${BASH_REMATCH[2]}"
+      echo "${var_name}|${var_value}|commented"
+    elif [[ "$line" =~ ^[[:space:]]*CHIEF_CFG_([A-Z_]+)=(.*)$ ]]; then
+      # Active config option
+      local var_name="CHIEF_CFG_${BASH_REMATCH[1]}"
+      local var_value="${BASH_REMATCH[2]}"
+      echo "${var_name}|${var_value}|active"
+    fi
+  done < "$user_config"
+}
+
+function chief.config_update() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [OPTIONS]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Update your Chief configuration file with new options from the latest template.
+This reconciles your existing config with new features while preserving your customizations.
+
+${CHIEF_COLOR_GREEN}What This Does:${CHIEF_NO_COLOR}
+- Creates a timestamped backup of your current configuration
+- Adds any new configuration options from the template
+- Preserves all your existing settings and customizations  
+- Handles renamed configuration options automatically
+- Maintains all comments and documentation from template
+- Reloads Chief with the updated configuration
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  --dry-run         Show what would be changed without making changes
+  --no-backup       Skip creating backup (not recommended)
+  --force           Update even if no changes detected
+  -?, --help        Show this help message
+
+${CHIEF_COLOR_MAGENTA}Safety Features:${CHIEF_NO_COLOR}
+- Always creates backup before making changes
+- Preserves your existing values and customizations
+- Shows exactly what changes will be made
+- Validates config syntax before applying changes
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME                     # Update config with backup and reload
+  $FUNCNAME --dry-run           # Preview changes without applying
+  $FUNCNAME --force             # Force update even if up-to-date
+"
+
+  # Parse arguments
+  local dry_run=false
+  local no_backup=false  
+  local force_update=false
+  
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --dry-run)
+        dry_run=true
+        shift
+        ;;
+      --no-backup)
+        no_backup=true
+        shift
+        ;;
+      --force)
+        force_update=true
+        shift
+        ;;
+      -\?|--help)
+        echo -e "${USAGE}"
+        return 0
+        ;;
+      *)
+        echo -e "${CHIEF_COLOR_RED}Error: Unknown option: $1${CHIEF_NO_COLOR}"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+    esac
+  done
+
+  # Validate required files exist
+  if [[ ! -f "$CHIEF_CONFIG" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error: User config file not found: $CHIEF_CONFIG${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_YELLOW}Run 'chief.config' to create your configuration file first.${CHIEF_NO_COLOR}"
+    return 1
+  fi
+  
+  local template_file="${CHIEF_PATH}/templates/chief_config_template.sh"
+  if [[ ! -f "$template_file" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error: Config template not found: $template_file${CHIEF_NO_COLOR}"
+    return 1
+  fi
+
+  echo -e "${CHIEF_COLOR_CYAN}Chief Configuration Update${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_CYAN}=========================${CHIEF_NO_COLOR}"
+  echo
+  echo -e "${CHIEF_COLOR_BLUE}Current config:${CHIEF_NO_COLOR} $CHIEF_CONFIG"
+  echo -e "${CHIEF_COLOR_BLUE}Template:${CHIEF_NO_COLOR} $template_file"
+  echo
+
+  # Create backup unless disabled
+  local backup_file=""
+  if ! $no_backup && ! $dry_run; then
+    backup_file="${CHIEF_CONFIG}.backup.$(date +%Y%m%d_%H%M%S)"
+    echo -e "${CHIEF_COLOR_YELLOW}Creating backup: ${backup_file}${CHIEF_NO_COLOR}"
+    cp "$CHIEF_CONFIG" "$backup_file" || {
+      echo -e "${CHIEF_COLOR_RED}Error: Failed to create backup${CHIEF_NO_COLOR}"
+      return 1
+    }
+  fi
+
+  # Parse template and user config
+  echo -e "${CHIEF_COLOR_BLUE}Analyzing configuration files...${CHIEF_NO_COLOR}"
+  
+  local template_options user_options
+  template_options=$(__parse_config_template "$template_file") || {
+    echo -e "${CHIEF_COLOR_RED}Error: Failed to parse template config${CHIEF_NO_COLOR}"
+    return 1
+  }
+  
+  user_options=$(__parse_user_config "$CHIEF_CONFIG") || {
+    echo -e "${CHIEF_COLOR_RED}Error: Failed to parse user config${CHIEF_NO_COLOR}"
+    return 1
+  }
+
+  # Build associative arrays for easier lookup
+  declare -A template_vars template_status user_vars user_status renames
+  
+  # Load rename mappings
+  local rename_line
+  while IFS= read -r rename_line; do
+    if [[ "$rename_line" =~ ^([^:]+):([^:]+)$ ]]; then
+      renames["${BASH_REMATCH[1]}"]="${BASH_REMATCH[2]}"
+    fi
+  done < <(__get_config_renames)
+  
+  # Load template variables
+  while IFS='|' read -r var_name var_value is_commented comments; do
+    template_vars["$var_name"]="$var_value"
+    template_status["$var_name"]="$is_commented"
+  done <<< "$template_options"
+  
+  # Load user variables  
+  while IFS='|' read -r var_name var_value status; do
+    user_vars["$var_name"]="$var_value"
+    user_status["$var_name"]="$status"
+  done <<< "$user_options"
+
+  # Find changes needed
+  local changes_needed=false
+  local -a new_options=()
+  local -a renamed_options=()
+  
+  # Check for new options in template
+  for template_var in "${!template_vars[@]}"; do
+    if [[ -z "${user_vars[$template_var]:-}" ]]; then
+      new_options+=("$template_var")
+      changes_needed=true
+    fi
+  done
+  
+  # Check for renamed options
+  for old_var in "${!renames[@]}"; do
+    local new_var="${renames[$old_var]}"
+    if [[ -n "${user_vars[$old_var]:-}" && -z "${user_vars[$new_var]:-}" ]]; then
+      renamed_options+=("$old_var -> $new_var")
+      changes_needed=true
+    fi
+  done
+
+  # Display what will be changed
+  if [[ ${#new_options[@]} -gt 0 ]]; then
+    echo -e "\n${CHIEF_COLOR_GREEN}New options to be added:${CHIEF_NO_COLOR}"
+    printf '  • %s\n' "${new_options[@]}"
+  fi
+  
+  if [[ ${#renamed_options[@]} -gt 0 ]]; then
+    echo -e "\n${CHIEF_COLOR_YELLOW}Options to be renamed:${CHIEF_NO_COLOR}"
+    printf '  • %s\n' "${renamed_options[@]}"
+  fi
+
+  if ! $changes_needed && ! $force_update; then
+    echo -e "\n${CHIEF_COLOR_GREEN}✓ Your configuration is already up-to-date!${CHIEF_NO_COLOR}"
+    return 0
+  fi
+
+  if $dry_run; then
+    echo -e "\n${CHIEF_COLOR_CYAN}Dry run completed. Use without --dry-run to apply changes.${CHIEF_NO_COLOR}"
+    return 0
+  fi
+
+  if ! $force_update; then
+    echo
+    read -p "Apply these changes to your configuration? [y/N]: " -r
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}Configuration update cancelled.${CHIEF_NO_COLOR}"
+      return 0
+    fi
+  fi
+
+  # Create updated config
+  local temp_config="${CHIEF_CONFIG}.tmp.$$"
+  
+  echo -e "\n${CHIEF_COLOR_BLUE}Updating configuration...${CHIEF_NO_COLOR}"
+  
+  # Start with template structure and inject user values
+  {
+    while IFS='|' read -r var_name var_value template_is_commented comments; do
+      # Print comments
+      if [[ -n "$comments" ]]; then
+        echo -e "$comments"
+      fi
+      
+      # Handle renamed variables
+      local user_value=""
+      local old_var_for_status=""
+      
+      # Check if this is a renamed variable (new name)
+      for old_var in "${!renames[@]}"; do
+        if [[ "${renames[$old_var]}" == "$var_name" && -n "${user_vars[$old_var]:-}" ]]; then
+          user_value="${user_vars[$old_var]}"
+          old_var_for_status="$old_var"
+          echo "# Renamed from $old_var"
+          break
+        fi
+      done
+      
+      # Use existing user value if available
+      if [[ -z "$user_value" && -n "${user_vars[$var_name]:-}" ]]; then
+        user_value="${user_vars[$var_name]}"
+      fi
+      
+      # Use template default if no user value
+      if [[ -z "$user_value" ]]; then
+        user_value="$var_value"
+      fi
+      
+      # Determine if should be commented
+      local comment_prefix=""
+      local check_var="$var_name"
+      
+      # For renamed variables, check the old variable's status
+      if [[ -n "$old_var_for_status" ]]; then
+        check_var="$old_var_for_status"
+      fi
+      
+      # Use user's existing status if available, otherwise use template status
+      local var_status="${user_status[$check_var]:-$template_is_commented}"
+      if [[ "$var_status" == "commented" ]]; then
+        comment_prefix="#"
+      fi
+      
+      echo "${comment_prefix}${var_name}=${user_value}"
+      echo
+    done <<< "$template_options"
+    
+    # Add any user variables not in template (custom additions)
+    for user_var in "${!user_vars[@]}"; do
+      if [[ -z "${template_vars[$user_var]:-}" ]]; then
+        # Skip if this was a renamed variable (old name)
+        local skip_old=false
+        for old_var in "${!renames[@]}"; do
+          if [[ "$old_var" == "$user_var" ]]; then
+            skip_old=true
+            break
+          fi
+        done
+        
+        if ! $skip_old; then
+          echo "# Custom user variable (not in template)"
+          local comment_prefix=""
+          [[ "${user_status[$user_var]}" == "commented" ]] && comment_prefix="#"
+          echo "${comment_prefix}${user_var}=${user_vars[$user_var]}"
+          echo
+        fi
+      fi
+    done
+    
+  } > "$temp_config"
+  
+  # Validate the new config by checking syntax
+  if ! bash -n "$temp_config" 2>/dev/null; then
+    echo -e "${CHIEF_COLOR_RED}Error: Generated configuration has syntax errors${CHIEF_NO_COLOR}"
+    rm -f "$temp_config"
+    return 1
+  fi
+  
+  # Apply the changes
+  mv "$temp_config" "$CHIEF_CONFIG" || {
+    echo -e "${CHIEF_COLOR_RED}Error: Failed to update configuration file${CHIEF_NO_COLOR}"
+    rm -f "$temp_config"
+    return 1
+  }
+  
+  echo -e "${CHIEF_COLOR_GREEN}✓ Configuration updated successfully${CHIEF_NO_COLOR}"
+  
+  if [[ -n "$backup_file" ]]; then
+    echo -e "${CHIEF_COLOR_BLUE}✓ Backup saved: ${backup_file}${CHIEF_NO_COLOR}"
+  fi
+  
+  # Reload Chief configuration
+  echo -e "\n${CHIEF_COLOR_BLUE}Reloading Chief...${CHIEF_NO_COLOR}"
+  if __load_library --verbose; then
+    echo -e "${CHIEF_COLOR_GREEN}✓ Chief reloaded successfully with updated configuration${CHIEF_NO_COLOR}"
+  else
+    echo -e "${CHIEF_COLOR_YELLOW}⚠ Configuration updated but reload had issues${CHIEF_NO_COLOR}"
+  fi
+  
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}Configuration update complete!${CHIEF_NO_COLOR}"
+  if [[ ${#new_options[@]} -gt 0 ]]; then
+    echo -e "${CHIEF_COLOR_GREEN}Added ${#new_options[@]} new configuration option(s)${CHIEF_NO_COLOR}"
+  fi
+  if [[ ${#renamed_options[@]} -gt 0 ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Renamed ${#renamed_options[@]} configuration option(s)${CHIEF_NO_COLOR}"
+  fi
+}
+
 function chief.plugins() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
 
@@ -1651,6 +2053,7 @@ function __show_core_commands() {
   echo -e "${CHIEF_COLOR_CYAN}Configuration & Setup:${CHIEF_NO_COLOR}"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}        Edit Chief configuration file"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.config_set${CHIEF_NO_COLOR}    Set configuration variables directly"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.config_update${CHIEF_NO_COLOR} Update config with new options from template"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.reload${CHIEF_NO_COLOR}        Reload Chief environment"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR}        Update Chief to latest version"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.uninstall${CHIEF_NO_COLOR}     Remove Chief from system"
@@ -1818,6 +2221,7 @@ function __show_configuration_help() {
   echo -e "• Edit config file: ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}"
   echo -e "• Set config directly: ${CHIEF_COLOR_GREEN}chief.config_set <option> <value>${CHIEF_NO_COLOR}"
   echo -e "• List all config vars: ${CHIEF_COLOR_GREEN}chief.config_set --list${CHIEF_NO_COLOR}"
+  echo -e "• Update config with latest options: ${CHIEF_COLOR_GREEN}chief.config_update${CHIEF_NO_COLOR}"
   echo -e "• View current config: ${CHIEF_COLOR_GREEN}cat $CHIEF_CONFIG${CHIEF_NO_COLOR}"
   echo -e "• Reload after changes: ${CHIEF_COLOR_GREEN}chief.reload${CHIEF_NO_COLOR}"
   echo -e "• Test prompt: ${CHIEF_COLOR_GREEN}chief.git.legend${CHIEF_NO_COLOR} (if git prompt enabled)"

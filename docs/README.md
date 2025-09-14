@@ -112,6 +112,7 @@ chief.plugin mytools
 # Configure Chief (editor or direct commands)
 chief.config                    # Opens editor
 chief.config_set prompt true    # Direct config (option without CHIEF_CFG_ prefix)
+chief.config_update             # Update config with new template options
 
 # Edit shell files with auto-reload
 chief.bash_profile
@@ -172,6 +173,30 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 - ✅ **Safe operation** - Changes directory before removal to avoid conflicts
 
 > **🛡️ Safe Uninstall**: Your personal plugins, shell customizations outside Chief, and other configurations remain completely untouched.
+
+#### Upgrade
+
+When upgrading Chief to a newer version, use the automated configuration update feature:
+
+```bash
+# Method 1: Automatic config reconciliation (Recommended for v3.0+)
+chief.config_update                   # Updates config with new options, handles renames
+chief.config_update --dry-run         # Preview changes before applying
+
+# Method 2: Manual reinstall
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
+```
+
+**What `chief.config_update` does:**
+
+- ✅ **Adds new features** - Automatically adds new configuration options from latest template
+- ✅ **Handles renames** - Seamlessly migrates renamed variables (e.g., RSA_KEYS_PATH → SSH_KEYS_PATH)
+- ✅ **Preserves customizations** - Keeps all your existing settings and values
+- ✅ **Creates backup** - Makes timestamped backup before any changes
+- ✅ **Validates syntax** - Ensures new config is valid before applying
+- ✅ **Reloads automatically** - Activates new features immediately
+
+> **💡 Tip**: Always run `chief.config_update` after upgrading to get access to new v3.0 features like enhanced SSH key management, VSCode plugin editing, and improved help system.
 
 </details>
 
@@ -534,6 +559,10 @@ chief.config_set colored_ls true      # Sets CHIEF_CFG_COLORED_LS=true (prompts 
 
 # List all configuration variables and current values  
 chief.config_set --list
+
+# Update configuration with new template options (perfect for upgrades)
+chief.config_update                   # Add missing options, handle renames, preserve customizations
+chief.config_update --dry-run         # Preview changes without applying them
 
 # Disable interactive prompts globally
 chief.config_set config_set_interactive false
