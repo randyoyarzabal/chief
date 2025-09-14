@@ -41,7 +41,42 @@ echo 'source ${CHIEF_PATH}/chief.sh' >> ~/.bash_profile
 source ~/.chief/chief.sh --lib-only
 ```
 
+## 🗑️ Uninstallation
 
+### Method 1: Using Chief Command (Easiest)
+
+```bash
+# If Chief is currently installed and working
+chief.uninstall
+```
+
+### Method 2: Quick Uninstall (One-liner)
+
+```bash
+# Works from anywhere, even if Chief installation is broken
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh)"
+```
+
+### Method 3: Manual Methods
+
+```bash
+# Option A: Using local uninstall script
+~/.chief/tools/uninstall.sh
+
+# Option B: Complete manual removal
+rm -rf ~/.chief
+rm -f ~/.chief_config.sh
+# Then manually remove Chief lines from ~/.bash_profile
+```
+
+**What happens during uninstall:**
+
+- ✅ Installation directory (`~/.chief`) is completely removed
+- ✅ Configuration file is backed up as `~/.chief_config.sh.backup` then removed
+- ✅ Shell configuration (`~/.bash_profile`) is cleaned up automatically
+- ✅ Custom plugins directory remains untouched (if different from `~/.chief`)
+
+> **Note:** Your personal plugins and any custom configurations outside the Chief installation directory will not be affected.
 
 ## ⚡ Quick Start Guide
 
