@@ -2,6 +2,29 @@
 
 ## 3.0
 
+### Upgrading from v2.1.1 to v3.0
+
+When upgrading from v2.1.1 to v3.0, you should add the following configuration options to your `chief.config` file for full compatibility:
+
+#### Required New Configuration Options
+
+```bash
+# New in v3.0: Control interactive behavior of chief.config_set command
+# Set to false for non-interactive operation by default (useful for automation/scripts)
+CHIEF_CFG_CONFIG_SET_INTERACTIVE=true
+
+# New in v3.0: Enable multi-line prompt layout for better readability
+CHIEF_CFG_MULTILINE_PROMPT=false
+```
+
+### Issues Fixed/Implemented
+
+- Fixed chief.whereis sometimes doesn't find an alias/function #69
+- Implemented Add local install support #66
+- Fixed Bug in updates functionality #65
+- Implemented Add feature to edit plugins with VScode #60
+- Implemented Add colored __print* functions standard to the library. #59
+
 ### Major System Overhauls
 
 - **Complete Help System Rewrite**: New `chief.help` with categories (commands, plugins, config), search functionality (`--search`), and compact mode (`--compact`). Original help moved to improved `chief.hints`.

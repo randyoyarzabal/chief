@@ -220,18 +220,42 @@ function __this_file() {
 }
 
 # Edit a file and reload into memory if changed.
+function __has_vscode() {
+  # Usage: __has_vscode
+  # 
+  # Check if VSCode CLI 'code' binary is available
+  # Returns: 0 if available, 1 if not available
+  command -v code >/dev/null 2>&1
+}
+
 function __edit_file() {
-  # Usage: __edit_file <file>
+  # Usage: __edit_file <file> [editor_option]
+  # Arguments:
+  #   file - Path to the file to edit
+  #   editor_option - Optional: 'vscode' to use VSCode, otherwise uses default editor
   local file=${1}
+  local editor_option=${2}
   local date1
   local date2
+  
+  # Choose editor based on option and availability
+  local editor_cmd="vi"  # default editor
+  if [[ "$editor_option" == "vscode" ]]; then
+    if __has_vscode; then
+      editor_cmd="code --wait"
+    else
+      echo -e "${CHIEF_COLOR_YELLOW}Warning: VSCode 'code' command not found. Falling back to vi editor.${CHIEF_NO_COLOR}"
+      editor_cmd="vi"
+    fi
+  fi
+  
   if [[ ${PLATFORM} == "MacOS" ]]; then
     date1=$(stat -L -f "%Sm" -t "%Y%m%dT%H%M%S" "$file")
-    vi ${file}
+    ${editor_cmd} ${file}
     date2=$(stat -L -f "%Sm" -t "%Y%m%dT%H%M%S" "$file")
   else
     date1=$(stat -L -c %y "$file")
-    vi ${file}
+    ${editor_cmd} ${file}
     date2=$(stat -L -c %y "$file")
   fi
 
@@ -439,8 +463,13 @@ __get_plugins() {
 #   Note, will only succeed if plug-in is enabled in settings.
 # Usage: __edit_plugin <plug-in name>
 function __edit_plugin() {
+  # Usage: __edit_plugin <plugin_name> [editor_option]
+  # Arguments:
+  #   plugin_name - Name of the plugin to edit
+  #   editor_option - Optional: 'vscode' to use VSCode, otherwise uses default editor
   local plugin_name
   local plugin_file
+  local editor_option=${2}
 
   # Check if plugins are enabled.
   if [[ -z ${CHIEF_CFG_PLUGINS} ]]; then
@@ -453,7 +482,7 @@ function __edit_plugin() {
 
   # Check if the plugin file exists, if not, prompt to create it.
   if [[ -f ${plugin_file} ]]; then
-    __edit_file ${plugin_file}
+    __edit_file ${plugin_file} ${editor_option}
   else
     echo "Chief plugin: ${plugin_name} plugin file does not exist."
     if ! chief.etc_ask_yes_or_no "Create it?"; then
@@ -490,7 +519,7 @@ function __edit_plugin() {
     # Portable sed usage; reference: https://unix.stackexchange.com/a/381201
     sed -i.bak -e "s/\$CHIEF_PLUGIN_NAME/${plugin_name}/g" -- "${plugin_file}" && rm -rf "${plugin_file}.bak"
     #sed -i "s/\$CHIEF_PLUGIN_NAME/${plugin_name}/g" ${plugin_file}
-    __edit_file ${plugin_file}
+    __edit_file ${plugin_file} ${editor_option}
   fi
 }
 
@@ -1372,13 +1401,17 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
 }
 
 function chief.plugin() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [plugin_name]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [OPTIONS] [plugin_name]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Edit a Chief plugin file with automatic reload on changes.
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   plugin_name  Name of plugin to edit (without _chief-plugin.sh suffix)
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  --code, --vscode  Use VSCode editor (requires 'code' command)
+  -?               Show this help message
 
 ${CHIEF_COLOR_GREEN}Available Plugins:${CHIEF_NO_COLOR}
 $(__get_plugins)
@@ -1389,26 +1422,50 @@ ${CHIEF_COLOR_MAGENTA}Plugin Naming Convention:${CHIEF_NO_COLOR}
 - Must be executable and sourced
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME            # Edit default plugin
-  $FUNCNAME mytools    # Edit mytools_chief-plugin.sh
-  $FUNCNAME aws        # Edit aws_chief-plugin.sh
+  $FUNCNAME                    # Edit default plugin
+  $FUNCNAME mytools            # Edit mytools_chief-plugin.sh
+  $FUNCNAME --code aws         # Edit aws_chief-plugin.sh with VSCode
+  $FUNCNAME --vscode mytools   # Edit mytools_chief-plugin.sh with VSCode
 
 ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
-- Opens in your preferred \$EDITOR
+- Opens in your preferred editor (vi by default)
+- VSCode support with --code/--vscode flag
 - Automatically reloads plugin on save
 - Creates new plugin if it doesn't exist
 "
 
-  if [[ $1 == "-?" ]]; then
-    echo -e "${USAGE}"
-    return
+  # Parse arguments
+  local use_vscode=""
+  local plugin_name=""
+  
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -\?|--help)
+        echo -e "${USAGE}"
+        return
+        ;;
+      --code|--vscode)
+        use_vscode="vscode"
+        shift
+        ;;
+      -*)
+        echo -e "${CHIEF_COLOR_RED}Error: Unknown option: $1${CHIEF_NO_COLOR}"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+      *)
+        plugin_name="$1"
+        shift
+        ;;
+    esac
+  done
+
+  # Determine plugin name
+  if [[ -z "$plugin_name" ]]; then
+    plugin_name="default"
   fi
 
-  if [[ -z $1 ]]; then
-    __edit_plugin default
-  else
-    __edit_plugin $1
-  fi
+  __edit_plugin "$plugin_name" "$use_vscode"
 }
 
 function chief.bash_profile() {
