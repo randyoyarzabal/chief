@@ -20,239 +20,379 @@
 # ver. 1.0
 # Functions and aliases that are Openshift related.
 
-# Repeated from Chief core library to avoid dependency on core library for this plugin.
-# Color codes for printing messages
-CHIEF_COLOR_RED='\033[0;31m'
-CHIEF_COLOR_BLUE='\033[0;34m'
-CHIEF_COLOR_CYAN='\033[0;36m'
-CHIEF_COLOR_GREEN='\033[0;32m'
-CHIEF_COLOR_YELLOW='\033[1;33m'
-CHIEF_NO_COLOR='\033[0m' # Reset color/style
+# Block interactive execution
+if [[ $0 == "${BASH_SOURCE[0]}" ]]; then
+  echo "Error: $0 (Chief plugin) must be sourced; not executed interactively."
+  exit 1
+fi
 
-function __print_error(){
-  echo -e "${CHIEF_COLOR_RED}Error: $1${CHIEF_NO_COLOR}"
-}
-
-function __print_warn(){
-  echo -e "${CHIEF_COLOR_YELLOW}Warning: $1${CHIEF_NO_COLOR}"
-}
-
-function __print_success(){
-  echo -e "${CHIEF_COLOR_GREEN}$1${CHIEF_NO_COLOR}"
-}
-
-function __print_info(){
-  echo -e "${CHIEF_COLOR_CYAN}$1${CHIEF_NO_COLOR}"
-}
+# Note: Uses __print_* functions from Chief core library for consistent messaging
 
 function chief.oc.login() {
-  local USAGE="Usage: $FUNCNAME <host> [-kc (kubeconfig login)] [-ka (kubeadmin)] [-i (for no tls)]
+  local USAGE="Usage: $FUNCNAME <cluster_name> [options]
 
-Login to an OpenShift cluster using kubeconfig, kubeadmin or user credentials.
+Login to an OpenShift cluster using Vault secrets (preferred) or local cluster definitions.
 
-OpenShift CLI tool (oc) is required to be installed and available in your PATH.
-
-This function requires either option below or both (will try both in order):
-
-  - CHIEF_OC_CLUSTERS environment variable to be set with cluster information in the format:
-    CHIEF_OC_CLUSTERS['<cluster_name>']=<api_url>,<username>,<password>
-    Example:
-
-    declare -gA CHIEF_OC_CLUSTERS=(
-      ['hub']='https://api.hub.example.com,admin,password123'
-      ['tenant']='https://api.tenant.example.com,admin,password123'
-    )
-    ...
-
-    This allows you to login without using Vault.
-
-  Or:
-
-  - CHIEF_VAULT_OC_PATH environment variable to be set with the path where your OpenShift secrets are stored in Vault.
-    Example: export CHIEF_VAULT_OC_PATH='secrets/openshift'
-    This allows you to login using Vault secrets.
-    Requirements:
-      - Vault server to be running and accessible.
-      - VAULT_ADDR and VAULT_TOKEN environment variables to be set for Vault access.
-      - Vault secrets structure:
-        - 'secrets/openshift/<host>' containing:
-          - kubeconfig : kubeconfig file content
-          - kubeadmin : kubeadmin password
-          - api : API url of Openshift cluster
-
-  Requirements for this function:
-    - Hashicorp Vault CLI tool (vault) to be installed and configured with VAULT_ADDR and VAULT_TOKEN environment variables.
-
-Optional Environment Variables:
-  - CHIEF_OC_USERNAME : Username for OpenShift login (if not using kubeconfig or kubeadmin).
-  - CHIEF_OC_PASSWORD : Password for OpenShift login (if not using kubeconfig or kubeadmin).
+Arguments:
+  cluster_name    Name of the cluster to connect to
 
 Options:
-  -kc : Use kubeconfig to login. 
-  -ka : Use kubeadmin credentials to login. 
-  Note: -kc or -ka will not work if cluster is set in CHIEF_OC_CLUSTERS list.
-  -i  : Skip TLS verification (insecure).
+  -kc             Use kubeconfig authentication
+  -ka             Use kubeadmin authentication  
+  -i              Skip TLS verification (insecure)
+  -?              Show this help
 
-Examples: 
-  Login with kubeconfig:
-    $> oc.login hub_cluster -kc
-  Login as kubeadmin:
-    $> oc.login hub_cluster -ka
-  Login as user (CHIEF_OC_USERNAME):
-    $> oc.login hub_cluster
-  Optionally pass -i to skip TLS verification:
-    $> oc.login hub_cluster -i
-    $> oc.login hub_cluster -ka -i  
-"
-  local cluster=$1
-  local api_url
-  local username
-  local password
+Authentication Methods (in order of preference):
+  1. Vault (Recommended) - Requires:
+     • VAULT_ADDR and VAULT_TOKEN environment variables
+     • CHIEF_VAULT_OC_PATH (e.g., 'secrets/openshift')
+     • Vault secret at: \${CHIEF_VAULT_OC_PATH}/\${cluster_name}
+       - api: OpenShift API URL
+       - kubeconfig: kubeconfig file content (for -kc)
+       - kubeadmin: kubeadmin password (for -ka)
+  
+  2. Local Clusters - CHIEF_OC_CLUSTERS array:
+     declare -gA CHIEF_OC_CLUSTERS=(
+       ['cluster1']='https://api.cluster1.com,username,password'
+     )
+
+  3. Environment Variables (fallback):
+     • CHIEF_OC_USERNAME and optionally CHIEF_OC_PASSWORD
+
+Examples:
+  $FUNCNAME hub -kc         # Login with kubeconfig
+  $FUNCNAME hub -ka         # Login as kubeadmin  
+  $FUNCNAME hub -i          # Login with TLS verification disabled
+  $FUNCNAME hub             # Login with user credentials"
+  # Parse arguments
+  local cluster="$1"
+  local auth_method="user"
   local tls_option=""
 
-  if [[ -z $1 || $1 == "-?" ]]; then
+  if [[ -z "$cluster" || "$cluster" == "-?" ]]; then
     echo "${USAGE}"
     return 0
   fi
 
-  for arg in "$@"; do
-    if [[ "$arg" == "-i" ]]; then
-      tls_option="--insecure-skip-tls-verify=true"
-      break
-    fi
+  # Parse options
+  shift
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -kc) auth_method="kubeconfig"; shift ;;
+      -ka) auth_method="kubeadmin"; shift ;;
+      -i) tls_option="--insecure-skip-tls-verify=true"; shift ;;
+      *) __print_error "Unknown option: $1"; return 1 ;;
+    esac
   done
 
-  # Check if required environment variables and binaries are set
-  if ! type oc >/dev/null 2>&1; then
-    __print_error "Error: 'oc' CLI tool is not installed or not in your PATH."
-    __print_info "Please install the OpenShift CLI tool (oc) to use this function."
+  # Validate prerequisites
+  if ! command -v oc &>/dev/null; then
+    __print_error "OpenShift CLI (oc) is not installed or not in PATH."
     return 1
   fi
 
-  # If CHIEF_OC_CLUSTERS is set, use it to get the cluster information
-  local vault_fallback=false
-  if [[ -n ${CHIEF_OC_CLUSTERS[$cluster]} ]]; then
-    IFS=',' read -r api_url username password <<< "${CHIEF_OC_CLUSTERS[$cluster]}"
-    if [[ -z ${api_url} || -z ${username} ]]; then # Password can be empty
-      __print_error "Error: Cluster information for '${cluster}' is incomplete in CHIEF_OC_CLUSTERS."
-      vault_fallback=true
-    else
-      # Do not allow use of -kc or -ka options if CHIEF_OC_CLUSTERS is used
-      if [[ ${2} == "-kc" || ${2} == "-ka" ]]; then
-        __print_error "Error: Cannot use -kc or -ka options when cluster is defined in CHIEF_OC_CLUSTERS."
-        return 1
-      fi
-    fi
-    if ! $vault_fallback; then
-      __print_info "Logging in to OpenShift cluster '${cluster}' at '${api_url}' with credentials from CHIEF_OC_CLUSTERS."
-
-      if [[ -z $password ]]; then
-        __print_warn "Warning: Password is empty for user '${username}' in CHIEF_OC_CLUSTERS. Using passwordless login."
-        oc login -u "${username}" --server="${api_url}" ${tls_option}
-      else
-        __print_info "Using user: ${username} and password: [REDACTED]"
-        oc login -u "${username}" -p "${password}" --server="${api_url}" ${tls_option}
-      fi
-      echo ""
-      __print_success "Currently logged in as user: $(oc whoami) - Console: $(oc whoami --show-console)"
-      return 0
-    fi
+  # Handle specific authentication methods (don't fall back to others)
+  if [[ "$auth_method" == "kubeconfig" ]]; then
+    __oc_try_vault_login "$cluster" "$auth_method" "$tls_option"
+    return $?
+  elif [[ "$auth_method" == "kubeadmin" ]]; then
+    __oc_try_vault_login "$cluster" "$auth_method" "$tls_option"
+    return $?
+  fi
+  
+  # Try authentication methods in order of preference (auto mode)
+  if __oc_try_vault_login "$cluster" "$auth_method" "$tls_option"; then
+    return 0
+  elif __oc_try_local_clusters_login "$cluster" "$auth_method" "$tls_option"; then
+    return 0
+  elif __oc_try_env_login "$cluster" "$auth_method" "$tls_option"; then
+    return 0
   else
-    __print_warn "Warning: No cluster information found for '${cluster}' in CHIEF_OC_CLUSTERS, falling back to Vault."
+    __print_error "All authentication methods failed for cluster: $cluster"
+    return 1
   fi
+}
 
-  # Use Vault to retrieve cluster information
-  if ! type vault >/dev/null 2>&1; then
-    __print_error "Error: 'vault' CLI tool is not installed or not in your PATH."
-    __print_info "Please install the Hashicorp Vault CLI tool to use this function."
+# Helper function to attempt Vault-based login
+function __oc_try_vault_login() {
+  # Usage: __oc_try_vault_login <cluster> <auth_method> <tls_option>
+  # 
+  # Developer usage: Attempts to authenticate to OpenShift using Vault secrets
+  # - Checks Vault CLI availability and prerequisites (VAULT_ADDR, VAULT_TOKEN, CHIEF_VAULT_OC_PATH)
+  # - Validates that cluster secret exists in Vault
+  # - Delegates to specific authentication method handlers
+  # - Returns 0 on success, 1 on failure with appropriate warning messages
+  #
+  # Arguments:
+  #   cluster - Name of the cluster to connect to
+  #   auth_method - Authentication method: "kubeconfig", "kubeadmin", or "user"
+  #   tls_option - TLS option string (e.g., "--insecure-skip-tls-verify=true" or "")
+  
+  local cluster="$1"
+  local auth_method="$2" 
+  local tls_option="$3"
+  
+  # Check Vault prerequisites
+  if ! command -v vault &>/dev/null; then
+    __print_warn "Vault CLI not available, skipping Vault authentication"
     return 1
   fi
 
-  # Ensure VAULT_ADDR and VAULT_TOKEN are set
-  if [[ -z ${VAULT_ADDR} || -z ${VAULT_TOKEN} ]]; then
-    __print_error "Error: VAULT_ADDR and VAULT_TOKEN environment variables must be set."
-    __print_info "Please set them to connect to your Vault server."
+  if [[ -z "$VAULT_ADDR" || -z "$VAULT_TOKEN" ]]; then
+    __print_warn "VAULT_ADDR or VAULT_TOKEN not set, skipping Vault authentication"
     return 1
   fi
 
-  # Ensure CHIEF_VAULT_OC_PATH is set
-  if [[ -z ${CHIEF_VAULT_OC_PATH} ]]; then
-    __print_error "Error: CHIEF_VAULT_OC_PATH environment variable is not set."
-    __print_info "Please set CHIEF_VAULT_OC_PATH to the path where your OpenShift secrets are stored in Vault."
-    __print_info "Example: export CHIEF_VAULT_OC_PATH='secrets/openshift'"
+  if [[ -z "$CHIEF_VAULT_OC_PATH" ]]; then
+    __print_warn "CHIEF_VAULT_OC_PATH not set, skipping Vault authentication"
     return 1
   fi
 
-  # Check if the cluster secret exists in Vault
-  if ! vault kv get ${CHIEF_VAULT_OC_PATH}/${cluster} >/dev/null 2>&1; then
-    __print_error "Secret for ${cluster} does not exist in Vault at ${CHIEF_VAULT_OC_PATH}/${cluster}."
+  # Check if cluster secret exists
+  if ! vault kv get "${CHIEF_VAULT_OC_PATH}/${cluster}" &>/dev/null; then
+    __print_warn "No Vault secret found at ${CHIEF_VAULT_OC_PATH}/${cluster}"
     return 1
   fi
 
-  local secret_keys=(
-    "api"
-    "kubeconfig"
-    "kubeadmin"
-  )
+  __print_info "Using Vault authentication for cluster: $cluster"
+  
+  local api_url
+  api_url=$(vault kv get -field=api "${CHIEF_VAULT_OC_PATH}/${cluster}" 2>/dev/null)
+  if [[ -z "$api_url" ]]; then
+    __print_error "API URL not found in Vault secret"
+    return 1
+  fi
 
-  # Loop through the secret keys and check if they exist in Vault
-  for key in "${secret_keys[@]}"; do
-    if ! vault kv get -field=${key} ${CHIEF_VAULT_OC_PATH}/${cluster} >/dev/null 2>&1; then
-      __print_error "Error: '${key}' key not found in Vault at ${CHIEF_VAULT_OC_PATH}/${cluster}."
-      if [[ ${key} == "kubeconfig" ]]; then
-        __print_info "  If this is an HCP cluster, HCP clusters don't have kubeconfig, use -ka instead."
-      fi
-      return 1
-    fi
-  done
+  case "$auth_method" in
+    kubeconfig)
+      __oc_vault_kubeconfig_login "$cluster" "$api_url" "$tls_option"
+      ;;
+    kubeadmin)
+      __oc_vault_kubeadmin_login "$cluster" "$api_url" "$tls_option"
+      ;;
+    user)
+      __oc_vault_user_login "$cluster" "$api_url" "$tls_option"
+      ;;
+  esac
+}
 
-  api_url=$(vault kv get -field=api ${CHIEF_VAULT_OC_PATH}/${cluster})
+# Helper function for Vault kubeconfig login
+function __oc_vault_kubeconfig_login() {
+  # Usage: __oc_vault_kubeconfig_login <cluster> <api_url> <tls_option>
+  # 
+  # Developer usage: Handles kubeconfig-based authentication using Vault secrets
+  # - Retrieves kubeconfig content from Vault secret
+  # - Writes kubeconfig to /tmp/kubeconfig and sets KUBECONFIG environment variable
+  # - Used specifically for -kc authentication method
+  # - Returns 0 on success, 1 if kubeconfig not found in Vault
+  #
+  # Arguments:
+  #   cluster - Name of the cluster (used for Vault path)
+  #   api_url - OpenShift API URL (retrieved from Vault)
+  #   tls_option - TLS option string (not used in kubeconfig method)
+  
+  local cluster="$1"
+  local api_url="$2"
+  local tls_option="$3"
+  
+  local kubeconfig
+  kubeconfig=$(vault kv get -field=kubeconfig "${CHIEF_VAULT_OC_PATH}/${cluster}" 2>/dev/null)
+  if [[ -z "$kubeconfig" ]]; then
+    __print_error "Kubeconfig not found in Vault (try -ka for kubeadmin)"
+    return 1
+  fi
 
-  __print_info "Logging in to OpenShift cluster '${cluster}' at '${api_url}'..."
-  __print_info "Using tls_option: ${tls_option:-none}" 
-  __print_info "Using Vault path: ${CHIEF_VAULT_OC_PATH}/${cluster}"
-
-  echo ""
-
-  # Logon using kubeconfig
-  if [[ ${2} == "-kc" ]]; then
-    __print_info "Logging in with kubeconfig credentials..."
-    local kubeconfig=$(vault kv get -field=kubeconfig ${CHIEF_VAULT_OC_PATH}/${cluster})
-    if [[ -z "${kubeconfig}" ]]; then
-      __print_error "Error: kubeconfig not found in Vault."
-      return 1
-    fi
-    rm -rf /tmp/kubeconfig
-    echo "${kubeconfig}" > /tmp/kubeconfig
-    export KUBECONFIG=/tmp/kubeconfig
-    echo "KUBECONFIG set to /tmp/kubeconfig"
-
-  # Logon using kubeadmin
-  elif [[ ${2} == "-ka" ]]; then
-    __print_info "Logging in with user (kubeadmin, kubeadmin password) credentials..."
-    local kubepass=$(vault kv get -field=kubeadmin ${CHIEF_VAULT_OC_PATH}/${cluster})
-    if [[ -z "${kubepass}" ]]; then
-      __print_error "Error: kubeadmin password not found in Vault."
-      __print_info "  If this is an HCP cluster, HCP clusters don't have kubeadmin, use -kc instead."
-      return 1
-    fi
-    oc login -u "kubeadmin" -p "${kubepass}" "${api_url}" ${tls_option}
+  __print_info "Setting up kubeconfig from Vault..."
+  
+  # Remove existing kubeconfig if it exists to avoid overwrite protection
+  [[ -f /tmp/kubeconfig ]] && rm -f /tmp/kubeconfig
+  
+  # Write kubeconfig to temp file
+  echo "$kubeconfig" > /tmp/kubeconfig
+  chmod 600 /tmp/kubeconfig  # Secure permissions
+  
+  export KUBECONFIG=/tmp/kubeconfig
+  __print_success "KUBECONFIG set to /tmp/kubeconfig"
+  
+  # Validate that the login actually works
+  local current_user
+  current_user=$(oc whoami 2>/dev/null)
+  
+  if [[ -n "$current_user" && "$current_user" != "Unknown" ]]; then
+    __print_success "Logged in as: $current_user"
+    return 0
   else
-    # Logon using user credentials
-    __print_info "Logging in with user (CHIEF_OC_USERNAME, CHIEF_OC_PASSWORD) credentials..."
-    if [[ -z "${CHIEF_OC_USERNAME}" ]]; then
-      __print_error "Error: CHIEF_OC_USERNAME must be set (exported). Optionally, CHIEF_OC_PASSWORD can be set as well."
-      return 1
-    fi
-    if [[ -n "${CHIEF_OC_PASSWORD}" ]]; then
-      __print_info "Using CHIEF_OC_USERNAME: ${CHIEF_OC_USERNAME} and CHIEF_OC_PASSWORD: [REDACTED]"
-      oc login -u "${CHIEF_OC_USERNAME}" -p "${CHIEF_OC_PASSWORD}" --server="${api_url}" ${tls_option}
-    else
-      __print_warn "Warning: Password is empty for user '${CHIEF_OC_USERNAME}' in CHIEF_OC_CLUSTERS. Using passwordless login."
-      oc login -u "${CHIEF_OC_USERNAME}" --server="${api_url}" ${tls_option}
-    fi
+    __print_error "Login validation failed - kubeconfig may have invalid CA or expired credentials"
+    __print_error "Try refreshing the kubeconfig in Vault or use -ka for kubeadmin login"
+    return 1
+  fi
+}
+
+# Helper function for Vault kubeadmin login  
+function __oc_vault_kubeadmin_login() {
+  # Usage: __oc_vault_kubeadmin_login <cluster> <api_url> <tls_option>
+  # 
+  # Developer usage: Handles kubeadmin authentication using Vault secrets
+  # - Retrieves kubeadmin password from Vault secret
+  # - Performs oc login with kubeadmin user and retrieved password
+  # - Used specifically for -ka authentication method
+  # - Returns 0 on successful login, 1 if password not found or login fails
+  #
+  # Arguments:
+  #   cluster - Name of the cluster (used for Vault path)
+  #   api_url - OpenShift API URL to connect to
+  #   tls_option - TLS option string for oc login command
+  
+  local cluster="$1"
+  local api_url="$2"
+  local tls_option="$3"
+  
+  local kubepass
+  kubepass=$(vault kv get -field=kubeadmin "${CHIEF_VAULT_OC_PATH}/${cluster}" 2>/dev/null)
+  if [[ -z "$kubepass" ]]; then
+    __print_error "Kubeadmin password not found in Vault (try -kc for kubeconfig)"
+    return 1
   fi
 
-  echo ""
-  __print_success "Currently logged in as user: $(oc whoami) - Console: $(oc whoami --show-console)"
+  __print_info "Logging in as kubeadmin to $api_url..."
+  if oc login -u "kubeadmin" -p "$kubepass" "$api_url" $tls_option; then
+    __print_success "Logged in as: $(oc whoami) - Console: $(oc whoami --show-console 2>/dev/null || echo 'N/A')"
+    return 0
+  else
+    __print_error "Kubeadmin login failed"
+    return 1
+  fi
+}
+
+# Helper function for Vault user login
+function __oc_vault_user_login() {
+  # Usage: __oc_vault_user_login <cluster> <api_url> <tls_option>
+  # 
+  # Developer usage: Handles user credential authentication with API URL from Vault
+  # - Uses CHIEF_OC_USERNAME and optionally CHIEF_OC_PASSWORD environment variables
+  # - Performs oc login with user credentials to API URL retrieved from Vault
+  # - Used for default authentication method (no -kc or -ka flags)
+  # - Returns 0 on successful login, 1 if username not set or login fails
+  #
+  # Arguments:
+  #   cluster - Name of the cluster (used for Vault path)
+  #   api_url - OpenShift API URL to connect to
+  #   tls_option - TLS option string for oc login command
+  
+  local cluster="$1"
+  local api_url="$2"
+  local tls_option="$3"
+  
+  if [[ -z "$CHIEF_OC_USERNAME" ]]; then
+    __print_error "CHIEF_OC_USERNAME not set for user authentication"
+    return 1
+  fi
+
+  __print_info "Logging in as $CHIEF_OC_USERNAME to $api_url..."
+  if [[ -n "$CHIEF_OC_PASSWORD" ]]; then
+    oc login -u "$CHIEF_OC_USERNAME" -p "$CHIEF_OC_PASSWORD" --server="$api_url" $tls_option
+  else
+    oc login -u "$CHIEF_OC_USERNAME" --server="$api_url" $tls_option
+  fi
+  
+  if [[ $? -eq 0 ]]; then
+    __print_success "Logged in as: $(oc whoami) - Console: $(oc whoami --show-console 2>/dev/null || echo 'N/A')"
+    return 0
+  else
+    __print_error "User login failed"
+    return 1
+  fi
+}
+
+# Helper function to attempt local cluster login
+function __oc_try_local_clusters_login() {
+  # Usage: __oc_try_local_clusters_login <cluster> <auth_method> <tls_option>
+  # 
+  # Developer usage: Attempts authentication using local CHIEF_OC_CLUSTERS array
+  # - Checks if cluster is defined in CHIEF_OC_CLUSTERS associative array
+  # - Only supports "user" authentication method (not kubeconfig or kubeadmin)
+  # - Parses cluster definition format: "api_url,username,password"
+  # - Returns 0 on successful login, 1 if cluster not found or login fails
+  #
+  # Arguments:
+  #   cluster - Name of the cluster to look up in CHIEF_OC_CLUSTERS
+  #   auth_method - Authentication method (must be "user" for local clusters)
+  #   tls_option - TLS option string for oc login command
+  
+  local cluster="$1"
+  local auth_method="$2"
+  local tls_option="$3"
+
+  if [[ -z "${CHIEF_OC_CLUSTERS[$cluster]}" ]]; then
+    __print_warn "No local cluster definition found for: $cluster"
+    return 1
+  fi
+
+  if [[ "$auth_method" != "user" ]]; then
+    __print_error "Local clusters only support user authentication (not -kc or -ka)"
+    return 1
+  fi
+
+  __print_info "Using local cluster definition for: $cluster"
+  
+  local api_url username password
+  IFS=',' read -r api_url username password <<< "${CHIEF_OC_CLUSTERS[$cluster]}"
+  
+  if [[ -z "$api_url" || -z "$username" ]]; then
+    __print_error "Incomplete cluster definition for: $cluster"
+    return 1
+  fi
+
+  __print_info "Logging in as $username to $api_url..."
+  if [[ -n "$password" ]]; then
+    oc login -u "$username" -p "$password" --server="$api_url" $tls_option
+  else
+    oc login -u "$username" --server="$api_url" $tls_option
+  fi
+
+  if [[ $? -eq 0 ]]; then
+    __print_success "Logged in as: $(oc whoami) - Console: $(oc whoami --show-console 2>/dev/null || echo 'N/A')"
+    return 0
+  else
+    __print_error "Local cluster login failed"
+    return 1
+  fi
+}
+
+# Helper function to attempt environment variable login
+function __oc_try_env_login() {
+  # Usage: __oc_try_env_login <cluster> <auth_method> <tls_option>
+  # 
+  # Developer usage: Fallback authentication using only environment variables
+  # - Currently returns failure as it lacks API URL information
+  # - Only supports "user" authentication method
+  # - Requires CHIEF_OC_USERNAME to be set
+  # - This is a placeholder for future enhancement or legacy support
+  # - Always returns 1 (failure) in current implementation
+  #
+  # Arguments:
+  #   cluster - Name of the cluster (used for error messages only)
+  #   auth_method - Authentication method (must be "user")
+  #   tls_option - TLS option string (not used in current implementation)
+  
+  local cluster="$1"
+  local auth_method="$2"
+  local tls_option="$3"
+
+  if [[ "$auth_method" != "user" ]]; then
+    __print_error "Environment variable authentication only supports user mode"
+    return 1
+  fi
+
+  if [[ -z "$CHIEF_OC_USERNAME" ]]; then
+    __print_error "CHIEF_OC_USERNAME not set for fallback authentication"
+    __print_info "Try using explicit Vault authentication instead:"
+    __print_info "  chief.oc.login $cluster -kc  (kubeconfig from Vault)"
+    __print_info "  chief.oc.login $cluster -ka  (kubeadmin from Vault)"
+    return 1
+  fi
+
+  __print_warn "Using fallback environment variable authentication"
+  __print_error "No API URL available for cluster: $cluster"
+  return 1
 }
