@@ -57,10 +57,6 @@ chief.uninstall
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh)"
 ```
 
-Or
-
-`chief.uninstall` within the tool.
-
 Running the `uninstall` command will:
 
 - Remove the installation from `$HOME/.chief`
