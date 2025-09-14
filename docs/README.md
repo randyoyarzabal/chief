@@ -43,8 +43,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 ## 📑 Table of Contents
 
 - [📦 Installation](#-installation)
-  - [⬆️ Upgrade](#upgrade)
-  - [🗑️ Uninstall](#uninstall)
+- [⬆️ Upgrade](#️-upgrade)
+- [🗑️ Uninstall](#️-uninstall)
 - [🤝 Why Choose Chief?](#-why-choose-chief)
 - [⚡ Quick Start](#-quick-start)
 - [📖 Help System](#-help-system)
@@ -158,28 +158,10 @@ ansible-vault --version 2>/dev/null || echo "Ansible not installed (optional)"
 oc version --client 2>/dev/null || echo "OpenShift CLI not installed (optional)"
 ```
 
-#### Uninstall
 
-```bash
-# Method 1: Using Chief command (easiest if Chief is working)
-chief.uninstall
+</details>
 
-# Method 2: One-liner (works from anywhere)
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh)"
-```
-
-**What happens during uninstall:**
-
-- ✅ **Installation directory** (`~/.chief`) is completely removed
-- ✅ **Configuration file** is backed up as `~/.chief_config.sh.backup` then removed
-- ✅ **Shell configuration** (`~/.bash_profile`) is cleaned up automatically
-- ✅ **Environment variables** (CHIEF_PATH, CHIEF_CONFIG) are removed from shell
-- ✅ **Custom plugins directory** remains untouched (if different from `~/.chief`)
-- ✅ **Safe operation** - Changes directory before removal to avoid conflicts
-
-> **🛡️ Safe Uninstall**: Your personal plugins, shell customizations outside Chief, and other configurations remain completely untouched.
-
-#### Upgrade
+## ⬆️ Upgrade
 
 When upgrading Chief to a newer version, use the automated configuration update feature:
 
@@ -203,7 +185,26 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 
 > **💡 Tip**: Always run `chief.config_update` after upgrading to get access to new v3.0 features like enhanced SSH key management, VSCode plugin editing, and improved help system.
 
-</details>
+## 🗑️ Uninstall
+
+```bash
+# Method 1: Using Chief command (easiest if Chief is working)
+chief.uninstall
+
+# Method 2: One-liner (works from anywhere)
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh)"
+```
+
+**What happens during uninstall:**
+
+- ✅ **Installation directory** (`~/.chief`) is completely removed
+- ✅ **Configuration file** is backed up as `~/.chief_config.sh.backup` then removed
+- ✅ **Shell configuration** (`~/.bash_profile`) is cleaned up automatically
+- ✅ **Environment variables** (CHIEF_PATH, CHIEF_CONFIG) are removed from shell
+- ✅ **Custom plugins directory** remains untouched (if different from `~/.chief`)
+- ✅ **Safe operation** - Changes directory before removal to avoid conflicts
+
+> **🛡️ Safe Uninstall**: Your personal plugins, shell customizations outside Chief, and other configurations remain completely untouched.
 
 ## 📖 Help System
 
