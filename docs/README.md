@@ -43,6 +43,8 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 ## 📑 Table of Contents
 
 - [📦 Installation](#-installation)
+  - [⬆️ Upgrade](#upgrade)
+  - [🗑️ Uninstall](#uninstall)
 - [🤝 Why Choose Chief?](#-why-choose-chief)
 - [⚡ Quick Start](#-quick-start)
 - [📖 Help System](#-help-system)
@@ -130,6 +132,7 @@ chief.uninstall
 <summary>Manual installation and environment checks</summary>
 
 #### Manual Installation
+
 ```bash
 # 1. Clone the repository
 git clone --depth=1 https://github.com/randyoyarzabal/chief.git ~/.chief
@@ -156,6 +159,7 @@ oc version --client 2>/dev/null || echo "OpenShift CLI not installed (optional)"
 ```
 
 #### Uninstall
+
 ```bash
 # Method 1: Using Chief command (easiest if Chief is working)
 chief.uninstall
@@ -165,6 +169,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 ```
 
 **What happens during uninstall:**
+
 - ✅ **Installation directory** (`~/.chief`) is completely removed
 - ✅ **Configuration file** is backed up as `~/.chief_config.sh.backup` then removed
 - ✅ **Shell configuration** (`~/.bash_profile`) is cleaned up automatically
