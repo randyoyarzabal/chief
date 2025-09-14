@@ -32,6 +32,7 @@ CHIEF_CFG_MULTILINE_PROMPT=false
    - **Reason:** Better reflects support for all SSH key types, not just RSA
 
 Migration for SSH configuration:
+
 ```bash
 # Update your chief.config file
 # Change: CHIEF_CFG_RSA_KEYS_PATH="$HOME/.ssh"
@@ -42,6 +43,7 @@ chief.config_set --yes ssh_keys_path "$HOME/.ssh"
 ```
 
 Migration for SSH keys:
+
 ```bash
 # Option 1: Create symlinks for existing keys (selective loading)
 cd ~/.ssh
@@ -93,6 +95,16 @@ mv id_ed25519 id_ed25519.key
 - `--yes/-y` flag for non-interactive operation (ideal for scripting)
 - Global `CHIEF_CFG_CONFIG_SET_INTERACTIVE` setting to control default behavior
 - Config reload after changes and smart validation
+
+- **chief.config_update**: Intelligent configuration file reconciliation system
+- Automatically adds new configuration options from template to user config
+- Preserves all user customizations and values during update
+- Handles renamed configuration variables (e.g., RSA_KEYS_PATH → SSH_KEYS_PATH)
+- Maintains all comments and documentation from template
+- Creates timestamped backups for safety
+- `--dry-run` option to preview changes before applying
+- Validates configuration syntax before applying changes
+- Automatically reloads Chief after successful update
 
 ### Comprehensive Configuration Help
 
