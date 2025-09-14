@@ -32,7 +32,7 @@
 ########################################################################
 
 # Block interactive execution
-if [[ $0 = $BASH_SOURCE ]]; then
+if [[ $0 == "${BASH_SOURCE[0]}" ]]; then
   echo "Error: $0 (Chief) must be sourced; not executed interactively."
   echo 'To use Chief, source it in your shell or add it to your shell configuration file (e.g. ~/.bashrc).'
   echo 'Be sure that the environment variables $CHIEF_PATH and $CHIEF_CONFIG are set before sourcing.'
@@ -48,6 +48,7 @@ if [[ -z ${CHIEF_PATH} ]] || [[ -z ${CHIEF_CONFIG} ]]; then
 fi
 
 # Load the Chief configuration file and core library.
+CHIEF_GIT_TOOLS="${CHIEF_PATH}/libs/extras/git"
 CHIEF_LIBRARY="${CHIEF_PATH}/libs/core/chief_library.sh"
 source ${CHIEF_CONFIG}
 source ${CHIEF_LIBRARY}
@@ -65,7 +66,7 @@ if [[ $1 == "--lib-only" ]]; then
 fi
 
 # Load RSA/SSH keys if directory is defined
-if [[ ! -z ${CHIEF_CFG_RSA_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIEF_CFG_RSA_KEYS_PATH} && ${PLATFORM} == "Linux" ]]; then
+if [[ ! -z ${CHIEF_CFG_SSH_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIEF_CFG_SSH_KEYS_PATH} && ${PLATFORM} == "Linux" ]]; then
   chief.etc_spinner "Loading SSH keys..." "__load_ssh_keys" tmp_out
   echo -e "${tmp_out}"
 fi
@@ -100,17 +101,25 @@ fi
 # Apply prompt configuration
 if ${CHIEF_CFG_PROMPT}; then
   # Apply either a short (current dir) prompt or full (full path) one
-  if ${CHIEF_CFG_CWD_ONLY_PROMPT}; then
+  if ${CHIEF_CFG_SHORT_PATH}; then
     prompt_tag='\W'
   else
     prompt_tag='\w'
   fi
 
   __print "Applying default prompt..."
-  export PS1="\u@\h:${prompt_tag}$ "
+  
+  # If CHIEF_HOST is set, use it in the prompt
+  if [[ -n ${CHIEF_HOST} ]]; then
+    host="${CHIEF_HOST}"
+  else
+    host=$(hostname -s)  # Short hostname
+  fi
+
+  export PS1="\u@${host}:${prompt_tag}$ "
 
   if ${CHIEF_CFG_COLORED_PROMPT}; then
-    export PS1="${CHIEF_COLOR_CYAN}\u${CHIEF_NO_COLOR}@${CHIEF_COLOR_GREEN}\h${NC}:${CHIEF_COLOR_YELLOW}${prompt_tag}${CHIEF_NO_COLOR}\$ "
+    export PS1="${CHIEF_COLOR_CYAN}\u${CHIEF_NO_COLOR}@${CHIEF_COLOR_GREEN}${host}${NC}:${CHIEF_COLOR_YELLOW}${prompt_tag}${CHIEF_NO_COLOR}\$ "
   fi
 
   # Apply Git Tools (completion/prompt)

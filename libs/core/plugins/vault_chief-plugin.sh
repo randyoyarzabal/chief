@@ -20,92 +20,152 @@
 # ver. 1.0.1
 # Functions and aliases that are Vault (HashiCorp vault or ansible-vault) related.
 
+# Block interactive execution
+if [[ $0 == "${BASH_SOURCE[0]}" ]]; then
+  echo "Error: $0 (Chief plugin) must be sourced; not executed interactively."
+  exit 1
+fi
+
 function chief.vault_file-edit() {
   # Check if CHIEF_SECRETS_FILE is set, if not set it to default.
   if [[ -z $CHIEF_SECRETS_FILE ]]; then
     CHIEF_SECRETS_FILE="$HOME/.chief_secret-vault"
   fi
 
-  local USAGE="Usage: $FUNCNAME [vault-file] [--no-load]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [vault-file] [--no-load]
 
-This function requires the ansible-vault binary to be installed.
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Edit/create a Bash shell vault file using ansible-vault encryption.
 
-Optional arguments: 
-[vault-file] to specify a non-default vault file. If the file and path does not exist, it will be created.
-[--no-load] to prevent loading the vault file after editing.
+${CHIEF_COLOR_GREEN}Requirements:${CHIEF_NO_COLOR}
+- ansible-vault binary (ansible-core 2.9+)
+- Valid vault password
 
-Edit/create a Bash shell file vault file using ansible-vault.
-This will create a new vault file if it doesn't exist, or edit an existing one.
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  [vault-file]  Optional vault file path (default: \$CHIEF_SECRETS_FILE)
+  --no-load     Prevent automatic loading after editing
 
-On a single-user system, it is recommended to set ANSIBLE_VAULT_PASSWORD_FILE for convenience so that you don't have to enter the password every time you edit the vault file; this is not recommended on a shared system.
+${CHIEF_COLOR_MAGENTA}Security Notes:${CHIEF_NO_COLOR}
+- On single-user systems: Set ANSIBLE_VAULT_PASSWORD_FILE for convenience
+- On shared systems: Enter password manually (more secure)
+- Store CHIEF_SECRETS_FILE path in ~/.bash_profile (not shared plugins)
 
-If no vault-file is passed, it will use '$CHIEF_SECRETS_FILE' or set CHIEF_SECRETS_FILE to your preferred vault file path.
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME                           # Edit default vault file
+  $FUNCNAME ~/.my-secrets             # Edit specific file
+  $FUNCNAME --no-load                 # Edit without auto-loading
+  $FUNCNAME ~/.my-secrets --no-load   # Edit specific file, no auto-load
+
+${CHIEF_COLOR_GREEN}Current default:${CHIEF_NO_COLOR} $CHIEF_SECRETS_FILE
 "
   if [[ $1 == "-?" ]]; then
-    echo "${USAGE}"
+    echo -e "${USAGE}"
     return
   fi
 
-  # Check if ansible-vault is installed.
-  if ! type ansible-vault >/dev/null 2>&1; then
-    echo "ansible-vault is required."
+  # Check if ansible-vault is installed and get version info
+  if ! command -v ansible-vault >/dev/null 2>&1; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} ansible-vault is required but not found."
+    echo -e "${CHIEF_COLOR_YELLOW}Install:${CHIEF_NO_COLOR}"
+    echo "  macOS: brew install ansible"
+    echo "  Linux: pip3 install ansible-core"
+    echo "  Or: Use your package manager (apt, yum, etc.)"
     return 1
   fi
 
-  local no_load=false
-  # Check if first or 2nd argument is not '--no-load'
-  if [[ $1 == "--no-load" ]];then
-    no_load=true  
-    vault_file=$CHIEF_SECRETS_FILE
-  elif [[ $2 == "--no-load" ]]; then
-    no_load=true 
-    vault_file=$1
-  else
-    if [[ -z $1 ]]; then
-      vault_file=$CHIEF_SECRETS_FILE
-    else
-      vault_file=$1
+  # Check ansible-vault version (warn if too old)
+  local ansible_version
+  ansible_version=$(ansible-vault --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
+  if [[ -n $ansible_version ]] && command -v bc >/dev/null 2>&1; then
+    if [[ $(echo "$ansible_version < 2.9" | bc 2>/dev/null) == "1" ]] 2>/dev/null; then
+      echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} ansible-vault $ansible_version detected. Recommend 2.9+ for best compatibility."
     fi
   fi
 
-  # Create the file if doesn't exist.
-  if [ ! -f "$vault_file" ]; then
-      echo "$vault_file does not exist. Creating the file and will encrypt it."
-      # Create the directory if it doesn't exist and exit if it fails.
-      if ! mkdir -p "$(dirname "$vault_file")"; then
-        echo "Failed to create directory for vault file: $vault_file"
-        return 1
+  local no_load=false vault_file
+  # Parse arguments more robustly
+  case "$1" in
+    "--no-load")
+      no_load=true
+      vault_file="$CHIEF_SECRETS_FILE"
+      ;;
+    "")
+      vault_file="$CHIEF_SECRETS_FILE"
+      ;;
+    *)
+      vault_file="$1"
+      [[ "$2" == "--no-load" ]] && no_load=true
+      ;;
+  esac
+
+  # Create the file if it doesn't exist
+  if [[ ! -f "$vault_file" ]]; then
+    echo -e "${CHIEF_COLOR_GREEN}Creating new vault file:${CHIEF_NO_COLOR} $vault_file"
+    
+    # Create the directory if it doesn't exist
+    if ! mkdir -p "$(dirname "$vault_file")"; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Failed to create directory for vault file: $vault_file"
+      return 1
+    fi
+    
+    # Use preferred editor or fallback to vi
+    local editor="${EDITOR:-vi}"
+    echo -e "${CHIEF_COLOR_YELLOW}Opening editor:${CHIEF_NO_COLOR} $editor"
+    $editor "$vault_file"
+    
+    # Check if the file was created successfully
+    if [[ ! -f "$vault_file" ]] || [[ ! -s "$vault_file" ]]; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Vault file was not created or is empty: $vault_file"
+      echo "Please ensure you save the file in your editor."
+      return 1
+    fi
+    
+    # Source the file before encrypting (if not --no-load)
+    if ! $no_load; then
+      echo -e "${CHIEF_COLOR_BLUE}Loading vault file to memory...${CHIEF_NO_COLOR}"
+      if ! source "$vault_file"; then
+        echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} Failed to source vault file. Check syntax before encryption."
       fi
-      vi $vault_file
-      # Check if the file was created successfully.
-      if [ ! -f "$vault_file" ]; then
-        echo "Failed to create vault file (or was not saved): $vault_file"
-        return 1
-      fi
-      echo "Loading (Bash source) vault file: $vault_file..."
-      if $no_load; then
-        echo "Vault file: $vault_file created, but not loaded to memory. Use 'chief.vault_file-load' to load it."
-      else
-        echo "If you don't want to load the vault file automatically, use 'chief.vault_file-edit --no-load'."
-        source $vault_file
-      fi
-      ansible-vault encrypt $vault_file
+    fi
+    
+    # Encrypt the file
+    echo -e "${CHIEF_COLOR_GREEN}Encrypting vault file...${CHIEF_NO_COLOR}"
+    if ! ansible-vault encrypt "$vault_file"; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Failed to encrypt vault file: $vault_file"
+      return 1
+    fi
+    
+    if $no_load; then
+      echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Vault file created and encrypted (not loaded)."
+      echo -e "${CHIEF_COLOR_BLUE}Load with:${CHIEF_NO_COLOR} chief.vault_file-load $vault_file"
+    else
+      echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Vault file created, encrypted, and loaded to memory."
+      echo -e "${CHIEF_COLOR_BLUE}Tip:${CHIEF_NO_COLOR} Use --no-load flag to skip automatic loading."
+    fi
   else
-    # Check if file is ansible-vault encrypted without decrypting it.
-    # This is done by checking if the first line starts with 'ANSIBLE_VAULT;'.
-    if grep -q '^$ANSIBLE_VAULT;' "$vault_file"; then
-      ansible-vault edit $vault_file
-      # If the --no-load option is passed, we will not load the vault file after editing.
-      if $no_load; then
-        echo "Vault file: $vault_file edited, but changes were not loaded to memory. Use 'chief.vault_file-load' to load it."
-      else
-        echo "If you don't want to load the vault file automatically, use 'chief.vault_file-edit --no-load'."
-        chief.vault_file-load $vault_file
+    # Check if file is ansible-vault encrypted
+    if grep -q '^\$ANSIBLE_VAULT;' "$vault_file"; then
+      echo -e "${CHIEF_COLOR_BLUE}Editing encrypted vault file...${CHIEF_NO_COLOR}"
+      if ! ansible-vault edit "$vault_file"; then
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Failed to edit vault file: $vault_file"
+        echo "Check your password and file integrity."
+        return 1
       fi
-    else    
-      echo "Vault file: $vault_file is not encrypted or is not a valid ansible-vault file."
-      echo "Please check the file or create a new one using 'chief.vault_file-edit'."
-      echo "You can also manually encrypt the file using 'ansible-vault encrypt $vault_file'."
+      
+      # Reload after editing
+      if $no_load; then
+        echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Vault file edited (changes not loaded to memory)."
+        echo -e "${CHIEF_COLOR_BLUE}Load with:${CHIEF_NO_COLOR} chief.vault_file-load $vault_file"
+      else
+        echo -e "${CHIEF_COLOR_BLUE}Loading updated vault file...${CHIEF_NO_COLOR}"
+        chief.vault_file-load "$vault_file"
+      fi
+    else
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} File is not an encrypted ansible-vault file: $vault_file"
+      echo -e "${CHIEF_COLOR_YELLOW}Solutions:${CHIEF_NO_COLOR}"
+      echo "  1. Create new vault: chief.vault_file-edit"
+      echo "  2. Encrypt existing: ansible-vault encrypt $vault_file"
+      echo "  3. Check file format: head -1 $vault_file"
       return 1
     fi
   fi
@@ -116,61 +176,92 @@ function chief.vault_file-load() {
     CHIEF_SECRETS_FILE="$HOME/.chief_secret-vault"
   fi
 
-  local USAGE="Usage: $FUNCNAME [vault-file]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [vault-file]
 
-This function requires the ansible-vault binary to be installed.
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Load (source) an encrypted Bash shell vault file into memory using ansible-vault.
 
-Load (source) a Bash shell file vault file using ansible-vault.
-This will create a new vault file if it doesn't exist, or edit an existing one.
+${CHIEF_COLOR_GREEN}Requirements:${CHIEF_NO_COLOR}
+- ansible-vault binary (ansible-core 2.9+)
+- Valid vault password
+- Existing encrypted vault file
 
-On a single-user system, it is recommended to set ANSIBLE_VAULT_PASSWORD_FILE for convenience so that you don't have to enter the password every time you edit the vault file; this is not recommended on a shared system.
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  [vault-file]  Optional vault file path (default: \$CHIEF_SECRETS_FILE)
 
-If no vault-file is passed, it will use '$CHIEF_SECRETS_FILE' or set CHIEF_SECRETS_FILE to your preferred vault file path.
+${CHIEF_COLOR_MAGENTA}Security Notes:${CHIEF_NO_COLOR}
+- Variables are loaded into current shell session
+- Use ANSIBLE_VAULT_PASSWORD_FILE for convenience (single-user systems only)
+- Store CHIEF_SECRETS_FILE path in ~/.bash_profile (not shared plugins)
 
-KNOWN ISSUE: If you are using a Mac and have an older version of ansible-vault, you may need to decrypt the file before loading it, then re-encrypt it. This is due to a bug in older versions of ansible-vault that prevents sourcing the file directly. If you are using ansible-vault 2.18.0 or later, this should not be an issue.
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME                    # Load default vault file
+  $FUNCNAME ~/.my-secrets      # Load specific vault file
+
+${CHIEF_COLOR_GREEN}Current default:${CHIEF_NO_COLOR} $CHIEF_SECRETS_FILE
+
+${CHIEF_COLOR_BLUE}Troubleshooting:${CHIEF_NO_COLOR}
+- macOS with older ansible: Use ansible-vault 2.18.0+ for best compatibility
+- Permission errors: Check file ownership and vault password
 "
-  # Check if ansible-vault at least version 2.18.2 is installed.
-  if ! type ansible-vault >/dev/null 2>&1; then
-    echo "ansible-vault is required."
-    return 1
-  fi
-
   if [[ $1 == "-?" ]]; then
-    echo "${USAGE}"
+    echo -e "${USAGE}"
     return
   fi
 
-  if [[ -z $1 ]]; then
-    vault_file=$CHIEF_SECRETS_FILE
-  else
-    vault_file=$1
+  # Check if ansible-vault is installed
+  if ! command -v ansible-vault >/dev/null 2>&1; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} ansible-vault is required but not found."
+    echo -e "${CHIEF_COLOR_YELLOW}Install:${CHIEF_NO_COLOR}"
+    echo "  macOS: brew install ansible"
+    echo "  Linux: pip3 install ansible-core"
+    echo "  Or: Use your package manager (apt, yum, etc.)"
+    return 1
   fi
 
-  if [[ ! -f $vault_file ]]; then
-    echo "Vault file: $vault_file does not exist. Please create it first using 'chief.vault_file-edit'."
-    return 1
+  # Parse arguments
+  local vault_file
+  if [[ -z $1 ]]; then
+    vault_file="$CHIEF_SECRETS_FILE"
   else
-    # Load the vault file into memory.
-    # This will source the file and make the variables available in the current shell.
-    # If the vault file is encrypted, it will prompt for the password.
+    vault_file="$1"
+  fi
+
+  # Validate vault file exists
+  if [[ ! -f "$vault_file" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Vault file does not exist: $vault_file"
+    echo -e "${CHIEF_COLOR_YELLOW}Solutions:${CHIEF_NO_COLOR}"
+    echo "  1. Create vault: chief.vault_file-edit"
+    echo "  2. Check path: ls -la $(dirname "$vault_file")"
+    echo "  3. Set CHIEF_SECRETS_FILE in ~/.bash_profile"
+    return 1
+  fi
+
+  # Check if file is ansible-vault encrypted
+  if grep -q '^\$ANSIBLE_VAULT;' "$vault_file"; then
+    echo -e "${CHIEF_COLOR_BLUE}Loading encrypted vault file:${CHIEF_NO_COLOR} $vault_file"
     
-    # Check if file is ansible-vault encrypted without decrypting it.
-    # This is done by checking if the first line starts with 'ANSIBLE_VAULT;'.
-    if grep -q '^$ANSIBLE_VAULT;' "$vault_file"; then
-      # Load the vault file and check for errors.
-      if ! source <(ansible-vault view "$vault_file"); then
-        echo "Failed to decrypt the vault file: $vault_file. Please check your password or the file's integrity."
-        echo "Be sure you are using the latest version of ansible-vault."
-        return 1
-      else
-        # If the source command was successful, we can assume the file was loaded correctly.
-        echo "Vault file: $vault_file loaded to memory."
-      fi
+    # Load the vault file and check for errors
+    if source <(ansible-vault view "$vault_file" 2>/dev/null); then
+      echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Vault file loaded to memory."
+      echo -e "${CHIEF_COLOR_BLUE}Tip:${CHIEF_NO_COLOR} Variables are now available in current shell session."
     else
-      echo "Vault file: $vault_file is not encrypted or is not a valid ansible-vault file."
-      echo "Please check the file or create a new one using 'chief.vault_file-edit'."
-      echo "You can also manually encrypt the file using 'ansible-vault encrypt $vault_file'."
-      return 1
+      local exit_code=$?
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Failed to load vault file: $vault_file"
+      echo -e "${CHIEF_COLOR_YELLOW}Possible causes:${CHIEF_NO_COLOR}"
+      echo "  1. Incorrect vault password"
+      echo "  2. Corrupted vault file"
+      echo "  3. Syntax errors in decrypted content"
+      echo "  4. Ansible version compatibility issue"
+      echo -e "${CHIEF_COLOR_BLUE}Debug:${CHIEF_NO_COLOR} Try: ansible-vault view $vault_file | bash -n"
+      return $exit_code
     fi
+  else
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} File is not an encrypted ansible-vault file: $vault_file"
+    echo -e "${CHIEF_COLOR_YELLOW}Solutions:${CHIEF_NO_COLOR}"
+    echo "  1. Check file format: head -1 $vault_file"
+    echo "  2. Encrypt file: ansible-vault encrypt $vault_file"
+    echo "  3. Create new vault: chief.vault_file-edit"
+    return 1
   fi
 }

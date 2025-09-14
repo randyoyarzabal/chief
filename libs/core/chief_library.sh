@@ -35,22 +35,17 @@
 # CHIEF DEFAULTS
 ########################################################################
 
-CHIEF_VERSION="v2.1.1"
-CHIEF_REPO="https://github.com/randyoyarzabal/chief"
-CHIEF_WEBSITE="https://chief.reonetlabs.us"
-CHIEF_AUTHOR="Randy E. Oyarzabal"
-CHIEF_GIT_TOOLS="${CHIEF_PATH}/libs/extras/git"
-
+# Source version and constants from centralized file
+source "${CHIEF_PATH}/VERSION"
 CHIEF_PLUGINS_CORE="${CHIEF_PATH}/libs/core/plugins"
 CHIEF_PLUGIN_SUFFIX="_chief-plugin.sh"
 CHIEF_DEFAULT_PLUGINS_TYPE="local" 
 CHIEF_DEFAULT_PLUGINS_GIT_BRANCH="main"
 CHIEF_DEFAULT_PLUGINS="${HOME}/chief_plugins"
 CHIEF_DEFAULT_PLUGIN_TEMPLATE="${CHIEF_PATH}/templates/chief_plugin_template.sh"
-CHIEF_CFG_LOAD_NON_ALIAS=true # Load non-alias functions from plugins by default.
 
 # Block interactive execution
-if [[ $0 = $BASH_SOURCE ]]; then
+if [[ $0 == "${BASH_SOURCE[0]}" ]]; then
   echo "Error: $0 (Chief Library) must be sourced; not executed interactively."
   exit 1
 fi
@@ -68,10 +63,18 @@ case "${uname_out}" in
   *) PLATFORM="UNKNOWN:${uname_out}" ;;
 esac
 
-# Apply the alias defined in CHIEF_CFG_ALIAS to the file passed, then source it.
 #  Note: this only applied to any function/alias starting with "chief."
-# Usage: __load_file <library file>
 function __load_file() {
+  # Usage: __load_file <source_file>
+  # 
+  # Developer usage: Sources a file with optional alias substitution
+  # - If CHIEF_CFG_ALIAS is set, creates a temporary file with chief.* functions renamed to the alias
+  # - Sources both the aliased version and original version to ensure compatibility
+  # - Used internally by __load_library() to load configuration and library files
+  #
+  # Arguments:
+  #   source_file - Path to the file to be sourced
+  
   #Set default values
   local tmp_lib=$(__get_tmpfile) # Temporary library file.
   local source_file=${1} # File to source
@@ -94,9 +97,18 @@ function __load_file() {
   source ${source_file}
 }
 
-# Load/source Chief library
 function __load_library() {
-  # Usage: __load_library
+  # Usage: __load_library [--verbose]
+  # 
+  # Developer usage: Loads Chief configuration and library files
+  # - Sources configuration file first, then the library file
+  # - Loads all available plugins from configured plugin directories
+  # - Prints verbose output if --verbose flag is provided
+  # - Used internally during Chief initialization
+  #
+  # Options:
+  #   --verbose - Display detailed loading information
+  
   __load_file ${CHIEF_CONFIG}
 
   __load_file ${CHIEF_LIBRARY} 
@@ -122,33 +134,64 @@ function __load_library() {
   __print "Chief BASH library/environment (re)loaded." "$1"
 }
 
-# Echo string to screen if CHIEF_CFG_VERBOSE is true.
 function __print() {
-  # Usage: __print <string>
+  # Usage: __print <string> [--verbose]
+  # 
+  # Developer usage: Conditionally prints messages based on verbose setting
+  # - Only prints if CHIEF_CFG_VERBOSE is true or --verbose flag is passed
+  # - Used internally for debug and status messages
+  # - Prevents output clutter when verbose mode is disabled
+  #
+  # Arguments:
+  #   string - Message to print
+  # Options:
+  #   --verbose - Force printing regardless of CHIEF_CFG_VERBOSE setting  
   if ${CHIEF_CFG_VERBOSE} || [[ "${2}" == '--verbose' ]]; then
     echo "${1}"
   fi
 }
 
-# Echo string in lower-case.
 function __lower() {
   # Usage: __lower <string>
+  # 
+  # Developer usage: Converts string to lowercase
+  # - Used internally for case-insensitive string operations
+  # - Primarily used for alias processing and string normalization
+  #
+  # Arguments:
+  #   string - Text to convert to lowercase
+  
   local valStr=$1
   valStr=$(echo $valStr | awk '{print tolower($0)}')
   echo $valStr
 }
 
-# Echo string in upper-case.
 function __upper() {
   # Usage: __upper <string>
+  # 
+  # Developer usage: Converts string to uppercase
+  # - Used internally for case-insensitive string operations and formatting
+  # - Utility function for string manipulation
+  #
+  # Arguments:
+  #   string - Text to convert to uppercase
+  
   local valStr=$1
   valStr=$(echo $valStr | awk '{print toupper($0)}')
   echo $valStr
 }
 
-# Create a temporary file in /tmp and echo the file name.
 function __get_tmpfile() {
   # Usage: __get_tmpfile
+  # 
+  # Developer usage: Generates a unique temporary file path
+  # - Creates platform-specific random filename in /tmp directory
+  # - Uses /dev/random on macOS and /dev/urandom on Linux for entropy
+  # - Returns absolute path to temporary file (file is not created, just named)
+  # - Used internally by __load_file for alias processing
+  #
+  # Returns:
+  #   Absolute path to a unique temporary file
   local tmp_file
   if [[ ${PLATFORM} == "MacOS" ]]; then
     tmp_file="/tmp/._$(cat /dev/random | LC_CTYPE=C tr -dc "[:alpha:]" | fold -w 8 | head -n 1)"
@@ -158,27 +201,61 @@ function __get_tmpfile() {
   echo ${tmp_file}
 }
 
-# Get absolute path to file
 function __this_file() {
   # This is used inside a script like a Chief plugin file.
   # Usage: __edit_file ${BASH_SOURCE[0]}
   # Reference: https://stackoverflow.com/a/9107028
+  # 
+  # Developer usage: Returns absolute path to the specified file
+  # - Resolves relative paths to absolute paths
+  # - Used internally for file path resolution in plugins
+  # - Particularly useful for determining plugin file locations
+  #
+  # Arguments:
+  #   file - Path to file (can be relative or absolute)
+  #
+  # Returns:
+  #   Absolute path to the specified file
   echo "$(cd "$(dirname "$1")" && pwd)/$(basename "$1")"
 }
 
 # Edit a file and reload into memory if changed.
+function __has_vscode() {
+  # Usage: __has_vscode
+  # 
+  # Check if VSCode CLI 'code' binary is available
+  # Returns: 0 if available, 1 if not available
+  command -v code >/dev/null 2>&1
+}
+
 function __edit_file() {
-  # Usage: __edit_file <file>
+  # Usage: __edit_file <file> [editor_option]
+  # Arguments:
+  #   file - Path to the file to edit
+  #   editor_option - Optional: 'vscode' to use VSCode, otherwise uses default editor
   local file=${1}
+  local editor_option=${2}
   local date1
   local date2
+  
+  # Choose editor based on option and availability
+  local editor_cmd="vi"  # default editor
+  if [[ "$editor_option" == "vscode" ]]; then
+    if __has_vscode; then
+      editor_cmd="code --wait"
+    else
+      echo -e "${CHIEF_COLOR_YELLOW}Warning: VSCode 'code' command not found. Falling back to vi editor.${CHIEF_NO_COLOR}"
+      editor_cmd="vi"
+    fi
+  fi
+  
   if [[ ${PLATFORM} == "MacOS" ]]; then
     date1=$(stat -L -f "%Sm" -t "%Y%m%dT%H%M%S" "$file")
-    vi ${file}
+    ${editor_cmd} ${file}
     date2=$(stat -L -f "%Sm" -t "%Y%m%dT%H%M%S" "$file")
   else
     date1=$(stat -L -c %y "$file")
-    vi ${file}
+    ${editor_cmd} ${file}
     date2=$(stat -L -c %y "$file")
   fi
 
@@ -203,17 +280,19 @@ function __edit_file() {
   fi
 }
 
-# # This is a helper function to load a file as itself. But created to allow for future pre-processing
-# #  e.g. to apply alias to the file before loading it.
-# # Usage: __load_file <file> [<message>] 
-# function __load_file() {
-#   __load_file ${1} # Apply alias if defined, then source the file.
-# }
-
-# Load remote plugins from the git repository.
-# This is only called if CHIEF_CFG_PLUGINS_TYPE is set to "remote".
-# Usage: __load_remote_plugins
 __load_remote_plugins() {
+  # Usage: __load_remote_plugins [--verbose] [--force]
+  # 
+  # Developer usage: Loads remote plugins from a git repository
+  # - Checks if autoupdate is enabled or --force flag is provided
+  # - Prompts user to update if plugins directory is empty/doesn't exist
+  # - Clones/updates git repository if necessary
+  # - Loads plugins from the git repository
+  #
+  # Options:
+  #   --verbose - Display detailed loading information
+  #   --force - Force update of plugins
+  
   local good_to_load=false
   # If autoupdate is disabled or --force was used.
   if ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE} || [[ "$2" == "--force" ]]; then
@@ -227,7 +306,7 @@ You can run 'chief.plugins_update' anytime or set CHIEF_CFG_PLUGINS_GIT_AUTOUPDA
   fi
 
   if ${good_to_load}; then
-  echo "Configured values:
+    echo "Configured values:
 CHIEF_CFG_PLUGINS_GIT_REPO=${CHIEF_CFG_PLUGINS_GIT_REPO}
 CHIEF_CFG_PLUGINS_GIT_BRANCH=${CHIEF_CFG_PLUGINS_GIT_BRANCH}
 CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}
@@ -257,7 +336,7 @@ CHIEF_CFG_PLUGINS=${CHIEF_CFG_PLUGINS}"
       git clone --branch ${CHIEF_CFG_PLUGINS_GIT_BRANCH} ${CHIEF_CFG_PLUGINS_GIT_REPO} ${CHIEF_CFG_PLUGINS_GIT_PATH}
     else
       echo "Updating remote plugins repository..."
-      cd ${CHIEF_CFG_PLUGINS_GIT_PATH}
+      cd "${CHIEF_CFG_PLUGINS_GIT_PATH}"
       # Check if local branch is different from $CHIEF_CFG_PLUGINS_GIT_BRANCH
       local current_branch=$(git rev-parse --abbrev-ref HEAD)
       if [[ ${current_branch} != ${CHIEF_CFG_PLUGINS_GIT_BRANCH} ]]; then
@@ -279,7 +358,18 @@ CHIEF_CFG_PLUGINS=${CHIEF_CFG_PLUGINS}"
 
 # Source the library/plugin module passed.
 function __load_plugins() {
-  # Usage: __load_plugins <plug-in module> (user/core)
+  # Usage: __load_plugins <plug-in module> (user/core) 
+  # 
+  # Developer usage: Loads plugins from the user or core directory
+  # - Checks if the plugin module is valid
+  # - Sets the directory path based on the module
+  # - Loads plugins from the directory
+  #
+  # Arguments:
+  #   module - The plugin module to load (user/core)
+  #
+  # Options:
+  #   --verbose - Display detailed loading information
   __print "Loading Chief ${1}-plugins..." "$2"
 
   local plugin_file
@@ -313,7 +403,6 @@ function __load_plugins() {
       done
 
       # Sort the plugins alphabetically
-      #mapfile -t sorted_plugins < <(printf "%s\n" "${plugins[@]}" | sort)
       sorted_plugins=($(printf '%s\n' "${plugins[@]}"|sort))
 
       # Loop through sorted plugins and print them
@@ -332,12 +421,15 @@ function __load_plugins() {
   fi
 }
 
-# Generate a list of plugins as a string separated by '|'.
-#   This is used to display the list of plugins in the banner, hints, and chief.plugin help text.
-#   This process is meant to run in addition to the __load_plugins function because it accounts for 
-#   new plugins that are created once the terminal is already started.
-# Usage: __get_plugins
 __get_plugins() {
+  # Usage: __get_plugins
+  # 
+  # Developer usage: Generates a list of plugins as a string separated by '|'
+  # - Used internally to display the list of plugins in the banner, hints, and chief.plugin help text
+  # - Accounts for new plugins that are created once the terminal is already started
+  #
+  # Returns:
+  #   A string of plugin names separated by '|'
   local plugin_file
   local plugin_name
   local dir_path
@@ -371,8 +463,13 @@ __get_plugins() {
 #   Note, will only succeed if plug-in is enabled in settings.
 # Usage: __edit_plugin <plug-in name>
 function __edit_plugin() {
+  # Usage: __edit_plugin <plugin_name> [editor_option]
+  # Arguments:
+  #   plugin_name - Name of the plugin to edit
+  #   editor_option - Optional: 'vscode' to use VSCode, otherwise uses default editor
   local plugin_name
   local plugin_file
+  local editor_option=${2}
 
   # Check if plugins are enabled.
   if [[ -z ${CHIEF_CFG_PLUGINS} ]]; then
@@ -385,7 +482,7 @@ function __edit_plugin() {
 
   # Check if the plugin file exists, if not, prompt to create it.
   if [[ -f ${plugin_file} ]]; then
-    __edit_file ${plugin_file}
+    __edit_file ${plugin_file} ${editor_option}
   else
     echo "Chief plugin: ${plugin_name} plugin file does not exist."
     if ! chief.etc_ask_yes_or_no "Create it?"; then
@@ -422,7 +519,7 @@ function __edit_plugin() {
     # Portable sed usage; reference: https://unix.stackexchange.com/a/381201
     sed -i.bak -e "s/\$CHIEF_PLUGIN_NAME/${plugin_name}/g" -- "${plugin_file}" && rm -rf "${plugin_file}.bak"
     #sed -i "s/\$CHIEF_PLUGIN_NAME/${plugin_name}/g" ${plugin_file}
-    __edit_file ${plugin_file}
+    __edit_file ${plugin_file} ${editor_option}
   fi
 }
 
@@ -468,20 +565,20 @@ function __chief.hints_text() {
       echo -e "${CHIEF_COLOR_GREEN}Plugins loaded: ${CHIEF_COLOR_CYAN}${plugin_list}${CHIEF_NO_COLOR}"
     fi
     echo ""
-    echo -e "${CHIEF_COLOR_YELLOW}Explore the following Chief commands:${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit the configuration and explore features.${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to pull the latest version or set ${CHIEF_COLOR_GREEN}CHIEF_CFG_AUTOCHECK_UPDATES=true${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.bash_profile${CHIEF_NO_COLOR} to edit your .bash_profile file.${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.bashrc${CHIEF_NO_COLOR} to edit your .bashrc file.${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.* -? ${CHIEF_NO_COLOR} to display the help-text for any chief command. ${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}type chief.* ${CHIEF_NO_COLOR} on any command if you're curious or want to reuse the internal functions.${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_YELLOW}Essential Commands:${CHIEF_NO_COLOR}"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit configuration file | ${CHIEF_COLOR_GREEN}chief.config_set <option> <value>${CHIEF_NO_COLOR} to set config directly"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.help${CHIEF_NO_COLOR} for comprehensive help | ${CHIEF_COLOR_GREEN}chief.help --compact${CHIEF_NO_COLOR} for quick reference"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.whereis <name>${CHIEF_NO_COLOR} to find any function/alias location"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.vault_*${CHIEF_NO_COLOR} to encrypt/decrypt secrets (requires ansible-vault)"
     echo ""
-    echo -e "${CHIEF_COLOR_YELLOW}Plugin-related:${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin${CHIEF_NO_COLOR} to edit the default plugin.${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin [plug-in name] ${CHIEF_NO_COLOR} to create/edit a plugin.${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.plugins${CHIEF_NO_COLOR} to cd into your plugins directory.${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR} to list plugins.${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.whereis <function | alias>${CHIEF_NO_COLOR} to locate exact location of function or alias.${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_YELLOW}Quick Customization:${CHIEF_NO_COLOR}"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set prompt true${CHIEF_NO_COLOR} for git-aware prompt | ${CHIEF_COLOR_GREEN}chief.git_legend${CHIEF_NO_COLOR} for colors"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set multiline_prompt true${CHIEF_NO_COLOR} for multi-line prompt"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set short_path true${CHIEF_NO_COLOR} for compact directory paths"
+    echo ""
+    echo -e "${CHIEF_COLOR_YELLOW}Plugin Management:${CHIEF_NO_COLOR}"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin [name]${CHIEF_NO_COLOR} to create/edit plugins | ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR} to list"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.plugins${CHIEF_NO_COLOR} to navigate to plugins directory"
     echo ""
     if [[ ${1} != '--verbose' ]]; then
       echo -e "${CHIEF_COLOR_CYAN}** Set ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS=false${CHIEF_COLOR_CYAN} to disable these hints. **${CHIEF_NO_COLOR}"
@@ -492,10 +589,107 @@ function __chief.hints_text() {
   fi
 }
 
-# Force display of Chief banner and hints text.
-function chief.help() {
-  __chief.banner
+# Display compact Chief hints and tips
+function chief.hints() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--banner]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Display compact Chief tips, hints, and quick command reference.
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  --banner    Show Chief banner with hints
+
+${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
+- Quick command overview
+- Plugin status and suggestions
+- Configuration tips
+- Essential workflow commands
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME                    # Show compact hints
+  $FUNCNAME --banner          # Show banner with hints
+"
+
+  if [[ $1 == "-?" ]]; then
+    echo -e "${USAGE}"
+    return
+  fi
+
+  if [[ $1 == "--banner" ]]; then
+    __chief.banner
+  fi
+  
   __chief.hints_text --verbose
+}
+
+# Comprehensive Chief help system
+function chief.help() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [category] [options]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Display Chief help information, commands, and usage examples.
+
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  category    Help category: commands, plugins, config, search (optional)
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  --compact, -c   Show compact command reference
+  --search <term> Search for specific commands or topics
+
+${CHIEF_COLOR_GREEN}Categories:${CHIEF_NO_COLOR}
+  commands    Core Chief commands and usage
+  plugins     Plugin management and available plugins  
+  config      Configuration options and setup
+  search      Search through available functions
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME                    # Show full help with banner
+  $FUNCNAME commands          # Show only core commands
+  $FUNCNAME plugins           # Show plugin information
+  $FUNCNAME config            # Show configuration help
+  $FUNCNAME --compact         # Compact command reference
+  $FUNCNAME --search git      # Search for git-related commands
+"
+
+  if [[ $1 == "-?" ]]; then
+    echo -e "${USAGE}"
+    return
+  fi
+
+  case "${1:-full}" in
+    commands|cmd)
+      __show_core_commands
+      ;;
+    plugins|plug)
+      __show_plugin_help
+      ;;
+    config|cfg)
+      __show_configuration_help
+      ;;
+    search)
+      __search_help "$2"
+      ;;
+    --compact|-c)
+      __show_compact_reference
+      ;;
+    --search)
+      __search_help "$2"
+      ;;
+    full|*)
+      __chief.banner
+      echo
+      __show_chief_stats
+      echo
+      echo -e "${CHIEF_COLOR_YELLOW}Available help categories:${CHIEF_NO_COLOR}"
+      echo -e "• ${CHIEF_COLOR_GREEN}chief.help commands${CHIEF_NO_COLOR}  - Core commands and usage"
+      echo -e "• ${CHIEF_COLOR_GREEN}chief.help plugins${CHIEF_NO_COLOR}   - Plugin management"
+      echo -e "• ${CHIEF_COLOR_GREEN}chief.help config${CHIEF_NO_COLOR}    - Configuration options"
+      echo -e "• ${CHIEF_COLOR_GREEN}chief.help --compact${CHIEF_NO_COLOR} - Quick reference"
+      echo -e "• ${CHIEF_COLOR_GREEN}chief.hints${CHIEF_NO_COLOR}          - Quick tips and workflow"
+      echo
+      echo -e "${CHIEF_COLOR_CYAN}Quick start: ${CHIEF_COLOR_GREEN}chief.[tab][tab]${CHIEF_NO_COLOR} to see all commands"
+      ;;
+  esac
 }
 
 # Display Chief version info.
@@ -503,7 +697,6 @@ function __chief.info() {
   # Usage: __chief.info
   __chief.banner
   echo -e "${CHIEF_COLOR_YELLOW}GitHub Repo: ${CHIEF_COLOR_CYAN}${CHIEF_REPO}${CHIEF_NO_COLOR}"
-  __chief.hints_text
 }
 
 # Start SSH agent
@@ -518,7 +711,7 @@ function __start_agent {
 }
 
 function __load_ssh_keys() {
-    __print "Loading SSH keys from: ${CHIEF_CFG_RSA_KEYS_PATH}..." "$1"
+    __print "Loading SSH keys from: ${CHIEF_CFG_SSH_KEYS_PATH}..." "$1"
 
   if [[ ${PLATFORM} == "MacOS" ]]; then
     load="/usr/bin/ssh-add --apple-use-keychain"
@@ -537,12 +730,13 @@ function __load_ssh_keys() {
     fi
   fi
 
-  # Load all keys. Skip authorized_keys, environment, and known_hosts.
-  for rsa_key in ${CHIEF_CFG_RSA_KEYS_PATH}/*.rsa; do
+  # Load all keys with .key extension (supports RSA, ed25519, etc.)
+  # Users can symlink existing keys with .key extension for selective loading
+  for ssh_key in ${CHIEF_CFG_SSH_KEYS_PATH}/*.key; do
     if ${CHIEF_CFG_VERBOSE} || [[ "${1}" == '--verbose' ]]; then
-      ${load} ${rsa_key}
+      ${load} ${ssh_key}
     else
-      ${load} ${rsa_key} &> /dev/null
+      ${load} ${ssh_key} &> /dev/null
     fi
   done
 
@@ -561,30 +755,54 @@ function __build_git_prompt() {
   # Usage: PROMPT_COMMAND='__build_git_prompt'
   # Needed because PROMPT_COMMAND doesn't 'echo -e' and this also fixes the nasty
   # wrapping bug when the prompt is colorized and a VE is activated.
-  local RED='\[\e[31m\]'
-  local CHIEF_COLOR_BLUE='\[\e[34m\]'
-  local CHIEF_COLOR_
-  CYAN='\[\e[36m\]'
-  local CHIEF_COLOR_GREEN='\[\e[32m\]'
-  local CHIEF_COLOR_MAGENTA='\[\e[35m\]'
-  local CHIEF_COLOR_ORANGE='\[\e[33m\]'
-  local CHIEF_COLOR_YELLOW='\[\e[1;33m\]'
-  local CHIEF_TEXT_BLINK='\[\e[5m\]'
-  local CHIEF_NO_COLOR='\[\e[0m\]' # Reset color/style
+  # Note: Using \[ \] sequences for non-printing characters in prompts
+  local P_BLUE='\[\033[0;34m\]'
+  local P_CYAN='\[\033[0;36m\]'
+  local P_GREEN='\[\033[0;32m\]'
+  local P_MAGENTA='\[\033[0;35m\]'
+  local P_YELLOW='\[\033[1;33m\]'
+  local P_NO_COLOR='\[\033[0m\]'
 
   local ve_name=''
   if [[ ! -z ${VIRTUAL_ENV} ]]; then
     if ${CHIEF_CFG_COLORED_PROMPT}; then
-      ve_name="(${CHIEF_COLOR_BLUE}${VIRTUAL_ENV##*/}${CHIEF_NO_COLOR}) "
+      ve_name="(${P_BLUE}${VIRTUAL_ENV##*/}${P_NO_COLOR}) "
     else
       ve_name="(${VIRTUAL_ENV##*/}) "
     fi
   fi
 
-  if ${CHIEF_CFG_COLORED_PROMPT}; then
-    __git_ps1 "${ve_name}${CHIEF_COLOR_MAGENTA}\u${CHIEF_NO_COLOR}@${CHIEF_COLOR_GREEN}\h${CHIEF_NO_COLOR}:${CHIEF_COLOR_YELLOW}${prompt_tag}${CHIEF_NO_COLOR}" "\\\$ "
+  # If CHIEF_HOST is set, use it in the prompt
+  if [[ -n ${CHIEF_HOST} ]]; then
+    host="${CHIEF_HOST}"
   else
-    __git_ps1 "${ve_name}\u@\h:${prompt_tag}" "\\\$ "
+    host=$(hostname -s)  # Short hostname
+  fi
+
+  # Build the base prompt parts
+  local user_host="\u@${host}"
+  local path_part="${prompt_tag:-\w}"
+  
+  if ${CHIEF_CFG_COLORED_PROMPT}; then
+    user_host="${P_MAGENTA}\u${P_NO_COLOR}@${P_GREEN}${host}${P_NO_COLOR}"
+    path_part="${P_YELLOW}${prompt_tag:-\w}${P_NO_COLOR}"
+  fi
+
+  # Check if multi-line prompt is enabled
+  if ${CHIEF_CFG_MULTILINE_PROMPT:-false}; then
+    # Multi-line prompt: info on first line, prompt on second line
+    if ${CHIEF_CFG_COLORED_PROMPT}; then
+      __git_ps1 "${ve_name}${user_host}:${path_part}" "\n\\\$ "
+    else
+      __git_ps1 "${ve_name}${user_host}:${path_part}" "\n\\\$ "
+    fi
+  else
+    # Single-line prompt (original behavior)
+    if ${CHIEF_CFG_COLORED_PROMPT}; then
+      __git_ps1 "${ve_name}${user_host}:${path_part}" "\\\$ "
+    else
+      __git_ps1 "${ve_name}${user_host}:${path_part}" "\\\$ "
+    fi
   fi
 }
 
@@ -626,43 +844,43 @@ function __check_for_updates (){
 #Cyan         0;36     Light Cyan    1;36
 #Light Gray   0;37     White         1;37
 
-CHIEF_COLOR_RED='\033[0;31m'
-CHIEF_COLOR_BLUE='\033[0;34m'
-CHIEF_COLOR_CYAN='\033[0;36m'
-CHIEF_COLOR_GREEN='\033[0;32m'
-CHIEF_COLOR_MAGENTA='\033[0;35m'
-CHIEF_COLOR_ORANGE='\033[0;33m'
-CHIEF_COLOR_YELLOW='\033[1;33m'
-CHIEF_TEXT_BLINK='\033[5m'
-CHIEF_NO_COLOR='\033[0m' # Reset color/style
+export CHIEF_COLOR_RED='\033[0;31m'
+export CHIEF_COLOR_BLUE='\033[0;34m'
+export CHIEF_COLOR_CYAN='\033[0;36m'
+export CHIEF_COLOR_GREEN='\033[0;32m'
+export CHIEF_COLOR_MAGENTA='\033[0;35m'
+export CHIEF_COLOR_ORANGE='\033[0;33m'
+export CHIEF_COLOR_YELLOW='\033[1;33m'
+export CHIEF_TEXT_BLINK='\033[5m'
+export CHIEF_NO_COLOR='\033[0m' # Reset color/style
 
 # From: https://www.linuxquestions.org/questions/linux-newbie-8/bash-echo-the-arrow-keys-825773/
-CHIEF_KEYS_ESC=$'\e'
-CHIEF_KEYS_F1=$'\e'[[A
-CHIEF_KEYS_F2=$'\e'[[B
-CHIEF_KEYS_F3=$'\e'[[C
-CHIEF_KEYS_F4=$'\e'[[D
-CHIEF_KEYS_F5=$'\e'[[E
-CHIEF_KEYS_F6=$'\e'[17~
-CHIEF_KEYS_F7=$'\e'[18~
-CHIEF_KEYS_F8=$'\e'[19~
-CHIEF_KEYS_F9=$'\e'[20~
-CHIEF_KEYS_F10=$'\e'[21~
-CHIEF_KEYS_F11=$'\e'[22~
-CHIEF_KEYS_F12=$'\e'[23~
-CHIEF_KEYS_HOME=$'\e'[1~
-CHIEF_KEYS_HOME2=$'\e'[H
-CHIEF_KEYS_INSERT=$'\e'[2~
-CHIEF_KEYS_DELETE=$'\e'[3~
-CHIEF_KEYS_END=$'\e'[4~
-CHIEF_KEYS_END2=$'\e'[F
-CHIEF_KEYS_PAGEUP=$'\e'[5~
-CHIEF_KEYS_PAGEDOWN=$'\e'[6~
-CHIEF_KEYS_UP=$'\e'[A
-CHIEF_KEYS_DOWN=$'\e'[B
-CHIEF_KEYS_RIGHT=$'\e'[C
-CHIEF_KEYS_LEFT=$'\e'[D
-CHIEF_KEYS_NUMPADUNKNOWN=$'\e'[G
+export CHIEF_KEYS_ESC=$'\e'
+export CHIEF_KEYS_F1=$'\e'[[A
+export CHIEF_KEYS_F2=$'\e'[[B
+export CHIEF_KEYS_F3=$'\e'[[C
+export CHIEF_KEYS_F4=$'\e'[[D
+export CHIEF_KEYS_F5=$'\e'[[E
+export CHIEF_KEYS_F6=$'\e'[17~
+export CHIEF_KEYS_F7=$'\e'[18~
+export CHIEF_KEYS_F8=$'\e'[19~
+export CHIEF_KEYS_F9=$'\e'[20~
+export CHIEF_KEYS_F10=$'\e'[21~
+export CHIEF_KEYS_F11=$'\e'[22~
+export CHIEF_KEYS_F12=$'\e'[23~
+export CHIEF_KEYS_HOME=$'\e'[1~
+export CHIEF_KEYS_HOME2=$'\e'[H
+export CHIEF_KEYS_INSERT=$'\e'[2~
+export CHIEF_KEYS_DELETE=$'\e'[3~
+export CHIEF_KEYS_END=$'\e'[4~
+export CHIEF_KEYS_END2=$'\e'[F
+export CHIEF_KEYS_PAGEUP=$'\e'[5~
+export CHIEF_KEYS_PAGEDOWN=$'\e'[6~
+export CHIEF_KEYS_UP=$'\e'[A
+export CHIEF_KEYS_DOWN=$'\e'[B
+export CHIEF_KEYS_RIGHT=$'\e'[C
+export CHIEF_KEYS_LEFT=$'\e'[D
+export CHIEF_KEYS_NUMPADUNKNOWN=$'\e'[G
 
 
 prompt_end() {
@@ -677,6 +895,22 @@ prompt_end() {
 
   #Adds the new line and ➜ as the start character.
   printf "\n ➜";
+}
+
+function __print_error(){
+  echo -e "${CHIEF_COLOR_RED}Error: $1${CHIEF_NO_COLOR}"
+}
+
+function __print_warn(){
+  echo -e "${CHIEF_COLOR_YELLOW}Warning: $1${CHIEF_NO_COLOR}"
+}
+
+function __print_success(){
+  echo -e "${CHIEF_COLOR_GREEN}$1${CHIEF_NO_COLOR}"
+}
+
+function __print_info(){
+  echo -e "${CHIEF_COLOR_CYAN}$1${CHIEF_NO_COLOR}"
 }
 
 # MAIN FUNCTIONS
@@ -701,8 +935,9 @@ Change directory (cd) into the Chief utility root installation directory."
 function chief.ssh_load_keys() {
   local USAGE="Usage: $FUNCNAME
 
-Load SSH keys from CHIEF_CFG_RSA_KEYS_PATH defined in the Chief configuration.
-Note: All private keys must end with the suffix '.rsa'. Symlinks are allowed.
+Load SSH keys from CHIEF_CFG_SSH_KEYS_PATH defined in the Chief configuration.
+Note: All private keys must end with the suffix '.key'. Symlinks are allowed.
+This supports RSA, ed25519, and other key types. Use symlinks for selective loading.
 "
 
   if [[ $1 == "-?" ]]; then
@@ -710,8 +945,9 @@ Note: All private keys must end with the suffix '.rsa'. Symlinks are allowed.
     return
   fi
 
-  if [[ -z ${CHIEF_CFG_RSA_KEYS_PATH}  ]]; then
-    echo -e "${CHIEF_COLOR_RED}Error: CHIEF_CFG_RSA_KEYS_PATH is not set in ${CHIEF_CONFIG}. Please set it to the path where your SSH keys are stored.${CHIEF_NO_COLOR}"
+  if [[ -z ${CHIEF_CFG_SSH_KEYS_PATH}  ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error: CHIEF_CFG_SSH_KEYS_PATH is not set in ${CHIEF_CONFIG}. Please set it to the path where your SSH keys are stored.${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_YELLOW}Note: Keys must end with '.key' extension (supports RSA, ed25519, etc.)${CHIEF_NO_COLOR}"
     echo "${USAGE}"
     return 1
   fi
@@ -720,13 +956,36 @@ Note: All private keys must end with the suffix '.rsa'. Symlinks are allowed.
 }
 
 function chief.plugins_update() {
-  local USAGE="Usage: $FUNCNAME
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
 
-Update and reload the remote Chief plugins when CHIEF_CFG_PLUGINS_TYPE} == 'remote'.
-This command will update all plugins to the latest version available from the git repository."
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Update and reload remote Chief plugins when using remote plugin configuration.
+
+${CHIEF_COLOR_GREEN}Requirements:${CHIEF_NO_COLOR}
+- CHIEF_CFG_PLUGINS_TYPE must be set to 'remote'
+- CHIEF_CFG_PLUGINS_GIT_REPO must be configured
+- Git must be available and repository accessible
+
+${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
+- Fetches latest plugin versions from Git repository
+- Automatically reloads updated plugins
+- Provides verbose feedback during update process
+- Maintains local plugin configuration
+
+${CHIEF_COLOR_MAGENTA}Plugin Types:${CHIEF_NO_COLOR}
+- ${CHIEF_COLOR_GREEN}Remote:${CHIEF_NO_COLOR} Plugins managed via Git repository (team sharing)
+- ${CHIEF_COLOR_BLUE}Local:${CHIEF_NO_COLOR} Plugins in ~/chief_plugins (personal use)
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME                    # Update all remote plugins
+  chief.config                 # Configure plugin settings first
+
+${CHIEF_COLOR_BLUE}Configuration:${CHIEF_NO_COLOR}
+Set CHIEF_CFG_PLUGINS_TYPE='remote' and CHIEF_CFG_PLUGINS_GIT_REPO in chief.config
+"
 
   if [[ $1 == "-?" ]]; then
-    echo "${USAGE}"
+    echo -e "${USAGE}"
     return
   fi
   if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]]; then
@@ -741,12 +1000,41 @@ This command will update all plugins to the latest version available from the gi
 }
 
 function chief.update() {
-  local USAGE="Usage: $FUNCNAME
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
 
-Update the Chief utility library to the latest version."
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Update the Chief utility library to the latest version from the official repository.
+
+${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
+- Checks for available updates with spinner indicator
+- Interactive confirmation before updating
+- Pulls latest changes from Chief repository
+- Automatically reloads environment after update
+- Preserves your personal configuration and plugins
+
+${CHIEF_COLOR_BLUE}Update Process:${CHIEF_NO_COLOR}
+1. Check for available updates
+2. Prompt for user confirmation
+3. Pull latest Chief version
+4. Reload Chief environment
+5. Return to original directory
+
+${CHIEF_COLOR_MAGENTA}Safety Features:${CHIEF_NO_COLOR}
+- Only updates Chief core files
+- Preserves user configurations and plugins
+- Shows progress with visual feedback
+- Requires explicit user confirmation
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME                    # Check and update Chief
+  chief.reload                 # Reload after manual updates
+
+${CHIEF_COLOR_BLUE}Alternative:${CHIEF_NO_COLOR}
+You can also manually update by running git pull in the Chief directory.
+"
 
   if [[ $1 == "-?" ]]; then
-    echo "${USAGE}"
+    echo -e "${USAGE}"
     return
   fi
 
@@ -755,7 +1043,8 @@ Update the Chief utility library to the latest version."
   echo -e "${tmp_out}"
   if [[ ${tmp_out} == *"available"* ]]; then
     if chief.etc_ask_yes_or_no "Updates are available, update now?"; then
-      ${CHIEF_PATH}
+      echo "Proceeding..."
+      cd "${CHIEF_PATH}"
       chief.git_update -p
       chief.reload
       cd - > /dev/null 2>&1
@@ -769,28 +1058,77 @@ Update the Chief utility library to the latest version."
 }
 
 function chief.uninstall() {
-  local USAGE="Usage: $FUNCNAME
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
 
-Uninstall the Chief utility.
-The configuration file will be backed up as ${CHIEF_CONFIG}.backup.
-All plugin files and plugin directories will NOT be removed.
-This command will prompt for confirmation before proceeding with the uninstallation."
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Completely uninstall the Chief utility from your system with safety precautions.
+
+${CHIEF_COLOR_GREEN}Safety Features:${CHIEF_NO_COLOR}
+- Interactive confirmation before proceeding
+- Backs up configuration as ${CHIEF_CONFIG}.backup
+- Preserves all plugin files and directories
+- Removes Chief from shell configuration files
+
+${CHIEF_COLOR_BLUE}What Gets Removed:${CHIEF_NO_COLOR}
+- Chief installation directory
+- Shell profile integration (.bash_profile entries)
+- Chief environment variables and functions
+- Symlinks and shortcuts
+
+${CHIEF_COLOR_MAGENTA}What Gets Preserved:${CHIEF_NO_COLOR}
+- Personal plugins in ~/chief_plugins
+- Backed up configuration file
+- Custom shell modifications (non-Chief)
+- User data and settings
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME                    # Uninstall with prompts
+  
+${CHIEF_COLOR_RED}Warning:${CHIEF_NO_COLOR}
+This operation removes Chief from your system. Your plugins and config backup will remain.
+
+${CHIEF_COLOR_BLUE}Reinstallation:${CHIEF_NO_COLOR}
+Run the install script again to reinstall Chief with your backed up configuration.
+"
 
   if [[ $1 == "-?" ]]; then
-    echo "${USAGE}"
+    echo -e "${USAGE}"
     return
   fi
 
+  echo -e "${CHIEF_COLOR_YELLOW}Starting Chief uninstall process...${CHIEF_NO_COLOR}"
   ${CHIEF_PATH}/tools/uninstall.sh
 }
 
 function chief.config() {
-  local USAGE="Usage: $FUNCNAME
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
 
-Edit the Chief utility configuration."
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Edit Chief's configuration file with automatic reload on changes.
+
+${CHIEF_COLOR_GREEN}Configuration Options:${CHIEF_NO_COLOR}
+- CHIEF_CFG_BANNER: Show startup banner
+- CHIEF_CFG_PROMPT: Use Chief's custom prompt
+- CHIEF_CFG_GIT_PROMPT: Git-aware prompt features
+- CHIEF_CFG_MULTILINE_PROMPT: Enable multiline prompt
+- CHIEF_CFG_PLUGINS_TYPE: 'local' or 'remote' plugins
+- CHIEF_CFG_SSH_KEYS_PATH: Auto-load SSH keys path (keys must end in .key)
+- And many more...
+
+${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
+- Opens in your preferred \$EDITOR
+- Automatically reloads configuration on save
+- Validates syntax before applying changes
+
+${CHIEF_COLOR_MAGENTA}File Location:${CHIEF_NO_COLOR}
+$CHIEF_CONFIG
+
+${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR}
+Some changes require terminal restart to take full effect.
+"
 
   if [[ $1 == "-?" ]]; then
-    echo "${USAGE}"
+    echo -e "${USAGE}"
     return
   fi
 
@@ -800,14 +1138,265 @@ Edit the Chief utility configuration."
   }
 }
 
-function chief.plugins() {
-  local USAGE="Usage: $FUNCNAME
+function chief.config_set() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--list|-l] | <config_option> <value> [--yes|-y]
 
-Change directory (cd) into the Chief utility plugins directory root."
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Set a Chief configuration variable and reload the configuration automatically.
+By default, prompts for confirmation before modifying config file. Use --yes to skip prompts.
+
+${CHIEF_COLOR_GREEN}Options:${CHIEF_NO_COLOR}
+  --list, -l     List all available configuration variables and their current values
+  --yes, -y      Skip confirmation prompt (non-interactive mode for scripting)
+                 Can be placed anywhere in the argument list
+
+${CHIEF_COLOR_GREEN}Arguments:${CHIEF_NO_COLOR}
+  config_option  Configuration option name (without CHIEF_CFG_ prefix, case insensitive)
+  value          Boolean (true/false) or string value to set
+
+${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
+  BANNER                    Show/hide startup banner (true/false)
+  HINTS                     Show/hide startup hints (true/false)
+  VERBOSE                   Enable verbose output (true/false)
+  AUTOCHECK_UPDATES         Auto-check for updates (true/false)
+  CONFIG_SET_INTERACTIVE    Enable/disable confirmation prompts (true/false)
+  PLUGINS_TYPE              Plugin type (\"local\"/\"remote\")
+  PLUGINS_GIT_REPO          Git repository URL for remote plugins
+  PLUGINS_GIT_BRANCH        Git branch to use (default: main)
+  PLUGINS_GIT_PATH          Local path for remote plugin cache
+  PLUGINS_GIT_AUTOUPDATE    Auto-update remote plugins (true/false)
+  PROMPT                    Enable/disable Chief prompt (true/false)
+  COLORED_PROMPT            Enable colored prompts (true/false)
+  GIT_PROMPT                Show git status in prompt (true/false)
+  MULTILINE_PROMPT          Use multi-line prompt layout (true/false)
+  SHORT_PATH                Show short paths in prompt (true/false)
+  COLORED_LS                Enable colored ls output (true/false)
+  SSH_KEYS_PATH             Path to SSH keys directory (keys must end in .key)
+  ALIAS                     Custom alias for chief commands
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME --list                      # List all configuration variables
+  $FUNCNAME banner true                 # Enable startup banner (with prompt)
+  $FUNCNAME --yes banner false          # Disable startup banner (no prompt)
+  $FUNCNAME colored_ls true --yes       # Enable colored ls (no prompt)
+  $FUNCNAME prompt -y true              # Enable custom prompt (no prompt)
+  $FUNCNAME ssh_keys_path \"\$HOME/.ssh\"  # Set SSH keys path (with prompt)
+  $FUNCNAME config_set_interactive false # Disable prompts globally
+
+${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
+- Configuration options are case insensitive
+- String values with spaces should be quoted
+- Changes take effect immediately after reload
+- Some changes may require terminal restart
+- Reports previous and new values for each change
+"
 
   if [[ $1 == "-?" ]]; then
-    echo "${USAGE}"
+    echo -e "${USAGE}"
     return
+  fi
+
+  # Handle --list option
+  if [[ $1 == "--list" || $1 == "-l" ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}Current Chief Configuration Settings:${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_BLUE}Source:${CHIEF_NO_COLOR} ${CHIEF_CONFIG}"
+    echo
+    
+    # List all CHIEF_CFG_ variables from config file
+    while IFS= read -r line; do
+      if [[ $line =~ ^[#]*CHIEF_CFG_([A-Z_]+)=(.*)$ ]]; then
+        local var_name="${BASH_REMATCH[1]}"
+        local var_value="${BASH_REMATCH[2]}"
+        local is_commented=""
+        
+        if [[ $line =~ ^# ]]; then
+          is_commented=" ${CHIEF_COLOR_RED}(commented/disabled)${CHIEF_NO_COLOR}"
+        fi
+        
+        echo -e "  ${CHIEF_COLOR_GREEN}${var_name}${CHIEF_NO_COLOR}=${CHIEF_COLOR_YELLOW}${var_value}${CHIEF_NO_COLOR}${is_commented}"
+      fi
+    done < "${CHIEF_CONFIG}"
+    
+    return
+  fi
+
+  # Handle --yes option (non-interactive mode) - can be anywhere in arguments
+  local skip_confirmation=false
+  local args=()
+  
+  # Parse all arguments, extract --yes flag and build clean args array
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --yes|-y)
+        skip_confirmation=true
+        ;;
+      *)
+        args+=("$1")
+        ;;
+    esac
+    shift
+  done
+
+  # Restore arguments without --yes flag
+  set -- "${args[@]}"
+
+  if [[ $# -lt 2 ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Missing required arguments"
+    echo -e "${USAGE}"
+    return 1
+  fi
+
+  local config_name=$(echo "$1" | tr '[:lower:]' '[:upper:]')
+  local config_value="$2"
+  local config_var="CHIEF_CFG_${config_name}"
+  
+  # Validate config name exists in template
+  if ! grep -q "^[#]*${config_var}=" "${CHIEF_CONFIG}" 2>/dev/null; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown configuration option: ${config_name}"
+    echo -e "Run ${CHIEF_COLOR_GREEN}$FUNCNAME --list${CHIEF_NO_COLOR} to see all available variables"
+    return 1
+  fi
+
+  # Get previous value
+  local previous_value=""
+  local was_commented=false
+  if grep -q "^${config_var}=" "${CHIEF_CONFIG}"; then
+    previous_value=$(grep "^${config_var}=" "${CHIEF_CONFIG}" | cut -d'=' -f2-)
+  elif grep -q "^#${config_var}=" "${CHIEF_CONFIG}"; then
+    previous_value=$(grep "^#${config_var}=" "${CHIEF_CONFIG}" | cut -d'=' -f2-)
+    was_commented=true
+  else
+    previous_value="<not set>"
+  fi
+
+  # Validate boolean values and prepare new value
+  case "${config_value}" in
+    true|false)
+      # Valid boolean values
+      ;;
+    *)
+      # String value - wrap in quotes if it contains spaces or special chars
+      if [[ "${config_value}" =~ [[:space:]\"\'$] ]]; then
+        config_value="\"${config_value}\""
+      fi
+      ;;
+  esac
+
+  # Check if value is already set to the same value
+  if [[ "${previous_value}" == "${config_value}" && "${was_commented}" == false ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Configuration ${CHIEF_COLOR_CYAN}${config_var}${CHIEF_NO_COLOR} is already set to ${CHIEF_COLOR_YELLOW}${config_value}${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_BLUE}No changes made.${CHIEF_NO_COLOR}"
+    return 0
+  fi
+
+  # Interactive confirmation prompt (unless --yes flag used or global setting disabled)
+  if [[ "${skip_confirmation}" != true ]] && [[ "${CHIEF_CFG_CONFIG_SET_INTERACTIVE:-true}" != "false" ]]; then
+    echo -e "${CHIEF_COLOR_BLUE}About to modify configuration:${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_CYAN}File:${CHIEF_NO_COLOR}     ${CHIEF_CONFIG}"
+    echo -e "  ${CHIEF_COLOR_CYAN}Variable:${CHIEF_NO_COLOR} ${config_var}"
+    echo -e "  ${CHIEF_COLOR_CYAN}Change:${CHIEF_NO_COLOR}   ${previous_value} → ${config_value}"
+    echo
+    echo -en "${CHIEF_COLOR_YELLOW}Overwrite ${CHIEF_CONFIG}? (y/n [n]): ${CHIEF_NO_COLOR}"
+    read -r confirm
+    if [[ "${confirm}" != "y" && "${confirm}" != "Y" ]]; then
+      echo -e "${CHIEF_COLOR_BLUE}Configuration change cancelled.${CHIEF_NO_COLOR}"
+      return 0
+    fi
+    echo
+  fi
+
+  echo -e "${CHIEF_COLOR_BLUE}Setting configuration variable:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_CYAN}Variable:${CHIEF_NO_COLOR} ${config_var}"
+  
+  local comment_note=""
+  if [[ "${was_commented}" == true ]]; then
+    comment_note=" (was commented)"
+  fi
+  
+  echo -e "  ${CHIEF_COLOR_CYAN}Previous:${CHIEF_NO_COLOR} ${previous_value}${comment_note}"
+  echo -e "  ${CHIEF_COLOR_CYAN}New:${CHIEF_NO_COLOR}      ${config_value}"
+
+
+  # Update or add the configuration
+  echo -e "${CHIEF_COLOR_BLUE}Updating configuration file...${CHIEF_NO_COLOR}"
+  
+  if grep -q "^[#]*${config_var}=" "${CHIEF_CONFIG}"; then
+    # Configuration exists, update it (remove comment if present)
+    local temp_file="/tmp/chief_config_temp_$$"
+    local target_file=$(readlink -f "${CHIEF_CONFIG}" 2>/dev/null || echo "${CHIEF_CONFIG}")
+    
+    # Temporarily disable noclobber and clean up any existing temp file
+    local old_noclobber=$(set +o | grep noclobber)
+    set +o noclobber
+    rm -f "${temp_file}"
+    
+    if sed "s|^[#]*${config_var}=.*|${config_var}=${config_value}|" "${CHIEF_CONFIG}" > "${temp_file}" && command cp -f "${temp_file}" "${target_file}"; then
+      echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Updated ${config_var}"
+      rm -f "${temp_file}"
+    else
+      echo -e "${CHIEF_COLOR_RED}✗${CHIEF_NO_COLOR} Failed to update ${config_var}"
+      rm -f "${temp_file}"
+      return 1
+    fi
+    
+    # Restore noclobber setting
+    eval "${old_noclobber}"
+  else
+    # Configuration doesn't exist, add it
+    if echo "${config_var}=${config_value}" >> "${CHIEF_CONFIG}"; then
+      echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Added ${config_var}"
+    else
+      echo -e "${CHIEF_COLOR_RED}✗${CHIEF_NO_COLOR} Failed to add ${config_var}"
+      return 1
+    fi
+  fi
+
+  # Reload configuration
+  echo -e "${CHIEF_COLOR_BLUE}Reloading Chief configuration...${CHIEF_NO_COLOR}"
+  if __load_library --verbose; then
+    echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Configuration reloaded successfully"
+  else
+    echo -e "${CHIEF_COLOR_YELLOW}⚠${CHIEF_NO_COLOR} Configuration file updated but reload had issues"
+  fi
+  
+  # Verify the change
+  local current_value
+  if current_value=$(grep "^${config_var}=" "${CHIEF_CONFIG}" 2>/dev/null | cut -d'=' -f2-); then
+    echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Confirmed: ${config_var}=${current_value}"
+  else
+    echo -e "${CHIEF_COLOR_YELLOW}⚠${CHIEF_NO_COLOR} Could not verify the configuration change"
+  fi
+}
+
+function chief.plugins() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Change directory (cd) into the Chief plugins directory.
+
+${CHIEF_COLOR_GREEN}Plugin Directory Types:${CHIEF_NO_COLOR}
+- Local plugins: ~/chief_plugins/ (default)
+- Remote plugins: Git repository clone location
+- Custom: User-defined CHIEF_CFG_PLUGINS path
+
+${CHIEF_COLOR_BLUE}Current Plugin Directory:${CHIEF_NO_COLOR}
+$CHIEF_CFG_PLUGINS
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME        # Navigate to plugins directory
+  ls -la          # List all plugin files
+  vim my_plugin   # Edit a plugin file
+"
+
+  if [[ $1 == "-?" ]]; then
+    echo -e "${USAGE}"
+    return
+  fi
+
+  if [[ ! -d "$CHIEF_CFG_PLUGINS" ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} Plugin directory does not exist: $CHIEF_CFG_PLUGINS"
+    echo -e "${CHIEF_COLOR_BLUE}Creating directory...${CHIEF_NO_COLOR}"
+    mkdir -p "$CHIEF_CFG_PLUGINS"
   fi
 
   cd ${CHIEF_CFG_PLUGINS}
@@ -815,29 +1404,103 @@ Change directory (cd) into the Chief utility plugins directory root."
 }
 
 function chief.plugin() {
-  local USAGE="Usage: $FUNCNAME [$(__get_plugins)]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [OPTIONS] [plugin_name]
 
-Edit a Chief plugin library. If no parameter is passed, the default plug-in will be edited."
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Edit a Chief plugin file with automatic reload on changes.
 
-  if [[ $1 == "-?" ]]; then
-    echo "${USAGE}"
-    return
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  plugin_name  Name of plugin to edit (without _chief-plugin.sh suffix)
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  --code, --vscode  Use VSCode editor (requires 'code' command)
+  -?               Show this help message
+
+${CHIEF_COLOR_GREEN}Available Plugins:${CHIEF_NO_COLOR}
+$(__get_plugins)
+
+${CHIEF_COLOR_MAGENTA}Plugin Naming Convention:${CHIEF_NO_COLOR}
+- File format: <name>_chief-plugin.sh
+- Function format: <name>.<function_name>()
+- Must be executable and sourced
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME                    # Edit default plugin
+  $FUNCNAME mytools            # Edit mytools_chief-plugin.sh
+  $FUNCNAME --code aws         # Edit aws_chief-plugin.sh with VSCode
+  $FUNCNAME --vscode mytools   # Edit mytools_chief-plugin.sh with VSCode
+
+${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
+- Opens in your preferred editor (vi by default)
+- VSCode support with --code/--vscode flag
+- Automatically reloads plugin on save
+- Creates new plugin if it doesn't exist
+"
+
+  # Parse arguments
+  local use_vscode=""
+  local plugin_name=""
+  
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -\?|--help)
+        echo -e "${USAGE}"
+        return
+        ;;
+      --code|--vscode)
+        use_vscode="vscode"
+        shift
+        ;;
+      -*)
+        echo -e "${CHIEF_COLOR_RED}Error: Unknown option: $1${CHIEF_NO_COLOR}"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+      *)
+        plugin_name="$1"
+        shift
+        ;;
+    esac
+  done
+
+  # Determine plugin name
+  if [[ -z "$plugin_name" ]]; then
+    plugin_name="default"
   fi
 
-  if [[ -z $1 ]]; then
-    __edit_plugin default
-  else
-    __edit_plugin $1
-  fi
+  __edit_plugin "$plugin_name" "$use_vscode"
 }
 
 function chief.bash_profile() {
-  local USAGE="Usage: $FUNCNAME
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
 
-Edit the user .bash_profile file and reload into memory if changed."
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Edit your ~/.bash_profile file with automatic reload on changes.
+
+${CHIEF_COLOR_GREEN}What is .bash_profile:${CHIEF_NO_COLOR}
+- Login shell initialization script
+- Executed when you start a new terminal session
+- Contains environment variables, aliases, functions
+- Preferred over .bashrc for login shells
+
+${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
+- Opens in your preferred \$EDITOR
+- Automatically sources file on save
+- Detects and reports syntax errors
+- Creates file if it doesn't exist
+
+${CHIEF_COLOR_MAGENTA}Best Practices:${CHIEF_NO_COLOR}
+- Put personal variables here (not in shared plugins)
+- Set PATH modifications
+- Configure personal aliases and functions
+- Source other configuration files
+
+${CHIEF_COLOR_YELLOW}File Location:${CHIEF_NO_COLOR}
+~/.bash_profile
+"
 
   if [[ $1 == "-?" ]]; then
-    echo "${USAGE}"
+    echo -e "${USAGE}"
     return
   fi
 
@@ -845,12 +1508,37 @@ Edit the user .bash_profile file and reload into memory if changed."
 }
 
 function chief.bashrc() {
-  local USAGE="Usage: $FUNCNAME
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
 
-Edit the user .bashrc file and reload into memory if changed."
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Edit your ~/.bashrc file with automatic reload on changes.
+
+${CHIEF_COLOR_GREEN}What is .bashrc:${CHIEF_NO_COLOR}
+- Non-login shell initialization script
+- Executed for interactive non-login shells
+- Contains aliases, functions, and interactive settings
+- Sourced by terminal multiplexers and some terminals
+
+${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
+- Opens in your preferred \$EDITOR
+- Automatically sources file on save
+- Detects and reports syntax errors
+- Creates file if it doesn't exist
+
+${CHIEF_COLOR_MAGENTA}Usage Notes:${CHIEF_NO_COLOR}
+- .bash_profile is preferred for login shells (Chief recommendation)
+- .bashrc is better for non-login interactive shells
+- Some systems source .bashrc from .bash_profile
+
+${CHIEF_COLOR_YELLOW}File Location:${CHIEF_NO_COLOR}
+~/.bashrc
+
+${CHIEF_COLOR_BLUE}Recommendation:${CHIEF_NO_COLOR}
+Use chief.bash_profile for most Chief and personal configurations.
+"
 
   if [[ $1 == "-?" ]]; then
-    echo "${USAGE}"
+    echo -e "${USAGE}"
     return
   fi
 
@@ -858,12 +1546,38 @@ Edit the user .bashrc file and reload into memory if changed."
 }
 
 function chief.profile() {
-  local USAGE="Usage: $FUNCNAME
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
 
-Edit the user .profile file and reload into memory if changed."
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Edit your ~/.profile file with automatic reload on changes.
+
+${CHIEF_COLOR_GREEN}What is .profile:${CHIEF_NO_COLOR}
+- POSIX-compliant shell initialization script
+- Executed by login shells (bash, dash, zsh, etc.)
+- Contains environment variables and paths
+- Most portable shell configuration file
+
+${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
+- Opens in your preferred \$EDITOR
+- Automatically sources file on save
+- Detects and reports syntax errors
+- Creates file if it doesn't exist
+
+${CHIEF_COLOR_MAGENTA}Compatibility:${CHIEF_NO_COLOR}
+- Works with any POSIX-compliant shell
+- Avoid bash-specific features in this file
+- Use for environment variables and paths
+- Shell-agnostic configurations
+
+${CHIEF_COLOR_YELLOW}File Location:${CHIEF_NO_COLOR}
+~/.profile
+
+${CHIEF_COLOR_BLUE}Best Practice:${CHIEF_NO_COLOR}
+Use ~/.profile for cross-shell environment settings and ~/.bash_profile for bash-specific configurations.
+"
 
   if [[ $1 == "-?" ]]; then
-    echo "${USAGE}"
+    echo -e "${USAGE}"
     return
   fi
 
@@ -871,46 +1585,527 @@ Edit the user .profile file and reload into memory if changed."
 }
 
 function chief.reload() {
-  local USAGE="Usage: $FUNCNAME
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
 
-Reload the Chief utility library/environment."
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Reload the entire Chief utility library and environment with verbose output.
+
+${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
+- Reloads all Chief core libraries and plugins
+- Refreshes environment variables and functions
+- Updates configuration changes
+- Provides verbose feedback during reload
+
+${CHIEF_COLOR_BLUE}Use Cases:${CHIEF_NO_COLOR}
+- After modifying Chief configuration
+- When plugins are added or updated
+- After updating Chief installation
+- Troubleshooting environment issues
+
+${CHIEF_COLOR_MAGENTA}What Gets Reloaded:${CHIEF_NO_COLOR}
+- Chief core library functions
+- All configured plugins
+- Environment variables
+- Color schemes and prompts
+- SSH key configurations
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME                    # Reload Chief environment
+  chief.config && $FUNCNAME   # Edit config then reload
+
+${CHIEF_COLOR_BLUE}Alternative:${CHIEF_NO_COLOR}
+Restart your terminal session for a complete reset.
+"
 
   if [[ $1 == "-?" ]]; then
-    echo "${USAGE}"
+    echo -e "${USAGE}"
     return
   fi
 
+  echo -e "${CHIEF_COLOR_BLUE}Reloading Chief environment...${CHIEF_NO_COLOR}"
   __load_library --verbose
+  echo -e "${CHIEF_COLOR_GREEN}Chief environment reloaded successfully${CHIEF_NO_COLOR}"
+}
+
+# Show Chief statistics and status
+function __show_chief_stats() {
+  local total_functions=$(compgen -A function | grep "^chief\." | wc -l | tr -d ' ')
+  local loaded_plugins=$(__get_plugins)
+  local plugin_count=0
+  
+  if [[ -n "$loaded_plugins" ]]; then
+    plugin_count=$(echo "$loaded_plugins" | tr ',' '\n' | wc -l | tr -d ' ')
+  fi
+  
+  echo -e "${CHIEF_COLOR_BLUE}Chief Status:${CHIEF_NO_COLOR}"
+  echo -e "• Functions available: ${CHIEF_COLOR_CYAN}$total_functions${CHIEF_NO_COLOR}"
+  echo -e "• Plugins loaded: ${CHIEF_COLOR_CYAN}$plugin_count${CHIEF_NO_COLOR} ($loaded_plugins)"
+  echo -e "• Configuration: ${CHIEF_COLOR_CYAN}$CHIEF_CONFIG${CHIEF_NO_COLOR}"
+  echo -e "• Version: ${CHIEF_COLOR_CYAN}$CHIEF_VERSION${CHIEF_NO_COLOR} on $PLATFORM"
+}
+
+# Show core Chief commands
+function __show_core_commands() {
+  echo -e "${CHIEF_COLOR_YELLOW}Core Chief Commands:${CHIEF_NO_COLOR}"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}Configuration & Setup:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}        Edit Chief configuration file"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.config_set${CHIEF_NO_COLOR}    Set configuration variables directly"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.reload${CHIEF_NO_COLOR}        Reload Chief environment"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR}        Update Chief to latest version"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.uninstall${CHIEF_NO_COLOR}     Remove Chief from system"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}File Management:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.bash_profile${CHIEF_NO_COLOR}  Edit ~/.bash_profile"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.bashrc${CHIEF_NO_COLOR}        Edit ~/.bashrc"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.profile${CHIEF_NO_COLOR}       Edit ~/.profile"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}Plugin Management:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugins${CHIEF_NO_COLOR}       Navigate to plugins directory"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugin${CHIEF_NO_COLOR}        Create/edit plugins"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR}     List available plugins"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}Utilities:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.whereis${CHIEF_NO_COLOR}       Find function/variable definitions"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.hints${CHIEF_NO_COLOR}         Show quick tips and workflow"
+  echo
+  echo -e "${CHIEF_COLOR_BLUE}Usage tip:${CHIEF_NO_COLOR} Add ${CHIEF_COLOR_GREEN}-?${CHIEF_NO_COLOR} to any command for detailed help"
+}
+
+# Show plugin-related help
+function __show_plugin_help() {
+  echo -e "${CHIEF_COLOR_YELLOW}Plugin Management:${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR} All commands below should be prefixed with ${CHIEF_COLOR_GREEN}chief.${CHIEF_NO_COLOR}"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}Plugin Commands:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugins${CHIEF_NO_COLOR}              Navigate to plugins directory"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin${CHIEF_NO_COLOR}               Edit default plugin"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin <name>${CHIEF_NO_COLOR}        Create/edit named plugin"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin -?${CHIEF_NO_COLOR}            List all plugins"
+  echo
+  
+  local loaded_plugins=$(__get_plugins)
+  if [[ -n "$loaded_plugins" ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}Currently Loaded Plugins:${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_CYAN}$loaded_plugins${CHIEF_NO_COLOR}"
+    echo
+  fi
+  
+  echo -e "${CHIEF_COLOR_CYAN}Available Plugin Functions:${CHIEF_NO_COLOR}"
+  
+  # Check for each plugin category and show organized functions
+  local found_plugins=false
+  
+  if compgen -A function | grep -q "^chief\.git\."; then
+    echo -e "  ${CHIEF_COLOR_GREEN}Git Plugin:${CHIEF_NO_COLOR}"
+    echo "    git.branch, git.commit, git.clone, git.tag, git.delete_branch"
+    echo "    git.delete_tag, git.legend, git.rename_branch, git.reset-local"
+    echo "    git.set_url, git.untrack, git.update, git.cred_cache"
+    found_plugins=true
+  fi
+  
+  if compgen -A function | grep -q "^chief\.vault"; then
+    echo -e "  ${CHIEF_COLOR_GREEN}Vault Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires ansible-vault)${CHIEF_NO_COLOR}"
+    echo "    vault.file-edit, vault.file-load"
+    echo "    Encrypt/decrypt sensitive environment variables"
+    found_plugins=true
+  fi
+  
+  if compgen -A function | grep -q "^chief\.ssh"; then
+    echo -e "  ${CHIEF_COLOR_GREEN}SSH Plugin:${CHIEF_NO_COLOR}"
+    echo "    ssh.create_keypair, ssh.get_publickey, ssh.rm_host, ssh.load_keys"
+    found_plugins=true
+  fi
+  
+  if compgen -A function | grep -q "^chief\.python"; then
+    echo -e "  ${CHIEF_COLOR_GREEN}Python Plugin:${CHIEF_NO_COLOR}"
+    echo "    python.create_ve, python.start_ve, python.stop_ve, python.ve_dep"
+    echo "    Virtual environment management"
+    found_plugins=true
+  fi
+  
+  if compgen -A function | grep -q "^chief\.oc\."; then
+    echo -e "  ${CHIEF_COLOR_GREEN}OpenShift Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires oc CLI)${CHIEF_NO_COLOR}"
+    echo "    oc.login, oc.clusters - OpenShift cluster management"
+    found_plugins=true
+  fi
+  
+  if compgen -A function | grep -q "^chief\.etc"; then
+    echo -e "  ${CHIEF_COLOR_GREEN}Utilities Plugin:${CHIEF_NO_COLOR}"
+    echo "    etc.ask_yes_or_no, etc.spinner, etc.prompt, etc.mount_share"
+    echo "    etc.isvalid_ip, etc.broadcast, etc.at_run, etc.folder_diff"
+    echo "    etc.shared-term_create, etc.shared-term_connect"
+    found_plugins=true
+  fi
+  
+  if [[ "$found_plugins" == false ]]; then
+    echo -e "  ${CHIEF_COLOR_YELLOW}No plugin functions loaded yet${CHIEF_NO_COLOR}"
+    echo
+    echo -e "${CHIEF_COLOR_BLUE}To get started:${CHIEF_NO_COLOR}"
+    echo -e "  • Run ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR} to see available plugins"
+    echo -e "  • Create your first plugin: ${CHIEF_COLOR_GREEN}chief.plugin mytools${CHIEF_NO_COLOR}"
+  fi
+  
+  echo
+  echo -e "${CHIEF_COLOR_BLUE}Plugin Development:${CHIEF_NO_COLOR}"
+  echo -e "• Plugin location: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS:-~/.chief_plugins}${CHIEF_NO_COLOR}"
+  echo -e "• Template: ${CHIEF_COLOR_CYAN}${CHIEF_DEFAULT_PLUGIN_TEMPLATE}${CHIEF_NO_COLOR}"
+  echo -e "• Edit config: ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to set CHIEF_CFG_PLUGINS"
+}
+
+# Show configuration help
+function __show_configuration_help() {
+  echo -e "${CHIEF_COLOR_YELLOW}Chief Configuration:${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR} All configuration variables below should be prefixed with ${CHIEF_COLOR_GREEN}CHIEF_CFG_${CHIEF_NO_COLOR}"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}Configuration File:${CHIEF_NO_COLOR}"
+  echo -e "  Location: ${CHIEF_COLOR_CYAN}$CHIEF_CONFIG${CHIEF_NO_COLOR}"
+  echo -e "  Edit: ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}"
+  echo -e "  Set directly: ${CHIEF_COLOR_GREEN}chief.config_set <option> <value>${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(omit CHIEF_CFG_ prefix)${CHIEF_NO_COLOR}"
+  echo
+  
+  echo -e "${CHIEF_COLOR_CYAN}Display & Interface:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}BANNER${CHIEF_NO_COLOR}               Show/hide startup banner (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}HINTS${CHIEF_NO_COLOR}                Show/hide startup hints (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}VERBOSE${CHIEF_NO_COLOR}              Enable verbose output (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}COLORED_LS${CHIEF_NO_COLOR}           Enable colored ls output (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}CONFIG_SET_INTERACTIVE${CHIEF_NO_COLOR} Enable confirmation prompts for config_set (true/false)"
+  echo
+  
+  echo -e "${CHIEF_COLOR_CYAN}Prompt Configuration:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}PROMPT${CHIEF_NO_COLOR}               Enable/disable Chief prompt (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}COLORED_PROMPT${CHIEF_NO_COLOR}       Enable colored prompts (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}GIT_PROMPT${CHIEF_NO_COLOR}           Show git status in prompt (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}MULTILINE_PROMPT${CHIEF_NO_COLOR}     Use multi-line prompt layout (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}SHORT_PATH${CHIEF_NO_COLOR}           Show short paths in prompt (true/false)"
+  echo
+  
+  echo -e "${CHIEF_COLOR_CYAN}Plugin Management:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}PLUGINS${CHIEF_NO_COLOR}              Plugin directory path"
+  echo -e "  ${CHIEF_COLOR_GREEN}PLUGINS_TYPE${CHIEF_NO_COLOR}         Plugin type (local/remote)"
+  echo -e "  ${CHIEF_COLOR_GREEN}PLUGIN_DEFAULT${CHIEF_NO_COLOR}       Default plugin file path"
+  echo -e "  ${CHIEF_COLOR_GREEN}PLUGIN_TEMPLATE${CHIEF_NO_COLOR}      Plugin template file path"
+  echo
+  
+  echo -e "${CHIEF_COLOR_CYAN}Remote Plugin Options:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(when PLUGINS_TYPE=remote)${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}PLUGINS_GIT_REPO${CHIEF_NO_COLOR}     Git repository URL for remote plugins"
+  echo -e "  ${CHIEF_COLOR_GREEN}PLUGINS_GIT_BRANCH${CHIEF_NO_COLOR}   Git branch to use (default: main)"
+  echo -e "  ${CHIEF_COLOR_GREEN}PLUGINS_GIT_PATH${CHIEF_NO_COLOR}     Local path for remote plugin cache"
+  echo -e "  ${CHIEF_COLOR_GREEN}PLUGINS_GIT_AUTOUPDATE${CHIEF_NO_COLOR} Auto-update remote plugins (true/false)"
+  echo
+  
+  echo -e "${CHIEF_COLOR_CYAN}System & Security:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}AUTOCHECK_UPDATES${CHIEF_NO_COLOR}    Auto-check for Chief updates (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}SSH_KEYS_PATH${CHIEF_NO_COLOR}        Path to SSH keys directory (keys must end in .key)"
+  echo -e "  ${CHIEF_COLOR_GREEN}ALIAS${CHIEF_NO_COLOR}                Custom alias for chief commands"
+  echo
+  
+  echo -e "${CHIEF_COLOR_CYAN}Current Settings:${CHIEF_NO_COLOR}"
+  echo -e "  Prompt: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PROMPT:-false}${CHIEF_NO_COLOR} | Git prompt: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_GIT_PROMPT:-true}${CHIEF_NO_COLOR} | Multi-line: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_MULTILINE_PROMPT:-false}${CHIEF_NO_COLOR}"
+  echo -e "  Short path: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_SHORT_PATH:-true}${CHIEF_NO_COLOR} | Hints: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_HINTS:-true}${CHIEF_NO_COLOR} | Banner: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_BANNER:-true}${CHIEF_NO_COLOR}"
+  echo -e "  Plugins type: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS_TYPE:-local}${CHIEF_NO_COLOR} | Auto-update: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_AUTOCHECK_UPDATES:-false}${CHIEF_NO_COLOR}"
+  if [[ -n "$CHIEF_CFG_ALIAS" ]]; then
+    echo -e "  Custom alias: ${CHIEF_COLOR_CYAN}$CHIEF_CFG_ALIAS${CHIEF_NO_COLOR}"
+  fi
+  if [[ "$CHIEF_CFG_PLUGINS_TYPE" == "remote" ]]; then
+    echo -e "  Remote repo: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS_GIT_REPO:-not set}${CHIEF_NO_COLOR}"
+    echo -e "  Remote branch: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS_GIT_BRANCH:-main}${CHIEF_NO_COLOR}"
+    echo -e "  Remote auto-update: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE:-false}${CHIEF_NO_COLOR}"
+  fi
+  echo
+  
+  echo -e "${CHIEF_COLOR_BLUE}Configuration Commands:${CHIEF_NO_COLOR}"
+  echo -e "• Edit config file: ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}"
+  echo -e "• Set config directly: ${CHIEF_COLOR_GREEN}chief.config_set <option> <value>${CHIEF_NO_COLOR}"
+  echo -e "• List all config vars: ${CHIEF_COLOR_GREEN}chief.config_set --list${CHIEF_NO_COLOR}"
+  echo -e "• View current config: ${CHIEF_COLOR_GREEN}cat $CHIEF_CONFIG${CHIEF_NO_COLOR}"
+  echo -e "• Reload after changes: ${CHIEF_COLOR_GREEN}chief.reload${CHIEF_NO_COLOR}"
+  echo -e "• Test prompt: ${CHIEF_COLOR_GREEN}chief.git.legend${CHIEF_NO_COLOR} (if git prompt enabled)"
+  echo
+  echo -e "${CHIEF_COLOR_BLUE}Configuration Examples:${CHIEF_NO_COLOR}"
+  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set banner false${CHIEF_NO_COLOR}     # Disable startup banner (with prompt)"
+  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set --yes prompt true${CHIEF_NO_COLOR}      # Enable Chief prompt (no prompt)"  
+  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set colored_ls true${CHIEF_NO_COLOR}  # Enable colored ls (with prompt)"
+  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set config_set_interactive false${CHIEF_NO_COLOR} # Disable prompts globally"
+}
+
+# Show compact command reference
+function __show_compact_reference() {
+  echo -e "${CHIEF_COLOR_YELLOW}Chief Quick Reference:${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR} All commands below should be prefixed with ${CHIEF_COLOR_GREEN}chief.${CHIEF_NO_COLOR}"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}Core Commands:${CHIEF_NO_COLOR}"
+  echo "  config, config_set, reload, update, uninstall, whereis, hints, help"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}File Editors:${CHIEF_NO_COLOR}"
+  echo "  bash_profile, bashrc, profile"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}Plugin Management:${CHIEF_NO_COLOR}"
+  echo "  plugin [name], plugins (navigate), plugin -? (list)"
+  echo
+  
+  # Show loaded plugin categories
+  local loaded_plugins=$(__get_plugins)
+  if [[ -n "$loaded_plugins" ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}Loaded Plugins:${CHIEF_NO_COLOR}"
+    
+    # Check for common plugin types and show them organized
+    local plugin_categories=()
+    
+    if compgen -A function | grep -q "^chief\.git\."; then
+      plugin_categories+=("git (git.branch, git.commit, git.clone, git.legend)")
+    fi
+    
+    if compgen -A function | grep -q "^chief\.vault"; then
+      plugin_categories+=("vault (vault.file-edit, vault.file-load) *requires ansible-vault")
+    fi
+    
+    if compgen -A function | grep -q "^chief\.ssh"; then
+      plugin_categories+=("ssh (ssh.create_keypair, ssh.get_publickey)")
+    fi
+    
+    if compgen -A function | grep -q "^chief\.python"; then
+      plugin_categories+=("python (python.create_ve, python.start_ve, python.stop_ve)")
+    fi
+    
+    if compgen -A function | grep -q "^chief\.oc\."; then
+      plugin_categories+=("oc (oc.login, oc.clusters) *requires OpenShift CLI")
+    fi
+    
+    if compgen -A function | grep -q "^chief\.etc"; then
+      plugin_categories+=("etc (etc.ask_yes_or_no, etc.spinner, etc.prompt)")
+    fi
+    
+    if [[ ${#plugin_categories[@]} -gt 0 ]]; then
+      for category in "${plugin_categories[@]}"; do
+        echo "  $category"
+      done
+    else
+      echo "  $loaded_plugins"
+    fi
+    echo
+  else
+    echo -e "${CHIEF_COLOR_CYAN}Plugins:${CHIEF_NO_COLOR}"
+    echo "  No plugins loaded yet - try 'chief.plugin -?' to see available"
+    echo
+  fi
+  
+  echo -e "${CHIEF_COLOR_BLUE}Quick Tips:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.[tab][tab]${CHIEF_NO_COLOR} - see all commands"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.help${CHIEF_NO_COLOR} - detailed help system"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} - customize settings"
+}
+
+# Search through Chief commands and help
+function __search_help() {
+  local search_term="$1"
+  
+  if [[ -z "$search_term" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Please provide a search term"
+    echo -e "${CHIEF_COLOR_BLUE}Usage:${CHIEF_NO_COLOR} chief.help --search <term>"
+    return 1
+  fi
+  
+  echo -e "${CHIEF_COLOR_CYAN}Searching for: ${CHIEF_COLOR_YELLOW}$search_term${CHIEF_NO_COLOR}"
+  echo
+  
+  # Search function names
+  local matching_functions=($(compgen -A function | grep -i "chief.*$search_term" | sort))
+  if [[ ${#matching_functions[@]} -gt 0 ]]; then
+    echo -e "${CHIEF_COLOR_GREEN}Matching Functions:${CHIEF_NO_COLOR}"
+    for func in "${matching_functions[@]}"; do
+      echo -e "  ${CHIEF_COLOR_CYAN}$func${CHIEF_NO_COLOR}"
+    done
+    echo
+  fi
+  
+  # Search aliases
+  local matching_aliases=($(compgen -A alias | grep -i "chief.*$search_term" | sort))
+  if [[ ${#matching_aliases[@]} -gt 0 ]]; then
+    echo -e "${CHIEF_COLOR_GREEN}Matching Aliases:${CHIEF_NO_COLOR}"
+    for alias_name in "${matching_aliases[@]}"; do
+      echo -e "  ${CHIEF_COLOR_CYAN}$alias_name${CHIEF_NO_COLOR}"
+    done
+    echo
+  fi
+  
+  if [[ ${#matching_functions[@]} -eq 0 && ${#matching_aliases[@]} -eq 0 ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}No matches found for '$search_term'${CHIEF_NO_COLOR}"
+    echo
+    echo -e "${CHIEF_COLOR_BLUE}Try:${CHIEF_NO_COLOR}"
+    echo -e "• ${CHIEF_COLOR_GREEN}chief.help commands${CHIEF_NO_COLOR} - see all core commands"
+    echo -e "• ${CHIEF_COLOR_GREEN}chief.help plugins${CHIEF_NO_COLOR} - see plugin commands"
+    echo -e "• ${CHIEF_COLOR_GREEN}chief.[tab][tab]${CHIEF_NO_COLOR} - bash completion"
+  fi
 }
 
 function chief.whereis() {
-  local USAGE="Usage: $FUNCNAME <function or alias name>
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} chief.whereis <name>
 
-Display the location of a function or alias."
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Find where environment variables, functions, and aliases are defined across your system and Chief configuration.
 
-  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
-    echo "${USAGE}"
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  name    Name to search for (functions, variables, aliases)
+
+${CHIEF_COLOR_GREEN}Search Locations:${CHIEF_NO_COLOR}
+  ${CHIEF_COLOR_MAGENTA}System Startup Scripts:${CHIEF_NO_COLOR}
+    • ~/.bashrc, ~/.bash_profile, ~/.bash_login, ~/.profile
+    • /etc/bashrc, /etc/bash.bashrc, /etc/profile
+    • ~/.bashrc.d/*.sh, ~/.bash/*.sh
+    
+  ${CHIEF_COLOR_MAGENTA}Chief Core Files:${CHIEF_NO_COLOR}
+    • \$CHIEF_CONFIG (your configuration)
+    • \$CHIEF_PATH/chief.sh (main script)
+    • \$CHIEF_PATH/libs/core/chief_library.sh (core library)
+    • \$CHIEF_PATH/libs/core/plugins/*.sh (core plugins)
+    
+  ${CHIEF_COLOR_MAGENTA}User Plugin Directories:${CHIEF_NO_COLOR}
+    • \$CHIEF_CFG_PLUGINS/*.sh (configured: ${CHIEF_CFG_PLUGINS:-"not set"})
+    • ~/.chief_plugins/*.sh (default location)
+    • ~/.local/share/chief/plugins/*.sh (XDG standard)
+
+${CHIEF_COLOR_BLUE}Search Patterns:${CHIEF_NO_COLOR}
+  Variables:  export VAR=, VAR=
+  Functions:  function name(), name()
+  Aliases:    alias name=
+
+${CHIEF_COLOR_GREEN}Status Indicators:${CHIEF_NO_COLOR}
+  ${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Currently loaded and active
+  ${CHIEF_COLOR_RED}✗${CHIEF_NO_COLOR} Found in files but not loaded
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  chief.whereis PATH           # Find PATH variable
+  chief.whereis git_update     # Find git_update function  
+  chief.whereis ll             # Find ll alias
+  chief.whereis JAVA_HOME      # Find Java environment
+
+${CHIEF_COLOR_BLUE}Output Features:${CHIEF_NO_COLOR}
+- Shows exact file locations and line numbers
+- Indicates if definitions are currently active
+- Warns about duplicate definitions
+- Cross-references runtime status with file locations"
+
+  if [[ -z $1 ]] || [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
+    echo -e "${USAGE}"
     return
   fi
 
-  # Check if it's a function...
-  local param="${1}"
-  local found=$(shopt -s extdebug; declare -F "${param}")
+  local name="$1"
+  local total_found=0
   
-  if [[ -n $found ]]; then
-    local tmpsplit=(${found// / })
-    echo "Function '${param}' found in file: ${tmpsplit[2]}"
-    echo "  Line #: ${tmpsplit[1]}"
-  else  
-    # It's not a function, check if it's an alias...
-    tmp="'\${BASH_ALIASES[\""${param}"\"]+\"FINDMYMARK\"} \${BASH_SOURCE}:\$LINENO '"
-    found=$(PS4="$tmp" bash -lixc : |& grep 'FINDMYMARK' -m1 -B1 | grep "${param}" | awk '{print $2}')
-    if [[ -n $found ]]; then
-      tmpsplit=(${found//:/ })
-      echo "Alias '${param}' found in file: ${tmpsplit[0]}"
-      echo "  Line #: ${tmpsplit[1]}"
-    else
-      echo "Function/Alias not found."
+  # Build search file list
+  local search_files=()
+  
+  # System startup scripts
+  for file in ~/.bashrc ~/.bash_profile ~/.bash_login ~/.profile /etc/bashrc /etc/bash.bashrc /etc/profile; do
+    [[ -f "$file" ]] && search_files+=("$file")
+  done
+  
+  # Shell config directories  
+  for dir in ~/.bashrc.d ~/.bash; do
+    if [[ -d "$dir" ]]; then
+      while IFS= read -r -d '' file; do
+        search_files+=("$file")
+      done < <(find "$dir" -name "*.sh" -o -name "*.bash" -type f -print0 2>/dev/null)
     fi
-  fi 
+  done
+  
+  # Chief core files
+  for file in "${CHIEF_CONFIG}" "${CHIEF_PATH}/chief.sh" "${CHIEF_PATH}/libs/core/chief_library.sh"; do
+    [[ -f "$file" ]] && search_files+=("$file")
+  done
+  
+  # Chief core plugins
+  if [[ -d "${CHIEF_PATH}/libs/core/plugins" ]]; then
+    while IFS= read -r -d '' file; do
+      search_files+=("$file")
+    done < <(find "${CHIEF_PATH}/libs/core/plugins" -name "*.sh" -type f -print0 2>/dev/null)
+  fi
+  
+  # User plugins
+  for plugin_dir in "${CHIEF_CFG_PLUGINS}" ~/.chief_plugins ~/.local/share/chief/plugins; do
+    if [[ -n "$plugin_dir" && -d "$plugin_dir" ]]; then
+      while IFS= read -r -d '' file; do
+        search_files+=("$file")
+      done < <(find "$plugin_dir" -name "*.sh" -type f -print0 2>/dev/null)
+    fi
+  done
+
+  echo -e "${CHIEF_COLOR_CYAN}Searching for: ${CHIEF_COLOR_YELLOW}${name}${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_CYAN}Checking ${#search_files[@]} files...${CHIEF_NO_COLOR}"
+  echo
+
+  # Search all files for definitions
+  for file in "${search_files[@]}"; do
+    if [[ -f "$file" && -r "$file" ]]; then
+      local matches
+      # Search for: export VAR=, VAR=, function VAR(), VAR(), alias VAR=
+      matches=$(grep -n -E "(^|[[:space:]])(export[[:space:]]+${name}[=[:space:]]|${name}[[:space:]]*=|function[[:space:]]+${name}[[:space:]]*\\(|${name}[[:space:]]*\\(|alias[[:space:]]+${name}[=[:space:]])" "$file" 2>/dev/null)
+      
+      if [[ -n "$matches" ]]; then
+        echo -e "${CHIEF_COLOR_GREEN}Found in:${CHIEF_NO_COLOR} $file"
+        while IFS=: read -r line_num line_content; do
+          echo -e "  ${CHIEF_COLOR_CYAN}Line ${line_num}:${CHIEF_NO_COLOR} ${line_content}"
+          ((total_found++))
+        done <<< "$matches"
+        echo
+      fi
+    fi
+  done
+
+  # Check current runtime status
+  local is_var=false is_func=false is_alias=false
+  
+  # Environment variable (only check if valid bash variable name)
+  if [[ "$name" =~ ^[a-zA-Z_][a-zA-Z0-9_]*$ ]] && [[ -n "${!name}" ]]; then
+    is_var=true
+  fi
+  
+  # Function
+  if declare -f "$name" >/dev/null 2>&1; then
+    is_func=true
+  fi
+  
+  # Alias
+  if alias "$name" >/dev/null 2>&1; then
+    is_alias=true
+  fi
+
+  # Show runtime status
+  if $is_var || $is_func || $is_alias; then
+    echo -e "${CHIEF_COLOR_GREEN}CURRENTLY LOADED:${CHIEF_NO_COLOR}"
+    
+    if $is_var; then
+      echo -e "  ${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Variable: ${name}=${!name}"
+    fi
+    
+    if $is_func; then
+      echo -e "  ${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Function: ${name}()"
+    fi
+    
+    if $is_alias; then
+      local alias_def
+      alias_def=$(alias "$name" 2>/dev/null)
+      echo -e "  ${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Alias: ${alias_def}"
+    fi
+    echo
+  fi
+
+  # Summary
+  if [[ $total_found -eq 0 ]]; then
+    echo -e "${CHIEF_COLOR_RED}No definitions found for '${name}'${CHIEF_NO_COLOR}"
+    if ! $is_var && ! $is_func && ! $is_alias; then
+      echo -e "${CHIEF_COLOR_YELLOW}Not currently loaded in memory${CHIEF_NO_COLOR}"
+    fi
+  else
+    echo -e "${CHIEF_COLOR_GREEN}Found ${total_found} definition(s)${CHIEF_NO_COLOR}"
+    if [[ $total_found -gt 1 ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}WARNING: Multiple definitions detected${CHIEF_NO_COLOR}"
+    fi
+    
+    if ! $is_var && ! $is_func && ! $is_alias; then
+      echo -e "${CHIEF_COLOR_YELLOW}Found in files but not currently loaded${CHIEF_NO_COLOR}"
+    fi
+  fi
 }
