@@ -60,6 +60,7 @@ mv id_ed25519 id_ed25519.key
 - Fixed Bug in updates functionality #65
 - Implemented Add feature to edit plugins with VScode #60
 - Implemented Add colored __print* functions standard to the library. #59
+- Fixed When uninstalling, change out of install dir #47
 
 ### Major System Overhauls
 

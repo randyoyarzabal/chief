@@ -111,6 +111,8 @@ uninstall_chief() {
 
   # Remove installation directory
   echo -e "${BLUE}Removing installation directory...${NC}"
+  # Change to home directory to avoid issues if running from within Chief directory
+  cd "$HOME"
   rm -rf "$CHIEF_PATH"
   echo -e "${GREEN}SUCCESS: Installation directory removed${NC}"
 
