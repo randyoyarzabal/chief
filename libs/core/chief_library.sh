@@ -711,7 +711,7 @@ function __start_agent {
 }
 
 function __load_ssh_keys() {
-    __print "Loading SSH keys from: ${CHIEF_CFG_RSA_KEYS_PATH}..." "$1"
+    __print "Loading SSH keys from: ${CHIEF_CFG_SSH_KEYS_PATH}..." "$1"
 
   if [[ ${PLATFORM} == "MacOS" ]]; then
     load="/usr/bin/ssh-add --apple-use-keychain"
@@ -730,12 +730,13 @@ function __load_ssh_keys() {
     fi
   fi
 
-  # Load all keys. Skip authorized_keys, environment, and known_hosts.
-  for rsa_key in ${CHIEF_CFG_RSA_KEYS_PATH}/*.rsa; do
+  # Load all keys with .key extension (supports RSA, ed25519, etc.)
+  # Users can symlink existing keys with .key extension for selective loading
+  for ssh_key in ${CHIEF_CFG_SSH_KEYS_PATH}/*.key; do
     if ${CHIEF_CFG_VERBOSE} || [[ "${1}" == '--verbose' ]]; then
-      ${load} ${rsa_key}
+      ${load} ${ssh_key}
     else
-      ${load} ${rsa_key} &> /dev/null
+      ${load} ${ssh_key} &> /dev/null
     fi
   done
 
@@ -934,8 +935,9 @@ Change directory (cd) into the Chief utility root installation directory."
 function chief.ssh_load_keys() {
   local USAGE="Usage: $FUNCNAME
 
-Load SSH keys from CHIEF_CFG_RSA_KEYS_PATH defined in the Chief configuration.
-Note: All private keys must end with the suffix '.rsa'. Symlinks are allowed.
+Load SSH keys from CHIEF_CFG_SSH_KEYS_PATH defined in the Chief configuration.
+Note: All private keys must end with the suffix '.key'. Symlinks are allowed.
+This supports RSA, ed25519, and other key types. Use symlinks for selective loading.
 "
 
   if [[ $1 == "-?" ]]; then
@@ -943,8 +945,9 @@ Note: All private keys must end with the suffix '.rsa'. Symlinks are allowed.
     return
   fi
 
-  if [[ -z ${CHIEF_CFG_RSA_KEYS_PATH}  ]]; then
-    echo -e "${CHIEF_COLOR_RED}Error: CHIEF_CFG_RSA_KEYS_PATH is not set in ${CHIEF_CONFIG}. Please set it to the path where your SSH keys are stored.${CHIEF_NO_COLOR}"
+  if [[ -z ${CHIEF_CFG_SSH_KEYS_PATH}  ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error: CHIEF_CFG_SSH_KEYS_PATH is not set in ${CHIEF_CONFIG}. Please set it to the path where your SSH keys are stored.${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_YELLOW}Note: Keys must end with '.key' extension (supports RSA, ed25519, etc.)${CHIEF_NO_COLOR}"
     echo "${USAGE}"
     return 1
   fi
@@ -1109,7 +1112,7 @@ ${CHIEF_COLOR_GREEN}Configuration Options:${CHIEF_NO_COLOR}
 - CHIEF_CFG_GIT_PROMPT: Git-aware prompt features
 - CHIEF_CFG_MULTILINE_PROMPT: Enable multiline prompt
 - CHIEF_CFG_PLUGINS_TYPE: 'local' or 'remote' plugins
-- CHIEF_CFG_RSA_KEYS_PATH: Auto-load SSH keys path
+- CHIEF_CFG_SSH_KEYS_PATH: Auto-load SSH keys path (keys must end in .key)
 - And many more...
 
 ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
@@ -1168,7 +1171,7 @@ ${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
   MULTILINE_PROMPT          Use multi-line prompt layout (true/false)
   SHORT_PATH                Show short paths in prompt (true/false)
   COLORED_LS                Enable colored ls output (true/false)
-  RSA_KEYS_PATH             Path to SSH RSA keys directory
+  SSH_KEYS_PATH             Path to SSH keys directory (keys must end in .key)
   ALIAS                     Custom alias for chief commands
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
@@ -1177,7 +1180,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME --yes banner false          # Disable startup banner (no prompt)
   $FUNCNAME colored_ls true --yes       # Enable colored ls (no prompt)
   $FUNCNAME prompt -y true              # Enable custom prompt (no prompt)
-  $FUNCNAME rsa_keys_path \"\$HOME/.ssh\"  # Set SSH keys path (with prompt)
+  $FUNCNAME ssh_keys_path \"\$HOME/.ssh\"  # Set SSH keys path (with prompt)
   $FUNCNAME config_set_interactive false # Disable prompts globally
 
 ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
@@ -1793,7 +1796,7 @@ function __show_configuration_help() {
   
   echo -e "${CHIEF_COLOR_CYAN}System & Security:${CHIEF_NO_COLOR}"
   echo -e "  ${CHIEF_COLOR_GREEN}AUTOCHECK_UPDATES${CHIEF_NO_COLOR}    Auto-check for Chief updates (true/false)"
-  echo -e "  ${CHIEF_COLOR_GREEN}RSA_KEYS_PATH${CHIEF_NO_COLOR}        Path to SSH RSA keys directory"
+  echo -e "  ${CHIEF_COLOR_GREEN}SSH_KEYS_PATH${CHIEF_NO_COLOR}        Path to SSH keys directory (keys must end in .key)"
   echo -e "  ${CHIEF_COLOR_GREEN}ALIAS${CHIEF_NO_COLOR}                Custom alias for chief commands"
   echo
   

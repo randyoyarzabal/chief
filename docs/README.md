@@ -534,7 +534,7 @@ chief.config_set config_set_interactive false
 | `CHIEF_CFG_COLORED_LS` | `false` | Colorize ls command output |
 | `CHIEF_CFG_CONFIG_SET_INTERACTIVE` | `true` | Prompt for confirmation in `chief.config_set` |
 | `CHIEF_CFG_PLUGINS_TYPE` | `"local"` | Use `"local"` or `"remote"` plugins |
-| `CHIEF_CFG_RSA_KEYS_PATH` | _unset_ | Auto-load SSH keys from path |
+| `CHIEF_CFG_SSH_KEYS_PATH` | _unset_ | Auto-load SSH keys from path |
 | `CHIEF_CFG_ALIAS` | _unset_ | Create short alias (e.g., `"cf"`) |
 | `CHIEF_CFG_AUTOCHECK_UPDATES` | `false` | Check for updates on startup |
 
@@ -634,10 +634,11 @@ alias myproject.logs='tail -f /var/log/myproject.log'
 
 ```bash
 # In chief.config, set:
-CHIEF_CFG_RSA_KEYS_PATH="$HOME/.ssh"
+CHIEF_CFG_SSH_KEYS_PATH="$HOME/.ssh"
 
-# Chief automatically loads all *.rsa keys
-# Supports symlinks for selective loading
+# Chief automatically loads all *.key files
+# Supports RSA, ed25519, and other key types
+# Use symlinks for selective loading (e.g., ln -s id_rsa mykey.key)
 ```
 
 ### Custom Prompt Features
@@ -856,9 +857,9 @@ ls ~/chief_plugins/*_chief-plugin.sh
 #### Q: SSH keys not auto-loading
 
 ```bash
-# Verify key naming (must end in .rsa) and path
-ls ~/.ssh/*.rsa
-chief.config  # Check CHIEF_CFG_RSA_KEYS_PATH
+# Verify key naming (must end in .key) and path
+ls ~/.ssh/*.key
+chief.config  # Check CHIEF_CFG_SSH_KEYS_PATH
 ```
 
 #### Q: Git prompt not working

@@ -66,7 +66,7 @@ if [[ $1 == "--lib-only" ]]; then
 fi
 
 # Load RSA/SSH keys if directory is defined
-if [[ ! -z ${CHIEF_CFG_RSA_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIEF_CFG_RSA_KEYS_PATH} && ${PLATFORM} == "Linux" ]]; then
+if [[ ! -z ${CHIEF_CFG_SSH_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIEF_CFG_SSH_KEYS_PATH} && ${PLATFORM} == "Linux" ]]; then
   chief.etc_spinner "Loading SSH keys..." "__load_ssh_keys" tmp_out
   echo -e "${tmp_out}"
 fi

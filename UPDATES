@@ -17,6 +17,42 @@ CHIEF_CFG_CONFIG_SET_INTERACTIVE=true
 CHIEF_CFG_MULTILINE_PROMPT=false
 ```
 
+#### Breaking Changes
+
+**SSH Configuration Breaking Changes:**
+
+1. **SSH Key Extension Change:** SSH keys now require `.key` extension instead of `.rsa` extension:
+   - **Old:** Keys needed to end with `.rsa`
+   - **New:** Keys need to end with `.key`
+   - **Benefits:** Supports RSA, ed25519, and other key types with selective loading via symlinks
+
+2. **Configuration Variable Renamed:** SSH keys configuration variable has been renamed:
+   - **Old:** `CHIEF_CFG_RSA_KEYS_PATH`
+   - **New:** `CHIEF_CFG_SSH_KEYS_PATH`
+   - **Reason:** Better reflects support for all SSH key types, not just RSA
+
+Migration for SSH configuration:
+```bash
+# Update your chief.config file
+# Change: CHIEF_CFG_RSA_KEYS_PATH="$HOME/.ssh"
+# To:     CHIEF_CFG_SSH_KEYS_PATH="$HOME/.ssh"
+
+# Or use the new config command (will create new variable)
+chief.config_set --yes ssh_keys_path "$HOME/.ssh"
+```
+
+Migration for SSH keys:
+```bash
+# Option 1: Create symlinks for existing keys (selective loading)
+cd ~/.ssh
+ln -s id_rsa mykey.key           # Link RSA key
+ln -s id_ed25519 mykey_ed.key    # Link ed25519 key
+
+# Option 2: Rename directly (loads all keys)
+mv id_rsa id_rsa.key
+mv id_ed25519 id_ed25519.key
+```
+
 ### Issues Fixed/Implemented
 
 - Fixed chief.whereis sometimes doesn't find an alias/function #69
@@ -39,10 +75,12 @@ CHIEF_CFG_MULTILINE_PROMPT=false
 
 ### Enhanced SSH Key Management
 
+- **SSH Key Loading**: Changed from `.rsa` to `.key` extension requirement for broader key type support
 - **chief.ssh_create_keypair**: Now supports both `rsa` and `ed25519` key types with flexible naming
 - Automatically creates `~/.ssh` directory with proper permissions (700)
 - Uses `name_type.private`/`name_type.public` naming convention for custom keys
 - Sets secure permissions: private keys (600), public keys (644)
+- **Selective Loading**: Use symlinks with `.key` extension to choose which keys to auto-load
 
 ### New Configuration Management
 
@@ -58,7 +96,7 @@ CHIEF_CFG_MULTILINE_PROMPT=false
 ### Comprehensive Configuration Help
 
 - **chief.help config**: Now shows ALL 17+ configuration options organized by category
-- Added missing options: BANNER, COLORED_PROMPT, GIT_PROMPT, MULTILINE_PROMPT, COLORED_LS, AUTOCHECK_UPDATES, plugin templates, remote git settings, RSA_KEYS_PATH
+- Added missing options: BANNER, COLORED_PROMPT, GIT_PROMPT, MULTILINE_PROMPT, COLORED_LS, AUTOCHECK_UPDATES, plugin templates, remote git settings, SSH_KEYS_PATH
 - Shows current values and conditional information for remote plugin configurations
 
 ### Critical Bug Fixes
