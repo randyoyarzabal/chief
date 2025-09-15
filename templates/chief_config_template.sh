@@ -42,6 +42,11 @@ CHIEF_CFG_UPDATE_BRANCH="main"
 # If set to "local", it will load plugins from the local directory.
 CHIEF_CFG_PLUGINS_TYPE="local"
 
+# Local plugin directory path - also used as clone location for remote plugin repositories.
+# For local plugins: This is where your *_chief-plugin.sh files are located.
+# For remote plugins: This is where the remote repository will be cloned to.
+CHIEF_CFG_PLUGINS_PATH="${HOME}/chief_plugins"
+
 # GIT REPOSITORY CONFIGURATION if CHIEF_CFG_PLUGINS_TYPE="remote"
 # Only used if CHIEF_CFG_PLUGINS_TYPE="remote", this is the URL of the remote repository to clone.
 # If using ssh, make sure you have the correct SSH keys set up.
@@ -51,16 +56,15 @@ CHIEF_CFG_PLUGINS_GIT_REPO="ssh://git@github.com/plugins.git"
 # This is the branch of the remote repository to clone. Default is "main".
 CHIEF_CFG_PLUGINS_GIT_BRANCH="main"
 
-# This is the path where the remote repository will be cloned to.
-CHIEF_CFG_PLUGINS_GIT_PATH="$HOME/dev/chief_plugins"
-
-# If using remote plugins, this is the path should set within CHIEF_CFG_PLUGINS_GIT_PATH
-# For example, if CHIEF_CFG_PLUGINS_GIT_PATH is set to "$HOME/dev/my_common_utils",
-# then CHIEF_CFG_PLUGINS could be "${CHIEF_CFG_PLUGINS_GIT_PATH}/library/bash/chief". Assuming 
-# plugin files are located in the "library/bash/chief" directory of the remote repository.
-# If CHIEF_CFG_PLUGINS_TYPE is set to "local", then this is the path where the plugins will be loaded from.
-# by default it is set to "${HOME}/chief_plugins" if CHIEF_CFG_PLUGINS_TYPE is set to "local".
-CHIEF_CFG_PLUGINS="${HOME}/chief_plugins"
+# [REMOTE PLUGINS ONLY] Relative path within the cloned repository containing *_chief-plugin.sh files.
+# This is a RELATIVE PATH from the root of CHIEF_CFG_PLUGINS_PATH (the cloned repo).
+# - Set to "" (empty) if *_chief-plugin.sh files are in the repo root
+# - Set to subdirectory path if plugins are in a subdirectory (e.g., "tools/bash", "scripts", "plugins")
+# Examples:
+#   CHIEF_CFG_PLUGINS_GIT_PATH=""           # Plugins in repo root: CHIEF_CFG_PLUGINS_PATH/*.sh
+#   CHIEF_CFG_PLUGINS_GIT_PATH="tools/bash" # Plugins in subdir: CHIEF_CFG_PLUGINS_PATH/tools/bash/*.sh
+#   CHIEF_CFG_PLUGINS_GIT_PATH="scripts"    # Plugins in subdir: CHIEF_CFG_PLUGINS_PATH/scripts/*.sh
+CHIEF_CFG_PLUGINS_GIT_PATH=""
 
 # Load/update remote plugins when Chief starts.
 # If this is set to true, it will clone/update the remote repository when Chief starts.

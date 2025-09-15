@@ -10,6 +10,13 @@
   - Set `CHIEF_CFG_UPDATE_BRANCH="dev"` for latest features (⚠️ WARNING: not production ready)
   - `chief.update` now automatically switches to configured branch before updating
   - Update checking (`__check_for_updates`) now monitors the configured branch instead of current branch
+- **Plugin Configuration Reorganization**: Clarified plugin path configuration for better separation
+  - `CHIEF_CFG_PLUGINS_PATH`: Now used for both local plugin directory AND remote repo clone location
+  - `CHIEF_CFG_PLUGINS_GIT_PATH`: Now used ONLY for remote plugins (path within repo containing plugin files)
+  - Local plugins: Use `CHIEF_CFG_PLUGINS_PATH` directly
+  - Remote plugins: Use `CHIEF_CFG_PLUGINS_PATH` (clone location) + `CHIEF_CFG_PLUGINS_GIT_PATH` (relative path within repo)
+  - `CHIEF_CFG_PLUGINS_GIT_PATH` is a relative path from repo root (empty string = use repo root)
+  - Updated all documentation, help text, and plugin loading logic to reflect clearer separation
 
 ## 3.0
 

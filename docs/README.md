@@ -473,7 +473,8 @@ chief.config
 # CHIEF_CFG_PLUGINS_TYPE="remote"
 # CHIEF_CFG_PLUGINS_GIT_REPO="git@github.com:yourteam/bash-plugins.git"
 # CHIEF_CFG_PLUGINS_GIT_BRANCH="main"
-# CHIEF_CFG_PLUGINS_GIT_PATH="$HOME/team-plugins"
+# CHIEF_CFG_PLUGINS_PATH="$HOME/team-plugins"
+# CHIEF_CFG_PLUGINS_GIT_PATH="tools/bash"  # Relative path to plugins (empty = repo root)
 # CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="true"
 
 # Restart terminal - team plugins are now available!
@@ -570,8 +571,41 @@ chief.plugins_update
 #### **Selective Plugin Loading**
 ```bash
 # Team can organize plugins by category
-CHIEF_CFG_PLUGINS_GIT_PATH="$HOME/team-plugins/backend"  # Backend tools only
-CHIEF_CFG_PLUGINS_GIT_PATH="$HOME/team-plugins/frontend" # Frontend tools only
+# Plugins organized in subdirectories within the same repo
+CHIEF_CFG_PLUGINS_PATH="$HOME/team-plugins"
+CHIEF_CFG_PLUGINS_GIT_PATH="backend"  # Relative path: $HOME/team-plugins/backend/*.sh
+
+# Or for frontend tools:
+# CHIEF_CFG_PLUGINS_PATH="$HOME/team-plugins"  
+# CHIEF_CFG_PLUGINS_GIT_PATH="frontend"  # Relative path: $HOME/team-plugins/frontend/*.sh
+
+# Or for plugins in repo root:
+# CHIEF_CFG_PLUGINS_PATH="$HOME/team-plugins"
+# CHIEF_CFG_PLUGINS_GIT_PATH=""  # Empty = repo root: $HOME/team-plugins/*.sh
+```
+
+### 📁 Plugin Path Configuration
+
+For **remote plugins**, understand how the two path variables work together:
+
+- **`CHIEF_CFG_PLUGINS_PATH`**: Where the remote repo is cloned locally
+- **`CHIEF_CFG_PLUGINS_GIT_PATH`**: **Relative path** within that repo to the plugin files
+
+```bash
+# Example 1: Plugins in repo root
+CHIEF_CFG_PLUGINS_PATH="$HOME/team-plugins"  # Repo cloned here
+CHIEF_CFG_PLUGINS_GIT_PATH=""                # Empty = use repo root
+# Final path: $HOME/team-plugins/*.sh
+
+# Example 2: Plugins in subdirectory  
+CHIEF_CFG_PLUGINS_PATH="$HOME/team-plugins"  # Repo cloned here
+CHIEF_CFG_PLUGINS_GIT_PATH="tools/bash"      # Relative path from repo root
+# Final path: $HOME/team-plugins/tools/bash/*.sh
+
+# Example 3: Different subdirectories
+CHIEF_CFG_PLUGINS_PATH="$HOME/company-tools"
+CHIEF_CFG_PLUGINS_GIT_PATH="scripts/chief-plugins"
+# Final path: $HOME/company-tools/scripts/chief-plugins/*.sh
 ```
 
 ## 🛠️ Configuration Options
@@ -625,7 +659,8 @@ chief.config_set config_set_interactive false
 |---------------|-------------|
 | `CHIEF_CFG_PLUGINS_GIT_REPO` | Remote Git repository URL for plugins |
 | `CHIEF_CFG_PLUGINS_GIT_BRANCH` | Git branch to use (default: "main") |
-| `CHIEF_CFG_PLUGINS_GIT_PATH` | Local path for cloned repository |
+| `CHIEF_CFG_PLUGINS_PATH` | Local plugin directory (also remote repo clone location) |
+| `CHIEF_CFG_PLUGINS_GIT_PATH` | [Remote only] Relative path within repo containing plugins (empty = repo root) |
 | `CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE` | Auto-update plugins on startup |
 
 ## 🔧 Built-in Plugins
