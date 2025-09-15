@@ -1090,14 +1090,92 @@ You can also manually update by running git pull in the Chief directory.
   fi
 
   __chief.banner
+  
+  # Check if we need to switch branches first (regardless of updates)
+  cd "${CHIEF_PATH}"
+  local TARGET_BRANCH="${CHIEF_CFG_UPDATE_BRANCH:-main}"
+  local LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+  
+  if [[ ${LOCAL_BRANCH} != ${TARGET_BRANCH} ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Notice: Currently on ${LOCAL_BRANCH} branch, but configured to track ${TARGET_BRANCH}${CHIEF_NO_COLOR}"
+    if chief.etc_ask_yes_or_no "Switch to ${TARGET_BRANCH} branch now?"; then
+      echo -e "${CHIEF_COLOR_CYAN}Switching from ${LOCAL_BRANCH} to ${TARGET_BRANCH} branch...${CHIEF_NO_COLOR}"
+      
+      # Fetch all branches to ensure target branch exists
+      echo -e "${CHIEF_COLOR_BLUE}Fetching latest changes...${CHIEF_NO_COLOR}"
+      git fetch origin || {
+        echo -e "${CHIEF_COLOR_RED}Error: Failed to fetch from remote repository${CHIEF_NO_COLOR}"
+        cd - > /dev/null 2>&1
+        return 1
+      }
+      
+      # Check if target branch exists remotely
+      echo -e "${CHIEF_COLOR_BLUE}Verifying ${TARGET_BRANCH} branch exists remotely...${CHIEF_NO_COLOR}"
+      if ! git ls-remote --heads origin "${TARGET_BRANCH}" | grep -q "refs/heads/${TARGET_BRANCH}$"; then
+        echo -e "${CHIEF_COLOR_RED}Error: Branch '${TARGET_BRANCH}' does not exist in remote repository${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_COLOR_CYAN}Available remote branches:${CHIEF_NO_COLOR}"
+        git ls-remote --heads origin | sed 's|.*refs/heads/||' | sed 's/^/  /'
+        echo -e "${CHIEF_COLOR_YELLOW}Try: chief.config_set update_branch <valid_branch_name>${CHIEF_NO_COLOR}"
+        cd - > /dev/null 2>&1
+        return 1
+      fi
+      echo -e "${CHIEF_COLOR_GREEN}✓ Branch ${TARGET_BRANCH} found remotely${CHIEF_NO_COLOR}"
+      
+      # Switch to target branch (create local branch if needed)
+      if git show-ref --verify --quiet "refs/heads/${TARGET_BRANCH}"; then
+        # Local branch exists, switch to it
+        git checkout "${TARGET_BRANCH}" || {
+          echo -e "${CHIEF_COLOR_RED}Error: Failed to switch to ${TARGET_BRANCH} branch${CHIEF_NO_COLOR}"
+          cd - > /dev/null 2>&1
+          return 1
+        }
+      else
+        # Local branch doesn't exist, create it from remote
+        echo -e "${CHIEF_COLOR_BLUE}Creating local ${TARGET_BRANCH} branch from remote...${CHIEF_NO_COLOR}"
+        
+        # Method 1: Create and switch to new branch tracking remote
+        if git checkout -b "${TARGET_BRANCH}" "origin/${TARGET_BRANCH}" 2>/dev/null; then
+          echo -e "${CHIEF_COLOR_GREEN}✓ Successfully created and switched to ${TARGET_BRANCH} branch${CHIEF_NO_COLOR}"
+        else
+          # Method 2: Use remote tracking branch creation
+          echo -e "${CHIEF_COLOR_YELLOW}Trying alternative branch creation...${CHIEF_NO_COLOR}"
+          if git checkout --track "origin/${TARGET_BRANCH}" 2>/dev/null; then
+            echo -e "${CHIEF_COLOR_GREEN}✓ Successfully created tracking branch ${TARGET_BRANCH}${CHIEF_NO_COLOR}"
+          else
+            # Method 3: Force reset to remote branch (more aggressive)
+            echo -e "${CHIEF_COLOR_YELLOW}Using force checkout method...${CHIEF_NO_COLOR}"
+            git checkout -B "${TARGET_BRANCH}" "origin/${TARGET_BRANCH}" 2>/dev/null || {
+              echo -e "${CHIEF_COLOR_RED}Error: All branch creation methods failed${CHIEF_NO_COLOR}"
+              echo -e "${CHIEF_COLOR_CYAN}Available remote branches:${CHIEF_NO_COLOR}"
+              git branch -r | grep -v HEAD | sed 's/origin\///' | sed 's/^[[:space:]]*/  /'
+              echo -e "${CHIEF_COLOR_YELLOW}You may need to run: git clean -fd && git reset --hard${CHIEF_NO_COLOR}"
+              cd - > /dev/null 2>&1
+              return 1
+            }
+          fi
+        fi
+      fi
+      
+      echo -e "${CHIEF_COLOR_GREEN}Successfully switched to ${TARGET_BRANCH} branch${CHIEF_NO_COLOR}"
+      
+      # Reload Chief to reflect the branch change in the banner
+      echo -e "${CHIEF_COLOR_BLUE}Reloading Chief to reflect branch change...${CHIEF_NO_COLOR}"
+      chief.reload
+      cd - > /dev/null 2>&1
+      return 0
+    else
+      echo -e "${CHIEF_COLOR_YELLOW}Branch switch cancelled. Continuing with update check on current branch.${CHIEF_NO_COLOR}"
+    fi
+  fi
+  
+  # Now check for updates on the current/correct branch
   chief.etc_spinner "Checking for updates..." "__check_for_updates" tmp_out
   echo -e "${tmp_out}"
   if [[ ${tmp_out} == *"available"* ]]; then
     if chief.etc_ask_yes_or_no "Updates are available, update now?"; then
       echo "Proceeding..."
-      cd "${CHIEF_PATH}"
       
-      # Get target branch from config, default to main if not set
+      # We're already in CHIEF_PATH and on the correct branch
       local TARGET_BRANCH="${CHIEF_CFG_UPDATE_BRANCH:-main}"
       local LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
       
@@ -1113,11 +1191,15 @@ You can also manually update by running git pull in the Chief directory.
         }
         
         # Check if target branch exists remotely
-        if ! git ls-remote --heads origin "${TARGET_BRANCH}" | grep -q "${TARGET_BRANCH}"; then
+        echo -e "${CHIEF_COLOR_BLUE}Verifying ${TARGET_BRANCH} branch exists remotely...${CHIEF_NO_COLOR}"
+        if ! git ls-remote --heads origin "${TARGET_BRANCH}" | grep -q "refs/heads/${TARGET_BRANCH}$"; then
           echo -e "${CHIEF_COLOR_RED}Error: Branch '${TARGET_BRANCH}' does not exist in remote repository${CHIEF_NO_COLOR}"
-          echo -e "${CHIEF_COLOR_YELLOW}Available branches: $(git ls-remote --heads origin | sed 's|.*refs/heads/||' | tr '\n' ' ')${CHIEF_NO_COLOR}"
+          echo -e "${CHIEF_COLOR_CYAN}Available remote branches:${CHIEF_NO_COLOR}"
+          git ls-remote --heads origin | sed 's|.*refs/heads/||' | sed 's/^/  /'
+          echo -e "${CHIEF_COLOR_YELLOW}Try: chief.config_set update_branch <valid_branch_name>${CHIEF_NO_COLOR}"
           return 1
         fi
+        echo -e "${CHIEF_COLOR_GREEN}✓ Branch ${TARGET_BRANCH} found remotely${CHIEF_NO_COLOR}"
         
         # Switch to target branch (create local branch if needed)
         if git show-ref --verify --quiet "refs/heads/${TARGET_BRANCH}"; then
@@ -1128,10 +1210,28 @@ You can also manually update by running git pull in the Chief directory.
           }
         else
           # Local branch doesn't exist, create it from remote
-          git checkout -b "${TARGET_BRANCH}" "origin/${TARGET_BRANCH}" || {
-            echo -e "${CHIEF_COLOR_RED}Error: Failed to create and switch to ${TARGET_BRANCH} branch${CHIEF_NO_COLOR}"
-            return 1
-          }
+          echo -e "${CHIEF_COLOR_BLUE}Creating local ${TARGET_BRANCH} branch from remote...${CHIEF_NO_COLOR}"
+          
+          # Method 1: Create and switch to new branch tracking remote
+          if git checkout -b "${TARGET_BRANCH}" "origin/${TARGET_BRANCH}" 2>/dev/null; then
+            echo -e "${CHIEF_COLOR_GREEN}✓ Successfully created and switched to ${TARGET_BRANCH} branch${CHIEF_NO_COLOR}"
+          else
+            # Method 2: Use remote tracking branch creation
+            echo -e "${CHIEF_COLOR_YELLOW}Trying alternative branch creation...${CHIEF_NO_COLOR}"
+            if git checkout --track "origin/${TARGET_BRANCH}" 2>/dev/null; then
+              echo -e "${CHIEF_COLOR_GREEN}✓ Successfully created tracking branch ${TARGET_BRANCH}${CHIEF_NO_COLOR}"
+            else
+              # Method 3: Force reset to remote branch (more aggressive)
+              echo -e "${CHIEF_COLOR_YELLOW}Using force checkout method...${CHIEF_NO_COLOR}"
+              git checkout -B "${TARGET_BRANCH}" "origin/${TARGET_BRANCH}" 2>/dev/null || {
+                echo -e "${CHIEF_COLOR_RED}Error: All branch creation methods failed${CHIEF_NO_COLOR}"
+                echo -e "${CHIEF_COLOR_CYAN}Available remote branches:${CHIEF_NO_COLOR}"
+                git branch -r | grep -v HEAD | sed 's/origin\///' | sed 's/^[[:space:]]*/  /'
+                echo -e "${CHIEF_COLOR_YELLOW}You may need to run: git clean -fd && git reset --hard${CHIEF_NO_COLOR}"
+                return 1
+              }
+            fi
+          fi
         fi
         
         echo -e "${CHIEF_COLOR_GREEN}Successfully switched to ${TARGET_BRANCH} branch${CHIEF_NO_COLOR}"
