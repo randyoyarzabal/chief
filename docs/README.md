@@ -591,6 +591,7 @@ chief.config_set config_set_interactive false
 | `CHIEF_CFG_AUTOCHECK_UPDATES` | `false` | Check for updates on startup |
 
 ### Plugin Configuration
+
 | Configuration | Description |
 |---------------|-------------|
 | `CHIEF_CFG_PLUGINS_GIT_REPO` | Remote Git repository URL for plugins |
