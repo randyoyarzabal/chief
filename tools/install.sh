@@ -120,6 +120,20 @@ install_chief() {
       echo -e "${YELLOW}Installation aborted${NC}"
       exit 1
     fi
+    
+    # Check if we're running from within the target directory
+    local current_dir="$(pwd)"
+    local target_dir="$(cd "$CHIEF_PATH" && pwd 2>/dev/null || echo "$CHIEF_PATH")"
+    
+    if [[ "$current_dir" == "$target_dir"* ]]; then
+      echo -e "${CYAN}Script running from within target directory, changing to safe location...${NC}"
+      cd "$HOME" || cd /tmp || {
+        echo -e "${RED}ERROR: Cannot change to safe directory${NC}"
+        exit 1
+      }
+    fi
+    
+    echo -e "${CYAN}Removing existing installation...${NC}"
     rm -rf "$CHIEF_PATH"
   fi
 
@@ -129,7 +143,7 @@ install_chief() {
     local source_path="$(cd "$(dirname "$0")/.." && pwd)"
     cp -a "$source_path" "$CHIEF_PATH"
   else
-    echo -e "${BLUE}Cloning from GitHub (branch: $CHIEF_INSTALL_GIT_BRANCH)...${NC}"
+    echo -e "${BLUE}Cloning fresh installation from GitHub (branch: $CHIEF_INSTALL_GIT_BRANCH)...${NC}"
     
     # Check for git
     if ! command -v git >/dev/null 2>&1; then
@@ -137,7 +151,12 @@ install_chief() {
       exit 1
     fi
     
-    git clone --branch "$CHIEF_INSTALL_GIT_BRANCH" --depth=1 "$CHIEF_GIT_REPO" "$CHIEF_PATH"
+    git clone --branch "$CHIEF_INSTALL_GIT_BRANCH" --depth=1 "$CHIEF_GIT_REPO" "$CHIEF_PATH" || {
+      echo -e "${RED}ERROR: Failed to clone from branch $CHIEF_INSTALL_GIT_BRANCH${NC}"
+      echo -e "${YELLOW}Please check that the branch exists and you have internet connectivity${NC}"
+      exit 1
+    }
+    echo -e "${GREEN}SUCCESS: Cloned ${CHIEF_INSTALL_GIT_BRANCH} branch${NC}"
   fi
 
   echo -e "${GREEN}SUCCESS: Chief files installed${NC}"
@@ -184,6 +203,26 @@ setup_config() {
     fi
   else
     echo -e "${YELLOW}INFO: Configuration file already exists at $CHIEF_CONFIG${NC}"
+  fi
+
+  # Update config to match the installed branch if not default
+  if [[ "$CHIEF_INSTALL_GIT_BRANCH" != "main" ]]; then
+    echo -e "${CYAN}Updating configuration to track ${CHIEF_INSTALL_GIT_BRANCH} branch...${NC}"
+    if grep -q "CHIEF_CFG_UPDATE_BRANCH=" "$CHIEF_CONFIG"; then
+      # Update existing setting
+      if sed -i.bak "s/CHIEF_CFG_UPDATE_BRANCH=.*/CHIEF_CFG_UPDATE_BRANCH=\"${CHIEF_INSTALL_GIT_BRANCH}\"/" "$CHIEF_CONFIG" 2>/dev/null; then
+        rm -f "$CHIEF_CONFIG.bak" 2>/dev/null
+        echo -e "${GREEN}SUCCESS: Configuration updated to track ${CHIEF_INSTALL_GIT_BRANCH} branch${NC}"
+      else
+        echo -e "${YELLOW}WARNING: Could not update branch tracking in config file${NC}"
+      fi
+    else
+      # Add setting if it doesn't exist (for older config files)
+      echo "" >> "$CHIEF_CONFIG"
+      echo "# Branch tracking configuration (added by installer)" >> "$CHIEF_CONFIG"
+      echo "CHIEF_CFG_UPDATE_BRANCH=\"${CHIEF_INSTALL_GIT_BRANCH}\"" >> "$CHIEF_CONFIG"
+      echo -e "${GREEN}SUCCESS: Added branch tracking configuration (${CHIEF_INSTALL_GIT_BRANCH})${NC}"
+    fi
   fi
 
   echo ""
@@ -281,6 +320,13 @@ echo -e "${CYAN}  1. Restart your terminal (or run: source ~/.bash_profile)${NC}
 echo -e "${CYAN}  2. Run 'chief.config' to customize your settings${NC}"
 echo -e "${CYAN}  3. Run 'chief.plugin -?' to learn about plugins${NC}"
 echo -e "${CYAN}  4. Try 'chief.help' to explore all available commands${NC}"
+if [[ "$CHIEF_INSTALL_GIT_BRANCH" != "main" ]]; then
+echo ""
+echo -e "${CYAN}BRANCH TRACKING:${NC}"
+echo -e "${CYAN}  • Installed from: ${YELLOW}${CHIEF_INSTALL_GIT_BRANCH}${NC} branch"
+echo -e "${CYAN}  • Future updates will track: ${YELLOW}${CHIEF_INSTALL_GIT_BRANCH}${NC} branch"
+echo -e "${CYAN}  • To switch branches: chief.config_set update_branch <branch_name>${NC}"
+fi
 echo ""
 echo -e "${GREEN}Chief installation completed successfully!${NC}"
 echo -e "${CYAN}Installation script finished at $(date)${NC}"

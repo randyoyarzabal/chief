@@ -2,6 +2,7 @@
 
 ## 3.0.1
 
+- Ability to reinstall tracking a different branch
 - Platform version/distribution detection
 - Installation documentation updates
 - **Branch Configuration for Updates**: Added `CHIEF_CFG_UPDATE_BRANCH` configuration option to track either "main" (stable) or "dev" (bleeding-edge) branch for Chief updates
