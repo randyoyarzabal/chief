@@ -1249,7 +1249,6 @@ ${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
   ALIAS                     Custom alias for chief commands
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-<<<<<<< HEAD
   $FUNCNAME --list                      # List all configuration variables
   $FUNCNAME banner true                 # Enable startup banner (with prompt)
   $FUNCNAME banner=true                 # Same as above using key=value syntax
@@ -1266,21 +1265,6 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
 - Configuration options are case insensitive
 - Supports BOTH syntaxes: config_name value OR config_name=value
-=======
-  $FUNCNAME --list                        # List all configuration variables
-  $FUNCNAME banner=true                   # Enable startup banner (key=value format)
-  $FUNCNAME banner true                   # Enable startup banner (separate args format)
-  $FUNCNAME --yes banner=false            # Disable startup banner (no prompt)
-  $FUNCNAME colored_ls=true --yes         # Enable colored ls (no prompt)
-  $FUNCNAME prompt -y true                # Enable custom prompt (no prompt)
-  $FUNCNAME ssh_keys_path \"\$HOME/.ssh\" # Set SSH keys path (separate args)
-  $FUNCNAME ssh_keys_path=\"\$HOME/.ssh\" # Set SSH keys path (key=value format)
-  $FUNCNAME config_set_interactive=false  # Disable prompts globally
-
-${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
-- Configuration options are case insensitive
-- Both key=value and separate argument formats are supported
->>>>>>> 3cd4aebae7e646788a1cc9af4bb19fbd9e1df855
 - String values with spaces should be quoted
 - Changes take effect immediately after reload
 - Some changes may require terminal restart
