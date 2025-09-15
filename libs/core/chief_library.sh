@@ -1174,10 +1174,19 @@ You can also manually update by running git pull in the Chief directory.
       
       echo -e "${CHIEF_COLOR_GREEN}Successfully switched to ${TARGET_BRANCH} branch${CHIEF_NO_COLOR}"
       
-      # Reload Chief to reflect the branch change in the banner
-      echo -e "${CHIEF_COLOR_BLUE}Reloading Chief to reflect branch change...${CHIEF_NO_COLOR}"
+      # Pull latest changes from the target branch
+      echo -e "${CHIEF_COLOR_CYAN}Pulling latest changes from ${TARGET_BRANCH} branch...${CHIEF_NO_COLOR}"
+      git pull origin "${TARGET_BRANCH}" || {
+        echo -e "${CHIEF_COLOR_RED}Error: Failed to pull updates from ${TARGET_BRANCH} branch${CHIEF_NO_COLOR}"
+        cd - > /dev/null 2>&1
+        return 1
+      }
+      
+      # Reload Chief to reflect the branch change and updates
+      echo -e "${CHIEF_COLOR_BLUE}Reloading Chief to reflect branch change and updates...${CHIEF_NO_COLOR}"
       chief.reload
       cd - > /dev/null 2>&1
+      echo -e "${CHIEF_COLOR_GREEN}Updated Chief to [${CHIEF_VERSION}] from ${TARGET_BRANCH} branch.${CHIEF_NO_COLOR}"
       return 0
     else
       echo -e "${CHIEF_COLOR_YELLOW}Branch switch cancelled. Continuing with update check on current branch.${CHIEF_NO_COLOR}"
