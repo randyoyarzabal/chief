@@ -312,7 +312,7 @@ __load_remote_plugins() {
   if ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE} || [[ "$2" == "--force" ]]; then
     good_to_load=true
   # If the git path isn't set Or path doesn't exist Or it is empty.
-  elif [[ -z ${CHIEF_CFG_PLUGINS_GIT_PATH} ]] || [[ ! -d ${CHIEF_CFG_PLUGINS_GIT_PATH} ]] || [[ -z "$(ls -A ${CHIEF_CFG_PLUGINS_GIT_PATH})" ]]; then
+  elif [[ -z ${CHIEF_CFG_PLUGINS_PATH} ]] || [[ ! -d ${CHIEF_CFG_PLUGINS_PATH} ]] || [[ -z "$(ls -A ${CHIEF_CFG_PLUGINS_PATH})" ]]; then
     if chief.etc_ask_yes_or_no "Your Chief plugins directory is empty/doesn't exist, do you want to run the update now?
 You can run 'chief.plugins_update' anytime or set CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=true"; then
       good_to_load=true
@@ -323,8 +323,8 @@ You can run 'chief.plugins_update' anytime or set CHIEF_CFG_PLUGINS_GIT_AUTOUPDA
     echo "Configured values:
 CHIEF_CFG_PLUGINS_GIT_REPO=${CHIEF_CFG_PLUGINS_GIT_REPO}
 CHIEF_CFG_PLUGINS_GIT_BRANCH=${CHIEF_CFG_PLUGINS_GIT_BRANCH}
-CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}
-CHIEF_CFG_PLUGINS=${CHIEF_CFG_PLUGINS}"
+CHIEF_CFG_PLUGINS_PATH=${CHIEF_CFG_PLUGINS_PATH}
+CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}"
 
     # Check if git is installed.
     if ! command -v git &> /dev/null; then
@@ -332,9 +332,9 @@ CHIEF_CFG_PLUGINS=${CHIEF_CFG_PLUGINS}"
       return 1
     fi
 
-    if [[ -z ${CHIEF_CFG_PLUGINS_GIT_PATH} ]] || [[ ! -d ${CHIEF_CFG_PLUGINS_GIT_PATH} ]]; then
-      mkdir -p ${CHIEF_CFG_PLUGINS_GIT_PATH} || {
-        echo -e "${CHIEF_COLOR_RED}Error: Unable to create directory '${CHIEF_CFG_PLUGINS_GIT_PATH}'.${CHIEF_NO_COLOR}"
+    if [[ -z ${CHIEF_CFG_PLUGINS_PATH} ]] || [[ ! -d ${CHIEF_CFG_PLUGINS_PATH} ]]; then
+      mkdir -p ${CHIEF_CFG_PLUGINS_PATH} || {
+        echo -e "${CHIEF_COLOR_RED}Error: Unable to create directory '${CHIEF_CFG_PLUGINS_PATH}'.${CHIEF_NO_COLOR}"
         return 1
       }
     fi
@@ -345,12 +345,12 @@ CHIEF_CFG_PLUGINS=${CHIEF_CFG_PLUGINS}"
     fi
 
     # Check if the git repository exists, if not, clone it.
-    if [[ ! -d ${CHIEF_CFG_PLUGINS_GIT_PATH}/.git ]]; then
+    if [[ ! -d ${CHIEF_CFG_PLUGINS_PATH}/.git ]]; then
       echo "Cloning remote plugins repository..."
-      git clone --branch ${CHIEF_CFG_PLUGINS_GIT_BRANCH} ${CHIEF_CFG_PLUGINS_GIT_REPO} ${CHIEF_CFG_PLUGINS_GIT_PATH}
+      git clone --branch ${CHIEF_CFG_PLUGINS_GIT_BRANCH} ${CHIEF_CFG_PLUGINS_GIT_REPO} ${CHIEF_CFG_PLUGINS_PATH}
     else
       echo "Updating remote plugins repository..."
-      cd "${CHIEF_CFG_PLUGINS_GIT_PATH}"
+      cd "${CHIEF_CFG_PLUGINS_PATH}"
       # Check if local branch is different from $CHIEF_CFG_PLUGINS_GIT_BRANCH
       local current_branch=$(git rev-parse --abbrev-ref HEAD)
       if [[ ${current_branch} != ${CHIEF_CFG_PLUGINS_GIT_BRANCH} ]]; then
@@ -396,8 +396,14 @@ function __load_plugins() {
     dir_path=${CHIEF_PLUGINS_CORE}
     load_flag=true
   elif [[ $1 == 'user' ]]; then
-    dir_path=${CHIEF_CFG_PLUGINS}
-    if [[ -n ${CHIEF_CFG_PLUGINS} ]]; then
+    # For local plugins, use CHIEF_CFG_PLUGINS_PATH directly
+    # For remote plugins, use CHIEF_CFG_PLUGINS_PATH + CHIEF_CFG_PLUGINS_GIT_PATH (if set)
+    if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" && -n ${CHIEF_CFG_PLUGINS_GIT_PATH} ]]; then
+      dir_path="${CHIEF_CFG_PLUGINS_PATH}/${CHIEF_CFG_PLUGINS_GIT_PATH}"
+    else
+      dir_path=${CHIEF_CFG_PLUGINS_PATH}
+    fi
+    if [[ -n ${CHIEF_CFG_PLUGINS_PATH} ]]; then
       load_flag=true
     fi
   else
@@ -449,7 +455,12 @@ __get_plugins() {
   local dir_path
   local plugin_list_str
 
-  dir_path=${CHIEF_CFG_PLUGINS}
+  # Use same logic as __load_plugins for consistency
+  if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" && -n ${CHIEF_CFG_PLUGINS_GIT_PATH} ]]; then
+    dir_path="${CHIEF_CFG_PLUGINS_PATH}/${CHIEF_CFG_PLUGINS_GIT_PATH}"
+  else
+    dir_path=${CHIEF_CFG_PLUGINS_PATH}
+  fi
 
   local plugins=() # Array to hold plugin names
   local sorted_plugins=() # Array to hold sorted plugin names
@@ -486,13 +497,18 @@ function __edit_plugin() {
   local editor_option=${2}
 
   # Check if plugins are enabled.
-  if [[ -z ${CHIEF_CFG_PLUGINS} ]]; then
+  if [[ -z ${CHIEF_CFG_PLUGINS_PATH} ]]; then
     echo "Chief plugins are not enabled."
     return
   fi
 
   plugin_name=$(__lower ${1})
-  plugin_file="${CHIEF_CFG_PLUGINS}/${plugin_name}${CHIEF_PLUGIN_SUFFIX}"
+  # Use same logic as __load_plugins for consistency
+  if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" && -n ${CHIEF_CFG_PLUGINS_GIT_PATH} ]]; then
+    plugin_file="${CHIEF_CFG_PLUGINS_PATH}/${CHIEF_CFG_PLUGINS_GIT_PATH}/${plugin_name}${CHIEF_PLUGIN_SUFFIX}"
+  else
+    plugin_file="${CHIEF_CFG_PLUGINS_PATH}/${plugin_name}${CHIEF_PLUGIN_SUFFIX}"
+  fi
 
   # Check if the plugin file exists, if not, prompt to create it.
   if [[ -f ${plugin_file} ]]; then
@@ -511,14 +527,14 @@ function __edit_plugin() {
     fi
 
     # Check if a plugin directory is defined, if not, set to default.
-    if [[ -z ${CHIEF_CFG_PLUGINS} ]]; then
-      CHIEF_CFG_PLUGINS=${CHIEF_DEFAULT_PLUGINS}
+    if [[ -z ${CHIEF_CFG_PLUGINS_PATH} ]]; then
+      CHIEF_CFG_PLUGINS_PATH=${CHIEF_DEFAULT_PLUGINS}
     fi
 
     # Create the plugins directory if it does not exist.
-    if [[ ! -d ${CHIEF_CFG_PLUGINS} ]]; then
-      mkdir -p ${CHIEF_CFG_PLUGINS} || {
-        echo -e "${CHIEF_COLOR_RED}Error: Unable to create directory '${CHIEF_CFG_PLUGINS}'.${CHIEF_NO_COLOR}"
+    if [[ ! -d ${CHIEF_CFG_PLUGINS_PATH} ]]; then
+      mkdir -p ${CHIEF_CFG_PLUGINS_PATH} || {
+        echo -e "${CHIEF_COLOR_RED}Error: Unable to create directory '${CHIEF_CFG_PLUGINS_PATH}'.${CHIEF_NO_COLOR}"
         return 1
       }
     fi
@@ -1369,7 +1385,8 @@ ${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
   PLUGINS_TYPE              Plugin type (\"local\"/\"remote\")
   PLUGINS_GIT_REPO          Git repository URL for remote plugins
   PLUGINS_GIT_BRANCH        Git branch to use (default: main)
-  PLUGINS_GIT_PATH          Local path for remote plugin cache
+  PLUGINS_PATH              Local plugin directory (also remote repo clone location)
+  PLUGINS_GIT_PATH          [Remote only] Relative path within repo (empty = repo root)
   PLUGINS_GIT_AUTOUPDATE    Auto-update remote plugins (true/false)
   PROMPT                    Enable/disable Chief prompt (true/false)
   COLORED_PROMPT            Enable colored prompts (true/false)
@@ -2018,14 +2035,22 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     return
   fi
 
-  if [[ ! -d "$CHIEF_CFG_PLUGINS" ]]; then
-    echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} Plugin directory does not exist: $CHIEF_CFG_PLUGINS"
-    echo -e "${CHIEF_COLOR_BLUE}Creating directory...${CHIEF_NO_COLOR}"
-    mkdir -p "$CHIEF_CFG_PLUGINS"
+  # Determine the correct plugin directory based on plugin type
+  local plugin_dir
+  if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" && -n ${CHIEF_CFG_PLUGINS_GIT_PATH} ]]; then
+    plugin_dir="${CHIEF_CFG_PLUGINS_PATH}/${CHIEF_CFG_PLUGINS_GIT_PATH}"
+  else
+    plugin_dir=${CHIEF_CFG_PLUGINS_PATH}
   fi
 
-  cd ${CHIEF_CFG_PLUGINS}
-  echo -e "${CHIEF_COLOR_GREEN}Changed directory to CHIEF_CFG_PLUGINS=${CHIEF_CFG_PLUGINS}.${CHIEF_NO_COLOR}"
+  if [[ ! -d "$plugin_dir" ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} Plugin directory does not exist: $plugin_dir"
+    echo -e "${CHIEF_COLOR_BLUE}Creating directory...${CHIEF_NO_COLOR}"
+    mkdir -p "$plugin_dir"
+  fi
+
+  cd "$plugin_dir"
+  echo -e "${CHIEF_COLOR_GREEN}Changed directory to plugin directory: $plugin_dir${CHIEF_NO_COLOR}"
 }
 
 function chief.plugin() {
@@ -2384,9 +2409,9 @@ function __show_plugin_help() {
   
   echo
   echo -e "${CHIEF_COLOR_BLUE}Plugin Development:${CHIEF_NO_COLOR}"
-  echo -e "• Plugin location: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS:-~/.chief_plugins}${CHIEF_NO_COLOR}"
+  echo -e "• Plugin location: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS_PATH:-~/.chief_plugins}${CHIEF_NO_COLOR}"
   echo -e "• Template: ${CHIEF_COLOR_CYAN}${CHIEF_DEFAULT_PLUGIN_TEMPLATE}${CHIEF_NO_COLOR}"
-  echo -e "• Edit config: ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to set CHIEF_CFG_PLUGINS"
+  echo -e "• Edit config: ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to set CHIEF_CFG_PLUGINS_PATH"
 }
 
 # Show configuration help
@@ -2598,7 +2623,7 @@ ${CHIEF_COLOR_GREEN}Search Locations:${CHIEF_NO_COLOR}
     • \$CHIEF_PATH/libs/core/plugins/*.sh (core plugins)
     
   ${CHIEF_COLOR_MAGENTA}User Plugin Directories:${CHIEF_NO_COLOR}
-    • \$CHIEF_CFG_PLUGINS/*.sh (configured: ${CHIEF_CFG_PLUGINS:-"not set"})
+    • \$CHIEF_CFG_PLUGINS_PATH/*.sh (configured: ${CHIEF_CFG_PLUGINS_PATH:-"not set"})
     • ~/.chief_plugins/*.sh (default location)
     • ~/.local/share/chief/plugins/*.sh (XDG standard)
 
@@ -2661,7 +2686,15 @@ ${CHIEF_COLOR_BLUE}Output Features:${CHIEF_NO_COLOR}
   fi
   
   # User plugins
-  for plugin_dir in "${CHIEF_CFG_PLUGINS}" ~/.chief_plugins ~/.local/share/chief/plugins; do
+  # Determine the correct plugin directory for search
+  local configured_plugin_dir
+  if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" && -n ${CHIEF_CFG_PLUGINS_GIT_PATH} ]]; then
+    configured_plugin_dir="${CHIEF_CFG_PLUGINS_PATH}/${CHIEF_CFG_PLUGINS_GIT_PATH}"
+  else
+    configured_plugin_dir=${CHIEF_CFG_PLUGINS_PATH}
+  fi
+  
+  for plugin_dir in "${configured_plugin_dir}" ~/.chief_plugins ~/.local/share/chief/plugins; do
     if [[ -n "$plugin_dir" && -d "$plugin_dir" ]]; then
       while IFS= read -r -d '' file; do
         search_files+=("$file")
