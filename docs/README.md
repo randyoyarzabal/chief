@@ -174,22 +174,31 @@ chief.config_update --dry-run         # Preview changes before applying
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
 ```
 
-### 🌿 Development Branch Tracking
+### 🌿 Branch Tracking
 
-Chief now supports tracking either the stable or development branch:
+Chief supports tracking any valid Git branch for updates:
 
 ```bash
 # Track stable releases (default)
 chief.config_set update_branch main
 
-# Track bleeding-edge development features (⚠️ use with caution)
+# Track bleeding-edge development features (⚠️ use with caution)  
 chief.config_set update_branch dev
+
+# Track custom branches (team-specific, staging, etc.)
+chief.config_set update_branch staging
+chief.config_set update_branch release-v2.1
+chief.config_set update_branch feature/new-ui
+
+# Note: Both syntaxes are supported
+# ✅ Option 1: chief.config_set update_branch staging
+# ✅ Option 2: chief.config_set update_branch=staging
 
 # Update to your configured branch
 chief.update
 ```
 
-⚠️ **Important**: The `dev` branch contains the most current features but should be used with caution as it is not considered stable or production ready.
+⚠️ **Important**: Non-main branches may contain unstable features and should be used with caution in production environments.
 
 **What `chief.config_update` does:**
 
@@ -577,8 +586,9 @@ chief.config
 
 # Set configuration variables directly (use option name without CHIEF_CFG_ prefix)
 chief.config_set banner false         # Sets CHIEF_CFG_BANNER=false (prompts for confirmation)
+chief.config_set banner=false         # Same as above using key=value syntax
 chief.config_set --yes prompt true    # Sets CHIEF_CFG_PROMPT=true (no prompt)  
-chief.config_set colored_ls true      # Sets CHIEF_CFG_COLORED_LS=true (prompts for confirmation)
+chief.config_set colored_ls=true      # Sets CHIEF_CFG_COLORED_LS=true (prompts for confirmation)
 
 # List all configuration variables and current values  
 chief.config_set --list
@@ -602,11 +612,12 @@ chief.config_set config_set_interactive false
 | `CHIEF_CFG_SHORT_PATH` | `false` | Show only current directory name in prompt |
 | `CHIEF_CFG_COLORED_LS` | `false` | Colorize ls command output |
 | `CHIEF_CFG_CONFIG_SET_INTERACTIVE` | `true` | Prompt for confirmation in `chief.config_set` |
+| `CHIEF_CFG_CONFIG_UPDATE_BACKUP` | `true` | Create backups during config updates (only when changes made) |
 | `CHIEF_CFG_PLUGINS_TYPE` | `"local"` | Use `"local"` or `"remote"` plugins |
 | `CHIEF_CFG_SSH_KEYS_PATH` | _unset_ | Auto-load SSH keys from path |
 | `CHIEF_CFG_ALIAS` | _unset_ | Create short alias (e.g., `"cf"`) |
 | `CHIEF_CFG_AUTOCHECK_UPDATES` | `false` | Check for updates on startup |
-| `CHIEF_CFG_UPDATE_BRANCH` | `"main"` | Branch to track for updates: "main" (stable) or "dev" (⚠️ bleeding-edge) |
+| `CHIEF_CFG_UPDATE_BRANCH` | `"main"` | Branch to track for updates: any valid Git branch (⚠️ non-main may be unstable) |
 
 ### Plugin Configuration
 | Configuration | Description |

@@ -56,7 +56,21 @@ fi
 # Detect platform
 uname_out="$(uname -s)"
 case "${uname_out}" in
-  Linux*) PLATFORM='Linux' ;;
+  Linux*) 
+    # Detect Linux distribution from /etc/os-release
+    if [[ -f /etc/os-release ]]; then
+      # Extract PRETTY_NAME or NAME from os-release
+      if grep -q "PRETTY_NAME=" /etc/os-release; then
+        PLATFORM=$(grep "PRETTY_NAME=" /etc/os-release | cut -d'"' -f2 | cut -d' ' -f1-2)
+      elif grep -q "NAME=" /etc/os-release; then
+        PLATFORM=$(grep "^NAME=" /etc/os-release | cut -d'"' -f2 | cut -d' ' -f1-2)
+      else
+        PLATFORM='Linux'
+      fi
+    else
+      PLATFORM='Linux'
+    fi
+    ;;
   Darwin*) PLATFORM='MacOS' ;;
   CYGWIN*) PLATFORM='Cygwin' ;;
   MINGW*) PLATFORM='MinGw' ;;
@@ -527,6 +541,7 @@ function __edit_plugin() {
 function __chief.banner {
   local git_status
   local alias_status
+  local branch_status
 
   if [[ -n $CHIEF_CFG_ALIAS ]]; then
     alias_status="alias: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_ALIAS}"
@@ -543,10 +558,21 @@ function __chief.banner {
   else
     git_status="plugins: ${CHIEF_COLOR_CYAN}local${CHIEF_NO_COLOR}"
   fi
+
+  # Show which branch is being tracked for updates
+  local update_branch="${CHIEF_CFG_UPDATE_BRANCH:-main}"
+  if [[ "${update_branch}" == "dev" ]]; then
+    branch_status="tracking: ${CHIEF_COLOR_YELLOW}${update_branch} ${CHIEF_COLOR_RED}(bleeding-edge)${CHIEF_NO_COLOR}"
+  elif [[ "${update_branch}" == "main" ]]; then
+    branch_status="tracking: ${CHIEF_COLOR_GREEN}${update_branch} ${CHIEF_COLOR_CYAN}(stable)${CHIEF_NO_COLOR}"
+  else
+    branch_status="tracking: ${CHIEF_COLOR_CYAN}${update_branch} ${CHIEF_COLOR_YELLOW}(custom)${CHIEF_NO_COLOR}"
+  fi
+
   echo -e "${CHIEF_COLOR_YELLOW}        __    _      ____${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW}  _____/ /_  (_)__  / __/ ${alias_status}${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${git_status}${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${CHIEF_COLOR_CYAN}${CHIEF_WEBSITE}${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${branch_status}${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
 }
 
@@ -563,6 +589,15 @@ function __chief.hints_text() {
     local plugin_list=$(__get_plugins)
     if [[ ${plugin_list} != "" ]]; then
       echo -e "${CHIEF_COLOR_GREEN}Plugins loaded: ${CHIEF_COLOR_CYAN}${plugin_list}${CHIEF_NO_COLOR}"
+    fi
+    # Show branch tracking status
+    local update_branch="${CHIEF_CFG_UPDATE_BRANCH:-main}"
+    if [[ "${update_branch}" == "dev" ]]; then
+      echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_YELLOW}${update_branch}${CHIEF_COLOR_RED} (bleeding-edge)${CHIEF_COLOR_CYAN} branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch main${CHIEF_COLOR_CYAN} for stable${CHIEF_NO_COLOR}"
+    elif [[ "${update_branch}" == "main" ]]; then
+      echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_GREEN}${update_branch}${CHIEF_COLOR_CYAN} (stable) branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch dev${CHIEF_COLOR_CYAN} for latest features${CHIEF_NO_COLOR}"
+    else
+      echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_CYAN}${update_branch}${CHIEF_COLOR_YELLOW} (custom)${CHIEF_COLOR_CYAN} branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch main${CHIEF_COLOR_CYAN} for stable${CHIEF_NO_COLOR}"
     fi
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Essential Commands:${CHIEF_NO_COLOR}"
@@ -1037,8 +1072,9 @@ ${CHIEF_COLOR_MAGENTA}Safety Features:${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_CYAN}Branch Configuration:${CHIEF_NO_COLOR}
 - Set CHIEF_CFG_UPDATE_BRANCH=\"main\" for stable releases
-- Set CHIEF_CFG_UPDATE_BRANCH=\"dev\" for bleeding-edge features
-- WARNING: dev branch is not production ready
+- Set CHIEF_CFG_UPDATE_BRANCH=\"dev\" for bleeding-edge features  
+- Set CHIEF_CFG_UPDATE_BRANCH=\"custom-branch\" for specific versions
+- WARNING: non-main branches may contain unstable features
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME                    # Check and update Chief
@@ -1189,7 +1225,9 @@ ${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
   HINTS                     Show/hide startup hints (true/false)
   VERBOSE                   Enable verbose output (true/false)
   AUTOCHECK_UPDATES         Auto-check for updates (true/false)
+  UPDATE_BRANCH             Branch to track for updates (any valid Git branch) 
   CONFIG_SET_INTERACTIVE    Enable/disable confirmation prompts (true/false)
+  CONFIG_UPDATE_BACKUP      Create backups during config updates (true/false)
   PLUGINS_TYPE              Plugin type (\"local\"/\"remote\")
   PLUGINS_GIT_REPO          Git repository URL for remote plugins
   PLUGINS_GIT_BRANCH        Git branch to use (default: main)
@@ -1207,14 +1245,20 @@ ${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME --list                      # List all configuration variables
   $FUNCNAME banner true                 # Enable startup banner (with prompt)
+  $FUNCNAME banner=true                 # Same as above using key=value syntax
   $FUNCNAME --yes banner false          # Disable startup banner (no prompt)
-  $FUNCNAME colored_ls true --yes       # Enable colored ls (no prompt)
+  $FUNCNAME colored_ls=true --yes       # Enable colored ls (no prompt)
   $FUNCNAME prompt -y true              # Enable custom prompt (no prompt)
   $FUNCNAME ssh_keys_path \"\$HOME/.ssh\"  # Set SSH keys path (with prompt)
-  $FUNCNAME config_set_interactive false # Disable prompts globally
+  $FUNCNAME update_branch=dev           # Track dev branch for updates (with prompt)
+  $FUNCNAME --yes update_branch main    # Track stable main branch (no prompt)
+  $FUNCNAME update_branch=staging       # Track custom staging branch (with prompt)
+  $FUNCNAME config_set_interactive=false # Disable prompts globally
+  $FUNCNAME config_update_backup=false  # Disable backups during config updates
 
 ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
 - Configuration options are case insensitive
+- Supports BOTH syntaxes: config_name value OR config_name=value
 - String values with spaces should be quoted
 - Changes take effect immediately after reload
 - Some changes may require terminal restart
@@ -1270,18 +1314,27 @@ ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
   # Restore arguments without --yes flag
   set -- "${args[@]}"
 
-  if [[ $# -lt 2 ]]; then
+  # Handle both syntaxes: "key value" or "key=value"
+  local config_name config_value
+  if [[ $# -eq 1 ]] && [[ "$1" =~ ^([^=]+)=(.*)$ ]]; then
+    # Handle key=value syntax
+    config_name=$(echo "${BASH_REMATCH[1]}" | tr '[:lower:]' '[:upper:]')
+    config_value="${BASH_REMATCH[2]}"
+  elif [[ $# -eq 2 ]]; then
+    # Handle key value syntax
+    config_name=$(echo "$1" | tr '[:lower:]' '[:upper:]')
+    config_value="$2"
+  else
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Missing required arguments"
+    echo -e "Usage: config_name value OR config_name=value"
     echo -e "${USAGE}"
     return 1
   fi
-
-  local config_name=$(echo "$1" | tr '[:lower:]' '[:upper:]')
-  local config_value="$2"
   local config_var="CHIEF_CFG_${config_name}"
   
-  # Validate config name exists in template
-  if ! grep -q "^[#]*${config_var}=" "${CHIEF_CONFIG}" 2>/dev/null; then
+  # Validate config name exists in user config or template
+  local config_template="${CHIEF_PATH}/templates/chief_config_template.sh"
+  if ! grep -q "^[#]*${config_var}=" "${CHIEF_CONFIG}" 2>/dev/null && ! grep -q "^[#]*${config_var}=" "${config_template}" 2>/dev/null; then
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown configuration option: ${config_name}"
     echo -e "Run ${CHIEF_COLOR_GREEN}$FUNCNAME --list${CHIEF_NO_COLOR} to see all available variables"
     return 1
@@ -1505,7 +1558,7 @@ Update your Chief configuration file with new options from the latest template.
 This reconciles your existing config with new features while preserving your customizations.
 
 ${CHIEF_COLOR_GREEN}What This Does:${CHIEF_NO_COLOR}
-- Creates a timestamped backup of your current configuration
+- Creates a timestamped backup only when changes are made (if backup enabled)
 - Adds any new configuration options from the template
 - Preserves all your existing settings and customizations  
 - Handles renamed configuration options automatically
@@ -1519,7 +1572,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -?, --help        Show this help message
 
 ${CHIEF_COLOR_MAGENTA}Safety Features:${CHIEF_NO_COLOR}
-- Always creates backup before making changes
+- Creates backup only when changes are made (respects CHIEF_CFG_CONFIG_UPDATE_BACKUP)
 - Preserves your existing values and customizations
 - Shows exactly what changes will be made
 - Validates config syntax before applying changes
@@ -1581,18 +1634,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   echo -e "${CHIEF_COLOR_BLUE}Template:${CHIEF_NO_COLOR} $template_file"
   echo
 
-  # Create backup unless disabled
-  local backup_file=""
-  if ! $no_backup && ! $dry_run; then
-    backup_file="${CHIEF_CONFIG}.backup.$(date +%Y%m%d_%H%M%S)"
-    echo -e "${CHIEF_COLOR_YELLOW}Creating backup: ${backup_file}${CHIEF_NO_COLOR}"
-    cp "$CHIEF_CONFIG" "$backup_file" || {
-      echo -e "${CHIEF_COLOR_RED}Error: Failed to create backup${CHIEF_NO_COLOR}"
-      return 1
-    }
-  fi
-
-  # Parse template and user config
+  # Parse template and user config first to determine if changes are needed
   echo -e "${CHIEF_COLOR_BLUE}Analyzing configuration files...${CHIEF_NO_COLOR}"
   
   local template_options user_options
@@ -1670,6 +1712,20 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   if $dry_run; then
     echo -e "\n${CHIEF_COLOR_CYAN}Dry run completed. Use without --dry-run to apply changes.${CHIEF_NO_COLOR}"
     return 0
+  fi
+
+  # Create backup only if changes are needed and backup is enabled
+  local backup_file=""
+  local backup_enabled="${CHIEF_CFG_CONFIG_UPDATE_BACKUP:-true}"
+  if ! $no_backup && [[ "$backup_enabled" == "true" ]]; then
+    backup_file="${CHIEF_CONFIG}.backup.$(date +%Y%m%d_%H%M%S)"
+    echo -e "${CHIEF_COLOR_YELLOW}Creating backup: ${backup_file}${CHIEF_NO_COLOR}"
+    cp "$CHIEF_CONFIG" "$backup_file" || {
+      echo -e "${CHIEF_COLOR_RED}Error: Failed to create backup${CHIEF_NO_COLOR}"
+      return 1
+    }
+  elif [[ "$backup_enabled" != "true" ]]; then
+    echo -e "${CHIEF_COLOR_BLUE}Backup skipped (CHIEF_CFG_CONFIG_UPDATE_BACKUP=false)${CHIEF_NO_COLOR}"
   fi
 
   if ! $force_update; then
@@ -2072,6 +2128,16 @@ function __show_chief_stats() {
   echo -e "• Functions available: ${CHIEF_COLOR_CYAN}$total_functions${CHIEF_NO_COLOR}"
   echo -e "• Plugins loaded: ${CHIEF_COLOR_CYAN}$plugin_count${CHIEF_NO_COLOR} ($loaded_plugins)"
   echo -e "• Configuration: ${CHIEF_COLOR_CYAN}$CHIEF_CONFIG${CHIEF_NO_COLOR}"
+  
+  # Show branch tracking status
+  local update_branch="${CHIEF_CFG_UPDATE_BRANCH:-main}"
+  if [[ "${update_branch}" == "dev" ]]; then
+    echo -e "• Tracking: ${CHIEF_COLOR_YELLOW}${update_branch}${CHIEF_COLOR_RED} (bleeding-edge)${CHIEF_NO_COLOR} branch"
+  elif [[ "${update_branch}" == "main" ]]; then
+    echo -e "• Tracking: ${CHIEF_COLOR_GREEN}${update_branch}${CHIEF_COLOR_CYAN} (stable)${CHIEF_NO_COLOR} branch"
+  else
+    echo -e "• Tracking: ${CHIEF_COLOR_CYAN}${update_branch}${CHIEF_COLOR_YELLOW} (custom)${CHIEF_NO_COLOR} branch"
+  fi
   echo -e "• Version: ${CHIEF_COLOR_CYAN}$CHIEF_VERSION${CHIEF_NO_COLOR} on $PLATFORM"
 }
 

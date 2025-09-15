@@ -25,11 +25,12 @@ CHIEF_CFG_AUTOCHECK_UPDATES=false
 # UPDATE CONFIGURATION
 ####################################
 
-# Branch to track for Chief updates. Valid options are "main" or "dev".
+# Branch to track for Chief updates. Can be any valid Git branch name.
+# Common options: "main" (stable release), "dev" (bleeding-edge), or custom branches.
 # When set to "main", Chief will track the stable release branch.
 # When set to "dev", Chief will track the development branch with bleeding-edge features.
-# WARNING: The "dev" branch contains the most current features but should be used with
-# caution as it is not considered stable or production ready.
+# Custom branches can be used for specific versions or team-specific branches.
+# WARNING: Non-main branches may contain unstable features and should be used with caution.
 # This setting affects both automatic update checks and manual updates via chief.update.
 CHIEF_CFG_UPDATE_BRANCH="main"
 
@@ -127,6 +128,11 @@ CHIEF_CFG_COLORED_LS=false
 # Set to false for non-interactive operation by default (useful for automation/scripts).
 # Individual commands can still use --yes to skip prompts regardless of this setting.
 CHIEF_CFG_CONFIG_SET_INTERACTIVE=true
+
+# If set to true, chief.config_update will create timestamped backups when making changes.
+# Set to false to skip backup creation (useful for automation where you handle backups externally).
+# Only creates backups when actual changes are made to configuration file.
+CHIEF_CFG_CONFIG_UPDATE_BACKUP=true
 
 # Load private SSH keys into memory. 
 # Private keys are required to end in ".key" (symlinks are allowed)
