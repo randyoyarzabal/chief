@@ -1104,13 +1104,45 @@ You can also manually update by running git pull in the Chief directory.
       # Switch to target branch if different from current branch
       if [[ ${LOCAL_BRANCH} != ${TARGET_BRANCH} ]]; then
         echo -e "${CHIEF_COLOR_CYAN}Switching from ${LOCAL_BRANCH} to ${TARGET_BRANCH} branch...${CHIEF_NO_COLOR}"
-        git fetch origin
-        git checkout "${TARGET_BRANCH}"
+        
+        # Fetch all branches to ensure target branch exists
+        echo -e "${CHIEF_COLOR_BLUE}Fetching latest changes...${CHIEF_NO_COLOR}"
+        git fetch origin || {
+          echo -e "${CHIEF_COLOR_RED}Error: Failed to fetch from remote repository${CHIEF_NO_COLOR}"
+          return 1
+        }
+        
+        # Check if target branch exists remotely
+        if ! git ls-remote --heads origin "${TARGET_BRANCH}" | grep -q "${TARGET_BRANCH}"; then
+          echo -e "${CHIEF_COLOR_RED}Error: Branch '${TARGET_BRANCH}' does not exist in remote repository${CHIEF_NO_COLOR}"
+          echo -e "${CHIEF_COLOR_YELLOW}Available branches: $(git ls-remote --heads origin | sed 's|.*refs/heads/||' | tr '\n' ' ')${CHIEF_NO_COLOR}"
+          return 1
+        fi
+        
+        # Switch to target branch (create local branch if needed)
+        if git show-ref --verify --quiet "refs/heads/${TARGET_BRANCH}"; then
+          # Local branch exists, switch to it
+          git checkout "${TARGET_BRANCH}" || {
+            echo -e "${CHIEF_COLOR_RED}Error: Failed to switch to ${TARGET_BRANCH} branch${CHIEF_NO_COLOR}"
+            return 1
+          }
+        else
+          # Local branch doesn't exist, create it from remote
+          git checkout -b "${TARGET_BRANCH}" "origin/${TARGET_BRANCH}" || {
+            echo -e "${CHIEF_COLOR_RED}Error: Failed to create and switch to ${TARGET_BRANCH} branch${CHIEF_NO_COLOR}"
+            return 1
+          }
+        fi
+        
+        echo -e "${CHIEF_COLOR_GREEN}Successfully switched to ${TARGET_BRANCH} branch${CHIEF_NO_COLOR}"
       fi
       
       # Pull updates from the target branch
       echo -e "${CHIEF_COLOR_CYAN}Updating from ${TARGET_BRANCH} branch...${CHIEF_NO_COLOR}"
-      git pull origin "${TARGET_BRANCH}"
+      git pull origin "${TARGET_BRANCH}" || {
+        echo -e "${CHIEF_COLOR_RED}Error: Failed to pull updates from ${TARGET_BRANCH} branch${CHIEF_NO_COLOR}"
+        return 1
+      }
       
       chief.reload
       cd - > /dev/null 2>&1
