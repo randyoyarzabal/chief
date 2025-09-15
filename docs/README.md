@@ -174,6 +174,23 @@ chief.config_update --dry-run         # Preview changes before applying
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
 ```
 
+### 🌿 Development Branch Tracking
+
+Chief now supports tracking either the stable or development branch:
+
+```bash
+# Track stable releases (default)
+chief.config_set update_branch main
+
+# Track bleeding-edge development features (⚠️ use with caution)
+chief.config_set update_branch dev
+
+# Update to your configured branch
+chief.update
+```
+
+⚠️ **Important**: The `dev` branch contains the most current features but should be used with caution as it is not considered stable or production ready.
+
 **What `chief.config_update` does:**
 
 - ✅ **Adds new features** - Automatically adds new configuration options from latest template
@@ -589,6 +606,7 @@ chief.config_set config_set_interactive false
 | `CHIEF_CFG_SSH_KEYS_PATH` | _unset_ | Auto-load SSH keys from path |
 | `CHIEF_CFG_ALIAS` | _unset_ | Create short alias (e.g., `"cf"`) |
 | `CHIEF_CFG_AUTOCHECK_UPDATES` | `false` | Check for updates on startup |
+| `CHIEF_CFG_UPDATE_BRANCH` | `"main"` | Branch to track for updates: "main" (stable) or "dev" (⚠️ bleeding-edge) |
 
 ### Plugin Configuration
 | Configuration | Description |

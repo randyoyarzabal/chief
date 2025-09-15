@@ -22,6 +22,17 @@ CHIEF_CFG_HINTS=true
 # $> chief.update
 CHIEF_CFG_AUTOCHECK_UPDATES=false
 
+# UPDATE CONFIGURATION
+####################################
+
+# Branch to track for Chief updates. Valid options are "main" or "dev".
+# When set to "main", Chief will track the stable release branch.
+# When set to "dev", Chief will track the development branch with bleeding-edge features.
+# WARNING: The "dev" branch contains the most current features but should be used with
+# caution as it is not considered stable or production ready.
+# This setting affects both automatic update checks and manual updates via chief.update.
+CHIEF_CFG_UPDATE_BRANCH="main"
+
 # PLUG-INS CONFIGURATION
 ####################################
 

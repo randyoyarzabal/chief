@@ -23,7 +23,7 @@ if [[ -f "$VERSION_FILE" ]]; then
   source "$VERSION_FILE"
 else
   # Fallback constants if VERSION file doesn't exist (e.g., standalone install script)
-  export CHIEF_VERSION="v3.0"
+  export CHIEF_VERSION="v3.0.1"
   export CHIEF_GIT_REPO="https://github.com/randyoyarzabal/chief.git"
   export CHIEF_INSTALL_GIT_BRANCH="main"
   export CHIEF_WEBSITE="https://chief.reonetlabs.us"
@@ -104,7 +104,6 @@ print_banner() {
   echo -e "${YELLOW}\\___/_/ /_/_/\\___/_/ ${CYAN}${CHIEF_WEBSITE}${NC}"
   echo ""
   echo -e "${GREEN}SUCCESS: Chief installed successfully!${NC}"
-  echo -e "${BLUE}INFO: Restart your terminal or run: ${YELLOW}source ~/.bash_profile${NC}"
 }
 
 install_chief() {
@@ -276,9 +275,6 @@ setup_prompt
 echo -e "${BLUE}Step 4: Installation complete!${NC}"
 print_banner
 
-echo ""
-echo -e "${YELLOW}IMPORTANT: Restart your terminal for changes to take effect${NC}"
-echo -e "${CYAN}   Alternative: Run 'source ~/.bash_profile' in your current terminal${NC}"
 echo ""
 echo -e "${CYAN}NEXT STEPS:${NC}"
 echo -e "${CYAN}  1. Restart your terminal (or run: source ~/.bash_profile)${NC}"

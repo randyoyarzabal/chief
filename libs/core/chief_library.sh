@@ -811,18 +811,25 @@ function __check_for_updates (){
   cd ${CHIEF_PATH}
   local CHANGE_MSG="${CHIEF_COLOR_GREEN}**Chief updates available**${CHIEF_NO_COLOR}"
 
+  # Get target branch from config, default to main if not set
+  local TARGET_BRANCH="${CHIEF_CFG_UPDATE_BRANCH:-main}"
+  
   # Get local branch name
   local LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 
   # Get change hash local and remote for later comparison
   local LOCAL_HASH=$(git rev-parse HEAD)
-  local REMOTE_HASH=$(git ls-remote --tags --heads 2> /dev/null | grep heads/${LOCAL_BRANCH} | awk '{ print $1 }')
+  local REMOTE_HASH=$(git ls-remote --tags --heads 2> /dev/null | grep heads/${TARGET_BRANCH} | awk '{ print $1 }')
 
   # Only compare local/remote changes if no local changes exist.
   if [[ -n $(git status -s) ]]; then
     echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} local Chief changes detected. Update checking skipped."
   elif [[ ${LOCAL_HASH} != ${REMOTE_HASH} ]]; then
-    echo -e "${CHANGE_MSG}"
+    if [[ ${LOCAL_BRANCH} != ${TARGET_BRANCH} ]]; then
+      echo -e "${CHANGE_MSG} (switch to ${TARGET_BRANCH} branch)"
+    else
+      echo -e "${CHANGE_MSG}"
+    fi
   fi
   cd - > /dev/null 2>&1
 }
@@ -1012,19 +1019,26 @@ ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Pulls latest changes from Chief repository
 - Automatically reloads environment after update
 - Preserves your personal configuration and plugins
+- Tracks configured branch (CHIEF_CFG_UPDATE_BRANCH)
 
 ${CHIEF_COLOR_BLUE}Update Process:${CHIEF_NO_COLOR}
-1. Check for available updates
+1. Check for available updates on configured branch
 2. Prompt for user confirmation
-3. Pull latest Chief version
-4. Reload Chief environment
-5. Return to original directory
+3. Switch to target branch if needed (main/dev)
+4. Pull latest Chief version from target branch
+5. Reload Chief environment
+6. Return to original directory
 
 ${CHIEF_COLOR_MAGENTA}Safety Features:${CHIEF_NO_COLOR}
 - Only updates Chief core files
 - Preserves user configurations and plugins
 - Shows progress with visual feedback
 - Requires explicit user confirmation
+
+${CHIEF_COLOR_CYAN}Branch Configuration:${CHIEF_NO_COLOR}
+- Set CHIEF_CFG_UPDATE_BRANCH=\"main\" for stable releases
+- Set CHIEF_CFG_UPDATE_BRANCH=\"dev\" for bleeding-edge features
+- WARNING: dev branch is not production ready
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME                    # Check and update Chief
@@ -1046,10 +1060,25 @@ You can also manually update by running git pull in the Chief directory.
     if chief.etc_ask_yes_or_no "Updates are available, update now?"; then
       echo "Proceeding..."
       cd "${CHIEF_PATH}"
-      chief.git_update -p
+      
+      # Get target branch from config, default to main if not set
+      local TARGET_BRANCH="${CHIEF_CFG_UPDATE_BRANCH:-main}"
+      local LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+      
+      # Switch to target branch if different from current branch
+      if [[ ${LOCAL_BRANCH} != ${TARGET_BRANCH} ]]; then
+        echo -e "${CHIEF_COLOR_CYAN}Switching from ${LOCAL_BRANCH} to ${TARGET_BRANCH} branch...${CHIEF_NO_COLOR}"
+        git fetch origin
+        git checkout "${TARGET_BRANCH}"
+      fi
+      
+      # Pull updates from the target branch
+      echo -e "${CHIEF_COLOR_CYAN}Updating from ${TARGET_BRANCH} branch...${CHIEF_NO_COLOR}"
+      git pull origin "${TARGET_BRANCH}"
+      
       chief.reload
       cd - > /dev/null 2>&1
-      echo -e "${CHIEF_COLOR_GREEN}Updated Chief to [${CHIEF_VERSION}].${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_GREEN}Updated Chief to [${CHIEF_VERSION}] from ${TARGET_BRANCH} branch.${CHIEF_NO_COLOR}"
     else
       echo -e "${CHIEF_COLOR_YELLOW}Update skipped.${CHIEF_NO_COLOR}"
     fi
