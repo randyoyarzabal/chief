@@ -620,6 +620,7 @@ chief.config_set config_set_interactive false
 | `CHIEF_CFG_UPDATE_BRANCH` | `"main"` | Branch to track for updates: any valid Git branch (⚠️ non-main may be unstable) |
 
 ### Plugin Configuration
+
 | Configuration | Description |
 |---------------|-------------|
 | `CHIEF_CFG_PLUGINS_GIT_REPO` | Remote Git repository URL for plugins |
