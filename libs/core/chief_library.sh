@@ -1140,10 +1140,12 @@ Some changes require terminal restart to take full effect.
 }
 
 function chief.config_set() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--list|-l] | <config_option> <value> [--yes|-y]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--list|-l] | <config_option>=<value> [--yes|-y]
+       $FUNCNAME <config_option> <value> [--yes|-y]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Set a Chief configuration variable and reload the configuration automatically.
+Supports both key=value and separate argument formats for flexibility.
 By default, prompts for confirmation before modifying config file. Use --yes to skip prompts.
 
 ${CHIEF_COLOR_GREEN}Options:${CHIEF_NO_COLOR}
@@ -1154,6 +1156,10 @@ ${CHIEF_COLOR_GREEN}Options:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_GREEN}Arguments:${CHIEF_NO_COLOR}
   config_option  Configuration option name (without CHIEF_CFG_ prefix, case insensitive)
   value          Boolean (true/false) or string value to set
+
+${CHIEF_COLOR_GREEN}Input Formats:${CHIEF_NO_COLOR}
+  key=value      Combined format: config_option=value
+  key value      Separate format: config_option value
 
 ${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
   BANNER                    Show/hide startup banner (true/false)
@@ -1176,16 +1182,19 @@ ${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
   ALIAS                     Custom alias for chief commands
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME --list                      # List all configuration variables
-  $FUNCNAME banner true                 # Enable startup banner (with prompt)
-  $FUNCNAME --yes banner false          # Disable startup banner (no prompt)
-  $FUNCNAME colored_ls true --yes       # Enable colored ls (no prompt)
-  $FUNCNAME prompt -y true              # Enable custom prompt (no prompt)
-  $FUNCNAME ssh_keys_path \"\$HOME/.ssh\"  # Set SSH keys path (with prompt)
-  $FUNCNAME config_set_interactive false # Disable prompts globally
+  $FUNCNAME --list                        # List all configuration variables
+  $FUNCNAME banner=true                   # Enable startup banner (key=value format)
+  $FUNCNAME banner true                   # Enable startup banner (separate args format)
+  $FUNCNAME --yes banner=false            # Disable startup banner (no prompt)
+  $FUNCNAME colored_ls=true --yes         # Enable colored ls (no prompt)
+  $FUNCNAME prompt -y true                # Enable custom prompt (no prompt)
+  $FUNCNAME ssh_keys_path \"\$HOME/.ssh\" # Set SSH keys path (separate args)
+  $FUNCNAME ssh_keys_path=\"\$HOME/.ssh\" # Set SSH keys path (key=value format)
+  $FUNCNAME config_set_interactive=false  # Disable prompts globally
 
 ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
 - Configuration options are case insensitive
+- Both key=value and separate argument formats are supported
 - String values with spaces should be quoted
 - Changes take effect immediately after reload
 - Some changes may require terminal restart
@@ -1240,6 +1249,15 @@ ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
 
   # Restore arguments without --yes flag
   set -- "${args[@]}"
+
+  # Check if first argument contains equals sign (key=value format)
+  if [[ $# -ge 1 && "$1" =~ ^([^=]+)=(.*)$ ]]; then
+    # Parse key=value format
+    local parsed_config_name="${BASH_REMATCH[1]}"
+    local parsed_config_value="${BASH_REMATCH[2]}"
+    # Replace arguments with parsed values
+    set -- "$parsed_config_name" "$parsed_config_value" "${@:2}"
+  fi
 
   if [[ $# -lt 2 ]]; then
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Missing required arguments"

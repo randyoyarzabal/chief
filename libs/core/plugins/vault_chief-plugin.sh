@@ -244,7 +244,7 @@ ${CHIEF_COLOR_BLUE}Troubleshooting:${CHIEF_NO_COLOR}
     # Load the vault file and check for errors
     if source <(ansible-vault view "$vault_file" 2>/dev/null); then
       echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Vault file loaded to memory."
-      echo -e "${CHIEF_COLOR_BLUE}Tip:${CHIEF_NO_COLOR} Variables are now available in current shell session."
+      echo -e "${CHIEF_COLOR_BLUE}Tip:${CHIEF_NO_COLOR} Vault env vars, functions, and aliases are now available in current shell session."
     else
       local exit_code=$?
       echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Failed to load vault file: $vault_file"
