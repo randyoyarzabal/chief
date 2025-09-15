@@ -1,5 +1,16 @@
 # Chief Updates
 
+## 3.0.1
+
+- Ability to reinstall tracking a different branch
+- Platform version/distribution detection
+- Installation documentation updates
+- **Branch Configuration for Updates**: Added `CHIEF_CFG_UPDATE_BRANCH` configuration option to track either "main" (stable) or "dev" (bleeding-edge) branch for Chief updates
+  - Set `CHIEF_CFG_UPDATE_BRANCH="main"` for stable releases (default)
+  - Set `CHIEF_CFG_UPDATE_BRANCH="dev"` for latest features (⚠️ WARNING: not production ready)
+  - `chief.update` now automatically switches to configured branch before updating
+  - Update checking (`__check_for_updates`) now monitors the configured branch instead of current branch
+
 ## 3.0
 
 ### Upgrading from v2.1.1 to v3.0
