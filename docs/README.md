@@ -608,223 +608,37 @@ cat > plugins/devops_chief-plugin.sh << 'EOF'
 #!/usr/bin/env bash
 # Team DevOps Tools
 
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-  echo "Error: $(basename "${BASH_SOURCE[0]}") must be sourced, not executed."
-  exit 1
-fi
-
-echo "Team DevOps plugin loaded"
-
-function devops.deploy() {
-    local env=${1:-staging}
-    echo "🚀 Deploying to $env environment..."
-    # Your deployment logic
+function team.deploy() {
+    echo "Deploying with team standards..."
+    # Your team deployment logic
 }
 
-function devops.rollback() {
-    echo "⏪ Rolling back deployment..."
-    # Your rollback logic
-}
+function team.test() {
+    echo "Running team test suite..."
+    # Your team testing logic
+}' > plugins/devops_chief-plugin.sh
 
-function devops.health() {
-    echo "💓 Health check across services..."
-    # Check service health
-}
-
-# Useful aliases
-alias deploy.staging='devops.deploy staging'
-alias deploy.prod='devops.deploy production'
-EOF
-
-# Create testing plugin
-cat > plugins/testing_chief-plugin.sh << 'EOF' 
-#!/usr/bin/env bash
-# Team Testing Tools
-
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-  echo "Error: $(basename "${BASH_SOURCE[0]}") must be sourced, not executed."
-  exit 1
-fi
-
-echo "Team Testing plugin loaded"
-
-function testing.all() {
-    testing.unit && testing.integration && testing.e2e
-}
-
-function testing.unit() {
-    echo "🧪 Running unit tests..."
-    npm run test:unit
-}
-
-function testing.integration() {
-    echo "🔗 Running integration tests..."
-    npm run test:integration  
-}
-
-function testing.e2e() {
-    echo "🌐 Running E2E tests..."
-    npm run test:e2e
-}
-
-alias test.watch='npm run test:watch'
-alias test.coverage='npm run test:coverage'
-EOF
-
-# Create portable vault file (encrypted secrets that sync across systems)
-cat > .chief_secret-vault << 'EOF'
-#!/usr/bin/env bash
-# Portable Secrets - encrypt this file with ansible-vault
-# Usage: ansible-vault encrypt .chief_secret-vault
-
-# API Keys (example - replace with your actual secrets)
-export MY_SLACK_WEBHOOK="https://hooks.slack.com/services/..."
-export MY_GITHUB_TOKEN="ghp_..."
-export MY_DOCKER_REGISTRY="registry.mycompany.com"
-
-# Database Credentials
-export DB_HOST="my-db.mycompany.com"
-export DB_USER="app_user"
-export DB_PASS="secure_password_here"
-
-# Environment Settings
-export ENVIRONMENT="development"
-export DEBUG_MODE="true"
-EOF
-
-# Encrypt the vault file
-echo "Encrypting vault file..."
-ansible-vault encrypt .chief_secret-vault
-
-# Create team plugin template for consistency
-cat > templates/team_plugin_template.sh << 'EOF'
-#!/usr/bin/env bash
-# Team Plugin: $CHIEF_PLUGIN_NAME
-# Author: [Your Name]
-# Description: [Brief description of plugin functionality]
-
-# Prevent direct execution
-if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
-  echo "Error: $(basename "${BASH_SOURCE[0]}") must be sourced, not executed."
-  exit 1
-fi
-
-echo "Team plugin loaded: $CHIEF_PLUGIN_NAME"
-
-# Main function template
-function $CHIEF_PLUGIN_NAME.main() {
-    local USAGE="Usage: \$FUNCNAME [options]
-    
-Description:
-  [Describe what this function does]
-  
-Options:
-  -h, --help    Show this help message
-  
-Examples:
-  \$FUNCNAME             # Basic usage
-  \$FUNCNAME --help      # Show help
-"
-
-    case "${1:-}" in
-        -h|--help)
-            echo -e "\$USAGE"
-            return 0
-            ;;
-        *)
-            echo "🚀 Running $CHIEF_PLUGIN_NAME.main..."
-            # Add your team-specific logic here
-            ;;
-    esac
-}
-
-# Example utility function
-function $CHIEF_PLUGIN_NAME.status() {
-    echo "📊 $CHIEF_PLUGIN_NAME status check..."
-    # Add status check logic
-}
-
-# Team-standard aliases (optional)
-alias $CHIEF_PLUGIN_NAME.help='$CHIEF_PLUGIN_NAME.main --help'
-
-# TODO: Add your team-specific functions below
-# Follow team naming convention: $CHIEF_PLUGIN_NAME.function_name
-EOF
-
-# Add team documentation
-cat > README.md << 'EOF'
-# Team Bash Plugins
-
-Shared bash functions and aliases for our development team.
-
-## Available Functions
-
-### DevOps (`devops_chief-plugin.sh`)
-- `devops.deploy [env]` - Deploy to environment (staging/production)
-- `devops.rollback` - Rollback last deployment
-- `devops.health` - Check service health
-
-### Testing (`testing_chief-plugin.sh`) 
-- `testing.all` - Run all test suites
-- `testing.unit` - Run unit tests only
-- `testing.integration` - Run integration tests
-- `testing.e2e` - Run end-to-end tests
-
-## Setup
-
-Configure Chief to use this repository:
-```bash
-chief.config_set plugins_git_repo "git@github.com:yourteam/my-team-plugins.git"
-chief.config_set plugins_git_branch "main"
-chief.config_set plugins_path "$HOME/team-plugins"
-chief.config_set plugins_git_path "plugins"
-chief.config_set plugins_git_autoupdate true
-chief.config_set plugin_template "$HOME/team-plugins/templates/team_plugin_template.sh"
-
-# Set to remote LAST - Chief will offer to update plugins when git config is ready
-chief.config_set plugins_type remote
-
-# Restart terminal - team plugins are now available!
-chief.reload
-```
-
-## Creating New Team Plugins
-
-Use the team template for consistency:
-```bash
-chief.plugin mynewfeature    # Uses team template automatically
-```
-
-## Using Portable Vault
-
-Access your portable secrets stored in the repository:
-```bash
-chief.vault_file-load        # Loads vault automatically
-echo $MY_SLACK_WEBHOOK        # Your secrets now available across systems
-```
-EOF
-```
-
-# Commit and push
+# 3. Commit and push
 git add .
-git commit -m "Initial team plugins and documentation"
-git remote add origin git@github.com:yourteam/my-team-plugins.git
-git push -u origin main
+git commit -m "Initial team plugins"
+git push origin main
 ```
 
-#### **2. Team Member Setup**
+### 🔧 Team Member Setup
+
+Each team member configures Chief to use the shared repository:
 
 ```bash
-# Each team member configures Chief
-chief.config_set plugins_git_repo "git@github.com:yourteam/my-team-plugins.git"
-chief.config_set plugins_git_branch "main"
-chief.config_set plugins_path "$HOME/team-plugins"
-chief.config_set plugins_git_path "plugins"  # Relative path within repo
-chief.config_set plugins_git_autoupdate true
-chief.config_set plugin_template "$HOME/team-plugins/templates/team_plugin_template.sh"
+# Configure Chief for remote plugins
+chief.config
 
-# Set to remote LAST - Chief will offer to update plugins when git config is ready
-chief.config_set plugins_type remote
+# Set these values:
+# CHIEF_CFG_PLUGINS_TYPE="remote"
+# CHIEF_CFG_PLUGINS_GIT_REPO="git@github.com:yourteam/bash-plugins.git"
+# CHIEF_CFG_PLUGINS_GIT_BRANCH="main"
+# CHIEF_CFG_PLUGINS_PATH="$HOME/team-plugins"
+# CHIEF_CFG_PLUGINS_GIT_PATH="tools/bash"  # Relative path to plugins (empty = repo root)
+# CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="true"
 
 # Restart terminal - team plugins are now available!
 chief.reload
@@ -835,106 +649,13 @@ chief.reload
 #### **Adding New Team Plugins**
 
 ```bash
-# Create new plugin using team template
-chief.plugin newfeature  # Uses team template automatically for consistency
-
-# Test your function
-newfeature.main
-newfeature.status
-
-# When ready, copy to team repository
-cd ~/team-plugins  # or your existing repo
-cp ~/chief_plugins/newfeature_chief-plugin.sh plugins/
-
-# Commit and share with team
-git add plugins/newfeature_chief-plugin.sh
-git commit -m "Add newfeature plugin with deployment automation"
-git push origin main
-
-# Team gets update automatically (if autoupdate enabled)
-# Or manually: chief.plugins_update
-```
-
-#### **Team Template Benefits**
-
-When `CHIEF_CFG_PLUGIN_TEMPLATE` is configured, all team members get:
-
-- **Consistent structure**: Same header, error handling, and function patterns
-- **Team standards**: Pre-defined naming conventions and documentation format
-- **Best practices**: Built-in help functions, usage examples, and error handling
-- **Faster development**: Start with working template instead of blank file
-
-```bash
-# Team member creates new plugin
-chief.plugin monitoring
-
-# File is created with team template:
-# - Standard header with team info
-# - Error handling and sourcing protection
-# - Template functions: monitoring.main, monitoring.status
-# - Team naming conventions and help system
-# - TODO sections for team-specific additions
-```
-
-#### **Portable Vault Benefits** 🔐
-
-When `.chief_secret-vault` is included in your plugins repository, you automatically get:
-
-- **Cross-system secrets**: Same encrypted secrets on laptop, server, and development environments
-- **Zero configuration**: Vault file detected automatically with plugins
-- **Version controlled**: Secret changes tracked through git
-- **Secure storage**: Encrypted with ansible-vault, safe to store in git
-- **Consistent access**: Use `chief.vault_file-load` on any system
-
-```bash
-# User gets plugins and vault automatically across systems
+# Update team plugins to latest version
 chief.plugins_update
-# Output: "Found vault file: /path/to/my-plugins/.chief_secret-vault"
 
-# Load your portable secrets
-chief.vault_file-load
-# Your environment variables now available across all systems
-```
+# Create new team plugin
+chief.plugin teamtools
 
-#### **Team Vault Benefits** 🔐
-
-For teams, the vault feature enables secure secret sharing:
-
-- **Team coordination**: Share encrypted secrets safely via git
-- **Onboarding**: New team members get access to shared secrets immediately
-- **Standardization**: Same secrets across all team member systems
-- **Audit trail**: Track who changed what secrets and when
-
-```bash
-# Team setup example
-chief.vault_file-load
-echo $TEAM_API_KEY     # Shared team secrets
-echo $PROD_DB_PASSWORD # Production database access
-```
-
-#### **Editing Existing Team Plugins**
-
-```bash
-# Navigate to your team plugins directory
-cd ~/team-plugins/plugins  # Adjust path to your setup
-
-# Edit with Chief's plugin editor
-chief.plugin devops  # Opens editor for devops_chief-plugin.sh
-
-# Test changes locally
-chief.reload  # Reload to test changes
-devops.deploy  # Test your updated function
-
-# Commit changes
-git add devops_chief-plugin.sh
-git commit -m "Improve devops.deploy with better error handling"
-git push origin main
-```
-
-#### **Plugin Discovery & Management**
-
-```bash
-# See all loaded plugins and their functions
+# Check which plugins are loaded
 chief.plugin -?
 
 # Find specific functions across all plugins
@@ -973,33 +694,15 @@ chief.config_set --list | grep -i plugin
 
 ```
 team-plugins/
-├── plugins/                       # Chief plugin files (*.chief-plugin.sh)
-│   ├── devops_chief-plugin.sh     # Deployment automation
-│   ├── testing_chief-plugin.sh    # Test automation 
-│   ├── docker_chief-plugin.sh     # Container management
-│   ├── k8s_chief-plugin.sh        # Kubernetes operations
-│   └── monitoring_chief-plugin.sh # System monitoring
-├── .chief_secret-vault            # Portable vault file (ansible-vault encrypted)
-├── docs/                          # Plugin documentation
-│   ├── devops.md                  # DevOps function reference
-│   ├── testing.md                 # Testing function reference
-│   └── setup-guide.md             # Team onboarding
-├── templates/                     # Configuration templates
-│   ├── chief_config_template.sh   # Chief configuration template
-│   ├── team_plugin_template.sh    # Team-specific plugin template
-├── scripts/                       # Supporting scripts (not loaded as plugins)
-│   ├── setup-dev-env.sh           # Development environment setup
-│   └── deploy.sh                  # Actual deployment script
-└── README.md                      # Main documentation and quick start
+├── plugins/
+│   ├── devops_chief-plugin.sh     # Deployment tools
+│   ├── testing_chief-plugin.sh    # Test automation
+│   ├── docker_chief-plugin.sh     # Container tools
+│   └── k8s_chief-plugin.sh        # Kubernetes helpers
+├── templates/
+│   └── personal_config_template.sh # Template for personal settings
+└── README.md                      # Team onboarding guide
 ```
-
-**Key Benefits of This Structure:**
-- **`plugins/`**: Contains only Chief plugin files (`*_chief-plugin.sh`)
-- **`.chief_secret-vault`**: Portable vault file (automatically syncs with plugins)
-- **`docs/`**: Detailed documentation for each plugin's functions
-- **`templates/`**: Configuration templates for team members, including standardized plugin template
-- **`scripts/`**: Supporting scripts that plugins can call
-- **Clear separation**: Plugin files vs. supporting code vs. documentation vs. portable secrets
 
 #### 🛡️ **Local Changes Protection**
 
