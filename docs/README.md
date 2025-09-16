@@ -110,20 +110,23 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 chief.config_set -y PLUGINS_GIT_REPO="git@github.com:yourusername/my-plugins.git"
 chief.config_set -y PLUGINS_PATH="${HOME}/chief_plugins"
 chief.config_set -y PLUGINS_GIT_BRANCH="main"
-chief.config_set -y PLUGINS_GIT_PATH="bash/plugins"     # or "" for repo root
-chief.config_set -y PLUGINS_GIT_AUTOUPDATE="false"     # manual updates
-chief.config_set -y PLUGINS_TYPE="remote"              # 🔑 Enable remote sync
+chief.config_set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root
+chief.config_set -y PLUGINS_GIT_AUTOUPDATE="false"    # manual updates
+chief.config_set -y PLUGINS_TYPE="remote"             # 🔑 Enable remote sync
 
 # 3. Customize prompt (optional)
 chief.config_set -y SHORT_PATH=false
 chief.config_set -y MULTILINE_PROMPT=true
 
 # 4. Load your encrypted secrets
-chief.vault_file-load                                   # Team vault (if exists)
-chief.vault_file-load ~/.my-personal-vault             # Personal vault
+chief.vault_file-load                          # Team vault (.chief_secret-vault - if exists, automatically loaded)
+chief.vault_file-load ~/.my-personal-vault     # Personal vault
+
+# 💡 If vaults don't exist, see [Vault Creation Guide](#-critical-security-vault-files) to create them
 ```
 
 ### 🎯 **Result**: 
+
 - ✅ **Same plugins everywhere**: Functions, aliases, and tools sync across laptop, server, CI/CD
 - ✅ **Encrypted secrets**: Vault files travel with your setup (team + personal)
 - ✅ **Zero reconfiguration**: New systems work identically after this setup
@@ -206,6 +209,7 @@ source ~/.bash_profile
 ```
 
 #### Environment Check
+
 ```bash
 # Verify your environment meets requirements
 bash --version    # Should be 4.0+
