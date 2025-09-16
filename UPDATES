@@ -17,6 +17,16 @@
   - Remote plugins: Use `CHIEF_CFG_PLUGINS_PATH` (clone location) + `CHIEF_CFG_PLUGINS_GIT_PATH` (relative path within repo)
   - `CHIEF_CFG_PLUGINS_GIT_PATH` is a relative path from repo root (empty string = use repo root)
   - Updated all documentation, help text, and plugin loading logic to reflect clearer separation
+- **Fixed chief.update Branch Switching**: Resolved issue where `chief.update` would switch branches but not pull the latest changes before reloading
+  - Now properly pulls latest changes from target branch after switching
+  - Ensures you get the actual latest version when switching from dev to main (or any branch)
+  - Added proper error handling for git pull operations
+  - Shows success message with version and branch information
+- **Fixed Vault Plugin Path Resolution**: Resolved issues with `chief.vault_file-edit` and `chief.vault_file-load` when running from directories other than home directory
+  - Added automatic path resolution for relative paths using `realpath` (with fallback)
+  - Now works correctly when specifying relative paths like `./my-secrets` or `../secrets`
+  - Ensures directory creation and file operations work from any working directory
+  - Maintains backward compatibility with absolute paths and default locations
 
 ## 3.0
 

@@ -92,9 +92,6 @@ CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="false"
 # you can create a symlink to it in the directory as "lab_chief-plugin.sh"
 # Or rename it to "lab_chief-plugin.sh" and it will be loaded as a plug-in.
 
-# ** CHIEF_CFG_PLUGIN_DEFAULT is required and must be defined to hold the default user library.' **
-CHIEF_CFG_PLUGIN_DEFAULT="$CHIEF_CFG_PLUGINS/default_chief-plugin.sh"
-
 # You can define your own starting template for plugins, otherwise 
 # the default template will be used: "${CHIEF_PATH}/templates/chief_plugin_template.sh"
 CHIEF_CFG_PLUGIN_TEMPLATE="${CHIEF_PATH}/templates/chief_plugin_template.sh"

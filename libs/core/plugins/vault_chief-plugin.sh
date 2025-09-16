@@ -98,6 +98,11 @@ ${CHIEF_COLOR_GREEN}Current default:${CHIEF_NO_COLOR} $CHIEF_SECRETS_FILE
       ;;
   esac
 
+  # Resolve relative paths to absolute paths to avoid issues when not in home directory
+  if [[ "$vault_file" != /* ]]; then
+    vault_file="$(realpath "$vault_file" 2>/dev/null || echo "$(pwd)/$vault_file")"
+  fi
+
   # Create the file if it doesn't exist
   if [[ ! -f "$vault_file" ]]; then
     echo -e "${CHIEF_COLOR_GREEN}Creating new vault file:${CHIEF_NO_COLOR} $vault_file"
@@ -225,6 +230,11 @@ ${CHIEF_COLOR_BLUE}Troubleshooting:${CHIEF_NO_COLOR}
     vault_file="$CHIEF_SECRETS_FILE"
   else
     vault_file="$1"
+  fi
+
+  # Resolve relative paths to absolute paths to avoid issues when not in home directory
+  if [[ "$vault_file" != /* ]]; then
+    vault_file="$(realpath "$vault_file" 2>/dev/null || echo "$(pwd)/$vault_file")"
   fi
 
   # Validate vault file exists
