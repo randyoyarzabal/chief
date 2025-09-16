@@ -4,7 +4,7 @@ title: Reference
 description: "Complete command reference, examples, and additional resources"
 ---
 
-[← Back to Documentation](index.html)
+[← Back to Home](https://chief.reonetlabs.us/)
 
 # Reference
 
@@ -605,4 +605,4 @@ This project is licensed under the **MIT License** - see the [LICENSE](https://g
 
 ---
 
-[← Back to Documentation](index.html)
+[← Back to Home](https://chief.reonetlabs.us/)

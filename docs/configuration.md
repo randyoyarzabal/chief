@@ -4,7 +4,7 @@ title: Configuration
 description: "Advanced configuration, multi-system setup, and team collaboration"
 ---
 
-[← Back to Documentation](index.html)
+[← Back to Home](https://chief.reonetlabs.us/)
 
 # Configuration
 
@@ -494,4 +494,4 @@ chief.reload  # Will re-clone repository
 
 ---
 
-[← Back to Documentation](index.html)
+[← Back to Home](https://chief.reonetlabs.us/)

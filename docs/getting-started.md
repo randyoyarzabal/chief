@@ -4,7 +4,7 @@ title: Getting Started
 description: "Installation, setup, and first steps with Chief"
 ---
 
-[← Back to Documentation](index.html)
+[← Back to Home](https://chief.reonetlabs.us/)
 
 # Getting Started with Chief
 
@@ -320,4 +320,4 @@ git config --global user.email "your@email.com"
 
 ---
 
-[← Back to Documentation](index.html)
+[← Back to Home](https://chief.reonetlabs.us/)
