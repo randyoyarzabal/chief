@@ -3,6 +3,9 @@ description: Bash Plugin Manager & Terminal Enhancement Tool
 author: Randy E. Oyarzabal
 author_email: github@randyoyarzabal.com
 url: https://chief.reonetlabs.us
+github:
+  repository_url: https://github.com/randyoyarzabal/chief
+  repository_name: randyoyarzabal/chief
 show_downloads: false
 enable_copy_code_button: true
 toc: true

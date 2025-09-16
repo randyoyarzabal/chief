@@ -12,10 +12,13 @@ description: "Installation, setup, and first steps with Chief"
 
 ## Table of Contents
 
-- [Installation](#installation)
-- [First Steps](#first-steps)  
-- [Basic Configuration](#basic-configuration)
-- [Quick Start Examples](#quick-start-examples)
+- [📦 Installation](#-installation)
+- [📋 Requirements](#-requirements)
+- [⚡ Quick Start Tutorial](#-quick-start-tutorial)
+- [🎯 Next Steps](#-next-steps)
+- [⬆️ Upgrading Chief](#️-upgrading-chief)
+- [🗑️ Uninstalling Chief](#️-uninstalling-chief)
+- [🛟 Installation Troubleshooting](#-installation-troubleshooting)
 
 ---
 
