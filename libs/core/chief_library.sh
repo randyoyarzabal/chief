@@ -1067,7 +1067,7 @@ This supports RSA, ed25519, and other key types. Use symlinks for selective load
 }
 
 function chief.plugins_update() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--force]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Update and reload remote Chief plugins when using remote plugin configuration.
@@ -1078,17 +1078,22 @@ ${CHIEF_COLOR_GREEN}Requirements:${CHIEF_NO_COLOR}
 - Git must be available and repository accessible
 
 ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
+- Detects and protects local changes before updating
 - Fetches latest plugin versions from Git repository
 - Automatically reloads updated plugins
 - Provides verbose feedback during update process
 - Maintains local plugin configuration
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+- --force    Force update, discarding any local changes (${CHIEF_COLOR_RED}DANGEROUS${CHIEF_NO_COLOR})
 
 ${CHIEF_COLOR_MAGENTA}Plugin Types:${CHIEF_NO_COLOR}
 - ${CHIEF_COLOR_GREEN}Remote:${CHIEF_NO_COLOR} Plugins managed via Git repository (team sharing)
 - ${CHIEF_COLOR_BLUE}Local:${CHIEF_NO_COLOR} Plugins in ~/chief_plugins (personal use)
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME                    # Update all remote plugins
+  $FUNCNAME                    # Safe update with local changes protection
+  $FUNCNAME --force            # Force update, discarding local changes
   chief.config                 # Configure plugin settings first
 
 ${CHIEF_COLOR_BLUE}Configuration:${CHIEF_NO_COLOR}
@@ -1099,12 +1104,44 @@ Set CHIEF_CFG_PLUGINS_TYPE='remote' and CHIEF_CFG_PLUGINS_GIT_REPO in chief.conf
     echo -e "${USAGE}"
     return
   fi
+  
   if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]]; then
-    __load_remote_plugins "--verbose" "--force" && {
-      echo -e "${CHIEF_COLOR_GREEN}Updated all plugins to the latest version.${CHIEF_NO_COLOR}"
-    } || {
-      echo -e "${CHIEF_COLOR_RED}Error: Failed to update plugins.${CHIEF_NO_COLOR}"
-    }
+    # Check for local changes before updating (unless --force is used)
+    if [[ "$1" != "--force" ]] && __check_plugins_local_changes; then
+      echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} Local changes detected in plugins directory: ${CHIEF_CFG_PLUGINS_PATH}"
+      echo -e "${CHIEF_COLOR_CYAN}You have local modifications in your plugins directory.${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}"
+      echo -e "  ${CHIEF_COLOR_GREEN}1.${CHIEF_NO_COLOR} Commit and push your changes first: ${CHIEF_COLOR_CYAN}cd ${CHIEF_CFG_PLUGINS_PATH} && git add . && git commit -m 'your message' && git push${CHIEF_NO_COLOR}"
+      echo -e "  ${CHIEF_COLOR_GREEN}2.${CHIEF_NO_COLOR} Force update anyway: ${CHIEF_COLOR_CYAN}$FUNCNAME --force${CHIEF_NO_COLOR} (${CHIEF_COLOR_RED}WILL LOSE YOUR CHANGES${CHIEF_NO_COLOR})"
+      echo -e "  ${CHIEF_COLOR_GREEN}3.${CHIEF_NO_COLOR} Cancel and handle changes manually"
+      echo
+      
+      if chief.etc_ask_yes_or_no "Force update anyway? This will ${CHIEF_COLOR_RED}DISCARD ALL LOCAL CHANGES${CHIEF_NO_COLOR}!"; then
+        echo -e "${CHIEF_COLOR_YELLOW}Proceeding with force update. Local changes will be lost.${CHIEF_NO_COLOR}"
+        __load_remote_plugins "--verbose" "--force" && {
+          echo -e "${CHIEF_COLOR_GREEN}Updated all plugins to the latest version.${CHIEF_NO_COLOR}"
+        } || {
+          echo -e "${CHIEF_COLOR_RED}Error: Failed to update plugins.${CHIEF_NO_COLOR}"
+        }
+      else
+        echo -e "${CHIEF_COLOR_GREEN}Update cancelled. Your local changes are preserved.${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_COLOR_CYAN}Please handle your local changes manually and run $FUNCNAME again when ready.${CHIEF_NO_COLOR}"
+        return 1
+      fi
+    else
+      # Safe update (no local changes detected or --force was used)
+      local force_flag=""
+      if [[ "$1" == "--force" ]]; then
+        force_flag="--force"
+        echo -e "${CHIEF_COLOR_YELLOW}Force update requested - local changes will be discarded.${CHIEF_NO_COLOR}"
+      fi
+      
+      __load_remote_plugins "--verbose" "$force_flag" && {
+        echo -e "${CHIEF_COLOR_GREEN}Updated all plugins to the latest version.${CHIEF_NO_COLOR}"
+      } || {
+        echo -e "${CHIEF_COLOR_RED}Error: Failed to update plugins.${CHIEF_NO_COLOR}"
+      }
+    fi
   else
     echo -e "${CHIEF_COLOR_YELLOW}This function is used only when CHIEF_CFG_PLUGINS_TYPE='remote'.${CHIEF_NO_COLOR}"
   fi
@@ -1171,11 +1208,25 @@ You can also manually update by running git pull in the Chief directory.
       
       # Fetch all branches to ensure target branch exists
       echo -e "${CHIEF_COLOR_BLUE}Fetching latest changes...${CHIEF_NO_COLOR}"
-      git fetch origin || {
-        echo -e "${CHIEF_COLOR_RED}Error: Failed to fetch from remote repository${CHIEF_NO_COLOR}"
-        cd - > /dev/null 2>&1
-        return 1
-      }
+      
+      # Check if this is a shallow clone and unshallow if needed for branch switching
+      if git rev-parse --is-shallow-repository >/dev/null 2>&1 && [[ $(git rev-parse --is-shallow-repository) == "true" ]]; then
+        echo -e "${CHIEF_COLOR_YELLOW}Detected shallow clone. Converting to full repository for branch switching...${CHIEF_NO_COLOR}"
+        git fetch --unshallow origin || {
+          echo -e "${CHIEF_COLOR_YELLOW}Warning: Failed to unshallow repository. Trying regular fetch...${CHIEF_NO_COLOR}"
+          git fetch origin || {
+            echo -e "${CHIEF_COLOR_RED}Error: Failed to fetch from remote repository${CHIEF_NO_COLOR}"
+            cd - > /dev/null 2>&1
+            return 1
+          }
+        }
+      else
+        git fetch origin || {
+          echo -e "${CHIEF_COLOR_RED}Error: Failed to fetch from remote repository${CHIEF_NO_COLOR}"
+          cd - > /dev/null 2>&1
+          return 1
+        }
+      fi
       
       # Check if target branch exists remotely
       echo -e "${CHIEF_COLOR_BLUE}Verifying ${TARGET_BRANCH} branch exists remotely...${CHIEF_NO_COLOR}"
@@ -1262,10 +1313,23 @@ You can also manually update by running git pull in the Chief directory.
         
         # Fetch all branches to ensure target branch exists
         echo -e "${CHIEF_COLOR_BLUE}Fetching latest changes...${CHIEF_NO_COLOR}"
-        git fetch origin || {
-          echo -e "${CHIEF_COLOR_RED}Error: Failed to fetch from remote repository${CHIEF_NO_COLOR}"
-          return 1
-        }
+        
+        # Check if this is a shallow clone and unshallow if needed for branch switching
+        if git rev-parse --is-shallow-repository >/dev/null 2>&1 && [[ $(git rev-parse --is-shallow-repository) == "true" ]]; then
+          echo -e "${CHIEF_COLOR_YELLOW}Detected shallow clone. Converting to full repository for branch switching...${CHIEF_NO_COLOR}"
+          git fetch --unshallow origin || {
+            echo -e "${CHIEF_COLOR_YELLOW}Warning: Failed to unshallow repository. Trying regular fetch...${CHIEF_NO_COLOR}"
+            git fetch origin || {
+              echo -e "${CHIEF_COLOR_RED}Error: Failed to fetch from remote repository${CHIEF_NO_COLOR}"
+              return 1
+            }
+          }
+        else
+          git fetch origin || {
+            echo -e "${CHIEF_COLOR_RED}Error: Failed to fetch from remote repository${CHIEF_NO_COLOR}"
+            return 1
+          }
+        fi
         
         # Check if target branch exists remotely
         echo -e "${CHIEF_COLOR_BLUE}Verifying ${TARGET_BRANCH} branch exists remotely...${CHIEF_NO_COLOR}"

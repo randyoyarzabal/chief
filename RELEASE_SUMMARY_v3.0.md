@@ -1,160 +1,65 @@
-# Chief v3.0 Release Summary
+# Chief v3.0.1 Release Summary
 
-## 🚀 Major New Features
+## 🚀 Key Improvements
 
-### New Configuration Management
+### 🛡️ Enhanced Plugin Safety
 
-- **`chief.config_set`**: Set configuration options directly from command line
-- Interactive prompts with `--yes` flag for automation
-- `--list` option to view all configuration variables
-- **`chief.config_update`**: Intelligent configuration reconciliation system
-- Automatically adds new config options while preserving user customizations
-- Handles renamed variables (e.g., RSA_KEYS_PATH → SSH_KEYS_PATH) seamlessly
-- Creates timestamped backups and validates syntax before applying changes
+- **Smart Local Changes Protection**: Prevents accidental loss of plugin customizations during auto-updates
+- Interactive prompts when local changes detected: commit first, disable auto-update, or force update
+- Guides users with exact commands to safely handle modifications
 
-### Complete Help System Rewrite
+### 🔧 Flexible Update Management
 
-- **`chief.help`**: New categorized help system with search (`--search`) and compact mode (`--compact`)
-- **`chief.whereis`**: Complete rewrite - finds ALL occurrences with exact line numbers
+- **Branch Configuration**: Track "main" (stable) or "dev" (bleeding-edge) with `CHIEF_CFG_UPDATE_BRANCH`
+- **Improved Update Process**: Fixed branch switching and pull operations
+- **Reinstall Support**: Ability to reinstall tracking different branches
 
-### Python Virtual Environment Management
+### 📂 Plugin Configuration Clarity
 
-- **`chief.python_create_ve`**: Create virtual environments
-- **`chief.python_start_ve`**: Smart activation with detection
-- **`chief.python_stop_ve`**: Clean deactivation
+- **Path Separation**: Clear distinction between local plugin directory and remote repo paths
+- **`CHIEF_CFG_PLUGINS_PATH`**: Local plugin directory AND remote repo clone location
+- **`CHIEF_CFG_PLUGINS_GIT_PATH`**: Relative path within remote repo (empty = repo root)
 
-### Enhanced SSH Key Management
+### 🔧 Bug Fixes & Reliability
 
-- Support for **all SSH key types** (RSA, ed25519, ECDSA, etc.)
-- **Selective key loading** via symlinks
-- Improved `chief.ssh_create_keypair` with modern algorithms
+- **Vault Plugin**: Fixed path resolution when running from different directories
+- **Platform Detection**: Enhanced version/distribution detection for better compatibility
+- **Installation**: Improved documentation and setup process
 
-### Plugin Development Enhancements
+## 🎯 Benefits for Users
 
-- **VSCode Integration**: Edit plugins with `chief.plugin --code <name>`
-- Automatic detection and fallback to default editor
+### **Team Collaboration**
 
-## ⚠️ Breaking Changes
+- Safe auto-updates preserve local plugin modifications
+- Clear plugin path configuration reduces setup confusion
+- Reliable branch tracking for stable vs bleeding-edge updates
 
-### SSH Configuration Changes (Action Required)
+### **Developer Experience**
 
-**1. SSH Key Extension Change:**
+- Interactive prompts prevent data loss
+- Better error handling and user guidance
+- Consistent behavior across different working directories
 
-```bash
-# OLD: Keys needed .rsa extension
-~/.ssh/id_rsa
+### **System Reliability**
 
-# NEW: Keys need .key extension  
-~/.ssh/id_rsa.key
-```
+- Enhanced path resolution for cross-directory operations
+- Improved git operations with proper error handling
+- Platform-aware installation and configuration
 
-**2. Configuration Variable Renamed:**
+## 📋 Upgrade Notes
 
-```bash
-# OLD
-CHIEF_CFG_RSA_KEYS_PATH="$HOME/.ssh"
+### For Existing Users
 
-# NEW
-CHIEF_CFG_SSH_KEYS_PATH="$HOME/.ssh"
-```
+- Configuration remains backward compatible
+- New safety features activate automatically with `CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=true`
+- Branch configuration defaults to "main" for stability
 
-## 📋 Upgrade Instructions
+### For Teams
 
-### 🚀 Automatic Upgrade (Recommended for v2.x Users)
-
-Use the new automated configuration reconciliation to handle all breaking changes:
-
-```bash
-# Step 1: Update Chief to v3.0
-chief.update  # or reinstall: bash -c "$(curl -fsSL ...install.sh)"
-
-# Step 2: Automatically handle all configuration changes
-chief.config_update
-```
-
-**What `chief.config_update` does automatically:**
-
-- ✅ **Renames variables**: `CHIEF_CFG_RSA_KEYS_PATH` → `CHIEF_CFG_SSH_KEYS_PATH`
-- ✅ **Adds new options**: All v3.0 configuration variables
-- ✅ **Preserves settings**: Your existing customizations remain intact
-- ✅ **Creates backup**: Timestamped backup before any changes
-- ✅ **Shows preview**: `--dry-run` option to see changes first
-
-### 🛠️ Manual Upgrade (Alternative)
-
-**1. Update SSH Configuration:**
-
-```bash
-# Edit your chief.config file and change:
-# CHIEF_CFG_RSA_KEYS_PATH → CHIEF_CFG_SSH_KEYS_PATH
-
-# Or use the new command:
-chief.config_set ssh_keys_path "$HOME/.ssh"
-```
-
-**2. Update SSH Keys:**
-
-```bash
-# Option A: Selective loading (recommended)
-cd ~/.ssh
-ln -s id_rsa mykey.key           # RSA key
-ln -s id_ed25519 mykey_ed.key    # ed25519 key
-
-# Option B: Load all keys
-mv id_rsa id_rsa.key
-mv id_ed25519 id_ed25519.key
-```
-
-**3. Add New Configuration Options:**
-
-```bash
-# Manual addition to chief.config:
-CHIEF_CFG_CONFIG_SET_INTERACTIVE=true
-CHIEF_CFG_MULTILINE_PROMPT=false
-CHIEF_CFG_AUTOCHECK_UPDATES=false
-CHIEF_CFG_COLORED_LS=false
-```
-
-## 🐛 Critical Bug Fixes
-
-- **Fixed `chief.update`**: Critical directory change bug resolved
-- **Installation script**: Fixed prompt setup and validation
-- **Terminal compatibility**: Improved icon handling
-
-## 🎨 User Experience Improvements
-
-- **Clean help output**: Removed repetitive prefixes
-- **Better documentation**: Enhanced README with feature highlights  
-- **Improved installation**: Better messaging and validation
-- **Standardized usage**: Consistent formatting across all functions
-
-## 🔧 New Configuration Options
-
-- `CHIEF_CFG_CONFIG_SET_INTERACTIVE`: Control confirmation prompts
-- `CHIEF_CFG_MULTILINE_PROMPT`: Enable multi-line prompt layout
-- `CHIEF_CFG_AUTOCHECK_UPDATES`: Auto-check for updates on startup
-- `CHIEF_CFG_COLORED_LS`: Colorize ls command output
-- `CHIEF_CFG_SSH_KEYS_PATH`: Path to SSH keys (renamed from RSA_KEYS_PATH)
-
-## 📖 Quick Start After Upgrade
-
-```bash
-# Update your configuration with new v3.0 options
-chief.config_update
-
-# Check your configuration
-chief.config_set --list
-
-# View new help system
-chief.help
-
-# Test SSH key loading (if configured)
-chief.ssh_load_keys
-
-# Create your first plugin with VSCode
-chief.plugin --code mytools
-```
+- Local changes protection ensures team members don't lose customizations
+- Plugin path clarification simplifies team repository setup
+- Consistent update behavior across team environments
 
 ---
 
-**Full changelog available in [UPDATES](UPDATES)**
+**Full details**: See [UPDATES](UPDATES) file for complete changelog and technical details.

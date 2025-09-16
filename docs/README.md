@@ -433,67 +433,435 @@ chief.whereis deploy  # Shows all deploy functions across plugins
 
 Chief is designed with teams in mind. Share your bash functions, aliases, and tools across your entire team for consistent development environments.
 
-### 🚀 Quick Team Setup
+> **🔑 Key Concept**: Chief automatically loads any file ending with `_chief-plugin.sh` from your configured plugin directory. The prefix before `_chief-plugin.sh` becomes the **plugin name** (e.g., `devops_chief-plugin.sh` → plugin name "devops"). This makes it perfect for both existing repositories and new team setups, with easy plugin management via `chief.plugin <name>`.
+
+### 📋 Two Setup Scenarios
+
+Choose the approach that fits your team's situation:
+
+- **🔄 Scenario A**: [Use Existing Repository](#-scenario-a-existing-repository) - Add Chief plugins to your current team repo
+- **🆕 Scenario B**: [Create New Repository](#-scenario-b-new-repository) - Start fresh with a dedicated plugins repo
+
+### 🔄 **Scenario A: Existing Repository**
+
+Perfect when you already have a team repository and want to add Chief plugins alongside your existing code.
+
+#### **1. Add Plugins to Existing Repo**
 
 ```bash
-# 1. Create a team plugin repository
-git init my-team-plugins
-cd my-team-plugins
+# Navigate to your existing team repository
+cd ~/your-existing-team-repo
 
-# 2. Create team plugins
-mkdir plugins
-echo '#!/usr/bin/env bash
-# Team DevOps Tools
+# Create plugins in any subdirectory (or repo root)
+mkdir -p tools/bash-plugins  # or scripts/, devops/, etc.
 
-function team.deploy() {
-    echo "Deploying with team standards..."
-    # Your team deployment logic
+# Create your first team plugin - MUST end with _chief-plugin.sh
+# Plugin name will be "devops" (prefix before _chief-plugin.sh)
+cat > tools/bash-plugins/devops_chief-plugin.sh << 'EOF'
+#!/usr/bin/env bash
+# Team DevOps Tools - loaded automatically by Chief
+
+# Prevent direct execution
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  echo "Error: $(basename "${BASH_SOURCE[0]}") must be sourced, not executed."
+  exit 1
+fi
+
+echo "Team DevOps plugin loaded"
+
+function devops.deploy() {
+    echo "🚀 Deploying with team standards..."
+    # Your existing deployment scripts/logic
+    ./scripts/deploy.sh "$@"
 }
 
-function team.test() {
-    echo "Running team test suite..."
-    # Your team testing logic
-}' > plugins/devops_chief-plugin.sh
+function devops.logs() {
+    echo "📋 Fetching application logs..."
+    kubectl logs -f deployment/app --tail=100
+}
 
-# 3. Commit and push
-git add .
-git commit -m "Initial team plugins"
+function devops.status() {
+    echo "📊 System status check..."
+    # Check your services, databases, etc.
+}
+EOF
+
+# Add more plugins as needed - each must end with _chief-plugin.sh
+# Plugin name will be "testing" (prefix before _chief-plugin.sh)
+cat > tools/bash-plugins/testing_chief-plugin.sh << 'EOF'
+#!/usr/bin/env bash
+# Team Testing Tools
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  echo "Error: $(basename "${BASH_SOURCE[0]}") must be sourced, not executed."
+  exit 1
+fi
+
+echo "Team Testing plugin loaded"
+
+function testing.unit() {
+    echo "🧪 Running unit tests..."
+    npm test
+}
+
+function testing.integration() {
+    echo "🔗 Running integration tests..."
+    ./scripts/integration-tests.sh
+}
+
+alias testing.watch='npm run test:watch'
+EOF
+
+# Commit to your existing repo
+git add tools/bash-plugins/
+git commit -m "Add Chief plugins for team automation"
 git push origin main
 ```
 
-### 🔧 Team Member Setup
+#### **2. Team Member Configuration**
 
-Each team member configures Chief to use the shared repository:
+Each team member points Chief to your existing repository:
 
 ```bash
-# Configure Chief for remote plugins
-chief.config
+# Configure Chief to use your existing team repo
+chief.config_set plugins_git_repo "git@github.com:yourteam/existing-repo.git"
+chief.config_set plugins_git_branch "main"
+chief.config_set plugins_path "$HOME/team-repo"
+chief.config_set plugins_git_path "tools/bash-plugins"  # Relative path to plugin files
+chief.config_set plugins_git_autoupdate true
 
-# Set these values:
-# CHIEF_CFG_PLUGINS_TYPE="remote"
-# CHIEF_CFG_PLUGINS_GIT_REPO="git@github.com:yourteam/bash-plugins.git"
-# CHIEF_CFG_PLUGINS_GIT_BRANCH="main"
-# CHIEF_CFG_PLUGINS_PATH="$HOME/team-plugins"
-# CHIEF_CFG_PLUGINS_GIT_PATH="tools/bash"  # Relative path to plugins (empty = repo root)
-# CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="true"
+# Set to remote LAST - Chief will offer to update plugins when git config is ready
+chief.config_set plugins_type remote
 
-# Restart terminal - team plugins are now available!
+# Restart terminal or reload Chief
+chief.reload
+
+# Your team functions are now available!
+devops.deploy
+testing.unit
 ```
 
-### 📦 Managing Team Plugins
+#### **3. Plugin File Discovery Rules**
+
+Chief automatically discovers and loads files with specific naming:
 
 ```bash
-# Update team plugins to latest version
-chief.plugins_update
+# ✅ These files WILL be loaded:
+devops_chief-plugin.sh       # Plugin name: "devops"
+testing_chief-plugin.sh      # Plugin name: "testing"
+monitoring_chief-plugin.sh   # Plugin name: "monitoring"  
+k8s_chief-plugin.sh         # Plugin name: "k8s"
 
-# Create new team plugin
-chief.plugin teamtools
+# ❌ These files will NOT be loaded:
+devops.sh                   # Missing _chief-plugin.sh suffix
+testing_plugin.sh           # Missing chief- prefix  
+readme.md                   # Not a shell script
+utilities.bash              # Wrong file extension
+```
 
-# Check which plugins are loaded
+**🔑 Important**: The prefix before `_chief-plugin.sh` becomes the **plugin name**. For example:
+- `devops_chief-plugin.sh` → plugin name is **"devops"**
+- `testing_chief-plugin.sh` → plugin name is **"testing"**
+
+This plugin name is used with Chief commands:
+```bash
+chief.plugin devops         # Edit the devops_chief-plugin.sh file
+chief.plugin testing        # Edit the testing_chief-plugin.sh file
+chief.whereis devops        # Find all functions starting with "devops"
+```
+
+### 🆕 **Scenario B: New Repository**
+
+Create a dedicated repository for team plugins from scratch.
+
+#### **1. Create Dedicated Plugin Repository**
+
+```bash
+# Create new repository for team plugins
+git init my-team-plugins
+cd my-team-plugins
+
+# Create organized structure
+mkdir -p plugins docs templates
+
+# Create comprehensive team plugin
+cat > plugins/devops_chief-plugin.sh << 'EOF'
+#!/usr/bin/env bash
+# Team DevOps Tools
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  echo "Error: $(basename "${BASH_SOURCE[0]}") must be sourced, not executed."
+  exit 1
+fi
+
+echo "Team DevOps plugin loaded"
+
+function devops.deploy() {
+    local env=${1:-staging}
+    echo "🚀 Deploying to $env environment..."
+    # Your deployment logic
+}
+
+function devops.rollback() {
+    echo "⏪ Rolling back deployment..."
+    # Your rollback logic
+}
+
+function devops.health() {
+    echo "💓 Health check across services..."
+    # Check service health
+}
+
+# Useful aliases
+alias deploy.staging='devops.deploy staging'
+alias deploy.prod='devops.deploy production'
+EOF
+
+# Create testing plugin
+cat > plugins/testing_chief-plugin.sh << 'EOF' 
+#!/usr/bin/env bash
+# Team Testing Tools
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  echo "Error: $(basename "${BASH_SOURCE[0]}") must be sourced, not executed."
+  exit 1
+fi
+
+echo "Team Testing plugin loaded"
+
+function testing.all() {
+    testing.unit && testing.integration && testing.e2e
+}
+
+function testing.unit() {
+    echo "🧪 Running unit tests..."
+    npm run test:unit
+}
+
+function testing.integration() {
+    echo "🔗 Running integration tests..."
+    npm run test:integration  
+}
+
+function testing.e2e() {
+    echo "🌐 Running E2E tests..."
+    npm run test:e2e
+}
+
+alias test.watch='npm run test:watch'
+alias test.coverage='npm run test:coverage'
+EOF
+
+# Create team plugin template for consistency
+cat > templates/team_plugin_template.sh << 'EOF'
+#!/usr/bin/env bash
+# Team Plugin: $CHIEF_PLUGIN_NAME
+# Author: [Your Name]
+# Description: [Brief description of plugin functionality]
+
+# Prevent direct execution
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  echo "Error: $(basename "${BASH_SOURCE[0]}") must be sourced, not executed."
+  exit 1
+fi
+
+echo "Team plugin loaded: $CHIEF_PLUGIN_NAME"
+
+# Main function template
+function $CHIEF_PLUGIN_NAME.main() {
+    local USAGE="Usage: \$FUNCNAME [options]
+    
+Description:
+  [Describe what this function does]
+  
+Options:
+  -h, --help    Show this help message
+  
+Examples:
+  \$FUNCNAME             # Basic usage
+  \$FUNCNAME --help      # Show help
+"
+
+    case "${1:-}" in
+        -h|--help)
+            echo -e "\$USAGE"
+            return 0
+            ;;
+        *)
+            echo "🚀 Running $CHIEF_PLUGIN_NAME.main..."
+            # Add your team-specific logic here
+            ;;
+    esac
+}
+
+# Example utility function
+function $CHIEF_PLUGIN_NAME.status() {
+    echo "📊 $CHIEF_PLUGIN_NAME status check..."
+    # Add status check logic
+}
+
+# Team-standard aliases (optional)
+alias $CHIEF_PLUGIN_NAME.help='$CHIEF_PLUGIN_NAME.main --help'
+
+# TODO: Add your team-specific functions below
+# Follow team naming convention: $CHIEF_PLUGIN_NAME.function_name
+EOF
+
+# Add team documentation
+cat > README.md << 'EOF'
+# Team Bash Plugins
+
+Shared bash functions and aliases for our development team.
+
+## Available Functions
+
+### DevOps (`devops_chief-plugin.sh`)
+- `devops.deploy [env]` - Deploy to environment (staging/production)
+- `devops.rollback` - Rollback last deployment
+- `devops.health` - Check service health
+
+### Testing (`testing_chief-plugin.sh`) 
+- `testing.all` - Run all test suites
+- `testing.unit` - Run unit tests only
+- `testing.integration` - Run integration tests
+- `testing.e2e` - Run end-to-end tests
+
+## Setup
+
+Configure Chief to use this repository:
+```bash
+chief.config_set plugins_git_repo "git@github.com:yourteam/my-team-plugins.git"
+chief.config_set plugins_git_branch "main"
+chief.config_set plugins_path "$HOME/team-plugins"
+chief.config_set plugins_git_path "plugins"
+chief.config_set plugins_git_autoupdate true
+chief.config_set plugin_template "$HOME/team-plugins/templates/team_plugin_template.sh"
+
+# Set to remote LAST - Chief will offer to update plugins when git config is ready
+chief.config_set plugins_type remote
+
+# Restart terminal - team plugins are now available!
+chief.reload
+```
+
+## Creating New Team Plugins
+
+Use the team template for consistency:
+```bash
+chief.plugin mynewfeature    # Uses team template automatically
+```
+EOF
+```
+
+# Commit and push
+git add .
+git commit -m "Initial team plugins and documentation"
+git remote add origin git@github.com:yourteam/my-team-plugins.git
+git push -u origin main
+```
+
+#### **2. Team Member Setup**
+
+```bash
+# Each team member configures Chief
+chief.config_set plugins_git_repo "git@github.com:yourteam/my-team-plugins.git"
+chief.config_set plugins_git_branch "main"
+chief.config_set plugins_path "$HOME/team-plugins"
+chief.config_set plugins_git_path "plugins"  # Relative path within repo
+chief.config_set plugins_git_autoupdate true
+chief.config_set plugin_template "$HOME/team-plugins/templates/team_plugin_template.sh"
+
+# Set to remote LAST - Chief will offer to update plugins when git config is ready
+chief.config_set plugins_type remote
+
+# Restart terminal - team plugins are now available!
+chief.reload
+```
+
+### 📦 **Plugin Management & Development**
+
+#### **Adding New Team Plugins**
+
+```bash
+# Create new plugin using team template
+chief.plugin newfeature  # Uses team template automatically for consistency
+
+# Test your function
+newfeature.main
+newfeature.status
+
+# When ready, copy to team repository
+cd ~/team-plugins  # or your existing repo
+cp ~/chief_plugins/newfeature_chief-plugin.sh plugins/
+
+# Commit and share with team
+git add plugins/newfeature_chief-plugin.sh
+git commit -m "Add newfeature plugin with deployment automation"
+git push origin main
+
+# Team gets update automatically (if autoupdate enabled)
+# Or manually: chief.plugins_update
+```
+
+#### **Team Template Benefits**
+
+When `CHIEF_CFG_PLUGIN_TEMPLATE` is configured, all team members get:
+
+- **Consistent structure**: Same header, error handling, and function patterns
+- **Team standards**: Pre-defined naming conventions and documentation format
+- **Best practices**: Built-in help functions, usage examples, and error handling
+- **Faster development**: Start with working template instead of blank file
+
+```bash
+# Team member creates new plugin
+chief.plugin monitoring
+
+# File is created with team template:
+# - Standard header with team info
+# - Error handling and sourcing protection
+# - Template functions: monitoring.main, monitoring.status
+# - Team naming conventions and help system
+# - TODO sections for team-specific additions
+```
+
+#### **Editing Existing Team Plugins**
+
+```bash
+# Navigate to your team plugins directory
+cd ~/team-plugins/plugins  # Adjust path to your setup
+
+# Edit with Chief's plugin editor
+chief.plugin devops  # Opens editor for devops_chief-plugin.sh
+
+# Test changes locally
+chief.reload  # Reload to test changes
+devops.deploy  # Test your updated function
+
+# Commit changes
+git add devops_chief-plugin.sh
+git commit -m "Improve devops.deploy with better error handling"
+git push origin main
+```
+
+#### **Plugin Discovery & Management**
+
+```bash
+# See all loaded plugins and their functions
 chief.plugin -?
 
-# Find team functions
-chief.whereis team.deploy
+# Find specific functions across all plugins
+chief.whereis deploy        # Shows all functions containing "deploy"
+chief.whereis devops        # Shows all functions starting with "devops"
+
+# Update team plugins to latest version
+chief.plugins_update       # Safe update with local changes protection
+chief.plugins_update --force  # Force update (discards local changes)
+
+# Check plugin loading during Chief startup
+chief.reload --verbose     # See detailed plugin loading information
+
+# See plugin configuration
+chief.config_set --list | grep -i plugin
 ```
 
 ### 🔒 Security Best Practices
@@ -513,19 +881,35 @@ chief.whereis team.deploy
 - API keys, tokens, passwords
 - Personal file paths and preferences
 
-#### 📁 **Recommended Structure:**
+#### 📁 **Recommended Repository Structure:**
 
 ```
 team-plugins/
-├── plugins/
-│   ├── devops_chief-plugin.sh     # Deployment tools
-│   ├── testing_chief-plugin.sh    # Test automation
-│   ├── docker_chief-plugin.sh     # Container tools
-│   └── k8s_chief-plugin.sh        # Kubernetes helpers
-├── templates/
-│   └── personal_config_template.sh # Template for personal settings
-└── README.md                      # Team onboarding guide
+├── plugins/                       # Chief plugin files (*.chief-plugin.sh)
+│   ├── devops_chief-plugin.sh     # Deployment automation
+│   ├── testing_chief-plugin.sh    # Test automation 
+│   ├── docker_chief-plugin.sh     # Container management
+│   ├── k8s_chief-plugin.sh        # Kubernetes operations
+│   └── monitoring_chief-plugin.sh # System monitoring
+├── docs/                          # Plugin documentation
+│   ├── devops.md                  # DevOps function reference
+│   ├── testing.md                 # Testing function reference
+│   └── setup-guide.md             # Team onboarding
+├── templates/                     # Configuration templates
+│   ├── chief_config_template.sh   # Chief configuration template
+│   ├── team_plugin_template.sh    # Team-specific plugin template
+├── scripts/                       # Supporting scripts (not loaded as plugins)
+│   ├── setup-dev-env.sh           # Development environment setup
+│   └── deploy.sh                  # Actual deployment script
+└── README.md                      # Main documentation and quick start
 ```
+
+**Key Benefits of This Structure:**
+- **`plugins/`**: Contains only Chief plugin files (`*_chief-plugin.sh`)
+- **`docs/`**: Detailed documentation for each plugin's functions
+- **`templates/`**: Configuration templates for team members, including standardized plugin template
+- **`scripts/`**: Supporting scripts that plugins can call
+- **Clear separation**: Plugin files vs. supporting code vs. documentation
 
 #### 🛡️ **Local Changes Protection**
 
@@ -558,7 +942,7 @@ git push origin main
 
 #### **Easy Onboarding**
 - New team members get all tools instantly
-- No manual setup of individual development environments
+- No manual setup of individual development environments  
 - Documentation lives with the code
 
 #### **Version Control for Shell Environment**
@@ -569,6 +953,12 @@ git push origin main
 #### **Cross-Machine Consistency**
 - Same tools on laptop, server, and CI/CD
 - No "works on my machine" problems
+
+#### **Flexible Integration**
+- Works with existing repositories - no need to reorganize
+- Supports any directory structure within your repos
+- Plugin files can coexist with your regular codebase
+- Gradual adoption - start with one plugin, expand over time
 - Shared configuration across all environments
 
 ### 🔄 Advanced Team Features
