@@ -418,6 +418,20 @@ CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}"
       echo -e "${CHIEF_COLOR_YELLOW}Remote plugins are not set to auto-update (CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false). ${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW}' to update.${CHIEF_NO_COLOR}"
     fi
   fi
+  # Check for team vault file in plugins repository
+  local vault_path
+  if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" && -n ${CHIEF_CFG_PLUGINS_GIT_PATH} ]]; then
+    vault_path="${CHIEF_CFG_PLUGINS_PATH}/${CHIEF_CFG_PLUGINS_GIT_PATH}/.chief_secret-vault"
+  else
+    vault_path="${CHIEF_CFG_PLUGINS_PATH}/.chief_secret-vault"
+  fi
+  
+  if [[ -f "$vault_path" ]]; then
+    export CHIEF_SECRETS_FILE="$vault_path"
+    __print "Found vault file: $vault_path" "$1"
+    __print "Use 'chief.vault_file-load' to load portable secrets" "$1"
+  fi
+
   # Load plugins from the remote repository.
   __load_plugins 'user' "$1"
 }
