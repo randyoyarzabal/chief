@@ -1,13 +1,6 @@
----
-layout: default
-title: Chief
-description: "Bash Plugin Manager & Terminal Enhancement Tool - Easy adoption, powerful features"
-permalink: /
----
+# 🚀 Chief 
 
-# 🚀 Chief
-
-**Bash Plugin Manager & Terminal Enhancement Tool**
+## Bash Plugin Manager & Terminal Enhancement Tool
 
 [![GitHub release](https://img.shields.io/badge/Download-Release%20v3.0.4-lightgrey.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Documentation](https://img.shields.io/badge/📖-Documentation-blue)](https://chief.reonetlabs.us)
 

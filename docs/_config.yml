@@ -10,6 +10,8 @@ remote_theme: pages-themes/dinky@v0.2.0
 
 # Site settings for Dinky theme
 show_downloads: false
+enable_copy_code_button: true
+toc: true
 
 plugins:
 - jekyll-remote-theme
