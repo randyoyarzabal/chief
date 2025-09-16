@@ -3,46 +3,50 @@
 
 @import "{{ site.theme }}";
 
-/* Custom additions for Cayman theme */
+/* Custom additions for Dinky theme */
 
-/* Copy button for code blocks - compatible with Cayman theme */
+/* Copy button for code blocks - styled for Dinky theme */
 .copy-button {
     position: absolute;
     top: 8px;
     right: 8px;
     width: 32px;
     height: 32px;
-    background: rgba(45, 51, 59, 0.9) no-repeat center center;
-    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 16 16"><rect x="7" y="3" width="6" height="9" rx="1" fill="none" stroke="%23adbac7" stroke-width="1.5"/><rect x="3" y="7" width="6" height="6" rx="1" fill="none" stroke="%23adbac7" stroke-width="1.5"/></svg>');
+    background: rgba(255, 255, 255, 0.8) no-repeat center center;
+    background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 16 16"><rect x="7" y="3" width="6" height="9" rx="1" fill="none" stroke="%23666" stroke-width="1.5"/><rect x="3" y="7" width="6" height="6" rx="1" fill="none" stroke="%23666" stroke-width="1.5"/></svg>');
     background-size: 18px 18px;
-    border: 1px solid rgba(68, 76, 86, 0.8);
-    border-radius: 6px;
+    border: 1px solid rgba(0, 0, 0, 0.2);
+    border-radius: 4px;
     cursor: pointer;
-    opacity: 0.7;
-    transition: opacity 0.2s, background-color 0.2s, border-color 0.2s;
+    opacity: 0.8;
+    transition: all 0.2s ease;
     z-index: 10;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 
     &:hover, &:focus {
         opacity: 1;
-        background-color: rgba(52, 125, 57, 0.9);
-        border-color: rgba(52, 125, 57, 0.9);
+        background-color: #28a745;
+        border-color: #28a745;
         background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="none" viewBox="0 0 16 16"><rect x="7" y="3" width="6" height="9" rx="1" fill="none" stroke="white" stroke-width="1.5"/><rect x="3" y="7" width="6" height="6" rx="1" fill="none" stroke="white" stroke-width="1.5"/></svg>');
         outline: none;
-        box-shadow: none;
+        box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
+        transform: translateY(-1px);
     }
 
     &.copied {
         background-image: url('data:image/svg+xml;utf8,<svg viewBox="0 0 16 16" width="16" height="16" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M12.03 5.97a.75.75 0 0 1 0 1.06l-4.25 4.25a.75.75 0 0 1-1.06 0l-2.25-2.25a.75.75 0 1 1 1.06-1.06l1.72 1.72 3.72-3.72a.75.75 0 0 1 1.06 0z" fill="white"/></svg>');
-        background-color: rgba(35, 134, 54, 0.9) !important;
-        border-color: rgba(35, 134, 54, 0.9) !important;
+        background-color: #28a745 !important;
+        border-color: #28a745 !important;
         opacity: 1;
+        box-shadow: 0 2px 6px rgba(40, 167, 69, 0.3);
     }
     
     &.copy-error {
         background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 16 16"><circle cx="8" cy="8" r="6" fill="none" stroke="white" stroke-width="1.5"/><text x="8" y="11" text-anchor="middle" font-size="8" fill="white" font-weight="bold">!</text></svg>');
-        background-color: rgba(209, 36, 47, 0.9) !important;
-        border-color: rgba(209, 36, 47, 0.9) !important;
+        background-color: #dc3545 !important;
+        border-color: #dc3545 !important;
         opacity: 1;
+        box-shadow: 0 2px 6px rgba(220, 53, 69, 0.3);
     }
 }
 
