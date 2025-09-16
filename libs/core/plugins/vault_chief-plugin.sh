@@ -50,6 +50,11 @@ ${CHIEF_COLOR_MAGENTA}Security Notes:${CHIEF_NO_COLOR}
 - On shared systems: Enter password manually (more secure)
 - Store CHIEF_SECRETS_FILE path in ~/.bash_profile (not shared plugins)
 
+${CHIEF_COLOR_RED}⚠️ TEAM COLLABORATION WARNING:${CHIEF_NO_COLOR}
+- .chief_secret-vault in team repos is ${CHIEF_COLOR_RED}SHARED BY ALL TEAM MEMBERS${CHIEF_NO_COLOR}
+- Use team vault only for shared secrets (service accounts, team API keys)
+- Create personal vault for private secrets: ${CHIEF_COLOR_CYAN}$FUNCNAME ~/.my-personal-vault${CHIEF_NO_COLOR}
+
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME                           # Edit default vault file (no auto-load)
   $FUNCNAME ~/.my-secrets             # Edit specific file (no auto-load)
@@ -142,7 +147,12 @@ ${CHIEF_COLOR_GREEN}Current default:${CHIEF_NO_COLOR} $CHIEF_SECRETS_FILE
     
     if $no_load; then
       echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Vault file created and encrypted (not loaded)."
-      echo -e "${CHIEF_COLOR_BLUE}Load with:${CHIEF_NO_COLOR} chief.vault_file-load $vault_file"
+      # Show simplified command for default vault file, full path for custom files
+      if [[ "$vault_file" == "$CHIEF_SECRETS_FILE" ]]; then
+        echo -e "${CHIEF_COLOR_BLUE}Load with:${CHIEF_NO_COLOR} chief.vault_file-load"
+      else
+        echo -e "${CHIEF_COLOR_BLUE}Load with:${CHIEF_NO_COLOR} chief.vault_file-load $vault_file"
+      fi
     else
       echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Vault file created, encrypted, and loaded to memory."
       echo -e "${CHIEF_COLOR_BLUE}Tip:${CHIEF_NO_COLOR} Use --load flag to automatically load after editing."
@@ -160,7 +170,12 @@ ${CHIEF_COLOR_GREEN}Current default:${CHIEF_NO_COLOR} $CHIEF_SECRETS_FILE
       # Optionally reload after editing
       if $no_load; then
         echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Vault file edited (changes not loaded to memory)."
-        echo -e "${CHIEF_COLOR_BLUE}Load with:${CHIEF_NO_COLOR} chief.vault_file-load $vault_file"
+        # Show simplified command for default vault file, full path for custom files
+        if [[ "$vault_file" == "$CHIEF_SECRETS_FILE" ]]; then
+          echo -e "${CHIEF_COLOR_BLUE}Load with:${CHIEF_NO_COLOR} chief.vault_file-load"
+        else
+          echo -e "${CHIEF_COLOR_BLUE}Load with:${CHIEF_NO_COLOR} chief.vault_file-load $vault_file"
+        fi
       else
         echo -e "${CHIEF_COLOR_BLUE}Loading updated vault file...${CHIEF_NO_COLOR}"
         chief.vault_file-load "$vault_file"
@@ -198,6 +213,10 @@ ${CHIEF_COLOR_MAGENTA}Security Notes:${CHIEF_NO_COLOR}
 - Variables are loaded into current shell session
 - Use ANSIBLE_VAULT_PASSWORD_FILE for convenience (single-user systems only)
 - Store CHIEF_SECRETS_FILE path in ~/.bash_profile (not shared plugins)
+
+${CHIEF_COLOR_RED}⚠️ TEAM COLLABORATION WARNING:${CHIEF_NO_COLOR}
+- .chief_secret-vault in team repos is ${CHIEF_COLOR_RED}SHARED BY ALL TEAM MEMBERS${CHIEF_NO_COLOR}
+- Load personal vault separately: ${CHIEF_COLOR_CYAN}$FUNCNAME ~/.my-personal-vault${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME                    # Load default vault file
