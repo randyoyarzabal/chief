@@ -2939,3 +2939,239 @@ ${CHIEF_COLOR_BLUE}Output Features:${CHIEF_NO_COLOR}
     fi
   fi
 }
+
+########################################################################
+# DEVELOPMENT FUNCTIONS - NOT FOR USER USE
+########################################################################
+
+# INTERNAL: Version bump function for Chief development
+function __chief.bump() {
+  # Usage: __chief.bump <new_version> [--tag] [--dry-run]
+  # WARNING: This is a development-only function, not for end users
+  
+  local usage="Usage: $FUNCNAME <new_version> [--tag] [--dry-run]
+
+${CHIEF_COLOR_RED}WARNING: DEVELOPMENT FUNCTION ONLY${CHIEF_NO_COLOR}
+This function is for Chief developers only and modifies core files.
+
+Arguments:
+  new_version    Version to bump to (e.g., v4.0, v4.0.0) - MUST start with 'v'
+
+Options:
+  --tag         Create git tag after version bump (MAIN BRANCH ONLY)
+  --dry-run     Show what would be changed without making changes
+  
+Git Tag Policy:
+  • Version bumping: Works from any branch
+  • Git tagging: ONLY allowed from 'main' branch
+  • Dev/feature branches: Cannot create tags (dev is for testing)
+  
+Examples:
+  $FUNCNAME v4.0 --dry-run           # Preview changes (any branch)
+  $FUNCNAME v4.0.0                   # Bump version (any branch)  
+  $FUNCNAME v4.1.0                   # Standard semantic version
+  
+  # For tagging (releases):
+  git checkout main && git pull origin main
+  $FUNCNAME v4.0 --tag               # Bump and tag (main only)"
+
+  # Parse arguments
+  local new_version=""
+  local dry_run=false
+  local create_tag=false
+  
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --help|-h)
+        echo -e "$usage"
+        return 0
+        ;;
+      --dry-run)
+        dry_run=true
+        shift
+        ;;
+      --tag)
+        create_tag=true
+        shift
+        ;;
+      -*)
+        __print_error "Unknown option: $1"
+        echo -e "$usage"
+        return 1
+        ;;
+      *)
+        if [[ -z "$new_version" ]]; then
+          new_version="$1"
+        else
+          __print_error "Too many arguments"
+          echo -e "$usage"
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+  
+  # Validate arguments
+  if [[ -z "$new_version" ]]; then
+    __print_error "New version is required"
+    echo -e "$usage"
+    return 1
+  fi
+  
+  # Validate version format (MUST be prefixed with 'v')
+  # Only accept v4.0, v4.0.0 formats - numbers alone are NOT valid
+  if [[ ! "$new_version" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+    __print_error "Invalid version format: $new_version"
+    __print_error "Expected format: v4.0 or v4.0.0 (must be prefixed with 'v')"
+    return 1
+  fi
+  
+  # Normalize to full semantic version (add .0 if missing patch version)
+  if [[ "$new_version" =~ ^v[0-9]+\.[0-9]+$ ]]; then
+    new_version="${new_version}.0"
+  fi
+  
+  # Get current version
+  local current_version="$CHIEF_VERSION"
+  local version_file="${CHIEF_PATH}/VERSION"
+  
+  __print_info "Chief Development Version Bump"
+  __print_info "Current version: $current_version"
+  __print_info "New version: $new_version"
+  __print_info "Dry run: $dry_run"
+  __print_info "Create tag: $create_tag"
+  echo ""
+  
+  # Check if versions are the same  
+  if [[ "$current_version" == "$new_version" ]]; then
+    __print_warn "Version is already $new_version"
+    if ! $dry_run; then
+      __print_info "Re-applying version to ensure consistency..."
+    fi
+  fi
+  
+  # Files to update with version references
+  local files_to_update=(
+    "${CHIEF_PATH}/VERSION"
+    "${CHIEF_PATH}/README.md"
+    "${CHIEF_PATH}/docs/index.md"
+    "${CHIEF_PATH}/docs/getting-started.md"
+  )
+  
+  # Update each file
+  local updated_count=0
+  for file in "${files_to_update[@]}"; do
+    if [[ ! -f "$file" ]]; then
+      __print_warn "File not found, skipping: $(basename "$file")"
+      continue
+    fi
+    
+    # Check if file already has the new version (both regular and badge formats)
+    local badge_current="Download-Release%20${current_version}"
+    local badge_new="Download-Release%20${new_version}"
+    
+    if grep -q "$new_version" "$file" 2>/dev/null && grep -q "$badge_new" "$file" 2>/dev/null; then
+      __print_info "$(basename "$file"): Already up to date ($new_version)"
+      continue
+    fi
+    
+    if $dry_run; then
+      local changes=""
+      if grep -q "$current_version" "$file" 2>/dev/null; then
+        changes="version"
+      fi
+      if grep -q "$badge_current" "$file" 2>/dev/null; then
+        if [[ -n "$changes" ]]; then
+          changes="$changes + badges"
+        else
+          changes="badges"
+        fi
+      fi
+      __print_info "$(basename "$file"): Would update $changes ($current_version → $new_version)"
+      continue
+    fi
+    
+    # Create backup
+    cp "$file" "${file}.backup.$(date +%s)"
+    
+    # Perform replacements (both regular version and badge URLs)
+    local success=true
+    
+    # Update regular version references
+    if ! sed -i.tmp1 "s/${current_version}/${new_version}/g" "$file" 2>/dev/null; then
+      success=false
+    fi
+    
+    # Update badge URL-encoded versions  
+    if $success && ! sed -i.tmp2 "s/${badge_current}/${badge_new}/g" "$file" 2>/dev/null; then
+      success=false
+    fi
+    
+    if $success; then
+      rm -f "${file}.tmp1" "${file}.tmp2" 2>/dev/null
+      __print_success "$(basename "$file"): Updated $current_version → $new_version (including badges)"
+      ((updated_count++))
+    else
+      # Restore backup on failure
+      mv "${file}.backup.$(date +%s)" "$file" 2>/dev/null
+      rm -f "${file}.tmp1" "${file}.tmp2" 2>/dev/null
+      __print_error "$(basename "$file"): Failed to update"
+      return 1
+    fi
+  done
+  
+  # Create git tag if requested
+  if $create_tag; then
+    __print_info "Checking git tag..."
+    
+    # Check current branch - ONLY allow tagging from main
+    local current_branch=$(git branch --show-current 2>/dev/null || echo "unknown")
+    
+    if [[ "$current_branch" != "main" ]]; then
+      __print_error "Git tag: Can only create release tags from 'main' branch"
+      __print_error "Git tag: Currently on branch: $current_branch"
+      __print_info "Git tag: Switch to main first: git checkout main && git pull origin main"
+      return 1
+    fi
+    
+    if git tag -l | grep -q "^${new_version}$" 2>/dev/null; then
+      __print_info "Git tag: Tag $new_version already exists"
+    elif $dry_run; then
+      __print_info "Git tag: Would create tag $new_version from main branch"
+    else
+      if git tag -a "$new_version" -m "Release $new_version" 2>/dev/null; then
+        __print_success "Git tag: Created tag $new_version from main branch"
+        __print_info "Run 'git push origin $new_version' to push the tag"
+      else
+        __print_error "Git tag: Failed to create tag $new_version"
+        return 1
+      fi
+    fi
+  fi
+  
+  # Summary
+  echo ""
+  if $dry_run; then
+    __print_info "Dry run completed. No files were modified."
+    __print_info "Run without --dry-run to apply changes."
+  else
+    __print_success "Version bump completed: $current_version → $new_version"
+    __print_info "Files updated: $updated_count"
+    
+    # Clean up old backups (keep only the 3 most recent)
+    find "${CHIEF_PATH}" -name "*.backup.*" -type f 2>/dev/null | sort | head -n -3 | xargs rm -f 2>/dev/null || true
+    
+    __print_info "Next steps:"
+    if $create_tag; then
+      __print_info "  1. Review changes: git diff"
+      __print_info "  2. Commit: git add -A && git commit -m 'Bump version to $new_version'"
+      __print_info "  3. Push: git push origin main"
+      __print_info "  4. Push tag: git push origin $new_version"
+    else
+      __print_info "  1. Review changes: git diff"
+      __print_info "  2. Commit: git add -A && git commit -m 'Bump version to $new_version'"
+      __print_info "  3. Create tag: $FUNCNAME $new_version --tag"
+    fi
+  fi
+}
