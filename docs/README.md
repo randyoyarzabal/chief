@@ -46,7 +46,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 - [⬆️ Upgrade](#️-upgrade)
 - [🗑️ Uninstall](#️-uninstall)
 - [🤝 Why Choose Chief?](#-why-choose-chief)
-- [⚡ Quick Start](#-quick-start)
+- [⚡ Quick Start](#-quick-start-portable-setup)
 - [📖 Help System](#-help-system)
 - [🎯 What is Chief?](#-what-is-chief)
 - [📋 Requirements](#-requirements)
