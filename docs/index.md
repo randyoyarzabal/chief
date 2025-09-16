@@ -1,13 +1,21 @@
 ---
 layout: default
-title: Home
+title: Chief
 description: "Bash Plugin Manager & Terminal Enhancement Tool - Complete documentation and guides"
 permalink: /
 ---
 
-# 🚀 Chief Documentation
+# 📖 Documentation
 
 **Bash Plugin Manager & Terminal Enhancement Tool**
+
+---
+
+## 🧭 Quick Navigation
+
+**Main Sections:** [Getting Started](getting-started.html) | [User Guide](user-guide.html) | [Plugin Development](plugin-development.html) | [Configuration](configuration.html) | [Reference](reference.html)
+
+---
 
 [![GitHub release](https://img.shields.io/badge/Download-Release%20v3.0.4-lightgrey.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![GitHub commits (since latest release)](https://img.shields.io/github/commits-since/randyoyarzabal/chief/latest.svg?style=social)](https://github.com/randyoyarzabal/chief/commits/master)
 
@@ -15,7 +23,7 @@ Chief is a lightweight, powerful Bash library system that helps you organize you
 
 ---
 
-## 📚 Documentation Navigation
+## 📚 Contents
 
 ### 🚀 **Getting Started**
 New to Chief? Start here for installation and basic setup.

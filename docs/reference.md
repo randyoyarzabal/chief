@@ -1,12 +1,12 @@
 ---
 layout: default
 title: Reference
-nav_order: 6
 description: "Complete command reference, examples, and additional resources"
 ---
 
+[← Back to Documentation](index.html)
+
 # Reference
-{: .no_toc }
 
 Complete command reference, examples, tutorials, and additional resources.
 {: .fs-6 .fw-300 }

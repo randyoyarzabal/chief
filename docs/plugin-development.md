@@ -1,12 +1,12 @@
 ---
 layout: default
 title: Plugin Development
-nav_order: 4
 description: "Complete guide to creating, managing, and sharing Chief plugins"
 ---
 
+[← Back to Documentation](index.html)
+
 # Plugin Development
-{: .no_toc }
 
 Complete guide to creating custom plugins, best practices, and advanced plugin features.
 {: .fs-6 .fw-300 }

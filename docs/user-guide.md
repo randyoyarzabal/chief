@@ -1,12 +1,12 @@
 ---
 layout: default
 title: User Guide
-nav_order: 3
 description: "Complete guide to using Chief's core features and commands"
 ---
 
+[← Back to Documentation](index.html)
+
 # User Guide
-{: .no_toc }
 
 Complete guide to using Chief's core features, commands, and workflows.
 {: .fs-6 .fw-300 }

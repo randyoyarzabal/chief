@@ -98,13 +98,14 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
 }
 
 function chief.git_commit() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <commit_message>
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [commit_message]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Stage all changes, commit with message, and push to remote repository.
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
-  commit_message  Descriptive message for the commit
+  commit_message  Optional descriptive message for the commit
+                  (default: \"Auto-commit: \$(date)\")
 
 ${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
 1. Pull latest changes from remote
@@ -115,24 +116,29 @@ ${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_MAGENTA}Safety Features:${CHIEF_NO_COLOR}
 - Pulls before committing to avoid conflicts
 - Shows current remote URL for verification
+- Uses timestamped default message if none provided
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME \"Fix user authentication bug\"
-  $FUNCNAME \"Add new feature: dashboard\"
+  $FUNCNAME                                # Uses default timestamp message
+  $FUNCNAME \"Fix user authentication bug\"  # Custom message
+  $FUNCNAME \"Add new feature: dashboard\"   # Custom message
 "
 
-  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
+  if [[ $1 == "-?" ]]; then
     echo -e "${USAGE}"
     return
   fi
+
+  # Use provided message or generate default with timestamp
+  local commit_message="${1:-Auto-commit: $(date '+%Y-%m-%d %H:%M:%S')}"
 
   echo -e "${CHIEF_COLOR_BLUE}Repository:${CHIEF_NO_COLOR} $(git config --get remote.origin.url)"
   echo -e "${CHIEF_COLOR_BLUE}Pulling latest changes...${CHIEF_NO_COLOR}"
   git pull
   echo -e "${CHIEF_COLOR_BLUE}Staging all changes...${CHIEF_NO_COLOR}"
   git add .
-  echo -e "${CHIEF_COLOR_BLUE}Committing with message:${CHIEF_NO_COLOR} $1"
-  git commit -a -m "$1"
+  echo -e "${CHIEF_COLOR_BLUE}Committing with message:${CHIEF_NO_COLOR} $commit_message"
+  git commit -a -m "$commit_message"
   echo -e "${CHIEF_COLOR_BLUE}Pushing to remote...${CHIEF_NO_COLOR}"
   git push
   echo -e "${CHIEF_COLOR_GREEN}Commit and push completed${CHIEF_NO_COLOR}"

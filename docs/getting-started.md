@@ -4,6 +4,8 @@ title: Getting Started
 description: "Installation, setup, and first steps with Chief"
 ---
 
+[← Back to Documentation](index.html)
+
 # Getting Started with Chief
 
 *Complete guide to installing, configuring, and taking your first steps with Chief.*

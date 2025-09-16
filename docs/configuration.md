@@ -1,12 +1,12 @@
 ---
 layout: default
 title: Configuration
-nav_order: 5
 description: "Advanced configuration, multi-system setup, and team collaboration"
 ---
 
+[← Back to Documentation](index.html)
+
 # Configuration
-{: .no_toc }
 
 Advanced configuration options, multi-system setup, and team collaboration workflows.
 {: .fs-6 .fw-300 }
