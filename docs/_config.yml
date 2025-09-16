@@ -5,10 +5,10 @@ author_email: github@randyoyarzabal.com
 url: https://chief.reonetlabs.us
 baseurl: ""
 
-# GitHub Pages officially supported theme - Slate (modern dark theme)
-remote_theme: pages-themes/slate@v0.2.0
+# GitHub Pages officially supported theme - Dinky (clean and simple)
+remote_theme: pages-themes/dinky@v0.2.0
 
-# Site settings for Slate theme
+# Site settings for Dinky theme
 show_downloads: false
 
 plugins:
