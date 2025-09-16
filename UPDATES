@@ -8,6 +8,7 @@
   - No configuration needed - works with existing plugin sync mechanism
   - Enables users to carry encrypted secrets alongside their plugins across multiple systems
   - Vault file is used in-place from plugins directory, ensuring consistency across all environments
+  - **SECURITY NOTE**: Vault files in team repositories are shared by ALL team members - use only for team secrets, create personal vaults for private credentials
 - **Improved Vault Editing UX**: Enhanced `chief.vault_file-edit` to avoid double password prompts
   - Changed default behavior: no longer auto-loads vault after editing (prevents double password entry)
   - Added `--load` flag for users who want automatic loading after editing
