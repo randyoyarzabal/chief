@@ -683,13 +683,12 @@ chief.config_set --list | grep -i plugin
 - Team-wide environment variables
 - Shared tool configurations
 
-#### 🚫 **Keep Private (in personal ~/.bash_profile or personal vault):**
+#### 🚫 **Keep Private (in personal ~/.bash_profile):**
 - `CHIEF_OC_USERNAME` - Personal OpenShift credentials
 - `CHIEF_SECRETS_FILE` - Path to personal encrypted secrets
 - `VAULT_ADDR`, `VAULT_TOKEN` - Personal Vault credentials
-- Personal API keys, tokens, passwords
+- API keys, tokens, passwords
 - Personal file paths and preferences
-- **Personal vault files** - Use `chief.vault_file-edit ~/.my-personal-vault`
 
 #### 📁 **Recommended Repository Structure:**
 
@@ -702,64 +701,7 @@ team-plugins/
 │   └── k8s_chief-plugin.sh        # Kubernetes helpers
 ├── templates/
 │   └── personal_config_template.sh # Template for personal settings
-├── .chief_secret-vault            # 🚨 TEAM SHARED vault (see security note below)
 └── README.md                      # Team onboarding guide
-```
-
-### 🔐 **Critical Security: Vault Files**
-
-> **🚨 SECURITY WARNING**: Any `.chief_secret-vault` file in your team repository will be **SHARED BY ALL TEAM MEMBERS**. This file is automatically detected and loaded by Chief.
-
-#### **🏠 Team Vault vs Personal Vault**
-
-**Team Vault (in repository):**
-```bash
-# ✅ Safe for team vault (in repo):
-export SHARED_DB_PASSWORD="vault_reference_here"
-export TEAM_API_KEY="shared_service_account"
-export TEAM_REGISTRY_URL="company-docker-registry"
-```
-
-**Personal Vault (local only):**
-```bash
-# ❌ NEVER put in team vault:
-export MY_PERSONAL_API_KEY="your_personal_key"
-export MY_SSH_PASSPHRASE="personal_ssh_key_password"
-export HOME_SERVER_PASSWORD="personal_server_access"
-
-# ✅ Create personal vault instead:
-chief.vault_file-edit ~/.my-personal-secrets
-```
-
-#### **🛡️ Best Practice: Multiple Vaults**
-
-> **🚨 CRITICAL**: In team environments, `chief.vault_file-edit` (no parameters) edits the **SHARED team vault**. Always specify a path for personal secrets!
-
-```bash
-# 1. Team vault (automatically loaded from repo)
-#    Contains: shared service accounts, team API keys, common passwords
-#    Location: /path/to/team-plugins/.chief_secret-vault (synced via git)
-#    Edit with: chief.vault_file-edit          # ⚠️ SHARED BY ALL TEAM MEMBERS
-
-# 2. Personal vault (your private secrets) 
-chief.vault_file-edit ~/.my-personal-vault  # ✅ ALWAYS specify path for personal secrets
-#    Contains: personal API keys, SSH passphrases, individual credentials
-#    Location: ~/.my-personal-vault (local only, never committed)
-
-# 3. Load both vaults:
-chief.vault_file-load                        # Loads team vault (automatic)
-chief.vault_file-load ~/.my-personal-vault   # Load personal vault (manual)
-```
-
-#### **⚠️ Team Environment Commands:**
-
-```bash
-# DANGEROUS - edits SHARED team vault:
-chief.vault_file-edit                       # ❌ All team members see this!
-
-# SAFE - creates/edits personal vault:
-chief.vault_file-edit ~/.my-personal-vault  # ✅ Only you can see this
-chief.vault_file-edit ~/.my-work-secrets    # ✅ Any personal path works
 ```
 
 #### 🛡️ **Local Changes Protection**

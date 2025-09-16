@@ -9,7 +9,6 @@
 - **Cross-system consistency**: Same vault file everywhere via git synchronization
 - **In-place usage**: Vault files used directly from plugins directory (no copying required)
 - **Team collaboration**: Optional team vault sharing through repository
-- **🚨 Security**: In team environments, `chief.vault_file-edit` (no params) edits SHARED team vault - always specify path for personal secrets
 
 ### ⚡ Improved Vault Editing UX
 - **Eliminated double password prompts**: Default behavior no longer auto-loads after editing
@@ -56,7 +55,6 @@
 ### For New Users
 - **Full clone installation**: New installs support branch switching out of the box
 - **Portable vault ready**: Simply add `.chief_secret-vault` to your plugins repo for cross-system sync
-- **⚠️ Team Security**: Use `chief.vault_file-edit ~/.personal-vault` for private secrets, not `chief.vault_file-edit` alone
 
 ---
 
