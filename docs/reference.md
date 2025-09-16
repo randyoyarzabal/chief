@@ -602,3 +602,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](https://g
 ---
 
 *Need help? Each page has detailed guides and examples. Still stuck? Check our [troubleshooting section](#-comprehensive-troubleshooting) or [open an issue](https://github.com/randyoyarzabal/chief/issues).*
+
+---
+
+[← Back to Documentation](index.html)

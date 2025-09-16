@@ -491,3 +491,7 @@ chief.reload  # Will re-clone repository
 - **[Plugin Development](plugin-development.html)** - Create custom team plugins
 - **[User Guide](user-guide.html)** - Learn core Chief features
 - **[Reference](reference.html)** - Complete command reference
+
+---
+
+[← Back to Documentation](index.html)

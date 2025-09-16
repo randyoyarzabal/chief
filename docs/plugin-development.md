@@ -595,3 +595,7 @@ test_myproject_deploy
 - Study built-in plugins for examples: `~/.chief/libs/core/plugins/`
 - Use `chief.whereis` to understand how existing functions work
 - Check the [plugin template](https://github.com/randyoyarzabal/chief/blob/main/templates/chief_plugin_template.sh) for best practices
+
+---
+
+[← Back to Documentation](index.html)

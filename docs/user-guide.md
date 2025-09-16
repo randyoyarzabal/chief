@@ -507,3 +507,7 @@ source ~/.bash_profile
 - **[Plugin Development](plugin-development.html)** - Create custom plugins
 - **[Configuration](configuration.html)** - Advanced setup and team sharing
 - **[Reference](reference.html)** - Complete command and feature reference
+
+---
+
+[← Back to Documentation](index.html)

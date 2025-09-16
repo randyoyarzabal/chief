@@ -317,3 +317,7 @@ git config --global user.email "your@email.com"
 - Check our [User Guide troubleshooting section](user-guide.html#troubleshooting)
 - [Open an issue](https://github.com/randyoyarzabal/chief/issues) on GitHub
 - Run `chief.help` for built-in help system
+
+---
+
+[← Back to Documentation](index.html)
