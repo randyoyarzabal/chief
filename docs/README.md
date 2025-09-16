@@ -96,35 +96,91 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 - 🚀 **Instant onboarding** - New team members get standardized tools immediately
 - 🔄 **Version control** - Track and manage team tool changes over time
 
-## ⚡ Quick Start
+## ⚡ Quick Start: Portable Setup
+
+**Real-world example**: Set up Chief with remote plugins and vault that follows you across all systems.
+
+### 🚀 **One-Time Setup (any new system)**
+
+```bash
+# 1. Install Chief (one command)
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
+
+# 2. Configure your plugin repository (replace with your repo)
+chief.config_set -y PLUGINS_GIT_REPO="git@github.com:yourusername/my-plugins.git"
+chief.config_set -y PLUGINS_PATH="${HOME}/chief_plugins"
+chief.config_set -y PLUGINS_GIT_BRANCH="main"
+chief.config_set -y PLUGINS_GIT_PATH="bash/plugins"     # or "" for repo root
+chief.config_set -y PLUGINS_GIT_AUTOUPDATE="false"     # manual updates
+chief.config_set -y PLUGINS_TYPE="remote"              # 🔑 Enable remote sync
+
+# 3. Customize prompt (optional)
+chief.config_set -y SHORT_PATH=false
+chief.config_set -y MULTILINE_PROMPT=true
+
+# 4. Load your encrypted secrets
+chief.vault_file-load                                   # Team vault (if exists)
+chief.vault_file-load ~/.my-personal-vault             # Personal vault
+```
+
+### 🎯 **Result**: 
+- ✅ **Same plugins everywhere**: Functions, aliases, and tools sync across laptop, server, CI/CD
+- ✅ **Encrypted secrets**: Vault files travel with your setup (team + personal)
+- ✅ **Zero reconfiguration**: New systems work identically after this setup
+- ✅ **Version controlled**: Track changes to your shell environment
+
+### 🔍 **Daily Workflow**
+
+```bash
+chief.plugins_update           # Get latest team plugins
+chief.vault_file-load          # Load secrets when needed
+chief.plugin mytools           # Edit/create plugins
+chief.whereis my_function      # Find any function instantly
+```
+
+---
+
+## 🎯 Getting Started: Core Features
+
+**New to Chief?** Start here to explore the essential features before setting up remote sync.
 
 ```bash
 # Get comprehensive help
 chief.help
 
-# Quick tips and workflow
+# Quick tips and workflow hints
 chief.hints
 
-# Explore all commands
+# Explore all commands (tab completion)
 chief.[tab][tab]
 
 # Create your first plugin
 chief.plugin mytools
 
-# Configure Chief (editor or direct commands)
-chief.config                    # Opens editor
+# Configure Chief (opens editor)
+chief.config                    
+chief.config_set -l             # 🌟 List all available configuration options
 chief.config_set prompt true    # Direct config (option without CHIEF_CFG_ prefix)
 chief.config_update             # Update config with new template options
 
 # Edit shell files with auto-reload
-chief.bash_profile
+chief.bash_profile              # Edit .bash_profile (auto-reloads)
+chief.bashrc                    # Edit .bashrc (auto-reloads)
 
-# Find any function or alias
+# Find any function or alias instantly
 chief.whereis my_function
+
+# Get help for any specific command
+chief.update -?
 
 # Uninstall Chief completely (with confirmation prompts)
 chief.uninstall
 ```
+
+### 💡 **Pro Tips**
+- Every command has help: `chief.command -?`
+- Tab completion works for all Chief functions
+- Set a shorter alias: `chief.config_set alias "cf"` → use `cf.config`, `cf.plugin`, etc.
 
 ### 🔧 Need More Options?
 
@@ -1086,7 +1142,7 @@ source ~/.chief/chief.sh --lib-only
 
 
 
-## ⚡ Quick Start Guide
+## 📖 Command Reference
 
 ```bash
 # Get comprehensive help system
