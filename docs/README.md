@@ -1,7 +1,7 @@
 ---
 layout: default
 title: Chief
-description: "Bash Plugin Manager & Terminal Enhancement Tool - Easy adoption, powerful features"
+description: "Transform your terminal experience with organized bash functions, aliases, and a powerful plugin system."
 permalink: /
 ---
 
