@@ -1,0 +1,8 @@
+# Jekyll local development files
+Gemfile
+Gemfile.lock
+_site/
+.sass-cache/
+.jekyll-cache/
+.jekyll-metadata
+vendor/

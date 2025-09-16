@@ -670,26 +670,44 @@ function __chief.banner {
 
 # Display "hints" text and dynamically display alias if necessary.
 function __chief.hints_text() {
-  # Usage: __chief.hints_text
-  if ${CHIEF_CFG_HINTS} || [[ ${1} == '--verbose' ]]; then
+  # Usage: __chief.hints_text [--verbose] [--no-tracking]
+  local show_tracking=true
+  local show_hints=false
+  
+  # Parse arguments
+  for arg in "$@"; do
+    case "$arg" in
+      --verbose)
+        show_hints=true
+        ;;
+      --no-tracking)
+        show_tracking=false
+        ;;
+    esac
+  done
+  
+  if ${CHIEF_CFG_HINTS} || $show_hints; then
     # If plugins are not set to auto-update, display a message.
     if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]] && ! ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE}; then   
-      echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands. | ${CHIEF_COLOR_GREEN}chief.plugins_update${CHIEF_NO_COLOR} to update/load plugins."
+      echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands."
+      echo -e "${CHIEF_COLOR_GREEN}chief.plugins_update${CHIEF_NO_COLOR} to update/load plugins. | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
     else
-      echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands.${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands. | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief.${CHIEF_NO_COLOR}"
     fi
     local plugin_list=$(__get_plugins)
     if [[ ${plugin_list} != "" ]]; then
       echo -e "${CHIEF_COLOR_GREEN}Plugins loaded: ${CHIEF_COLOR_CYAN}${plugin_list}${CHIEF_NO_COLOR}"
     fi
-    # Show branch tracking status
-    local update_branch="${CHIEF_CFG_UPDATE_BRANCH:-main}"
-    if [[ "${update_branch}" == "dev" ]]; then
-      echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_YELLOW}${update_branch}${CHIEF_COLOR_RED} (bleeding-edge)${CHIEF_COLOR_CYAN} branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch main${CHIEF_COLOR_CYAN} for stable${CHIEF_NO_COLOR}"
-    elif [[ "${update_branch}" == "main" ]]; then
-      echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_GREEN}${update_branch}${CHIEF_COLOR_CYAN} (stable) branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch dev${CHIEF_COLOR_CYAN} for latest features${CHIEF_NO_COLOR}"
-    else
-      echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_CYAN}${update_branch}${CHIEF_COLOR_YELLOW} (custom)${CHIEF_COLOR_CYAN} branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch main${CHIEF_COLOR_CYAN} for stable${CHIEF_NO_COLOR}"
+    # Show branch tracking status (only if not already shown in banner)
+    if $show_tracking; then
+      local update_branch="${CHIEF_CFG_UPDATE_BRANCH:-main}"
+      if [[ "${update_branch}" == "dev" ]]; then
+        echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_YELLOW}${update_branch}${CHIEF_COLOR_RED} (bleeding-edge)${CHIEF_COLOR_CYAN} branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch main${CHIEF_COLOR_CYAN} for stable${CHIEF_NO_COLOR}"
+      elif [[ "${update_branch}" == "main" ]]; then
+        echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_GREEN}${update_branch}${CHIEF_COLOR_CYAN} (stable) branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch dev${CHIEF_COLOR_CYAN} for latest features${CHIEF_NO_COLOR}"
+      else
+        echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_CYAN}${update_branch}${CHIEF_COLOR_YELLOW} (custom)${CHIEF_COLOR_CYAN} branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch main${CHIEF_COLOR_CYAN} for stable${CHIEF_NO_COLOR}"
+      fi
     fi
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Essential Commands:${CHIEF_NO_COLOR}"
@@ -720,13 +738,14 @@ function __chief.hints_text() {
 
 # Display compact Chief hints and tips
 function chief.hints() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--banner]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--no-banner]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Display compact Chief tips, hints, and quick command reference.
+Shows banner by default unless --no-banner is specified.
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
-  --banner    Show Chief banner with hints
+  --no-banner    Skip showing Chief banner
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Quick command overview
@@ -735,8 +754,8 @@ ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Essential workflow commands
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME                    # Show compact hints
-  $FUNCNAME --banner          # Show banner with hints
+  $FUNCNAME                    # Show banner with hints
+  $FUNCNAME --no-banner       # Show hints without banner
 "
 
   if [[ $1 == "-?" ]]; then
@@ -744,11 +763,13 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     return
   fi
 
-  if [[ $1 == "--banner" ]]; then
+  # Show banner by default unless --no-banner is specified
+  if [[ $1 != "--no-banner" ]]; then
     __chief.banner
+    __chief.hints_text --verbose --no-tracking
+  else
+    __chief.hints_text --verbose
   fi
-  
-  __chief.hints_text --verbose
 }
 
 # Comprehensive Chief help system
@@ -825,7 +846,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
 function __chief.info() {
   # Usage: __chief.info
   __chief.banner
-  echo -e "${CHIEF_COLOR_YELLOW}GitHub Repo: ${CHIEF_COLOR_CYAN}${CHIEF_REPO}${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_CYAN}${CHIEF_REPO}${CHIEF_NO_COLOR}"
 }
 
 # Start SSH agent
@@ -2441,17 +2462,6 @@ function __show_chief_stats() {
   echo -e "• Functions available: ${CHIEF_COLOR_CYAN}$total_functions${CHIEF_NO_COLOR}"
   echo -e "• Plugins loaded: ${CHIEF_COLOR_CYAN}$plugin_count${CHIEF_NO_COLOR} ($loaded_plugins)"
   echo -e "• Configuration: ${CHIEF_COLOR_CYAN}$CHIEF_CONFIG${CHIEF_NO_COLOR}"
-  
-  # Show branch tracking status
-  local update_branch="${CHIEF_CFG_UPDATE_BRANCH:-main}"
-  if [[ "${update_branch}" == "dev" ]]; then
-    echo -e "• Tracking: ${CHIEF_COLOR_YELLOW}${update_branch}${CHIEF_COLOR_RED} (bleeding-edge)${CHIEF_NO_COLOR} branch"
-  elif [[ "${update_branch}" == "main" ]]; then
-    echo -e "• Tracking: ${CHIEF_COLOR_GREEN}${update_branch}${CHIEF_COLOR_CYAN} (stable)${CHIEF_NO_COLOR} branch"
-  else
-    echo -e "• Tracking: ${CHIEF_COLOR_CYAN}${update_branch}${CHIEF_COLOR_YELLOW} (custom)${CHIEF_NO_COLOR} branch"
-  fi
-  echo -e "• Version: ${CHIEF_COLOR_CYAN}$CHIEF_VERSION${CHIEF_NO_COLOR} on $PLATFORM"
 }
 
 # Show core Chief commands
