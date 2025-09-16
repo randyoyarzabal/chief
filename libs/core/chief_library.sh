@@ -670,26 +670,44 @@ function __chief.banner {
 
 # Display "hints" text and dynamically display alias if necessary.
 function __chief.hints_text() {
-  # Usage: __chief.hints_text
-  if ${CHIEF_CFG_HINTS} || [[ ${1} == '--verbose' ]]; then
+  # Usage: __chief.hints_text [--verbose] [--no-tracking]
+  local show_tracking=true
+  local show_hints=false
+  
+  # Parse arguments
+  for arg in "$@"; do
+    case "$arg" in
+      --verbose)
+        show_hints=true
+        ;;
+      --no-tracking)
+        show_tracking=false
+        ;;
+    esac
+  done
+  
+  if ${CHIEF_CFG_HINTS} || $show_hints; then
     # If plugins are not set to auto-update, display a message.
     if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]] && ! ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE}; then   
-      echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands. | ${CHIEF_COLOR_GREEN}chief.plugins_update${CHIEF_NO_COLOR} to update/load plugins."
+      echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands."
+      echo -e "${CHIEF_COLOR_GREEN}chief.plugins_update${CHIEF_NO_COLOR} to update/load plugins. | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
     else
-      echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands.${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands. | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief.${CHIEF_NO_COLOR}"
     fi
     local plugin_list=$(__get_plugins)
     if [[ ${plugin_list} != "" ]]; then
       echo -e "${CHIEF_COLOR_GREEN}Plugins loaded: ${CHIEF_COLOR_CYAN}${plugin_list}${CHIEF_NO_COLOR}"
     fi
-    # Show branch tracking status
-    local update_branch="${CHIEF_CFG_UPDATE_BRANCH:-main}"
-    if [[ "${update_branch}" == "dev" ]]; then
-      echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_YELLOW}${update_branch}${CHIEF_COLOR_RED} (bleeding-edge)${CHIEF_COLOR_CYAN} branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch main${CHIEF_COLOR_CYAN} for stable${CHIEF_NO_COLOR}"
-    elif [[ "${update_branch}" == "main" ]]; then
-      echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_GREEN}${update_branch}${CHIEF_COLOR_CYAN} (stable) branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch dev${CHIEF_COLOR_CYAN} for latest features${CHIEF_NO_COLOR}"
-    else
-      echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_CYAN}${update_branch}${CHIEF_COLOR_YELLOW} (custom)${CHIEF_COLOR_CYAN} branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch main${CHIEF_COLOR_CYAN} for stable${CHIEF_NO_COLOR}"
+    # Show branch tracking status (only if not already shown in banner)
+    if $show_tracking; then
+      local update_branch="${CHIEF_CFG_UPDATE_BRANCH:-main}"
+      if [[ "${update_branch}" == "dev" ]]; then
+        echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_YELLOW}${update_branch}${CHIEF_COLOR_RED} (bleeding-edge)${CHIEF_COLOR_CYAN} branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch main${CHIEF_COLOR_CYAN} for stable${CHIEF_NO_COLOR}"
+      elif [[ "${update_branch}" == "main" ]]; then
+        echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_GREEN}${update_branch}${CHIEF_COLOR_CYAN} (stable) branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch dev${CHIEF_COLOR_CYAN} for latest features${CHIEF_NO_COLOR}"
+      else
+        echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_CYAN}${update_branch}${CHIEF_COLOR_YELLOW} (custom)${CHIEF_COLOR_CYAN} branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch main${CHIEF_COLOR_CYAN} for stable${CHIEF_NO_COLOR}"
+      fi
     fi
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Essential Commands:${CHIEF_NO_COLOR}"
@@ -720,13 +738,14 @@ function __chief.hints_text() {
 
 # Display compact Chief hints and tips
 function chief.hints() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--banner]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--no-banner]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Display compact Chief tips, hints, and quick command reference.
+Shows banner by default unless --no-banner is specified.
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
-  --banner    Show Chief banner with hints
+  --no-banner    Skip showing Chief banner
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Quick command overview
@@ -735,8 +754,8 @@ ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Essential workflow commands
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME                    # Show compact hints
-  $FUNCNAME --banner          # Show banner with hints
+  $FUNCNAME                    # Show banner with hints
+  $FUNCNAME --no-banner       # Show hints without banner
 "
 
   if [[ $1 == "-?" ]]; then
@@ -744,11 +763,13 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     return
   fi
 
-  if [[ $1 == "--banner" ]]; then
+  # Show banner by default unless --no-banner is specified
+  if [[ $1 != "--no-banner" ]]; then
     __chief.banner
+    __chief.hints_text --verbose --no-tracking
+  else
+    __chief.hints_text --verbose
   fi
-  
-  __chief.hints_text --verbose
 }
 
 # Comprehensive Chief help system
@@ -825,7 +846,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
 function __chief.info() {
   # Usage: __chief.info
   __chief.banner
-  echo -e "${CHIEF_COLOR_YELLOW}GitHub Repo: ${CHIEF_COLOR_CYAN}${CHIEF_REPO}${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_CYAN}${CHIEF_REPO}${CHIEF_NO_COLOR}"
 }
 
 # Start SSH agent
@@ -2441,17 +2462,6 @@ function __show_chief_stats() {
   echo -e "• Functions available: ${CHIEF_COLOR_CYAN}$total_functions${CHIEF_NO_COLOR}"
   echo -e "• Plugins loaded: ${CHIEF_COLOR_CYAN}$plugin_count${CHIEF_NO_COLOR} ($loaded_plugins)"
   echo -e "• Configuration: ${CHIEF_COLOR_CYAN}$CHIEF_CONFIG${CHIEF_NO_COLOR}"
-  
-  # Show branch tracking status
-  local update_branch="${CHIEF_CFG_UPDATE_BRANCH:-main}"
-  if [[ "${update_branch}" == "dev" ]]; then
-    echo -e "• Tracking: ${CHIEF_COLOR_YELLOW}${update_branch}${CHIEF_COLOR_RED} (bleeding-edge)${CHIEF_NO_COLOR} branch"
-  elif [[ "${update_branch}" == "main" ]]; then
-    echo -e "• Tracking: ${CHIEF_COLOR_GREEN}${update_branch}${CHIEF_COLOR_CYAN} (stable)${CHIEF_NO_COLOR} branch"
-  else
-    echo -e "• Tracking: ${CHIEF_COLOR_CYAN}${update_branch}${CHIEF_COLOR_YELLOW} (custom)${CHIEF_NO_COLOR} branch"
-  fi
-  echo -e "• Version: ${CHIEF_COLOR_CYAN}$CHIEF_VERSION${CHIEF_NO_COLOR} on $PLATFORM"
 }
 
 # Show core Chief commands
@@ -2926,6 +2936,242 @@ ${CHIEF_COLOR_BLUE}Output Features:${CHIEF_NO_COLOR}
     
     if ! $is_var && ! $is_func && ! $is_alias; then
       echo -e "${CHIEF_COLOR_YELLOW}Found in files but not currently loaded${CHIEF_NO_COLOR}"
+    fi
+  fi
+}
+
+########################################################################
+# DEVELOPMENT FUNCTIONS - NOT FOR USER USE
+########################################################################
+
+# INTERNAL: Version bump function for Chief development
+function __chief.bump() {
+  # Usage: __chief.bump <new_version> [--tag] [--dry-run]
+  # WARNING: This is a development-only function, not for end users
+  
+  local usage="Usage: $FUNCNAME <new_version> [--tag] [--dry-run]
+
+${CHIEF_COLOR_RED}WARNING: DEVELOPMENT FUNCTION ONLY${CHIEF_NO_COLOR}
+This function is for Chief developers only and modifies core files.
+
+Arguments:
+  new_version    Version to bump to (e.g., v4.0, v4.0.0) - MUST start with 'v'
+
+Options:
+  --tag         Create git tag after version bump (MAIN BRANCH ONLY)
+  --dry-run     Show what would be changed without making changes
+  
+Git Tag Policy:
+  • Version bumping: Works from any branch
+  • Git tagging: ONLY allowed from 'main' branch
+  • Dev/feature branches: Cannot create tags (dev is for testing)
+  
+Examples:
+  $FUNCNAME v4.0 --dry-run           # Preview changes (any branch)
+  $FUNCNAME v4.0.0                   # Bump version (any branch)  
+  $FUNCNAME v4.1.0                   # Standard semantic version
+  
+  # For tagging (releases):
+  git checkout main && git pull origin main
+  $FUNCNAME v4.0 --tag               # Bump and tag (main only)"
+
+  # Parse arguments
+  local new_version=""
+  local dry_run=false
+  local create_tag=false
+  
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      --help|-h)
+        echo -e "$usage"
+        return 0
+        ;;
+      --dry-run)
+        dry_run=true
+        shift
+        ;;
+      --tag)
+        create_tag=true
+        shift
+        ;;
+      -*)
+        __print_error "Unknown option: $1"
+        echo -e "$usage"
+        return 1
+        ;;
+      *)
+        if [[ -z "$new_version" ]]; then
+          new_version="$1"
+        else
+          __print_error "Too many arguments"
+          echo -e "$usage"
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+  
+  # Validate arguments
+  if [[ -z "$new_version" ]]; then
+    __print_error "New version is required"
+    echo -e "$usage"
+    return 1
+  fi
+  
+  # Validate version format (MUST be prefixed with 'v')
+  # Only accept v4.0, v4.0.0 formats - numbers alone are NOT valid
+  if [[ ! "$new_version" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+    __print_error "Invalid version format: $new_version"
+    __print_error "Expected format: v4.0 or v4.0.0 (must be prefixed with 'v')"
+    return 1
+  fi
+  
+  # Normalize to full semantic version (add .0 if missing patch version)
+  if [[ "$new_version" =~ ^v[0-9]+\.[0-9]+$ ]]; then
+    new_version="${new_version}.0"
+  fi
+  
+  # Get current version
+  local current_version="$CHIEF_VERSION"
+  local version_file="${CHIEF_PATH}/VERSION"
+  
+  __print_info "Chief Development Version Bump"
+  __print_info "Current version: $current_version"
+  __print_info "New version: $new_version"
+  __print_info "Dry run: $dry_run"
+  __print_info "Create tag: $create_tag"
+  echo ""
+  
+  # Check if versions are the same  
+  if [[ "$current_version" == "$new_version" ]]; then
+    __print_warn "Version is already $new_version"
+    if ! $dry_run; then
+      __print_info "Re-applying version to ensure consistency..."
+    fi
+  fi
+  
+  # Files to update with version references
+  local files_to_update=(
+    "${CHIEF_PATH}/VERSION"
+    "${CHIEF_PATH}/README.md"
+    "${CHIEF_PATH}/docs/index.md"
+    "${CHIEF_PATH}/docs/getting-started.md"
+  )
+  
+  # Update each file
+  local updated_count=0
+  for file in "${files_to_update[@]}"; do
+    if [[ ! -f "$file" ]]; then
+      __print_warn "File not found, skipping: $(basename "$file")"
+      continue
+    fi
+    
+    # Check if file already has the new version (both regular and badge formats)
+    local badge_current="Download-Release%20${current_version}"
+    local badge_new="Download-Release%20${new_version}"
+    
+    if grep -q "$new_version" "$file" 2>/dev/null && grep -q "$badge_new" "$file" 2>/dev/null; then
+      __print_info "$(basename "$file"): Already up to date ($new_version)"
+      continue
+    fi
+    
+    if $dry_run; then
+      local changes=""
+      if grep -q "$current_version" "$file" 2>/dev/null; then
+        changes="version"
+      fi
+      if grep -q "$badge_current" "$file" 2>/dev/null; then
+        if [[ -n "$changes" ]]; then
+          changes="$changes + badges"
+        else
+          changes="badges"
+        fi
+      fi
+      __print_info "$(basename "$file"): Would update $changes ($current_version → $new_version)"
+      continue
+    fi
+    
+    # Create backup
+    cp "$file" "${file}.backup.$(date +%s)"
+    
+    # Perform replacements (both regular version and badge URLs)
+    local success=true
+    
+    # Update regular version references
+    if ! sed -i.tmp1 "s/${current_version}/${new_version}/g" "$file" 2>/dev/null; then
+      success=false
+    fi
+    
+    # Update badge URL-encoded versions  
+    if $success && ! sed -i.tmp2 "s/${badge_current}/${badge_new}/g" "$file" 2>/dev/null; then
+      success=false
+    fi
+    
+    if $success; then
+      rm -f "${file}.tmp1" "${file}.tmp2" 2>/dev/null
+      __print_success "$(basename "$file"): Updated $current_version → $new_version (including badges)"
+      ((updated_count++))
+    else
+      # Restore backup on failure
+      mv "${file}.backup.$(date +%s)" "$file" 2>/dev/null
+      rm -f "${file}.tmp1" "${file}.tmp2" 2>/dev/null
+      __print_error "$(basename "$file"): Failed to update"
+      return 1
+    fi
+  done
+  
+  # Create git tag if requested
+  if $create_tag; then
+    __print_info "Checking git tag..."
+    
+    # Check current branch - ONLY allow tagging from main
+    local current_branch=$(git branch --show-current 2>/dev/null || echo "unknown")
+    
+    if [[ "$current_branch" != "main" ]]; then
+      __print_error "Git tag: Can only create release tags from 'main' branch"
+      __print_error "Git tag: Currently on branch: $current_branch"
+      __print_info "Git tag: Switch to main first: git checkout main && git pull origin main"
+      return 1
+    fi
+    
+    if git tag -l | grep -q "^${new_version}$" 2>/dev/null; then
+      __print_info "Git tag: Tag $new_version already exists"
+    elif $dry_run; then
+      __print_info "Git tag: Would create tag $new_version from main branch"
+    else
+      if git tag -a "$new_version" -m "Release $new_version" 2>/dev/null; then
+        __print_success "Git tag: Created tag $new_version from main branch"
+        __print_info "Run 'git push origin $new_version' to push the tag"
+      else
+        __print_error "Git tag: Failed to create tag $new_version"
+        return 1
+      fi
+    fi
+  fi
+  
+  # Summary
+  echo ""
+  if $dry_run; then
+    __print_info "Dry run completed. No files were modified."
+    __print_info "Run without --dry-run to apply changes."
+  else
+    __print_success "Version bump completed: $current_version → $new_version"
+    __print_info "Files updated: $updated_count"
+    
+    # Clean up old backups (keep only the 3 most recent)
+    find "${CHIEF_PATH}" -name "*.backup.*" -type f 2>/dev/null | sort | head -n -3 | xargs rm -f 2>/dev/null || true
+    
+    __print_info "Next steps:"
+    if $create_tag; then
+      __print_info "  1. Review changes: git diff"
+      __print_info "  2. Commit: git add -A && git commit -m 'Bump version to $new_version'"
+      __print_info "  3. Push: git push origin main"
+      __print_info "  4. Push tag: git push origin $new_version"
+    else
+      __print_info "  1. Review changes: git diff"
+      __print_info "  2. Commit: git add -A && git commit -m 'Bump version to $new_version'"
+      __print_info "  3. Create tag: $FUNCNAME $new_version --tag"
     fi
   fi
 }

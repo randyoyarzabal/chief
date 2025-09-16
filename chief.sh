@@ -74,7 +74,7 @@ fi
 # Load banner and hints
 if ${CHIEF_CFG_BANNER}; then
   __chief.banner
-  __chief.hints_text
+  __chief.hints_text --no-tracking
 fi
 
 # Check for updates
