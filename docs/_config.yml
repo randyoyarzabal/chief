@@ -3,51 +3,11 @@ description: Bash Plugin Manager & Terminal Enhancement Tool
 author: Randy E. Oyarzabal
 author_email: github@randyoyarzabal.com
 url: https://chief.reonetlabs.us
-baseurl: ""
-
-# GitHub Pages officially supported theme - Dinky (clean and simple)
-remote_theme: pages-themes/dinky@v0.2.0
-
-# Site settings for Dinky theme
 show_downloads: false
 enable_copy_code_button: true
 toc: true
-
+remote_theme: pages-themes/dinky@v0.2.0
 plugins:
-- jekyll-remote-theme
-- jekyll-feed
-- jekyll-sitemap
-- jekyll-seo-tag
-
-markdown: kramdown
-highlighter: rouge
-kramdown:
-  syntax_highlighter_opts:
-    block:
-      line_numbers: false
-
-# Page defaults
-defaults:
-  - scope:
-      path: ""
-    values:
-      layout: "default"
-
-# Exclude from processing
-exclude:
-  - node_modules/
-  - "*.gemspec"
-  - "*.gem"
-  - Gemfile
-  - Gemfile.lock
-  - package.json
-  - package-lock.json
-  - script/
-  - LICENSE.txt
-  - lib/
-  - bin/
-  - README.md
-  - Rakefile
-
+- jekyll-remote-theme 
 categories: [bash, git, openshift, kubernetes, linux, vault, command-line]
 tags: [bash, git, openshift, kubernetes, linux, command-line, open-source]
