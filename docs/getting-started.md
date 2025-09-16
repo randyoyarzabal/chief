@@ -1,21 +1,19 @@
 ---
 layout: default
 title: Getting Started
-nav_order: 2
 description: "Installation, setup, and first steps with Chief"
 ---
 
 # Getting Started with Chief
-{: .no_toc }
 
-Complete guide to installing, configuring, and taking your first steps with Chief.
-{: .fs-6 .fw-300 }
+*Complete guide to installing, configuring, and taking your first steps with Chief.*
 
-## Table of contents
-{: .no_toc .text-delta }
+## Table of Contents
 
-1. TOC
-{:toc}
+- [Installation](#installation)
+- [First Steps](#first-steps)  
+- [Basic Configuration](#basic-configuration)
+- [Quick Start Examples](#quick-start-examples)
 
 ---
 

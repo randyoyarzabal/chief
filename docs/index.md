@@ -1,7 +1,6 @@
 ---
 layout: default
 title: Home
-nav_order: 1
 description: "Bash Plugin Manager & Terminal Enhancement Tool - Complete documentation and guides"
 permalink: /
 ---
