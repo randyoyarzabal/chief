@@ -442,8 +442,6 @@ Choose the approach that fits your team's situation:
 - **🔄 Scenario A**: [Use Existing Repository](#-scenario-a-existing-repository) - Add Chief plugins to your current team repo
 - **🆕 Scenario B**: [Create New Repository](#-scenario-b-new-repository) - Start fresh with a dedicated plugins repo
 
----
-
 ### 🔄 **Scenario A: Existing Repository**
 
 Perfect when you already have a team repository and want to add Chief plugins alongside your existing code.
@@ -572,8 +570,6 @@ chief.plugin testing        # Edit the testing_chief-plugin.sh file
 chief.whereis devops        # Find all functions starting with "devops"
 ```
 
----
-
 ### 🆕 **Scenario B: New Repository**
 
 Create a dedicated repository for team plugins from scratch.
@@ -690,8 +686,8 @@ chief.config_set plugins_type remote
 
 # Restart terminal - team plugins are now available!
 chief.reload
-```
 EOF
+```
 
 # Commit and push
 git add .
