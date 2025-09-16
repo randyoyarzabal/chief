@@ -151,12 +151,21 @@ install_chief() {
       exit 1
     fi
     
-    git clone --branch "$CHIEF_INSTALL_GIT_BRANCH" --depth=1 "$CHIEF_GIT_REPO" "$CHIEF_PATH" || {
+    # Clone with full history to support branch switching
+    git clone --branch "$CHIEF_INSTALL_GIT_BRANCH" "$CHIEF_GIT_REPO" "$CHIEF_PATH" || {
       echo -e "${RED}ERROR: Failed to clone from branch $CHIEF_INSTALL_GIT_BRANCH${NC}"
       echo -e "${YELLOW}Please check that the branch exists and you have internet connectivity${NC}"
       exit 1
     }
-    echo -e "${GREEN}SUCCESS: Cloned ${CHIEF_INSTALL_GIT_BRANCH} branch${NC}"
+    
+    # Ensure all remote branches are available for later branch switching
+    cd "$CHIEF_PATH"
+    git fetch origin || {
+      echo -e "${YELLOW}WARNING: Failed to fetch additional remote branches${NC}"
+    }
+    cd - > /dev/null 2>&1
+    
+    echo -e "${GREEN}SUCCESS: Cloned ${CHIEF_INSTALL_GIT_BRANCH} branch with full remote branch access${NC}"
   fi
 
   echo -e "${GREEN}SUCCESS: Chief files installed${NC}"

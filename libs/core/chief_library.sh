@@ -1208,11 +1208,25 @@ You can also manually update by running git pull in the Chief directory.
       
       # Fetch all branches to ensure target branch exists
       echo -e "${CHIEF_COLOR_BLUE}Fetching latest changes...${CHIEF_NO_COLOR}"
-      git fetch origin || {
-        echo -e "${CHIEF_COLOR_RED}Error: Failed to fetch from remote repository${CHIEF_NO_COLOR}"
-        cd - > /dev/null 2>&1
-        return 1
-      }
+      
+      # Check if this is a shallow clone and unshallow if needed for branch switching
+      if git rev-parse --is-shallow-repository >/dev/null 2>&1 && [[ $(git rev-parse --is-shallow-repository) == "true" ]]; then
+        echo -e "${CHIEF_COLOR_YELLOW}Detected shallow clone. Converting to full repository for branch switching...${CHIEF_NO_COLOR}"
+        git fetch --unshallow origin || {
+          echo -e "${CHIEF_COLOR_YELLOW}Warning: Failed to unshallow repository. Trying regular fetch...${CHIEF_NO_COLOR}"
+          git fetch origin || {
+            echo -e "${CHIEF_COLOR_RED}Error: Failed to fetch from remote repository${CHIEF_NO_COLOR}"
+            cd - > /dev/null 2>&1
+            return 1
+          }
+        }
+      else
+        git fetch origin || {
+          echo -e "${CHIEF_COLOR_RED}Error: Failed to fetch from remote repository${CHIEF_NO_COLOR}"
+          cd - > /dev/null 2>&1
+          return 1
+        }
+      fi
       
       # Check if target branch exists remotely
       echo -e "${CHIEF_COLOR_BLUE}Verifying ${TARGET_BRANCH} branch exists remotely...${CHIEF_NO_COLOR}"
@@ -1299,10 +1313,23 @@ You can also manually update by running git pull in the Chief directory.
         
         # Fetch all branches to ensure target branch exists
         echo -e "${CHIEF_COLOR_BLUE}Fetching latest changes...${CHIEF_NO_COLOR}"
-        git fetch origin || {
-          echo -e "${CHIEF_COLOR_RED}Error: Failed to fetch from remote repository${CHIEF_NO_COLOR}"
-          return 1
-        }
+        
+        # Check if this is a shallow clone and unshallow if needed for branch switching
+        if git rev-parse --is-shallow-repository >/dev/null 2>&1 && [[ $(git rev-parse --is-shallow-repository) == "true" ]]; then
+          echo -e "${CHIEF_COLOR_YELLOW}Detected shallow clone. Converting to full repository for branch switching...${CHIEF_NO_COLOR}"
+          git fetch --unshallow origin || {
+            echo -e "${CHIEF_COLOR_YELLOW}Warning: Failed to unshallow repository. Trying regular fetch...${CHIEF_NO_COLOR}"
+            git fetch origin || {
+              echo -e "${CHIEF_COLOR_RED}Error: Failed to fetch from remote repository${CHIEF_NO_COLOR}"
+              return 1
+            }
+          }
+        else
+          git fetch origin || {
+            echo -e "${CHIEF_COLOR_RED}Error: Failed to fetch from remote repository${CHIEF_NO_COLOR}"
+            return 1
+          }
+        fi
         
         # Check if target branch exists remotely
         echo -e "${CHIEF_COLOR_BLUE}Verifying ${TARGET_BRANCH} branch exists remotely...${CHIEF_NO_COLOR}"
