@@ -11,12 +11,6 @@ permalink: /
 
 ---
 
-## 🧭 Quick Navigation
-
-**Main Sections:** [Getting Started](getting-started.html) | [User Guide](user-guide.html) | [Plugin Development](plugin-development.html) | [Configuration](configuration.html) | [Reference](reference.html)
-
----
-
 [![GitHub release](https://img.shields.io/badge/Download-Release%20v3.0.4-lightgrey.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![GitHub commits (since latest release)](https://img.shields.io/github/commits-since/randyoyarzabal/chief/latest.svg?style=social)](https://github.com/randyoyarzabal/chief/commits/master)
 
 Chief is a lightweight, powerful Bash library system that helps you organize your shell environment through a plugin-based architecture. Think of it as a package manager for your bash functions, aliases, and tools.
@@ -108,22 +102,6 @@ chief.help
 
 ---
 
-## 📱 Quick Navigation
-
-<div class="navigation-grid" markdown="1">
-
-| **I want to...** | **Go to...** |
-|------------------|--------------|
-| Install Chief quickly | [Getting Started](getting-started.html) |
-| Learn core commands | [User Guide](user-guide.html) |
-| Create custom plugins | [Plugin Development](plugin-development.html) |
-| Set up team sharing | [Configuration](configuration.html) |
-| Find specific commands | [Reference](reference.html) |
-| Get help with issues | [User Guide - Troubleshooting](user-guide.html#troubleshooting) |
-
-</div>
-
----
 
 ## 🔗 External Links
 
