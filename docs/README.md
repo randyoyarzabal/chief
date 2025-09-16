@@ -121,11 +121,11 @@ chief.config_set -y MULTILINE_PROMPT=true
 # 4. Load your encrypted secrets
 chief.vault_file-load                          # Team vault (.chief_secret-vault - if exists, automatically loaded)
 chief.vault_file-load ~/.my-personal-vault     # Personal vault
-
-# 💡 If vaults don't exist, see [Vault Creation Guide](#-critical-security-vault-files) to create them
 ```
 
-### 🎯 **Result**: 
+💡 If vaults don't exist, see [Vault Creation Guide](#-critical-security-vault-files) to create them
+
+### 🎯 **Result**
 
 - ✅ **Same plugins everywhere**: Functions, aliases, and tools sync across laptop, server, CI/CD
 - ✅ **Encrypted secrets**: Vault files travel with your setup (team + personal)
@@ -769,6 +769,40 @@ team-plugins/
 ### 🔐 **Critical Security: Vault Files**
 
 > **🚨 SECURITY WARNING**: Any `.chief_secret-vault` file in your team repository will be **SHARED BY ALL TEAM MEMBERS**. This file is automatically detected and loaded by Chief.
+
+#### **📁 Creating the Default Team Vault File**
+
+Chief automatically looks for and loads `.chief_secret-vault` in your plugin repository root. Here's how to create it:
+
+```bash
+# 1. Navigate to your team plugin repository root
+cd ~/team-plugins  # (or wherever your CHIEF_CFG_PLUGINS_PATH points)
+
+# 2. Create the team vault file (SHARED by all team members)
+chief.vault_file-edit .chief_secret-vault
+
+# This will:
+# - Create .chief_secret-vault in the current directory 
+# - Open it for editing with your default editor
+# - Encrypt it when saved (requires ansible-vault)
+# - Be automatically loaded by Chief when team members sync plugins
+
+# 3. Add team-shared secrets (example content):
+export SHARED_DB_PASSWORD="team_database_password_here"
+export TEAM_API_KEY="shared_service_account_key"
+export TEAM_REGISTRY_URL="company-docker-registry.com"
+export SHARED_VAULT_TOKEN="hvs.team_vault_token"
+
+# 4. Commit to your team repository
+git add .chief_secret-vault
+git commit -m "Add team shared vault (encrypted)"
+git push origin main
+```
+
+**Automatic Loading Behavior:**
+
+- ✅ **Team vault** (`.chief_secret-vault` in plugin repo root) - Automatically loaded on startup
+- ✅ **Personal vault** (any path with `chief.vault_file-load <path>`) - Manual loading required
 
 #### **🏠 Team Vault vs Personal Vault**
 
