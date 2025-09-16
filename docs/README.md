@@ -878,7 +878,7 @@ Chief comes with several useful plugins ready to use:
 | **SSH** | `chief.ssh_*` | SSH key management, connection helpers |
 | **AWS** | `chief.aws_*` | AWS credential management, S3 operations |
 | **OpenShift** | `chief.oc_*` | Container platform operations (requires `oc` CLI) |
-| **Vault** | `chief.vault_*` | HashiCorp Vault secret management |
+| **Vault** | `chief.vault_*` | Ansible-vault secret management |
 | **Python** | `chief.python_*` | Python environment and tool helpers |
 | **ETC** | `chief.etc_*` | Miscellaneous system utilities |
 
@@ -896,6 +896,11 @@ chief.ssh_test_connection  # Test SSH connections
 # AWS helpers  
 chief.aws_profile_switch   # Switch AWS profiles
 chief.aws_s3_sync         # S3 synchronization
+
+# Vault operations (improved UX in v3.0.2)
+chief.vault_file-edit         # Create/edit encrypted vault (no auto-load)
+chief.vault_file-edit --load  # Create/edit and auto-load vault
+chief.vault_file-load         # Load vault into environment
 
 # System utilities
 chief.etc_spinner         # Show progress spinner

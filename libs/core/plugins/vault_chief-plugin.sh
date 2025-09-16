@@ -32,7 +32,7 @@ function chief.vault_file-edit() {
     CHIEF_SECRETS_FILE="$HOME/.chief_secret-vault"
   fi
 
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [vault-file] [--no-load]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [vault-file] [--load]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Edit/create a Bash shell vault file using ansible-vault encryption.
@@ -43,7 +43,7 @@ ${CHIEF_COLOR_GREEN}Requirements:${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   [vault-file]  Optional vault file path (default: \$CHIEF_SECRETS_FILE)
-  --no-load     Prevent automatic loading after editing
+  --load        Automatically load vault into environment after editing
 
 ${CHIEF_COLOR_MAGENTA}Security Notes:${CHIEF_NO_COLOR}
 - On single-user systems: Set ANSIBLE_VAULT_PASSWORD_FILE for convenience
@@ -51,10 +51,10 @@ ${CHIEF_COLOR_MAGENTA}Security Notes:${CHIEF_NO_COLOR}
 - Store CHIEF_SECRETS_FILE path in ~/.bash_profile (not shared plugins)
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME                           # Edit default vault file
-  $FUNCNAME ~/.my-secrets             # Edit specific file
-  $FUNCNAME --no-load                 # Edit without auto-loading
-  $FUNCNAME ~/.my-secrets --no-load   # Edit specific file, no auto-load
+  $FUNCNAME                           # Edit default vault file (no auto-load)
+  $FUNCNAME ~/.my-secrets             # Edit specific file (no auto-load)
+  $FUNCNAME --load                    # Edit and auto-load default vault
+  $FUNCNAME ~/.my-secrets --load      # Edit specific file and auto-load
 
 ${CHIEF_COLOR_GREEN}Current default:${CHIEF_NO_COLOR} $CHIEF_SECRETS_FILE
 "
@@ -82,11 +82,11 @@ ${CHIEF_COLOR_GREEN}Current default:${CHIEF_NO_COLOR} $CHIEF_SECRETS_FILE
     fi
   fi
 
-  local no_load=false vault_file
+  local no_load=true vault_file  # Default: don't auto-load (avoids double password prompt)
   # Parse arguments more robustly
   case "$1" in
-    "--no-load")
-      no_load=true
+    "--load")
+      no_load=false
       vault_file="$CHIEF_SECRETS_FILE"
       ;;
     "")
@@ -94,7 +94,7 @@ ${CHIEF_COLOR_GREEN}Current default:${CHIEF_NO_COLOR} $CHIEF_SECRETS_FILE
       ;;
     *)
       vault_file="$1"
-      [[ "$2" == "--no-load" ]] && no_load=true
+      [[ "$2" == "--load" ]] && no_load=false
       ;;
   esac
 
@@ -145,7 +145,7 @@ ${CHIEF_COLOR_GREEN}Current default:${CHIEF_NO_COLOR} $CHIEF_SECRETS_FILE
       echo -e "${CHIEF_COLOR_BLUE}Load with:${CHIEF_NO_COLOR} chief.vault_file-load $vault_file"
     else
       echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Vault file created, encrypted, and loaded to memory."
-      echo -e "${CHIEF_COLOR_BLUE}Tip:${CHIEF_NO_COLOR} Use --no-load flag to skip automatic loading."
+      echo -e "${CHIEF_COLOR_BLUE}Tip:${CHIEF_NO_COLOR} Use --load flag to automatically load after editing."
     fi
   else
     # Check if file is ansible-vault encrypted
@@ -157,7 +157,7 @@ ${CHIEF_COLOR_GREEN}Current default:${CHIEF_NO_COLOR} $CHIEF_SECRETS_FILE
         return 1
       fi
       
-      # Reload after editing
+      # Optionally reload after editing
       if $no_load; then
         echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Vault file edited (changes not loaded to memory)."
         echo -e "${CHIEF_COLOR_BLUE}Load with:${CHIEF_NO_COLOR} chief.vault_file-load $vault_file"
