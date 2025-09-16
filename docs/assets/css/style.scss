@@ -1,11 +1,11 @@
 ---
 ---
 
-@import "just-the-docs";
+@import "{{ site.theme }}";
 
-/* Custom additions to Just the Docs theme */
+/* Custom additions for Cayman theme */
 
-/* Copy button for code blocks - compatible with Just the Docs dark theme */
+/* Copy button for code blocks - compatible with Cayman theme */
 .copy-button {
     position: absolute;
     top: 8px;
