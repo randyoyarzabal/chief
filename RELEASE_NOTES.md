@@ -3,7 +3,7 @@
 ## 🚀 Key New Features
 
 ### 🔐 Portable Vault Files (Major Feature)
-- **Multi-system sync**: Store `.chief_secret-vault` in plugins repository for automatic sync across systems
+- **Multi-system sync**: Store `.chief_shared-vault` in plugins repository for automatic sync across systems
 - **Zero configuration**: Vault files detected automatically when loading remote plugins  
 - **Secure portability**: Encrypted secrets follow users across laptop, server, and development environments
 - **Cross-system consistency**: Same vault file everywhere via git synchronization
@@ -50,12 +50,12 @@
 
 ### For Existing Users (v3.0.1 → v3.0.2)
 - **No breaking changes**: All existing configurations remain compatible
-- **New vault features**: Automatic if you store `.chief_secret-vault` in plugins repo
+- **New vault features**: Automatic if you store `.chief_shared-vault` in plugins repo
 - **Better editing UX**: `chief.vault_file-edit` no longer auto-loads by default (use `--load` if desired)
 
 ### For New Users
 - **Full clone installation**: New installs support branch switching out of the box
-- **Portable vault ready**: Simply add `.chief_secret-vault` to your plugins repo for cross-system sync
+- **Portable vault ready**: Simply add `.chief_shared-vault` to your plugins repo for cross-system sync
 - **⚠️ Team Security**: Use `chief.vault_file-edit ~/.personal-vault` for private secrets, not `chief.vault_file-edit` alone
 
 ---

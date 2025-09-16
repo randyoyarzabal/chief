@@ -1,5 +1,14 @@
 # Chief Updates
 
+## 3.0.4
+
+- **Updated Default Vault File Names**: Clarified vault file naming convention for better distinction between personal and shared vaults
+  - Changed default personal vault from `$HOME/.chief_secret-vault` to `$HOME/.chief_user-vault`
+  - Changed default shared vault from `.chief_secret-vault` to `.chief_shared-vault`
+  - Updated help text to show "Default Vault File Name" instead of "Vault File Types"
+  - Enhanced help text to dynamically display current configuration (local vs remote setup)
+  - **MIGRATION NOTE**: Existing users should rename their vault files to match new naming convention
+
 ## 3.0.3
 
 - **Fixed `chief.plugins_update` Git Pull Issue**: Resolved bug where `chief.plugins_update` wouldn't perform a git pull when `CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false`
@@ -10,7 +19,7 @@
 
 ## 3.0.2
 
-- **Portable Vault Files**: Store `.chief_secret-vault` in plugins repository for automatic sync across systems
+- **Portable Vault Files**: Store `.chief_shared-vault` in plugins repository for automatic sync across systems
   - Vault files are automatically detected when loading remote plugins
   - `CHIEF_SECRETS_FILE` automatically points to synced vault when available
   - No configuration needed - works with existing plugin sync mechanism

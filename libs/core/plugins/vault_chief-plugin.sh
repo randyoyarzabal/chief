@@ -29,7 +29,7 @@ fi
 function chief.vault_file-edit() {
   # Check if CHIEF_SECRETS_FILE is set, if not set it to default.
   if [[ -z $CHIEF_SECRETS_FILE ]]; then
-    CHIEF_SECRETS_FILE="$HOME/.chief_secret-vault"
+    CHIEF_SECRETS_FILE="$HOME/.chief_user-vault"
   fi
 
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [vault-file] [--load]
@@ -50,9 +50,17 @@ ${CHIEF_COLOR_MAGENTA}Security Notes:${CHIEF_NO_COLOR}
 - On shared systems: Enter password manually (more secure)
 - Store CHIEF_SECRETS_FILE path in ~/.bash_profile (not shared plugins)
 
+${CHIEF_COLOR_BLUE}Default Vault File Name:${CHIEF_NO_COLOR}
+- ${CHIEF_COLOR_GREEN}Personal vault${CHIEF_NO_COLOR} (non-remote): .chief_user-vault 
+- ${CHIEF_COLOR_YELLOW}Shared vault${CHIEF_NO_COLOR} (remote repos): .chief_shared-vault
+
+${CHIEF_COLOR_MAGENTA}File Creation:${CHIEF_NO_COLOR}
+- Personal vaults are created in \$HOME/ if they don't exist
+- Shared vaults are created in the plugins repository root if they don't exist
+
 ${CHIEF_COLOR_RED}⚠️ TEAM COLLABORATION WARNING:${CHIEF_NO_COLOR}
-- .chief_secret-vault in team repos is ${CHIEF_COLOR_RED}SHARED BY ALL TEAM MEMBERS${CHIEF_NO_COLOR}
-- Use team vault only for shared secrets (service accounts, team API keys)
+- .chief_shared-vault in team repos is ${CHIEF_COLOR_RED}SHARED BY ALL TEAM MEMBERS${CHIEF_NO_COLOR}
+- Use shared vault only for team secrets (service accounts, team API keys)
 - Create personal vault for private secrets: ${CHIEF_COLOR_CYAN}$FUNCNAME ~/.my-personal-vault${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
@@ -62,6 +70,13 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME ~/.my-secrets --load      # Edit specific file and auto-load
 
 ${CHIEF_COLOR_GREEN}Current default:${CHIEF_NO_COLOR} $CHIEF_SECRETS_FILE
+${CHIEF_COLOR_BLUE}Configuration:${CHIEF_NO_COLOR} $(
+  if [[ "${CHIEF_CFG_PLUGINS_TYPE}" == "remote" ]]; then
+    echo "Remote repository (.chief_shared-vault)"
+  else
+    echo "Local setup (\$HOME/.chief_user-vault)"
+  fi
+)
 "
   if [[ $1 == "-?" ]]; then
     echo -e "${USAGE}"
@@ -193,7 +208,7 @@ ${CHIEF_COLOR_GREEN}Current default:${CHIEF_NO_COLOR} $CHIEF_SECRETS_FILE
 
 function chief.vault_file-load() {
   if [[ -z $CHIEF_SECRETS_FILE ]]; then
-    CHIEF_SECRETS_FILE="$HOME/.chief_secret-vault"
+    CHIEF_SECRETS_FILE="$HOME/.chief_user-vault"
   fi
 
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [vault-file]
@@ -214,8 +229,16 @@ ${CHIEF_COLOR_MAGENTA}Security Notes:${CHIEF_NO_COLOR}
 - Use ANSIBLE_VAULT_PASSWORD_FILE for convenience (single-user systems only)
 - Store CHIEF_SECRETS_FILE path in ~/.bash_profile (not shared plugins)
 
+${CHIEF_COLOR_BLUE}Default Vault File Name:${CHIEF_NO_COLOR}
+- ${CHIEF_COLOR_GREEN}Personal vault${CHIEF_NO_COLOR} (non-remote): .chief_user-vault 
+- ${CHIEF_COLOR_YELLOW}Shared vault${CHIEF_NO_COLOR} (remote repos): .chief_shared-vault
+
+${CHIEF_COLOR_MAGENTA}File Creation:${CHIEF_NO_COLOR}
+- Personal vaults are created in \$HOME/ if they don't exist
+- Shared vaults are created in the plugins repository root if they don't exist
+
 ${CHIEF_COLOR_RED}⚠️ TEAM COLLABORATION WARNING:${CHIEF_NO_COLOR}
-- .chief_secret-vault in team repos is ${CHIEF_COLOR_RED}SHARED BY ALL TEAM MEMBERS${CHIEF_NO_COLOR}
+- .chief_shared-vault in team repos is ${CHIEF_COLOR_RED}SHARED BY ALL TEAM MEMBERS${CHIEF_NO_COLOR}
 - Load personal vault separately: ${CHIEF_COLOR_CYAN}$FUNCNAME ~/.my-personal-vault${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
@@ -223,6 +246,13 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME ~/.my-secrets      # Load specific vault file
 
 ${CHIEF_COLOR_GREEN}Current default:${CHIEF_NO_COLOR} $CHIEF_SECRETS_FILE
+${CHIEF_COLOR_BLUE}Configuration:${CHIEF_NO_COLOR} $(
+  if [[ "${CHIEF_CFG_PLUGINS_TYPE}" == "remote" ]]; then
+    echo "Remote repository (.chief_shared-vault)"
+  else
+    echo "Local setup (\$HOME/.chief_user-vault)"
+  fi
+)
 
 ${CHIEF_COLOR_BLUE}Troubleshooting:${CHIEF_NO_COLOR}
 - macOS with older ansible: Use ansible-vault 2.18.0+ for best compatibility

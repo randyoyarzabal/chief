@@ -431,9 +431,9 @@ CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}"
   # Check for team vault file in plugins repository
   local vault_path
   if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" && -n ${CHIEF_CFG_PLUGINS_GIT_PATH} ]]; then
-    vault_path="${CHIEF_CFG_PLUGINS_PATH}/${CHIEF_CFG_PLUGINS_GIT_PATH}/.chief_secret-vault"
+    vault_path="${CHIEF_CFG_PLUGINS_PATH}/${CHIEF_CFG_PLUGINS_GIT_PATH}/.chief_shared-vault"
   else
-    vault_path="${CHIEF_CFG_PLUGINS_PATH}/.chief_secret-vault"
+    vault_path="${CHIEF_CFG_PLUGINS_PATH}/.chief_shared-vault"
   fi
   
   if [[ -f "$vault_path" ]]; then
