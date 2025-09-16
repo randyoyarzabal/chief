@@ -703,13 +703,14 @@ function __chief.hints_text() {
     echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set prompt true${CHIEF_NO_COLOR} for git-aware prompt | ${CHIEF_COLOR_GREEN}chief.git_legend${CHIEF_NO_COLOR} for colors"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set multiline_prompt true${CHIEF_NO_COLOR} for multi-line prompt"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set short_path true${CHIEF_NO_COLOR} for compact directory paths"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set --list${CHIEF_NO_COLOR} to see all available configuration options"
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Plugin Management:${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin [name]${CHIEF_NO_COLOR} to create/edit plugins | ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR} to list"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugins${CHIEF_NO_COLOR} to navigate to plugins directory"
     echo ""
     if [[ ${1} != '--verbose' ]]; then
-      echo -e "${CHIEF_COLOR_CYAN}** Set ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS=false${CHIEF_COLOR_CYAN} to disable these hints. **${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_CYAN}** Run ${CHIEF_COLOR_GREEN}chief.config_set hints=false${CHIEF_COLOR_CYAN} to disable these hints. **${CHIEF_NO_COLOR}"
       echo ""
     fi
   else
