@@ -2,6 +2,13 @@
 
 ## 🚀 Key Improvements
 
+### 🔐 Portable Vault Files
+- **Multi-system sync**: Store `.chief_secret-vault` in plugins repository for automatic sync
+- **Zero configuration**: Vault files detected automatically when loading remote plugins
+- **Secure portability**: Encrypted secrets follow users across systems via git
+- **Cross-system consistency**: Same vault file on laptop, server, and development environments
+- **In-place usage**: Vault files used directly from plugins directory
+
 ### 🛡️ Enhanced Plugin Safety
 
 - **Smart Local Changes Protection**: Prevents accidental loss of plugin customizations during auto-updates

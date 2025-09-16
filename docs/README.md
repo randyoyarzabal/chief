@@ -429,7 +429,26 @@ chief.bash_profile  # Edit and auto-reloads
 chief.whereis deploy  # Shows all deploy functions across plugins
 ```
 
-## 👥 Team Collaboration
+## 🌐 Multi-System & Team Usage
+
+### 🎯 **Primary Use Case: Single User, Multiple Systems**
+
+Chief is primarily designed as a **single-user system** that follows you across multiple environments:
+
+- **Personal workflows**: Your plugins and vault sync from laptop → server → development environments
+- **Consistent setup**: Same functions, aliases, and secrets everywhere you use Chief
+- **Zero reconfiguration**: Once set up, Chief works identically on all your systems
+
+```bash
+# Your personal setup works the same everywhere:
+# Laptop:     chief.vault_file-load → access your secrets
+# Server:     chief.vault_file-load → same secrets, same functions  
+# CI/CD:      chief.vault_file-load → consistent automation
+```
+
+### 👥 **Bonus: Team Collaboration**
+
+The remote plugins feature also enables powerful **team collaboration**:
 
 Chief is designed with teams in mind. Share your bash functions, aliases, and tools across your entire team for consistent development environments.
 
@@ -652,6 +671,31 @@ alias test.watch='npm run test:watch'
 alias test.coverage='npm run test:coverage'
 EOF
 
+# Create portable vault file (encrypted secrets that sync across systems)
+cat > .chief_secret-vault << 'EOF'
+#!/usr/bin/env bash
+# Portable Secrets - encrypt this file with ansible-vault
+# Usage: ansible-vault encrypt .chief_secret-vault
+
+# API Keys (example - replace with your actual secrets)
+export MY_SLACK_WEBHOOK="https://hooks.slack.com/services/..."
+export MY_GITHUB_TOKEN="ghp_..."
+export MY_DOCKER_REGISTRY="registry.mycompany.com"
+
+# Database Credentials
+export DB_HOST="my-db.mycompany.com"
+export DB_USER="app_user"
+export DB_PASS="secure_password_here"
+
+# Environment Settings
+export ENVIRONMENT="development"
+export DEBUG_MODE="true"
+EOF
+
+# Encrypt the vault file
+echo "Encrypting vault file..."
+ansible-vault encrypt .chief_secret-vault
+
 # Create team plugin template for consistency
 cat > templates/team_plugin_template.sh << 'EOF'
 #!/usr/bin/env bash
@@ -750,6 +794,14 @@ Use the team template for consistency:
 ```bash
 chief.plugin mynewfeature    # Uses team template automatically
 ```
+
+## Using Portable Vault
+
+Access your portable secrets stored in the repository:
+```bash
+chief.vault_file-load        # Loads vault automatically
+echo $MY_SLACK_WEBHOOK        # Your secrets now available across systems
+```
 EOF
 ```
 
@@ -824,6 +876,42 @@ chief.plugin monitoring
 # - TODO sections for team-specific additions
 ```
 
+#### **Portable Vault Benefits** 🔐
+
+When `.chief_secret-vault` is included in your plugins repository, you automatically get:
+
+- **Cross-system secrets**: Same encrypted secrets on laptop, server, and development environments
+- **Zero configuration**: Vault file detected automatically with plugins
+- **Version controlled**: Secret changes tracked through git
+- **Secure storage**: Encrypted with ansible-vault, safe to store in git
+- **Consistent access**: Use `chief.vault_file-load` on any system
+
+```bash
+# User gets plugins and vault automatically across systems
+chief.plugins_update
+# Output: "Found vault file: /path/to/my-plugins/.chief_secret-vault"
+
+# Load your portable secrets
+chief.vault_file-load
+# Your environment variables now available across all systems
+```
+
+#### **Team Vault Benefits** 🔐
+
+For teams, the vault feature enables secure secret sharing:
+
+- **Team coordination**: Share encrypted secrets safely via git
+- **Onboarding**: New team members get access to shared secrets immediately
+- **Standardization**: Same secrets across all team member systems
+- **Audit trail**: Track who changed what secrets and when
+
+```bash
+# Team setup example
+chief.vault_file-load
+echo $TEAM_API_KEY     # Shared team secrets
+echo $PROD_DB_PASSWORD # Production database access
+```
+
 #### **Editing Existing Team Plugins**
 
 ```bash
@@ -891,6 +979,7 @@ team-plugins/
 │   ├── docker_chief-plugin.sh     # Container management
 │   ├── k8s_chief-plugin.sh        # Kubernetes operations
 │   └── monitoring_chief-plugin.sh # System monitoring
+├── .chief_secret-vault            # Portable vault file (ansible-vault encrypted)
 ├── docs/                          # Plugin documentation
 │   ├── devops.md                  # DevOps function reference
 │   ├── testing.md                 # Testing function reference
@@ -906,10 +995,11 @@ team-plugins/
 
 **Key Benefits of This Structure:**
 - **`plugins/`**: Contains only Chief plugin files (`*_chief-plugin.sh`)
+- **`.chief_secret-vault`**: Portable vault file (automatically syncs with plugins)
 - **`docs/`**: Detailed documentation for each plugin's functions
 - **`templates/`**: Configuration templates for team members, including standardized plugin template
 - **`scripts/`**: Supporting scripts that plugins can call
-- **Clear separation**: Plugin files vs. supporting code vs. documentation
+- **Clear separation**: Plugin files vs. supporting code vs. documentation vs. portable secrets
 
 #### 🛡️ **Local Changes Protection**
 

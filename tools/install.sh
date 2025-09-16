@@ -23,10 +23,8 @@ if [[ -f "$VERSION_FILE" ]]; then
   source "$VERSION_FILE"
 else
   # Fallback constants if VERSION file doesn't exist (e.g., standalone install script)
-  export CHIEF_VERSION="v3.0.1"
   export CHIEF_GIT_REPO="https://github.com/randyoyarzabal/chief.git"
   export CHIEF_INSTALL_GIT_BRANCH="main"
-  export CHIEF_WEBSITE="https://chief.reonetlabs.us"
 fi
 
 # Default settings
@@ -97,11 +95,21 @@ confirm() {
 }
 
 print_banner() {
+  # Read version and website from installed Chief VERSION file
+  local version="Unknown"
+  local website="https://chief.reonetlabs.us"  # Default fallback
+  
+  if [[ -f "$CHIEF_PATH/VERSION" ]]; then
+    source "$CHIEF_PATH/VERSION"
+    version="$CHIEF_VERSION"
+    website="$CHIEF_WEBSITE"
+  fi
+  
   echo -e "${YELLOW}        __    _      ____${NC}"
   echo -e "${YELLOW}  _____/ /_  (_)__  / __/${NC}"
   echo -e "${YELLOW} / ___/ __ \\/ / _ \\/ /_  ${NC}"
-  echo -e "${YELLOW}/ /__/ / / / /  __/ __/ ${NC}${CHIEF_VERSION}"
-  echo -e "${YELLOW}\\___/_/ /_/_/\\___/_/ ${CYAN}${CHIEF_WEBSITE}${NC}"
+  echo -e "${YELLOW}/ /__/ / / / /  __/ __/ ${NC}${version}"
+  echo -e "${YELLOW}\\___/_/ /_/_/\\___/_/ ${CYAN}${website}${NC}"
   echo ""
   echo -e "${GREEN}SUCCESS: Chief installed successfully!${NC}"
 }
