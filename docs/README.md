@@ -527,6 +527,28 @@ team-plugins/
 └── README.md                      # Team onboarding guide
 ```
 
+#### 🛡️ **Local Changes Protection**
+
+Chief automatically protects your local plugin modifications when `CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="true"`:
+
+- **Detects local changes** before auto-updating plugins
+- **Warns and prompts** when changes would be overwritten  
+- **Offers safe options**: commit changes first, temporarily disable auto-update, or force update
+- **Prevents data loss** from accidental overwrites during startup
+
+```bash
+# If local changes detected, Chief will prompt:
+# "Local changes found in plugins directory. Auto-update enabled but would overwrite changes.
+#  Temporarily disable PLUGINS_GIT_AUTOUPDATE to preserve your local changes? (y/n)"
+
+# Safely handle local changes:
+cd ~/team-plugins
+git add .
+git commit -m "My local plugin improvements"
+git push origin main
+# Then restart Chief for normal auto-updates
+```
+
 ### 🌟 Team Workflow Benefits
 
 #### **Standardized Tooling**
@@ -661,7 +683,7 @@ chief.config_set config_set_interactive false
 | `CHIEF_CFG_PLUGINS_GIT_BRANCH` | Git branch to use (default: "main") |
 | `CHIEF_CFG_PLUGINS_PATH` | Local plugin directory (also remote repo clone location) |
 | `CHIEF_CFG_PLUGINS_GIT_PATH` | [Remote only] Relative path within repo containing plugins (empty = repo root) |
-| `CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE` | Auto-update plugins on startup |
+| `CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE` | Auto-update plugins on startup (with local changes protection) |
 
 ## 🔧 Built-in Plugins
 

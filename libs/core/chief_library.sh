@@ -294,11 +294,26 @@ function __edit_file() {
   fi
 }
 
+# Helper function to check for local changes in plugins directory
+__check_plugins_local_changes() {
+  # Check if plugins directory is a git repository and has local changes
+  if [[ -d ${CHIEF_CFG_PLUGINS_PATH}/.git ]]; then
+    cd "${CHIEF_CFG_PLUGINS_PATH}"
+    local has_changes=$(git status -s)
+    cd - > /dev/null 2>&1
+    if [[ -n "$has_changes" ]]; then
+      return 0  # Has local changes
+    fi
+  fi
+  return 1  # No local changes or not a git repo
+}
+
 __load_remote_plugins() {
   # Usage: __load_remote_plugins [--verbose] [--force]
   # 
   # Developer usage: Loads remote plugins from a git repository
   # - Checks if autoupdate is enabled or --force flag is provided
+  # - Checks for local changes and warns user if autoupdate is enabled
   # - Prompts user to update if plugins directory is empty/doesn't exist
   # - Clones/updates git repository if necessary
   # - Loads plugins from the git repository
@@ -308,8 +323,37 @@ __load_remote_plugins() {
   #   --force - Force update of plugins
   
   local good_to_load=false
-  # If autoupdate is disabled or --force was used.
-  if ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE} || [[ "$2" == "--force" ]]; then
+  local skip_autoupdate=false
+  
+  # Check for local changes when autoupdate is enabled (but not when --force is used)
+  if ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE} && [[ "$2" != "--force" ]] && __check_plugins_local_changes; then
+    echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} Local changes detected in plugins directory: ${CHIEF_CFG_PLUGINS_PATH}"
+    echo -e "${CHIEF_COLOR_CYAN}Local changes found in plugins directory. Auto-update is enabled but would overwrite your changes.${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_GREEN}1.${CHIEF_NO_COLOR} Commit and push your changes first, then restart Chief"
+    echo -e "  ${CHIEF_COLOR_GREEN}2.${CHIEF_NO_COLOR} Temporarily disable auto-update to keep your changes"
+    echo -e "  ${CHIEF_COLOR_GREEN}3.${CHIEF_NO_COLOR} Force update anyway (${CHIEF_COLOR_RED}WILL LOSE YOUR CHANGES${CHIEF_NO_COLOR})"
+    echo
+    
+    if chief.etc_ask_yes_or_no "Temporarily disable PLUGINS_GIT_AUTOUPDATE to preserve your local changes?"; then
+      skip_autoupdate=true
+      echo -e "${CHIEF_COLOR_YELLOW}Auto-update disabled for this session. Your local changes are safe.${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_CYAN}To commit your changes: cd ${CHIEF_CFG_PLUGINS_PATH} && git add . && git commit -m 'your message' && git push${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_CYAN}To permanently enable auto-update again: set CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=true in your config${CHIEF_NO_COLOR}"
+    else
+      if chief.etc_ask_yes_or_no "Force update anyway? This will ${CHIEF_COLOR_RED}DISCARD ALL LOCAL CHANGES${CHIEF_NO_COLOR}!"; then
+        good_to_load=true
+        echo -e "${CHIEF_COLOR_YELLOW}Proceeding with force update. Local changes will be lost.${CHIEF_NO_COLOR}"
+      else
+        skip_autoupdate=true
+        echo -e "${CHIEF_COLOR_GREEN}Update cancelled. Your local changes are preserved.${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_COLOR_CYAN}Please handle your local changes manually and restart Chief when ready.${CHIEF_NO_COLOR}"
+      fi
+    fi
+  fi
+  
+  # If autoupdate is enabled and not skipped, or --force was used.
+  if ! $skip_autoupdate && (${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE} || [[ "$2" == "--force" ]]); then
     good_to_load=true
   # If the git path isn't set Or path doesn't exist Or it is empty.
   elif [[ -z ${CHIEF_CFG_PLUGINS_PATH} ]] || [[ ! -d ${CHIEF_CFG_PLUGINS_PATH} ]] || [[ -z "$(ls -A ${CHIEF_CFG_PLUGINS_PATH})" ]]; then
@@ -351,6 +395,14 @@ CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}"
     else
       echo "Updating remote plugins repository..."
       cd "${CHIEF_CFG_PLUGINS_PATH}"
+      
+      # If force update was chosen, reset local changes first
+      if [[ "$2" == "--force" ]] || [[ "$good_to_load" == "true" ]] && __check_plugins_local_changes; then
+        echo -e "${CHIEF_COLOR_YELLOW}Resetting local changes...${CHIEF_NO_COLOR}"
+        git reset --hard HEAD
+        git clean -fd
+      fi
+      
       # Check if local branch is different from $CHIEF_CFG_PLUGINS_GIT_BRANCH
       local current_branch=$(git rev-parse --abbrev-ref HEAD)
       if [[ ${current_branch} != ${CHIEF_CFG_PLUGINS_GIT_BRANCH} ]]; then

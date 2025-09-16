@@ -27,6 +27,13 @@
   - Now works correctly when specifying relative paths like `./my-secrets` or `../secrets`
   - Ensures directory creation and file operations work from any working directory
   - Maintains backward compatibility with absolute paths and default locations
+- **Enhanced Remote Plugin Auto-Update Safety**: Added intelligent local changes protection for `CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE`
+  - Detects local modifications in plugins directory before auto-updating
+  - Warns users when local changes would be overwritten by auto-update
+  - Provides interactive options: commit changes first, temporarily disable auto-update, or force update
+  - Prevents accidental loss of local plugin customizations
+  - Guides users with exact commands to safely handle local changes
+  - Maintains all existing functionality while adding safety layer
 
 ## 3.0
 
