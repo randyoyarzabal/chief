@@ -309,7 +309,7 @@ __check_plugins_local_changes() {
 }
 
 __load_remote_plugins() {
-  # Usage: __load_remote_plugins [--verbose] [--force]
+  # Usage: __load_remote_plugins [--verbose] [--force] [--explicit]
   # 
   # Developer usage: Loads remote plugins from a git repository
   # - Checks if autoupdate is enabled or --force flag is provided
@@ -321,9 +321,19 @@ __load_remote_plugins() {
   # Options:
   #   --verbose - Display detailed loading information
   #   --force - Force update of plugins
+  #   --explicit - Explicit user request (always update regardless of CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE)
   
   local good_to_load=false
   local skip_autoupdate=false
+  local explicit_request=false
+  
+  # Check for explicit request flag
+  for arg in "$@"; do
+    if [[ "$arg" == "--explicit" ]]; then
+      explicit_request=true
+      break
+    fi
+  done
   
   # Check for local changes when autoupdate is enabled (but not when --force is used)
   if ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE} && [[ "$2" != "--force" ]] && __check_plugins_local_changes; then
@@ -352,8 +362,8 @@ __load_remote_plugins() {
     fi
   fi
   
-  # If autoupdate is enabled and not skipped, or --force was used.
-  if ! $skip_autoupdate && (${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE} || [[ "$2" == "--force" ]]); then
+  # If autoupdate is enabled and not skipped, or --force was used, or explicit request.
+  if ! $skip_autoupdate && (${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE} || [[ "$2" == "--force" ]] || $explicit_request); then
     good_to_load=true
   # If the git path isn't set Or path doesn't exist Or it is empty.
   elif [[ -z ${CHIEF_CFG_PLUGINS_PATH} ]] || [[ ! -d ${CHIEF_CFG_PLUGINS_PATH} ]] || [[ -z "$(ls -A ${CHIEF_CFG_PLUGINS_PATH})" ]]; then
@@ -421,9 +431,9 @@ CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}"
   # Check for team vault file in plugins repository
   local vault_path
   if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" && -n ${CHIEF_CFG_PLUGINS_GIT_PATH} ]]; then
-    vault_path="${CHIEF_CFG_PLUGINS_PATH}/${CHIEF_CFG_PLUGINS_GIT_PATH}/.chief_secret-vault"
+    vault_path="${CHIEF_CFG_PLUGINS_PATH}/${CHIEF_CFG_PLUGINS_GIT_PATH}/.chief_shared-vault"
   else
-    vault_path="${CHIEF_CFG_PLUGINS_PATH}/.chief_secret-vault"
+    vault_path="${CHIEF_CFG_PLUGINS_PATH}/.chief_shared-vault"
   fi
   
   if [[ -f "$vault_path" ]]; then
@@ -693,13 +703,14 @@ function __chief.hints_text() {
     echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set prompt true${CHIEF_NO_COLOR} for git-aware prompt | ${CHIEF_COLOR_GREEN}chief.git_legend${CHIEF_NO_COLOR} for colors"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set multiline_prompt true${CHIEF_NO_COLOR} for multi-line prompt"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set short_path true${CHIEF_NO_COLOR} for compact directory paths"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set --list${CHIEF_NO_COLOR} to see all available configuration options"
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Plugin Management:${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin [name]${CHIEF_NO_COLOR} to create/edit plugins | ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR} to list"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugins${CHIEF_NO_COLOR} to navigate to plugins directory"
     echo ""
     if [[ ${1} != '--verbose' ]]; then
-      echo -e "${CHIEF_COLOR_CYAN}** Set ${CHIEF_COLOR_GREEN}CHIEF_CFG_HINTS=false${CHIEF_COLOR_CYAN} to disable these hints. **${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_CYAN}** Run ${CHIEF_COLOR_GREEN}chief.config_set hints=false${CHIEF_COLOR_CYAN} to disable these hints. **${CHIEF_NO_COLOR}"
       echo ""
     fi
   else
@@ -1132,7 +1143,7 @@ Set CHIEF_CFG_PLUGINS_TYPE='remote' and CHIEF_CFG_PLUGINS_GIT_REPO in chief.conf
       
       if chief.etc_ask_yes_or_no "Force update anyway? This will ${CHIEF_COLOR_RED}DISCARD ALL LOCAL CHANGES${CHIEF_NO_COLOR}!"; then
         echo -e "${CHIEF_COLOR_YELLOW}Proceeding with force update. Local changes will be lost.${CHIEF_NO_COLOR}"
-        __load_remote_plugins "--verbose" "--force" && {
+        __load_remote_plugins "--verbose" "--force" "--explicit" && {
           echo -e "${CHIEF_COLOR_GREEN}Updated all plugins to the latest version.${CHIEF_NO_COLOR}"
         } || {
           echo -e "${CHIEF_COLOR_RED}Error: Failed to update plugins.${CHIEF_NO_COLOR}"
@@ -1150,7 +1161,7 @@ Set CHIEF_CFG_PLUGINS_TYPE='remote' and CHIEF_CFG_PLUGINS_GIT_REPO in chief.conf
         echo -e "${CHIEF_COLOR_YELLOW}Force update requested - local changes will be discarded.${CHIEF_NO_COLOR}"
       fi
       
-      __load_remote_plugins "--verbose" "$force_flag" && {
+      __load_remote_plugins "--verbose" "$force_flag" "--explicit" && {
         echo -e "${CHIEF_COLOR_GREEN}Updated all plugins to the latest version.${CHIEF_NO_COLOR}"
       } || {
         echo -e "${CHIEF_COLOR_RED}Error: Failed to update plugins.${CHIEF_NO_COLOR}"
