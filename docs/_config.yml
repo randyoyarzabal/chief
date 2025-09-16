@@ -6,12 +6,13 @@ url: https://chief.reonetlabs.us
 baseurl: ""
 
 # GitHub Pages officially supported theme - Cayman  
-theme: cayman
+remote_theme: pages-themes/cayman@v0.2.0
 
 # Site settings for Cayman theme
 show_downloads: true
 
 plugins:
+- jekyll-remote-theme
 - jekyll-feed
 - jekyll-sitemap
 - jekyll-seo-tag
