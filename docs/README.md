@@ -566,7 +566,7 @@ utilities.bash              # Wrong file extension
 This plugin name is used with Chief commands:
 ```bash
 chief.plugin devops         # Edit the devops_chief-plugin.sh file
-chief.plugin testing        # Edit the testing_chief-plugin.sh file  
+chief.plugin testing        # Edit the testing_chief-plugin.sh file
 chief.whereis devops        # Find all functions starting with "devops"
 ```
 
@@ -652,6 +652,61 @@ alias test.watch='npm run test:watch'
 alias test.coverage='npm run test:coverage'
 EOF
 
+# Create team plugin template for consistency
+cat > templates/team_plugin_template.sh << 'EOF'
+#!/usr/bin/env bash
+# Team Plugin: $CHIEF_PLUGIN_NAME
+# Author: [Your Name]
+# Description: [Brief description of plugin functionality]
+
+# Prevent direct execution
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  echo "Error: $(basename "${BASH_SOURCE[0]}") must be sourced, not executed."
+  exit 1
+fi
+
+echo "Team plugin loaded: $CHIEF_PLUGIN_NAME"
+
+# Main function template
+function $CHIEF_PLUGIN_NAME.main() {
+    local USAGE="Usage: \$FUNCNAME [options]
+    
+Description:
+  [Describe what this function does]
+  
+Options:
+  -h, --help    Show this help message
+  
+Examples:
+  \$FUNCNAME             # Basic usage
+  \$FUNCNAME --help      # Show help
+"
+
+    case "${1:-}" in
+        -h|--help)
+            echo -e "\$USAGE"
+            return 0
+            ;;
+        *)
+            echo "🚀 Running $CHIEF_PLUGIN_NAME.main..."
+            # Add your team-specific logic here
+            ;;
+    esac
+}
+
+# Example utility function
+function $CHIEF_PLUGIN_NAME.status() {
+    echo "📊 $CHIEF_PLUGIN_NAME status check..."
+    # Add status check logic
+}
+
+# Team-standard aliases (optional)
+alias $CHIEF_PLUGIN_NAME.help='$CHIEF_PLUGIN_NAME.main --help'
+
+# TODO: Add your team-specific functions below
+# Follow team naming convention: $CHIEF_PLUGIN_NAME.function_name
+EOF
+
 # Add team documentation
 cat > README.md << 'EOF'
 # Team Bash Plugins
@@ -680,12 +735,21 @@ chief.config_set plugins_git_branch "main"
 chief.config_set plugins_path "$HOME/team-plugins"
 chief.config_set plugins_git_path "plugins"
 chief.config_set plugins_git_autoupdate true
+chief.config_set plugin_template "$HOME/team-plugins/templates/team_plugin_template.sh"
 
 # Set to remote LAST - Chief will offer to update plugins when git config is ready
 chief.config_set plugins_type remote
 
 # Restart terminal - team plugins are now available!
 chief.reload
+```
+
+## Creating New Team Plugins
+
+Use the team template for consistency:
+```bash
+chief.plugin mynewfeature    # Uses team template automatically
+```
 EOF
 ```
 
@@ -705,6 +769,7 @@ chief.config_set plugins_git_branch "main"
 chief.config_set plugins_path "$HOME/team-plugins"
 chief.config_set plugins_git_path "plugins"  # Relative path within repo
 chief.config_set plugins_git_autoupdate true
+chief.config_set plugin_template "$HOME/team-plugins/templates/team_plugin_template.sh"
 
 # Set to remote LAST - Chief will offer to update plugins when git config is ready
 chief.config_set plugins_type remote
@@ -718,14 +783,12 @@ chief.reload
 #### **Adding New Team Plugins**
 
 ```bash
-# Create new plugin locally first
-chief.plugin newfeature  # Creates in local plugins directory
-
-# Edit and test locally
-code ~/chief_plugins/newfeature_chief-plugin.sh
+# Create new plugin using team template
+chief.plugin newfeature  # Uses team template automatically for consistency
 
 # Test your function
-newfeature.test
+newfeature.main
+newfeature.status
 
 # When ready, copy to team repository
 cd ~/team-plugins  # or your existing repo
@@ -740,16 +803,34 @@ git push origin main
 # Or manually: chief.plugins_update
 ```
 
+#### **Team Template Benefits**
+
+When `CHIEF_CFG_PLUGIN_TEMPLATE` is configured, all team members get:
+
+- **Consistent structure**: Same header, error handling, and function patterns
+- **Team standards**: Pre-defined naming conventions and documentation format
+- **Best practices**: Built-in help functions, usage examples, and error handling
+- **Faster development**: Start with working template instead of blank file
+
+```bash
+# Team member creates new plugin
+chief.plugin monitoring
+
+# File is created with team template:
+# - Standard header with team info
+# - Error handling and sourcing protection
+# - Template functions: monitoring.main, monitoring.status
+# - Team naming conventions and help system
+# - TODO sections for team-specific additions
+```
+
 #### **Editing Existing Team Plugins**
 
 ```bash
 # Navigate to your team plugins directory
 cd ~/team-plugins/plugins  # Adjust path to your setup
 
-# Edit plugin directly
-code devops_chief-plugin.sh
-
-# Or use Chief's plugin editor
+# Edit with Chief's plugin editor
 chief.plugin devops  # Opens editor for devops_chief-plugin.sh
 
 # Test changes locally
@@ -816,7 +897,7 @@ team-plugins/
 │   └── setup-guide.md             # Team onboarding
 ├── templates/                     # Configuration templates
 │   ├── chief_config_template.sh   # Chief configuration template
-│   └── env_template.sh            # Environment variables template
+│   ├── team_plugin_template.sh    # Team-specific plugin template
 ├── scripts/                       # Supporting scripts (not loaded as plugins)
 │   ├── setup-dev-env.sh           # Development environment setup
 │   └── deploy.sh                  # Actual deployment script
@@ -826,7 +907,7 @@ team-plugins/
 **Key Benefits of This Structure:**
 - **`plugins/`**: Contains only Chief plugin files (`*_chief-plugin.sh`)
 - **`docs/`**: Detailed documentation for each plugin's functions
-- **`templates/`**: Configuration templates for team members
+- **`templates/`**: Configuration templates for team members, including standardized plugin template
 - **`scripts/`**: Supporting scripts that plugins can call
 - **Clear separation**: Plugin files vs. supporting code vs. documentation
 
