@@ -2,40 +2,12 @@
 
 ## Unreleased (v3.0.4-dev)
 
-- **Private Function Namespace Refactoring**: Renamed all private functions to use consistent `__chief_*` prefix for better system identification and namespace isolation
-  - **Function Standardization**: 39 private functions renamed from `__*` to `__chief_*` pattern (e.g., `__print` → `__chief_print`, `__load_file` → `__chief_load_file`)
-  - **Core Library Updates**: Updated all references in `chief_library.sh`, `chief.sh`, and core plugins
-  - **Plugin Compatibility**: Updated OpenShift and etc plugins to use new function names
-  - **User Plugin Migration**: Automatically updated user plugins to use new function names instead of providing backward compatibility
-  - **System Isolation**: Prevents naming conflicts with other bash utilities and makes Chief functions easily identifiable in process lists
-  - **Maintainability**: Cleaner codebase with consistent naming conventions for all internal functions
-  - **Test Updates**: Updated test mock functions to match new naming scheme
-- **Enhanced Version Management**: Updated `__chief.bump` function to support complete `-dev` workflow for cleaner release process
-  - **Release Mode**: Added `release` keyword to automatically convert `-dev` versions to release versions (e.g., `v3.0.4-dev` → `v3.0.4`)
-  - **Next Dev Mode**: Added `next-dev` keyword to start next development cycle (e.g., `v3.0.4` → `v3.0.5-dev`)
-  - **File Updates**: Now updates VERSION, UPDATES, RELEASE_NOTES.md, README.md, and docs files with version references and badges
-  - **Automatic Sections**: `next-dev` automatically creates new "Unreleased" sections in documentation files
-  - **Workflow Integration**: Streamlined version management system designed to work with GitHub releases (no git tagging)
-- **GitHub Actions CI/CD Integration**: Added comprehensive automated testing workflow for continuous integration
-  - **Automated Testing**: All bash scripts validated on every push and pull request to main/dev branches
-  - **Cross-Platform Testing**: Tests run on both Ubuntu and macOS environments
-  - **Build Status Indicators**: Green checkmarks ✅ or red X ❌ visible on commits and PRs
-  - **Email Notifications**: Automatic notifications when builds fail on your commits
-  - **Manual Triggers**: Run tests manually from GitHub Actions tab when needed
-- **Comprehensive Test Suite**: Created complete local and CI test infrastructure
-  - **Syntax Validation**: Bash syntax checking using `bash -n` for all scripts
-  - **Source/Loading Tests**: Validates that all scripts can be sourced without errors in isolated environments
-  - **Plugin-Specific Tests**: Verifies plugin naming conventions, structure, and loading behavior
-  - **Integration Tests**: End-to-end functionality testing including directory structure and core file validation
-  - **ShellCheck Integration**: Optional static analysis with informational style suggestions (non-blocking)
-- **Local Testing Capability**: Same test suite runs locally with `./test/run-tests.sh`
-  - **Immediate Feedback**: Catch issues before pushing to remote repository
-  - **Developer Workflow**: Run `./test/syntax-tests.sh` for quick syntax-only checks
-  - **Verbose Mode**: Use `-v` flag for detailed test output and debugging information
-- **Quality Assurance**: Prevents broken bash scripts from entering main/dev branches
-  - **Pre-commit Validation**: Syntax errors caught before they affect users
-  - **Plugin Quality**: Ensures all plugins follow naming conventions and load properly
-  - **Cross-environment Compatibility**: Tests ensure scripts work across different Unix-like systems
+- **Air-Gapped Installation Support**: Added `./tools/install.sh --local` for disconnected environments with restricted internet access
+- **Private Function Namespace Refactoring**: Renamed all 39 private functions to use `__chief_*` prefix (e.g., `__print` → `__chief_print`) for better system isolation and conflict prevention
+- **Enhanced Version Management**: Added `release` and `next-dev` keywords to `__chief.bump` function with automatic documentation updates and streamlined development workflow
+- **GitHub Actions CI/CD Integration**: Automated testing on every push/PR with cross-platform validation (Ubuntu + macOS) and build status indicators
+- **Comprehensive Test Suite**: Added syntax validation, plugin testing, and integration tests that run locally (`./test/run-tests.sh`) and in CI
+- **Quality Assurance**: Prevents broken scripts from entering main/dev branches with pre-commit validation and plugin quality control
 
 ## 3.0.3
 
