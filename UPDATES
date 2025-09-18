@@ -1,5 +1,28 @@
 # Chief Updates
 
+## 3.0.4
+
+- **GitHub Actions CI/CD Integration**: Added comprehensive automated testing workflow for continuous integration
+  - **Automated Testing**: All bash scripts validated on every push and pull request to main/dev branches
+  - **Cross-Platform Testing**: Tests run on both Ubuntu and macOS environments
+  - **Build Status Indicators**: Green checkmarks ✅ or red X ❌ visible on commits and PRs
+  - **Email Notifications**: Automatic notifications when builds fail on your commits
+  - **Manual Triggers**: Run tests manually from GitHub Actions tab when needed
+- **Comprehensive Test Suite**: Created complete local and CI test infrastructure
+  - **Syntax Validation**: Bash syntax checking using `bash -n` for all scripts
+  - **Source/Loading Tests**: Validates that all scripts can be sourced without errors in isolated environments
+  - **Plugin-Specific Tests**: Verifies plugin naming conventions, structure, and loading behavior
+  - **Integration Tests**: End-to-end functionality testing including directory structure and core file validation
+  - **ShellCheck Integration**: Optional static analysis with informational style suggestions (non-blocking)
+- **Local Testing Capability**: Same test suite runs locally with `./test/run-tests.sh`
+  - **Immediate Feedback**: Catch issues before pushing to remote repository
+  - **Developer Workflow**: Run `./test/syntax-tests.sh` for quick syntax-only checks
+  - **Verbose Mode**: Use `-v` flag for detailed test output and debugging information
+- **Quality Assurance**: Prevents broken bash scripts from entering main/dev branches
+  - **Pre-commit Validation**: Syntax errors caught before they affect users
+  - **Plugin Quality**: Ensures all plugins follow naming conventions and load properly
+  - **Cross-environment Compatibility**: Tests ensure scripts work across different Unix-like systems
+
 ## 3.0.3
 
 - **Updated Default Vault File Names**: Clarified vault file naming convention for better distinction between personal and shared vaults

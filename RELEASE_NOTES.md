@@ -1,62 +1,73 @@
-# Chief v3.0.2 Release Notes
+# Chief v3.0.4 Release Notes
 
 ## 🚀 Key New Features
 
-### 🔐 Portable Vault Files (Major Feature)
-- **Multi-system sync**: Store `.chief_shared-vault` in plugins repository for automatic sync across systems
-- **Zero configuration**: Vault files detected automatically when loading remote plugins  
-- **Secure portability**: Encrypted secrets follow users across laptop, server, and development environments
-- **Cross-system consistency**: Same vault file everywhere via git synchronization
-- **In-place usage**: Vault files used directly from plugins directory (no copying required)
-- **Team collaboration**: Optional team vault sharing through repository
-- **🚨 Security**: In team environments, `chief.vault_file-edit` (no params) edits SHARED team vault - always specify path for personal secrets
+### 🔄 GitHub Actions CI/CD Integration (Major Feature)
+- **Automated Testing**: Comprehensive test suite runs on every push and pull request to main/dev branches
+- **Cross-Platform Validation**: Tests execute on both Ubuntu and macOS environments in parallel
+- **Build Status Visibility**: Green checkmarks ✅ or red X ❌ on commits, PRs, and repository main page
+- **Email Notifications**: Automatic alerts when builds fail on your commits or pull requests
+- **Manual Triggers**: Run tests on-demand from GitHub Actions tab for any branch
+- **Zero Configuration**: Works immediately after pushing - no manual setup required
 
-### ⚡ Improved Vault Editing UX
-- **Eliminated double password prompts**: Default behavior no longer auto-loads after editing
-- **Opt-in auto-loading**: Use `--load` flag when you want automatic loading after editing
-- **Better workflow**: Edit vault without being prompted for password twice
-- **Maintains security**: No compromise on encryption or security practices
+### 🧪 Comprehensive Test Suite (Major Feature)
+- **Syntax Validation**: Uses `bash -n` to validate syntax of all bash scripts in the project
+- **Source/Loading Tests**: Verifies all scripts can be sourced without errors in isolated environments
+- **Plugin-Specific Tests**: Validates plugin naming conventions, structure, and loading behavior
+- **Integration Tests**: End-to-end testing of directory structure, core files, and full environment simulation
+- **ShellCheck Integration**: Optional static analysis providing style suggestions (informational only)
+- **Local + CI Compatibility**: Identical tests run locally (`./test/run-tests.sh`) and in GitHub Actions
 
-## 🛡️ Enhanced Safety & Reliability (from v3.0.1)
-
-### Plugin Safety
-- **Smart Local Changes Protection**: Prevents accidental loss of plugin customizations during auto-updates
-- Interactive prompts when local changes detected: commit first, disable auto-update, or force update
-- Fixed `chief.plugins_update` to respect local changes (no more silent overwrites)
-
-### Update Management  
-- **Branch Configuration**: Track "main" (stable) or "dev" (bleeding-edge) with `CHIEF_CFG_UPDATE_BRANCH`
-- **Fixed shallow clone issues**: Installation now supports full branch switching
-- **Improved git operations**: Better handling of remote branches and updates
+### ⚡ Developer Experience Improvements
+- **Immediate Feedback**: Run `./test/run-tests.sh` locally to catch issues before pushing
+- **Granular Testing**: Individual test scripts for different validation types (syntax, plugins, integration)
+- **Verbose Mode**: Use `-v` flag for detailed test output and debugging information
+- **Quality Gates**: Prevents broken bash scripts from entering main/dev branches
 
 ## 🎯 Benefits for Users
 
-### **Multi-System Portability** 🚀
-- **Same setup everywhere**: Plugins and encrypted secrets sync automatically across all your systems
-- **Zero reconfiguration**: Once set up, Chief works identically on laptop, server, and CI/CD
-- **Secure secret sharing**: Encrypted vault files travel with your plugins via git
+### **Code Quality Assurance** 🔍
+- **Automatic Validation**: Every commit automatically tested to prevent broken scripts
+- **Multi-Platform Support**: Ensures Chief works consistently across Ubuntu and macOS
+- **Early Error Detection**: Catch syntax errors and loading issues before they affect users
+- **Plugin Quality Control**: Validates plugin naming conventions and structure automatically
 
-### **Enhanced User Experience** ⚡
-- **No more double passwords**: Vault editing workflow dramatically improved
-- **Protected local changes**: Auto-updates won't accidentally delete your plugin customizations
-- **Better error handling**: Clear prompts and guidance when conflicts arise
+### **Enhanced Developer Experience** ⚡
+- **Local Testing**: Run the same tests locally before pushing with `./test/run-tests.sh`
+- **Immediate Feedback**: Know within 2-3 minutes if your changes break anything
+- **Granular Control**: Run individual test suites (syntax, plugins, integration) as needed
+- **Verbose Debugging**: Use `-v` flag for detailed output when troubleshooting issues
 
 ### **Team Collaboration** 👥
-- **Optional team vaults**: Share encrypted secrets alongside shared plugins
-- **Safe plugin updates**: Team members protected from losing local modifications
-- **Consistent environments**: Same functions, aliases, and tools across the entire team
+- **Build Status Transparency**: Everyone can see if the latest changes pass tests
+- **Protected Branches**: Prevent merging broken code with required status checks
+- **Consistent Quality**: Same validation standards applied to all contributors
+- **Automated Notifications**: Team members notified of build failures automatically
+
+### **Continuous Integration Benefits** 🚀
+- **Zero Configuration**: GitHub Actions workflow works immediately after first push
+- **Free for Public Repos**: Unlimited test runs at no cost for open source projects
+- **Cross-Platform Testing**: Validate compatibility across different operating systems
+- **Historical Tracking**: View test results and trends over time in Actions tab
 
 ## 📋 Upgrade Notes
 
-### For Existing Users (v3.0.1 → v3.0.2)
-- **No breaking changes**: All existing configurations remain compatible
-- **New vault features**: Automatic if you store `.chief_shared-vault` in plugins repo
-- **Better editing UX**: `chief.vault_file-edit` no longer auto-loads by default (use `--load` if desired)
+### For Existing Users (v3.0.3 → v3.0.4)
+- **No breaking changes**: All existing configurations and workflows remain compatible
+- **New test infrastructure**: Comprehensive test suite added in `test/` directory
+- **GitHub Actions automatic**: CI/CD workflow activates automatically on first push to main/dev
+- **Local testing available**: Run `./test/run-tests.sh` to validate changes before pushing
 
 ### For New Users
-- **Full clone installation**: New installs support branch switching out of the box
-- **Portable vault ready**: Simply add `.chief_shared-vault` to your plugins repo for cross-system sync
-- **⚠️ Team Security**: Use `chief.vault_file-edit ~/.personal-vault` for private secrets, not `chief.vault_file-edit` alone
+- **Full testing ready**: Fresh installations include complete test infrastructure
+- **Immediate CI/CD**: GitHub Actions workflow works from first commit
+- **Quality assured**: All commits automatically validated for syntax and functionality
+
+### For Contributors/Developers
+- **Test before push**: Always run `./test/run-tests.sh` locally to catch issues early
+- **Individual test suites**: Use `./test/syntax-tests.sh`, `./test/plugin-tests.sh`, etc. for targeted testing
+- **Verbose debugging**: Add `-v` flag to any test script for detailed output
+- **GitHub Actions**: Monitor build status in repository Actions tab
 
 ---
 
