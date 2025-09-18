@@ -36,7 +36,7 @@ chief.config_set -y PLUGINS_TYPE="remote"             # 🔑 Enable remote sync
 chief.config_set -y MULTILINE_PROMPT=true 
 
 # 4. (Optional) Load your encrypted secrets (if exists)
-chief.vault_file-load                          # Team vault (.chief_shared-vault - if exists, automatically loaded)
+chief.vault_file-load  # Team vault (.chief_shared-vault - if exists)
 chief.vault_file-load ~/.my-personal-vault     # Personal vault
 ```
 
@@ -55,7 +55,7 @@ chief.vault_file-load ~/.my-personal-vault     # Personal vault
 # See what's available
 chief.help
 
-# Find any function/alias
+# Find any function, alias or env var
 chief.whereis git_status
 
 # Create a custom function
