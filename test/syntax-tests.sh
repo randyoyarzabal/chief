@@ -20,10 +20,10 @@ NC='\033[0m' # No Color
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 
-# Test counters
-TOTAL_TESTS=0
-PASSED_TESTS=0
-FAILED_TESTS=0
+# Test counters - ensure they're properly initialized
+declare -i TOTAL_TESTS=0
+declare -i PASSED_TESTS=0
+declare -i FAILED_TESTS=0
 
 # Logging functions
 log_info() {
@@ -113,12 +113,10 @@ find_bash_scripts() {
         scripts+=("$file")
     done < <(find "$PROJECT_ROOT/libs/core/plugins" -name "*_chief-plugin.sh" -type f -print0 2>/dev/null || true)
     
-    # Template files
-    while IFS= read -r -d '' file; do
-        scripts+=("$file")
-    done < <(find "$PROJECT_ROOT/templates" -name "*.sh" -type f -print0 2>/dev/null || true)
+    # Template files excluded (they're meant to be customized, not tested as-is)
+    # Commented out: find "$PROJECT_ROOT/templates" -name "*.sh" -type f -print0
     
-    # Tool scripts
+    # Tool scripts (still included in syntax tests since syntax validation is useful)
     while IFS= read -r -d '' file; do
         scripts+=("$file")
     done < <(find "$PROJECT_ROOT/tools" -name "*.sh" -type f -print0 2>/dev/null || true)

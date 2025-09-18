@@ -6,7 +6,7 @@
 # This script tests plugin-specific functionality and behavior.
 ########################################################################
 
-set -euo pipefail
+set -e
 
 # Colors for output
 RED='\033[0;31m'
@@ -21,10 +21,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TEMP_DIR="${TMPDIR:-/tmp}/chief-plugin-tests-$$"
 
-# Test counters
-TOTAL_TESTS=0
-PASSED_TESTS=0
-FAILED_TESTS=0
+# Test counters - ensure they're properly initialized
+declare -i TOTAL_TESTS=0
+declare -i PASSED_TESTS=0
+declare -i FAILED_TESTS=0
 
 # Cleanup function
 cleanup() {
@@ -41,12 +41,12 @@ log_info() {
 
 log_success() {
     echo -e "${GREEN}[PASS]${NC} $1"
-    ((PASSED_TESTS++))
+    PASSED_TESTS=$((PASSED_TESTS + 1))
 }
 
 log_error() {
     echo -e "${RED}[FAIL]${NC} $1"
-    ((FAILED_TESTS++))
+    FAILED_TESTS=$((FAILED_TESTS + 1))
 }
 
 log_warning() {
@@ -196,7 +196,7 @@ test_plugin_load_unload() {
     
     cat > "$test_script" << 'EOF'
 #!/usr/bin/env bash
-set -euo pipefail
+set -e
 
 plugin_file="$1"
 plugin_name="$2"

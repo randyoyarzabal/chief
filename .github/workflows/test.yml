@@ -43,11 +43,33 @@ jobs:
     - name: Make test scripts executable
       run: |
         chmod +x test/*.sh
+        # Also ensure chief.sh is executable
+        chmod +x chief.sh
     
-    # Step 5: Run the full test suite
-    - name: Run Chief test suite
+    # Step 5: Run individual test suites for better debugging
+    - name: Run syntax tests
       run: |
-        echo "🚀 Starting Chief test suite..."
+        echo "🧪 Running syntax validation tests..."
+        ./test/syntax-tests.sh
+    
+    - name: Run source tests
+      run: |
+        echo "📋 Running source/loading tests..."
+        ./test/source-tests.sh
+    
+    - name: Run plugin tests
+      run: |
+        echo "🔌 Running plugin-specific tests..."
+        ./test/plugin-tests.sh
+    
+    - name: Run integration tests
+      run: |
+        echo "🚀 Running integration tests..."
+        ./test/integration-tests.sh
+    
+    - name: Run full test suite
+      run: |
+        echo "🎯 Running complete test suite..."
         ./test/run-tests.sh
     
     # Step 6: Upload test results (optional, for artifacts)

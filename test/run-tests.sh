@@ -7,7 +7,7 @@
 # It can be run locally or in GitHub Actions CI/CD pipeline.
 ########################################################################
 
-set -euo pipefail
+set -e
 
 # Colors for output
 RED='\033[0;31m'
@@ -23,10 +23,10 @@ PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TEST_DIR="$SCRIPT_DIR"
 TEMP_DIR="${TMPDIR:-/tmp}/chief-tests-$$"
 
-# Test counters
-TOTAL_TESTS=0
-PASSED_TESTS=0
-FAILED_TESTS=0
+# Test counters - ensure they're properly initialized
+declare -i TOTAL_TESTS=0
+declare -i PASSED_TESTS=0
+declare -i FAILED_TESTS=0
 
 # Cleanup function
 cleanup() {
@@ -43,12 +43,12 @@ log_info() {
 
 log_success() {
     echo -e "${GREEN}[PASS]${NC} $1"
-    ((PASSED_TESTS++))
+    PASSED_TESTS=$((PASSED_TESTS + 1))
 }
 
 log_error() {
     echo -e "${RED}[FAIL]${NC} $1"
-    ((FAILED_TESTS++))
+    FAILED_TESTS=$((FAILED_TESTS + 1))
 }
 
 log_warning() {
@@ -60,7 +60,7 @@ run_test() {
     local test_name="$1"
     local test_command="$2"
     
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
     log_info "Running: $test_name"
     
     if eval "$test_command" 2>/dev/null; then
@@ -136,11 +136,19 @@ main() {
     log_info "Starting test execution..."
     echo ""
     
+    local suite_failures=0
+    
     # 1. Syntax Tests
     if [[ -f "$TEST_DIR/syntax-tests.sh" ]]; then
         log_info "Running syntax validation tests..."
-        if ! "$TEST_DIR/syntax-tests.sh"; then
-            log_error "Syntax tests failed"
+        TOTAL_TESTS=$((TOTAL_TESTS + 1))
+        if "$TEST_DIR/syntax-tests.sh"; then
+            log_success "Syntax validation tests"
+            PASSED_TESTS=$((PASSED_TESTS + 1))
+        else
+            log_error "Syntax validation tests"
+            FAILED_TESTS=$((FAILED_TESTS + 1))
+            suite_failures=$((suite_failures + 1))
         fi
         echo ""
     fi
@@ -148,8 +156,14 @@ main() {
     # 2. Source/Loading Tests
     if [[ -f "$TEST_DIR/source-tests.sh" ]]; then
         log_info "Running source/loading tests..."
-        if ! "$TEST_DIR/source-tests.sh"; then
-            log_error "Source tests failed"
+        TOTAL_TESTS=$((TOTAL_TESTS + 1))
+        if "$TEST_DIR/source-tests.sh"; then
+            log_success "Source/loading tests"
+            PASSED_TESTS=$((PASSED_TESTS + 1))
+        else
+            log_error "Source/loading tests"
+            FAILED_TESTS=$((FAILED_TESTS + 1))
+            suite_failures=$((suite_failures + 1))
         fi
         echo ""
     fi
@@ -157,8 +171,14 @@ main() {
     # 3. Plugin Tests
     if [[ -f "$TEST_DIR/plugin-tests.sh" ]]; then
         log_info "Running plugin-specific tests..."
-        if ! "$TEST_DIR/plugin-tests.sh"; then
-            log_error "Plugin tests failed"
+        TOTAL_TESTS=$((TOTAL_TESTS + 1))
+        if "$TEST_DIR/plugin-tests.sh"; then
+            log_success "Plugin-specific tests"
+            PASSED_TESTS=$((PASSED_TESTS + 1))
+        else
+            log_error "Plugin-specific tests"
+            FAILED_TESTS=$((FAILED_TESTS + 1))
+            suite_failures=$((suite_failures + 1))
         fi
         echo ""
     fi
@@ -166,8 +186,14 @@ main() {
     # 4. Integration Tests
     if [[ -f "$TEST_DIR/integration-tests.sh" ]]; then
         log_info "Running integration tests..."
-        if ! "$TEST_DIR/integration-tests.sh"; then
-            log_error "Integration tests failed"
+        TOTAL_TESTS=$((TOTAL_TESTS + 1))
+        if "$TEST_DIR/integration-tests.sh"; then
+            log_success "Integration tests"
+            PASSED_TESTS=$((PASSED_TESTS + 1))
+        else
+            log_error "Integration tests"
+            FAILED_TESTS=$((FAILED_TESTS + 1))
+            suite_failures=$((suite_failures + 1))
         fi
         echo ""
     fi

@@ -21,10 +21,10 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 TEMP_DIR="${TMPDIR:-/tmp}/chief-integration-tests-$$"
 
-# Test counters
-TOTAL_TESTS=0
-PASSED_TESTS=0
-FAILED_TESTS=0
+# Test counters - ensure they're properly initialized
+declare -i TOTAL_TESTS=0
+declare -i PASSED_TESTS=0
+declare -i FAILED_TESTS=0
 
 # Cleanup function
 cleanup() {
