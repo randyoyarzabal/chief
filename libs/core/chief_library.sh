@@ -2946,7 +2946,7 @@ ${CHIEF_COLOR_BLUE}Output Features:${CHIEF_NO_COLOR}
 
 # INTERNAL: Version bump function for Chief development
 function __chief.bump() {
-  # Usage: __chief.bump <new_version> [--tag] [--dry-run]
+  # Usage: __chief.bump <new_version> [--dry-run]
   # WARNING: This is a development-only function, not for end users
   
   local usage="Usage: $FUNCNAME <new_version> [--dry-run]
@@ -2972,7 +2972,7 @@ Examples:
   $FUNCNAME next-dev                  # Convert v3.0.4 → v3.0.5-dev for next development cycle
   $FUNCNAME next-dev --dry-run        # Preview next dev cycle setup
   
-Note: This function only handles version updates. Use GitHub releases for tagging and publishing."
+Note: This function only handles version updates. Create GitHub releases manually for tagging and publishing."
 
   # Parse arguments
   local new_version=""
@@ -3013,6 +3013,9 @@ Note: This function only handles version updates. Use GitHub releases for taggin
     return 1
   fi
   
+  # Get current version early for keyword processing
+  local current_version="$CHIEF_VERSION"
+  
   # Handle special keywords
   if [[ "$new_version" == "release" ]]; then
     if [[ "$current_version" =~ ^(v[0-9]+\.[0-9]+(\.[0-9]+)?)-dev$ ]]; then
@@ -3051,8 +3054,7 @@ Note: This function only handles version updates. Use GitHub releases for taggin
     new_version="${new_version}.0"
   fi
   
-  # Get current version
-  local current_version="$CHIEF_VERSION"
+  # Set version file path
   local version_file="${CHIEF_PATH}/VERSION"
   
   __chief_print_info "Chief Development Version Bump"
@@ -3204,34 +3206,6 @@ Note: This function only handles version updates. Use GitHub releases for taggin
     fi
   done
   
-  # Create git tag if requested
-  if $create_tag; then
-    __chief_print_info "Checking git tag..."
-    
-    # Check current branch - ONLY allow tagging from main
-    local current_branch=$(git branch --show-current 2>/dev/null || echo "unknown")
-    
-    if [[ "$current_branch" != "main" ]]; then
-      __chief_print_error "Git tag: Can only create release tags from 'main' branch"
-      __chief_print_error "Git tag: Currently on branch: $current_branch"
-      __chief_print_info "Git tag: Switch to main first: git checkout main && git pull origin main"
-      return 1
-    fi
-    
-    if git tag -l | grep -q "^${new_version}$" 2>/dev/null; then
-      __chief_print_info "Git tag: Tag $new_version already exists"
-    elif $dry_run; then
-      __chief_print_info "Git tag: Would create tag $new_version from main branch"
-    else
-      if git tag -a "$new_version" -m "Release $new_version" 2>/dev/null; then
-        __chief_print_success "Git tag: Created tag $new_version from main branch"
-        __chief_print_info "Run 'git push origin $new_version' to push the tag"
-      else
-        __chief_print_error "Git tag: Failed to create tag $new_version"
-        return 1
-      fi
-    fi
-  fi
   
   # Summary
   echo ""
@@ -3246,15 +3220,9 @@ Note: This function only handles version updates. Use GitHub releases for taggin
     find "${CHIEF_PATH}" -name "*.backup.*" -type f 2>/dev/null | sort | head -n -3 | xargs rm -f 2>/dev/null || true
     
     __chief_print_info "Next steps:"
-    if $create_tag; then
-      __chief_print_info "  1. Review changes: git diff"
-      __chief_print_info "  2. Commit: git add -A && git commit -m 'Bump version to $new_version'"
-      __chief_print_info "  3. Push: git push origin main"
-      __chief_print_info "  4. Push tag: git push origin $new_version"
-    else
-      __chief_print_info "  1. Review changes: git diff"
-      __chief_print_info "  2. Commit: git add -A && git commit -m 'Bump version to $new_version'"
-      __chief_print_info "  3. Create tag: $FUNCNAME $new_version --tag"
-    fi
+    __chief_print_info "  1. Review changes: git diff"
+    __chief_print_info "  2. Commit: git add -A && git commit -m 'Bump version to $new_version'"
+    __chief_print_info "  3. Push: git push origin main"
+    __chief_print_info "  4. Create GitHub release manually for tagging"
   fi
 }
