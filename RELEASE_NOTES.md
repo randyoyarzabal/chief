@@ -38,9 +38,10 @@
 - **Rich help documentation** and error handling for certificate operations
 
 ### ☸️ OpenShift Management Enhancements
-- **`chief.oc.show_stuck_resources`** - Professional help documentation and improved user experience
+- **`chief.oc.show_stuck_resources`** - Enhanced with `--fix` option to automatically remove finalizers from terminating resources
+- **`chief.oc_delete_stuck_ns`** - Force delete stuck terminating namespaces using Red Hat's troubleshooting methodology
 - **`chief.oc.approve_csrs`** - Complete rewrite with interactive/batch modes, filtering, and safety features
-- **Color-coded terminal output** and comprehensive error handling following codebase standards
+- **Professional documentation** and color-coded terminal output following codebase standards
 
 ### 🛠️ System Utilities Enhancement
 - **`chief.etc.chmod-f`** - Enhanced file permission management with verbose/dry-run modes and validation
