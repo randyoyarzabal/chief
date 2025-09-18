@@ -147,17 +147,43 @@ EOF
     
     chmod +x "$test_script"
     
-    # Run the test in a clean subshell
-    if bash "$test_script" "$plugin_file" 2>/dev/null; then
-        log_success "Plugin load OK: $plugin_name"
-        return 0
-    else
-        log_error "Plugin load FAILED: $plugin_name"
-        # Show the actual error for debugging
-        echo -e "${RED}Error details:${NC}"
-        bash "$test_script" "$plugin_file" 2>&1 | head -10 | sed 's/^/  /'
-        return 1
+    # Run the test with timeout using background process and kill
+    local test_pid
+    local timeout_seconds=15
+    
+    # Start the test in background
+    bash "$test_script" "$plugin_file" 2>/dev/null &
+    test_pid=$!
+    
+    # Wait for completion or timeout
+    local count=0
+    while [[ $count -lt $timeout_seconds ]]; do
+        if ! kill -0 "$test_pid" 2>/dev/null; then
+            # Process has completed
+            wait "$test_pid"
+            local exit_code=$?
+            if [[ $exit_code -eq 0 ]]; then
+                log_success "Plugin load OK: $plugin_name"
+                return 0
+            else
+                log_error "Plugin load FAILED: $plugin_name (exit code: $exit_code)"
+                return 1
+            fi
+        fi
+        sleep 1
+        count=$((count + 1))
+    done
+    
+    # Timeout reached - kill the process
+    if kill -0 "$test_pid" 2>/dev/null; then
+        kill -TERM "$test_pid" 2>/dev/null || true
+        sleep 2
+        kill -KILL "$test_pid" 2>/dev/null || true
+        wait "$test_pid" 2>/dev/null || true
     fi
+    
+    log_error "Plugin load TIMED OUT: $plugin_name (after ${timeout_seconds} seconds)"
+    return 1
 }
 
 # Template files are excluded from testing (they're meant to be customized)
@@ -202,6 +228,15 @@ chief_abs_path="$(cd "$(dirname "$chief_file")" && pwd)/$(basename "$chief_file"
 export CHIEF_PATH="$(dirname "$chief_abs_path")"
 export CHIEF_CONFIG="$CHIEF_PATH/templates/chief_config_template.sh"
 
+# Set minimal config to avoid plugin loading issues
+export CHIEF_CFG_BANNER=false
+export CHIEF_CFG_VERBOSE=false
+export CHIEF_CFG_HINTS=false
+export CHIEF_CFG_AUTOCHECK_UPDATES=false
+export CHIEF_CFG_COLORED_LS=false
+export CHIEF_CFG_PLUGINS_TYPE="local"
+export CHIEF_CFG_PLUGINS_PATH="/nonexistent"  # Avoid loading any user plugins
+
 # Try to source chief.sh in lib-only mode
 # Redirect output to suppress any loading messages
 source "$chief_abs_path" --lib-only >/dev/null 2>&1 || exit 1
@@ -211,17 +246,44 @@ EOF
     
     chmod +x "$test_script"
     
-    # Run the test in a clean subshell
-    if bash "$test_script" "$chief_file" 2>/dev/null; then
-        log_success "Chief lib-only mode OK"
-        return 0
-    else
-        log_error "Chief lib-only mode FAILED"
-        # Show the actual error for debugging
-        echo -e "${RED}Error details:${NC}"
-        bash "$test_script" "$chief_file" 2>&1 | head -10 | sed 's/^/  /'
-        return 1
+    # Run the test with timeout using background process and kill
+    local test_pid
+    local timeout_seconds=30
+    
+    # Start the test in background
+    bash "$test_script" "$chief_file" 2>/dev/null &
+    test_pid=$!
+    
+    # Wait for completion or timeout
+    local count=0
+    while [[ $count -lt $timeout_seconds ]]; do
+        if ! kill -0 "$test_pid" 2>/dev/null; then
+            # Process has completed
+            wait "$test_pid"
+            local exit_code=$?
+            if [[ $exit_code -eq 0 ]]; then
+                log_success "Chief lib-only mode OK"
+                return 0
+            else
+                log_error "Chief lib-only mode FAILED (exit code: $exit_code)"
+                return 1
+            fi
+        fi
+        sleep 1
+        count=$((count + 1))
+    done
+    
+    # Timeout reached - kill the process
+    if kill -0 "$test_pid" 2>/dev/null; then
+        kill -TERM "$test_pid" 2>/dev/null || true
+        sleep 2
+        kill -KILL "$test_pid" 2>/dev/null || true
+        wait "$test_pid" 2>/dev/null || true
     fi
+    
+    log_error "Chief lib-only mode TIMED OUT after ${timeout_seconds} seconds"
+    echo -e "${RED}This suggests a hang during plugin loading or configuration${NC}"
+    return 1
 }
 
 # Main execution
