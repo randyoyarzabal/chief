@@ -19,93 +19,61 @@ jobs:
     # Use Ubuntu latest (free for public repos)
     runs-on: ubuntu-latest
     
-    # Set a timeout to prevent runaway builds
-    timeout-minutes: 10
+    # Set a reasonable timeout - tests should complete in 5-10 minutes
+    timeout-minutes: 15
     
     steps:
     # Step 1: Get the code
     - name: Checkout repository
       uses: actions/checkout@v4
     
-    # Step 2: Install ShellCheck for static analysis
-    - name: Install ShellCheck
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y shellcheck
+    # Step 2: Cache apt packages to speed up installation
+    - name: Cache apt packages
+      uses: awalsh128/cache-apt-pkgs-action@latest
+      with:
+        packages: shellcheck python3 python3-pip
+        version: 1.0
     
-    # Step 3: Install additional tools if needed
-    - name: Install additional tools
-      run: |
-        # Install any other tools your scripts might need
-        sudo apt-get install -y python3 python3-pip
-    
-    # Step 4: Make test scripts executable
+    # Step 3: Make test scripts executable
     - name: Make test scripts executable
       run: |
         chmod +x test/*.sh
         # Also ensure chief.sh is executable
         chmod +x chief.sh
     
-    # Step 5: Run individual test suites for better debugging
-    - name: Run syntax tests
+    # Step 4: Run complete test suite (this calls all individual tests)
+    - name: Run complete test suite
       run: |
-        echo "🧪 Running syntax validation tests..."
-        ./test/syntax-tests.sh
-    
-    - name: Run source tests
-      run: |
-        echo "📋 Running source/loading tests..."
-        ./test/source-tests.sh
-    
-    - name: Run plugin tests
-      run: |
-        echo "🔌 Running plugin-specific tests..."
-        ./test/plugin-tests.sh
-    
-    - name: Run integration tests
-      run: |
-        echo "🚀 Running integration tests..."
-        ./test/integration-tests.sh
-    
-    - name: Run full test suite
-      run: |
-        echo "🎯 Running complete test suite..."
+        echo "🎯 Running Chief test suite..."
         ./test/run-tests.sh
     
-    # Step 6: Upload test results (optional, for artifacts)
+    # Step 5: Upload test results (optional, for artifacts)
     - name: Upload test results
       if: always()  # Run even if tests fail
       uses: actions/upload-artifact@v4
       with:
-        name: test-results
+        name: test-results-ubuntu
         path: |
           test/
           *.log
         retention-days: 7
 
-  # Optional: Run on multiple platforms
+  # Cross-platform compatibility testing (lighter test suite)
   cross-platform-test:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [macos-latest]  # Remove Ubuntu duplicate since main job covers it
       # Don't fail the entire matrix if one OS fails
       fail-fast: false
     
-    timeout-minutes: 10
+    timeout-minutes: 15
     
     steps:
     - name: Checkout repository
       uses: actions/checkout@v4
     
-    - name: Install ShellCheck (Ubuntu)
-      if: matrix.os == 'ubuntu-latest'
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y shellcheck
-    
     - name: Install ShellCheck (macOS)
-      if: matrix.os == 'macos-latest'
       run: |
         brew install shellcheck
     
@@ -113,12 +81,9 @@ jobs:
       run: |
         chmod +x test/*.sh
     
-    - name: Run syntax tests only (cross-platform)
+    # Run core tests only on cross-platform to save time
+    - name: Run syntax and source tests (cross-platform)
       run: |
-        echo "🧪 Running syntax tests on ${{ matrix.os }}..."
+        echo "🧪 Running core tests on ${{ matrix.os }}..."
         ./test/syntax-tests.sh
-    
-    - name: Run source tests (cross-platform)
-      run: |
-        echo "📋 Running source tests on ${{ matrix.os }}..."
         ./test/source-tests.sh
