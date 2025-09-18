@@ -108,7 +108,7 @@ find_bash_scripts() {
         scripts+=("$PROJECT_ROOT/libs/core/chief_library.sh")
     fi
     
-    # Plugin files
+    # Core plugin files (user plugins are intentionally excluded from syntax testing)
     while IFS= read -r -d '' file; do
         scripts+=("$file")
     done < <(find "$PROJECT_ROOT/libs/core/plugins" -name "*_chief-plugin.sh" -type f -print0 2>/dev/null || true)

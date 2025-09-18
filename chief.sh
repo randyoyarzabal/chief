@@ -57,13 +57,15 @@ source ${CHIEF_LIBRARY}
 # Main script starts here
 ########################################################################
 
-# Load core libraries
-__chief_load_library 
-
 # Allow the script to be called with --lib-only to load only the libraries
 if [[ $1 == "--lib-only" ]]; then
+  # For lib-only mode, only the core library functions are loaded (lines 53-54)
+  # Skip plugin loading to avoid hangs in CI/testing environments
   return 0
 fi
+
+# Load core libraries (including plugins) for full interactive mode
+__chief_load_library
 
 # Load RSA/SSH keys if directory is defined
 if [[ ! -z ${CHIEF_CFG_SSH_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIEF_CFG_SSH_KEYS_PATH} && ${PLATFORM} == "Linux" ]]; then

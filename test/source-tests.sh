@@ -228,14 +228,12 @@ chief_abs_path="$(cd "$(dirname "$chief_file")" && pwd)/$(basename "$chief_file"
 export CHIEF_PATH="$(dirname "$chief_abs_path")"
 export CHIEF_CONFIG="$CHIEF_PATH/templates/chief_config_template.sh"
 
-# Set minimal config to avoid plugin loading issues
+# Set minimal config for testing environment
 export CHIEF_CFG_BANNER=false
 export CHIEF_CFG_VERBOSE=false
 export CHIEF_CFG_HINTS=false
 export CHIEF_CFG_AUTOCHECK_UPDATES=false
 export CHIEF_CFG_COLORED_LS=false
-export CHIEF_CFG_PLUGINS_TYPE="local"
-export CHIEF_CFG_PLUGINS_PATH="/nonexistent"  # Avoid loading any user plugins
 
 # Try to source chief.sh in lib-only mode
 # Redirect output to suppress any loading messages
@@ -302,20 +300,20 @@ main() {
     test_chief_lib_only
     echo ""
     
-    # Test plugin files
-    log_info "Testing plugin files..."
+    # Test core plugin files (user plugins are intentionally excluded)
+    log_info "Testing core plugin files..."
     local plugin_files=()
     while IFS= read -r -d '' file; do
         plugin_files+=("$file")
     done < <(find "$PROJECT_ROOT/libs/core/plugins" -name "*_chief-plugin.sh" -type f -print0 2>/dev/null || true)
     
     if [[ ${#plugin_files[@]} -gt 0 ]]; then
-        log_info "Found ${#plugin_files[@]} plugin file(s)"
+        log_info "Found ${#plugin_files[@]} core plugin file(s) (user plugins excluded)"
         for plugin_file in "${plugin_files[@]}"; do
             test_plugin_loading "$plugin_file"
         done
     else
-        log_warning "No plugin files found"
+        log_warning "No core plugin files found"
     fi
     echo ""
     

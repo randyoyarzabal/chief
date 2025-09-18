@@ -4,6 +4,9 @@
 # Chief Test Suite - Plugin-Specific Tests
 # 
 # This script tests plugin-specific functionality and behavior.
+# 
+# SCOPE: Only tests CORE plugins (libs/core/plugins/*_chief-plugin.sh)
+# USER PLUGINS: Intentionally excluded from testing - users manage their own
 ########################################################################
 
 set -e
@@ -323,21 +326,21 @@ main() {
     # Create temp directory
     mkdir -p "$TEMP_DIR"
     
-    # Find all plugin files
-    log_info "Discovering plugin files..."
+    # Find all CORE plugin files (user plugins are intentionally excluded)
+    log_info "Discovering core plugin files..."
     local plugin_files=()
     while IFS= read -r -d '' file; do
         plugin_files+=("$file")
     done < <(find "$PROJECT_ROOT/libs/core/plugins" -name "*_chief-plugin.sh" -type f -print0 2>/dev/null || true)
     
     if [[ ${#plugin_files[@]} -eq 0 ]]; then
-        log_warning "No plugin files found to test"
+        log_warning "No core plugin files found to test"
         echo ""
         echo -e "${YELLOW}⚠️  NO PLUGIN TESTS RUN${NC}"
         return 0
     fi
     
-    log_info "Found ${#plugin_files[@]} plugin file(s) to test"
+    log_info "Found ${#plugin_files[@]} core plugin file(s) to test (user plugins excluded)"
     echo ""
     
     # Test each plugin

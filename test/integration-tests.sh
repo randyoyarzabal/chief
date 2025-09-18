@@ -298,6 +298,13 @@ if ! source "$CHIEF_CONFIG" >/dev/null 2>&1; then
     exit 1
 fi
 
+# Override problematic config settings for testing
+export CHIEF_CFG_BANNER=false
+export CHIEF_CFG_VERBOSE=false
+export CHIEF_CFG_HINTS=false
+export CHIEF_CFG_AUTOCHECK_UPDATES=false
+export CHIEF_CFG_COLORED_LS=false
+
 # Test that we can source chief.sh in lib-only mode
 if ! source "$CHIEF_PATH/chief.sh" --lib-only >/dev/null 2>&1; then
     echo "Failed to source chief.sh in lib-only mode"
@@ -310,15 +317,44 @@ EOF
     
     chmod +x "$test_script"
     
-    if output=$(bash "$test_script" "$PROJECT_ROOT" 2>&1); then
-        log_success "Full environment simulation OK"
-        return 0
-    else
-        log_error "Full environment simulation FAILED"
-        echo -e "${RED}Error details:${NC}"
-        echo "$output" | head -5 | sed 's/^/  /'
-        return 1
+    # Run the test with timeout using background process and kill
+    local test_pid
+    local timeout_seconds=30
+    
+    # Start the test in background
+    bash "$test_script" "$PROJECT_ROOT" 2>/dev/null &
+    test_pid=$!
+    
+    # Wait for completion or timeout
+    local count=0
+    while [[ $count -lt $timeout_seconds ]]; do
+        if ! kill -0 "$test_pid" 2>/dev/null; then
+            # Process has completed
+            wait "$test_pid"
+            local exit_code=$?
+            if [[ $exit_code -eq 0 ]]; then
+                log_success "Full environment simulation OK"
+                return 0
+            else
+                log_error "Full environment simulation FAILED (exit code: $exit_code)"
+                return 1
+            fi
+        fi
+        sleep 1
+        count=$((count + 1))
+    done
+    
+    # Timeout reached - kill the process
+    if kill -0 "$test_pid" 2>/dev/null; then
+        kill -TERM "$test_pid" 2>/dev/null || true
+        sleep 2
+        kill -KILL "$test_pid" 2>/dev/null || true
+        wait "$test_pid" 2>/dev/null || true
     fi
+    
+    log_error "Full environment simulation TIMED OUT after ${timeout_seconds} seconds"
+    echo -e "${RED}This suggests a hang during plugin loading or configuration${NC}"
+    return 1
 }
 
 # Main execution
