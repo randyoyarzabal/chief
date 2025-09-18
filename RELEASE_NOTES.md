@@ -51,8 +51,20 @@
 
 ## 📋 Upgrade Notes
 
+### ⚠️ BREAKING CHANGES
+
+**Plugin Function Naming Convention Update**
+All plugin functions now use consistent underscore notation for better uniformity:
+
+**Before (v3.0.3 and earlier):**
+- `chief.ssl.view_cert` → **Now:** `chief.ssl_view_cert`
+- `chief.oc.login` → **Now:** `chief.oc_login` 
+- `chief.aws.set_role` → **Now:** `chief.aws_set_role`
+- `chief.etc.chmod-f` → **Now:** `chief.etc_chmod-f`
+
+**Migration:** Update any scripts or aliases that reference the old dot notation.
+
 ### For Everyone
-- **No breaking changes** - all existing setups continue working
 - **New test infrastructure** automatically available
 - **Air-gapped support** ready for restricted environments
 

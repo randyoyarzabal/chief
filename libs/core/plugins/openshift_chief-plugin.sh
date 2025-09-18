@@ -27,7 +27,7 @@ fi
 
 # Note: Uses __chief_print_* functions from Chief core library for consistent messaging
 
-function chief.oc.approve_csrs() {
+function chief.oc_approve_csrs() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -57,12 +57,12 @@ Approving CSRs grants certificates that provide cluster access. Only approve
 CSRs from trusted sources. Review CSR details before approval in production.
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME                          # Interactive approval of pending CSRs
-  $FUNCNAME -l                       # List pending CSRs only
-  $FUNCNAME -a                       # Approve all pending CSRs
-  $FUNCNAME -n                       # Dry-run: show what would be approved
-  $FUNCNAME -f \"node-\"               # Approve only node-related CSRs
-  $FUNCNAME -f \"system:node\"         # Approve system node CSRs only
+  chief.oc_approve_csrs                          # Interactive approval of pending CSRs
+  chief.oc_approve_csrs -l                       # List pending CSRs only
+  chief.oc_approve_csrs -a                       # Approve all pending CSRs
+  chief.oc_approve_csrs -n                       # Dry-run: show what would be approved
+  chief.oc_approve_csrs -f \"node-\"               # Approve only node-related CSRs
+  chief.oc_approve_csrs -f \"system:node\"         # Approve system node CSRs only
 "
 
   # Check if OpenShift CLI is available
@@ -275,7 +275,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   echo -e "${CHIEF_COLOR_GREEN}Summary: $approved approved, $skipped skipped${CHIEF_NO_COLOR}"
 }
 
-function chief.oc.show_stuck_resources() {
+function chief.oc_show_stuck_resources() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <namespace> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -310,9 +310,9 @@ ${CHIEF_COLOR_MAGENTA}Requirements:${CHIEF_NO_COLOR}
 - User must have permissions to list and patch resources in the target namespace
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME my-namespace              # Show all resources in my-namespace
-  $FUNCNAME production --dry-run      # Preview what stuck resources would be fixed
-  $FUNCNAME dev-environment --fix     # Fix stuck terminating resources"
+  chief.oc_show_stuck_resources my-namespace              # Show all resources in my-namespace
+  chief.oc_show_stuck_resources production --dry-run      # Preview what stuck resources would be fixed
+  chief.oc_show_stuck_resources dev-environment --fix     # Fix stuck terminating resources"
 
   local namespace="$1"
   local fix_mode=false
@@ -320,7 +320,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
 
   # Handle help option and validate required arguments
   if [[ -z "$namespace" || "$namespace" == "-?" ]]; then
-    echo "${USAGE}"
+    echo -e "${USAGE}"
     return 0
   fi
 
@@ -330,7 +330,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     case $1 in
       --fix) fix_mode=true; shift ;;
       --dry-run) dry_run=true; shift ;;
-      -?) echo "${USAGE}"; return 0 ;;
+      -?) echo -e "${USAGE}"; return 0 ;;
       *) __chief_print_error "Unknown option: $1"; return 1 ;;
     esac
   done
@@ -463,7 +463,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   return 0
 }
 
-function chief.oc.login() {
+function chief.oc_login() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <cluster_name> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -496,17 +496,17 @@ ${CHIEF_COLOR_MAGENTA}Authentication Methods (in order of preference):${CHIEF_NO
      • CHIEF_OC_USERNAME and optionally CHIEF_OC_PASSWORD
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME hub -kc         # Login with kubeconfig
-  $FUNCNAME hub -ka         # Login as kubeadmin  
-  $FUNCNAME hub -i          # Login with TLS verification disabled
-  $FUNCNAME hub             # Login with user credentials"
+  chief.oc_login hub -kc         # Login with kubeconfig
+  chief.oc_login hub -ka         # Login as kubeadmin  
+  chief.oc_login hub -i          # Login with TLS verification disabled
+  chief.oc_login hub             # Login with user credentials"
   # Parse arguments
   local cluster="$1"
   local auth_method="user"
   local tls_option=""
 
   if [[ -z "$cluster" || "$cluster" == "-?" ]]; then
-    echo "${USAGE}"
+    echo -e "${USAGE}"
     return 0
   fi
 
@@ -878,9 +878,9 @@ ${CHIEF_COLOR_MAGENTA}Requirements:${CHIEF_NO_COLOR}
 - jq command must be available for JSON manipulation
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME stuck-namespace                    # Force delete with confirmation
-  $FUNCNAME test-env --dry-run                # Preview what would be done
-  $FUNCNAME broken-ns --no-confirm            # Force delete without prompts
+  chief.oc_delete_stuck_ns stuck-namespace                    # Force delete with confirmation
+  chief.oc_delete_stuck_ns test-env --dry-run                # Preview what would be done
+  chief.oc_delete_stuck_ns broken-ns --no-confirm            # Force delete without prompts
 
 ${CHIEF_COLOR_BLUE}Reference:${CHIEF_NO_COLOR}
 Based on Red Hat's troubleshooting guide:
@@ -892,7 +892,7 @@ https://www.redhat.com/en/blog/troubleshooting-terminating-namespaces"
 
   # Handle help option and validate required arguments
   if [[ -z "$namespace" || "$namespace" == "-?" ]]; then
-    echo "${USAGE}"
+    echo -e "${USAGE}"
     return 0
   fi
 
@@ -902,7 +902,7 @@ https://www.redhat.com/en/blog/troubleshooting-terminating-namespaces"
     case $1 in
       --dry-run) dry_run=true; shift ;;
       --no-confirm) no_confirm=true; shift ;;
-      -?) echo "${USAGE}"; return 0 ;;
+      -?) echo -e "${USAGE}"; return 0 ;;
       *) __chief_print_error "Unknown option: $1"; return 1 ;;
     esac
   done

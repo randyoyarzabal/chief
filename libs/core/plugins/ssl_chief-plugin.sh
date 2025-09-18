@@ -25,7 +25,7 @@ if [[ $0 == "${BASH_SOURCE[0]}" ]]; then
   exit 1
 fi
 
-function chief.ssl.create_ca() {
+function chief.ssl_create_ca() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [ca_name] [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -168,7 +168,7 @@ ${CHIEF_COLOR_GREEN}Advanced usage:${CHIEF_NO_COLOR}
   echo -e "${CHIEF_COLOR_GREEN}✓ CA created: $key_file, $cert_file${CHIEF_NO_COLOR}"
 }
 
-function chief.ssl.create_tls_cert() {
+function chief.ssl_create_tls_cert() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <cert_name> [ca_name] [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -394,7 +394,7 @@ EOF
   echo -e "${CHIEF_COLOR_GREEN}✓ Certificate created: $key_file, $cert_file${CHIEF_NO_COLOR}"
 }
 
-function chief.ssl.view_cert() {
+function chief.ssl_view_cert() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options] <certificate_file>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -579,7 +579,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   echo -e "${CHIEF_COLOR_YELLOW}Use -r flag to view full certificate text${CHIEF_NO_COLOR}"
 }
 
-function chief.ssl.get_cert() {
+function chief.ssl_get_cert() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options] <hostname> [port] [output_file]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}

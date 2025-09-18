@@ -25,8 +25,8 @@ if [[ $0 == "${BASH_SOURCE[0]}" ]]; then
   exit 1
 fi
 
-function chief.etc.chmod-f() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <permissions> [directory]
+function chief.etc_chmod-f() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} chief.etc_chmod-f <permissions> [directory]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Recursively change permissions for all files in current or specified directory.
@@ -54,11 +54,11 @@ ${CHIEF_COLOR_MAGENTA}Permission Examples:${CHIEF_NO_COLOR}
 - a+r: Add read permission for all users
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME 644                    # Set all files to 644 in current dir
-  $FUNCNAME 755 /path/to/scripts   # Set all files to 755 in specified dir
-  $FUNCNAME u+x                    # Add execute for owner on all files
-  $FUNCNAME -v 644                 # Verbose mode showing each file
-  $FUNCNAME -n 644                 # Dry-run to preview changes
+  chief.etc_chmod-f 644                    # Set all files to 644 in current dir
+  chief.etc_chmod-f 755 /path/to/scripts   # Set all files to 755 in specified dir
+  chief.etc_chmod-f u+x                    # Add execute for owner on all files
+  chief.etc_chmod-f -v 644                 # Verbose mode showing each file
+  chief.etc_chmod-f -n 644                 # Dry-run to preview changes
 "
 
   local permissions=""
@@ -197,8 +197,8 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 }
 
-function chief.etc.chmod-d() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <permissions> [directory]
+function chief.etc_chmod-d() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} chief.etc_chmod-d <permissions> [directory]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Recursively change permissions for all directories in current or specified directory.
@@ -230,11 +230,11 @@ Directories need execute permission (x) to be accessible. Removing execute
 permission from directories will make them inaccessible.
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME 755                    # Set all dirs to 755 in current dir
-  $FUNCNAME 750 /path/to/project   # Set all dirs to 750 in specified dir
-  $FUNCNAME u+x                    # Add execute for owner on all dirs
-  $FUNCNAME -v 755                 # Verbose mode showing each directory
-  $FUNCNAME -n 755                 # Dry-run to preview changes
+  chief.etc_chmod-d 755                    # Set all dirs to 755 in current dir
+  chief.etc_chmod-d 750 /path/to/project   # Set all dirs to 750 in specified dir
+  chief.etc_chmod-d u+x                    # Add execute for owner on all dirs
+  chief.etc_chmod-d -v 755                 # Verbose mode showing each directory
+  chief.etc_chmod-d -n 755                 # Dry-run to preview changes
 "
 
   local permissions=""
@@ -388,8 +388,8 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 }
 
-function chief.etc.create_bootusb() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <iso_file> <disk_number> [options]
+function chief.etc_create_bootusb() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} chief.etc_create_bootusb <iso_file> <disk_number> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Create a bootable USB drive from an ISO file (macOS/Linux).
@@ -429,8 +429,8 @@ ${CHIEF_COLOR_GREEN}macOS:${CHIEF_NO_COLOR} diskutil list
 ${CHIEF_COLOR_GREEN}Linux:${CHIEF_NO_COLOR} lsblk or sudo fdisk -l
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME ubuntu.iso 2           # Create bootable USB from ubuntu.iso on disk2
-  $FUNCNAME -k installer.iso 3     # Keep temporary files after creation
+  chief.etc_create_bootusb ubuntu.iso 2           # Create bootable USB from ubuntu.iso on disk2
+  chief.etc_create_bootusb -k installer.iso 3     # Keep temporary files after creation
   
 ${CHIEF_COLOR_RED}WARNING:${CHIEF_NO_COLOR} Always verify disk number with 'diskutil list' (macOS) or 'lsblk' (Linux)
 before running this command. Wrong disk number will destroy data!
@@ -634,8 +634,8 @@ before running this command. Wrong disk number will destroy data!
   echo -e "${CHIEF_COLOR_YELLOW}The USB drive is now ready to boot${CHIEF_NO_COLOR}"
 }
 
-function chief.etc.copy_dotfiles() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <source_directory> <destination_directory> [options]
+function chief.etc_copy_dotfiles() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} chief.etc_copy_dotfiles <source_directory> <destination_directory> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Copy hidden files (dotfiles) from source to destination directory.
@@ -670,10 +670,10 @@ ${CHIEF_COLOR_BLUE}Safety Features:${CHIEF_NO_COLOR}
 - Dry-run mode to preview operations
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME ~/backup ~/                    # Copy dotfiles from backup to home
-  $FUNCNAME -v /etc/skel ~/newuser         # Verbose copy of skeleton files
-  $FUNCNAME -b -f ~/old ~/current          # Force copy with backups
-  $FUNCNAME -n ~/source ~/dest             # Dry-run to see what would be copied
+  chief.etc_copy_dotfiles ~/backup ~/                    # Copy dotfiles from backup to home
+  chief.etc_copy_dotfiles -v /etc/skel ~/newuser         # Verbose copy of skeleton files
+  chief.etc_copy_dotfiles -b -f ~/old ~/current          # Force copy with backups
+  chief.etc_copy_dotfiles -n ~/source ~/dest             # Dry-run to see what would be copied
 "
 
   local source_dir=""

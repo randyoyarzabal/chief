@@ -2,6 +2,7 @@
 
 ## Unreleased (v3.0.4-dev)
 
+- **BREAKING CHANGE - Plugin Function Naming Convention**: Standardized all plugin functions to use underscore notation (e.g., `chief.ssl.view_cert` → `chief.ssl_view_cert`, `chief.oc.login` → `chief.oc_login`, `chief.aws.set_role` → `chief.aws_set_role`, `chief.etc.chmod-f` → `chief.etc_chmod-f`) for consistent function naming across all plugins
 - **Air-Gapped Installation Support**: Added `./tools/install.sh --local` for disconnected environments with restricted internet access
 - **Private Function Namespace Refactoring**: Renamed all 39 private functions to use `__chief_*` prefix (e.g., `__print` → `__chief_print`) for better system isolation and conflict prevention
 - **Enhanced Version Management**: Added `release` and `next-dev` keywords to `__chief.bump` function with automatic documentation updates and streamlined development workflow
