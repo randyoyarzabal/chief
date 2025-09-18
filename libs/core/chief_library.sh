@@ -2623,7 +2623,7 @@ function __show_configuration_help() {
   
   echo -e "${CHIEF_COLOR_CYAN}Current Settings:${CHIEF_NO_COLOR}"
   echo -e "  Prompt: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PROMPT:-false}${CHIEF_NO_COLOR} | Git prompt: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_GIT_PROMPT:-true}${CHIEF_NO_COLOR} | Multi-line: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_MULTILINE_PROMPT:-false}${CHIEF_NO_COLOR}"
-  echo -e "  Short path: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_SHORT_PATH:-true}${CHIEF_NO_COLOR} | Hints: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_HINTS:-true}${CHIEF_NO_COLOR} | Banner: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_BANNER:-true}${CHIEF_NO_COLOR}"
+  echo -e "  Short path: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_SHORT_PATH:-false}${CHIEF_NO_COLOR} | Hints: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_HINTS:-true}${CHIEF_NO_COLOR} | Banner: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_BANNER:-true}${CHIEF_NO_COLOR}"
   echo -e "  Plugins type: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS_TYPE:-local}${CHIEF_NO_COLOR} | Auto-update: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_AUTOCHECK_UPDATES:-false}${CHIEF_NO_COLOR}"
   if [[ -n "$CHIEF_CFG_ALIAS" ]]; then
     echo -e "  Custom alias: ${CHIEF_COLOR_CYAN}$CHIEF_CFG_ALIAS${CHIEF_NO_COLOR}"
