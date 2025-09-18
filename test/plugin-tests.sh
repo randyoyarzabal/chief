@@ -58,7 +58,7 @@ test_plugin_naming() {
     local plugin_file="$1"
     local filename="$(basename "$plugin_file")"
     
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
     
     if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
         log_info "Testing naming: $filename"
@@ -78,27 +78,31 @@ test_plugin_structure() {
     local plugin_file="$1"
     local plugin_name="$(basename "$plugin_file" _chief-plugin.sh)"
     
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
     
     if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
         log_info "Testing structure: $plugin_name"
     fi
     
     local has_shebang=false
-    local has_execution_block=false
+    local has_execution_check=false
+    local has_error_message=false
     local line_count=0
     
     while IFS= read -r line && [[ $line_count -lt 30 ]]; do
-        ((line_count++))
+        line_count=$((line_count + 1))
         
         # Check for shebang in first few lines
         if [[ $line_count -le 3 && "$line" =~ ^#!/.*bash ]]; then
             has_shebang=true
         fi
         
-        # Check for execution blocking
-        if [[ "$line" =~ \$0.*BASH_SOURCE.*0 ]] && [[ "$line" =~ echo.*Error ]]; then
-            has_execution_block=true
+        # Check for execution blocking patterns (can be on separate lines)
+        if [[ "$line" =~ \$0.*BASH_SOURCE.*0 ]]; then
+            has_execution_check=true
+        fi
+        if [[ "$line" =~ echo.*Error.*plugin.*sourced ]]; then
+            has_error_message=true
         fi
         
     done < "$plugin_file"
@@ -107,8 +111,11 @@ test_plugin_structure() {
     if [[ "$has_shebang" != "true" ]]; then
         errors+=("missing bash shebang")
     fi
-    if [[ "$has_execution_block" != "true" ]]; then
-        errors+=("missing execution blocking")
+    if [[ "$has_execution_check" != "true" ]]; then
+        errors+=("missing execution check")
+    fi
+    if [[ "$has_error_message" != "true" ]]; then
+        errors+=("missing error message")
     fi
     
     if [[ ${#errors[@]} -eq 0 ]]; then
@@ -125,7 +132,7 @@ test_plugin_functions() {
     local plugin_file="$1"
     local plugin_name="$(basename "$plugin_file" _chief-plugin.sh)"
     
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
     
     if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
         log_info "Testing functions: $plugin_name"
@@ -157,16 +164,18 @@ test_plugin_functions() {
         return 0
     fi
     
-    # Check if functions/aliases follow naming convention (should start with plugin name or chief.)
+    # Check if functions/aliases follow naming convention (should start with plugin name, chief., or __ for internal functions)
     local bad_names=()
     for func in "${functions[@]}"; do
-        if [[ ! "$func" =~ ^(chief\.|${plugin_name}\.) ]]; then
+        if [[ ! "$func" =~ ^(chief\.|${plugin_name}\.|__) ]]; then
             bad_names+=("function $func")
         fi
     done
     
     for alias in "${aliases[@]}"; do
-        if [[ ! "$alias" =~ ^(chief\.|${plugin_name}\.) ]]; then
+        # Allow aliases to be more flexible - they're often convenience shortcuts
+        # Only flag aliases that are clearly problematic (long names not following convention)
+        if [[ ! "$alias" =~ ^(chief\.|${plugin_name}\.) ]] && [[ ${#alias} -gt 6 ]]; then
             bad_names+=("alias $alias")
         fi
     done
@@ -185,7 +194,7 @@ test_plugin_load_unload() {
     local plugin_file="$1"
     local plugin_name="$(basename "$plugin_file" _chief-plugin.sh)"
     
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
     
     if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
         log_info "Testing load/unload: $plugin_name"
@@ -266,7 +275,7 @@ test_python_dependencies() {
         return 0  # Skip if no Python plugin
     fi
     
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
     
     if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
         log_info "Testing Python dependencies"

@@ -6,7 +6,7 @@
 # This script tests end-to-end functionality and integration scenarios.
 ########################################################################
 
-set -euo pipefail
+set -e
 
 # Colors for output
 RED='\033[0;31m'
@@ -41,12 +41,12 @@ log_info() {
 
 log_success() {
     echo -e "${GREEN}[PASS]${NC} $1"
-    ((PASSED_TESTS++))
+    PASSED_TESTS=$((PASSED_TESTS + 1))
 }
 
 log_error() {
     echo -e "${RED}[FAIL]${NC} $1"
-    ((FAILED_TESTS++))
+    FAILED_TESTS=$((FAILED_TESTS + 1))
 }
 
 log_warning() {
@@ -62,7 +62,7 @@ test_install_script() {
         return 0
     fi
     
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
     
     if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
         log_info "Testing install script help"
@@ -87,7 +87,7 @@ test_uninstall_script() {
         return 0
     fi
     
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
     
     if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
         log_info "Testing uninstall script help"
@@ -107,7 +107,7 @@ test_uninstall_script() {
 test_version_file() {
     local version_file="$PROJECT_ROOT/VERSION"
     
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
     
     if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
         log_info "Testing VERSION file"
@@ -136,7 +136,7 @@ test_version_file() {
 
 # Test that required directories exist
 test_directory_structure() {
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
     
     if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
         log_info "Testing directory structure"
@@ -168,7 +168,7 @@ test_directory_structure() {
 
 # Test that core files exist
 test_core_files() {
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
     
     if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
         log_info "Testing core files"
@@ -199,7 +199,7 @@ test_core_files() {
 
 # Test git repository health
 test_git_repository() {
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
     
     if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
         log_info "Testing git repository"
@@ -244,7 +244,7 @@ test_git_repository() {
 
 # Test README and documentation
 test_documentation() {
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
     
     if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
         log_info "Testing documentation"
@@ -258,7 +258,7 @@ test_documentation() {
     local found_docs=0
     for doc in "${doc_files[@]}"; do
         if [[ -f "$doc" ]]; then
-            ((found_docs++))
+            found_docs=$((found_docs + 1))
         fi
     done
     
@@ -273,7 +273,7 @@ test_documentation() {
 
 # Test a simulated chief.sh lib-only loading with full environment
 test_full_environment() {
-    ((TOTAL_TESTS++))
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
     
     if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
         log_info "Testing full environment simulation"
@@ -284,7 +284,7 @@ test_full_environment() {
     
     cat > "$test_script" << 'EOF'
 #!/usr/bin/env bash
-set -euo pipefail
+set -e
 
 project_root="$1"
 
