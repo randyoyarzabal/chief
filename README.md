@@ -14,6 +14,15 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 
 **That's it!** Restart your terminal and start using Chief.
 
+### Air-Gapped Installation
+
+For disconnected environments:
+
+```bash
+# Download Chief, transfer to target system, then:
+./tools/install.sh --local
+```
+
 ## ⚡ Quick Start: Portable Setup
 
 **Real-world example**: Set up Chief with remote plugins and vault that follows you across all systems.
