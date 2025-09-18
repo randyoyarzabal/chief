@@ -15,9 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ########################################################################
 
-# Chief Plugin File: aws_chief.plugin
+# Chief Plugin File: aws_chief-plugin.sh
 # Author: Randy E. Oyarzabal
-# ver. 1.0.1
 # AWS related functions and aliases
 
 # Block interactive execution

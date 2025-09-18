@@ -30,6 +30,24 @@
 - **Release automation** via `__chief.bump` commands
 - **Auto documentation** updates across all files
 
+### 🔒 SSL/TLS Certificate Management
+- **`chief.ssl.view_cert`** - Comprehensive certificate analysis with multiple display options
+- **`chief.ssl.get_cert`** - Download certificates from remote servers with chain support
+- **`chief.ssl.create_ca`** - Simple CA creation with minimal requirements (just run it!)
+- **`chief.ssl.create_tls_cert`** - Easy certificate creation signed by your CA
+- **Rich help documentation** and error handling for certificate operations
+
+### ☸️ OpenShift Management Enhancements
+- **`chief.oc.show_stuck_resources`** - Professional help documentation and improved user experience
+- **`chief.oc.approve_csrs`** - Complete rewrite with interactive/batch modes, filtering, and safety features
+- **Color-coded terminal output** and comprehensive error handling following codebase standards
+
+### 🛠️ System Utilities Enhancement
+- **`chief.etc.chmod-f`** - Enhanced file permission management with verbose/dry-run modes and validation
+- **`chief.etc.chmod-d`** - Fixed naming consistency and added comprehensive directory permission management
+- **`chief.etc.create_bootusb`** - Complete safety overhaul for bootable USB creation with multi-platform support
+- **`chief.etc.copy_dotfiles`** - Enhanced dotfiles management with backup options and interactive confirmations
+
 ## 📋 Upgrade Notes
 
 ### For Everyone

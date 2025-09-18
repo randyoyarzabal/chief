@@ -17,7 +17,6 @@
 
 # Chief Plugin File: git_chief-plugin.sh
 # Author: Randy E. Oyarzabal
-# ver. 1.0
 # Functions and aliases that are development to Git.
 
 # Block interactive execution

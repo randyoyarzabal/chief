@@ -15,9 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ########################################################################
 
-# Chief Plugin File: etc_chief.plugin
+# Chief Plugin File: etc_chief-plugin.sh
 # Author: Randy E. Oyarzabal
-# ver. 1.0.1
 # Functions and aliases that don't belong on any other category.
 
 # Block interactive execution
@@ -25,6 +24,858 @@ if [[ $0 == "${BASH_SOURCE[0]}" ]]; then
   echo "Error: $0 (Chief plugin) must be sourced; not executed interactively."
   exit 1
 fi
+
+function chief.etc.chmod-f() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <permissions> [directory]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Recursively change permissions for all files in current or specified directory.
+
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  permissions     File permissions (e.g., 644, 755, u+x, go-w)
+  directory       Target directory (default: current directory)
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -v, --verbose   Show each file being processed
+  -n, --dry-run   Show what would be changed without making changes
+  -?              Show this help
+
+${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
+- Processes only files (not directories)
+- Supports both octal (644) and symbolic (u+x) permission formats
+- Safe operation with validation and confirmation
+- Verbose mode for detailed output
+
+${CHIEF_COLOR_MAGENTA}Permission Examples:${CHIEF_NO_COLOR}
+- 644: Owner read/write, group/others read only
+- 755: Owner read/write/execute, group/others read/execute
+- u+x: Add execute permission for owner
+- go-w: Remove write permission for group and others
+- a+r: Add read permission for all users
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME 644                    # Set all files to 644 in current dir
+  $FUNCNAME 755 /path/to/scripts   # Set all files to 755 in specified dir
+  $FUNCNAME u+x                    # Add execute for owner on all files
+  $FUNCNAME -v 644                 # Verbose mode showing each file
+  $FUNCNAME -n 644                 # Dry-run to preview changes
+"
+
+  local permissions=""
+  local target_dir="."
+  local verbose=false
+  local dry_run=false
+
+  # Parse options and arguments
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -v|--verbose)
+        verbose=true
+        shift
+        ;;
+      -n|--dry-run)
+        dry_run=true
+        shift
+        ;;
+      -\?)
+        echo -e "${USAGE}"
+        return
+        ;;
+      -*)
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+      *)
+        if [[ -z "$permissions" ]]; then
+          permissions="$1"
+        elif [[ -z "$target_dir" || "$target_dir" == "." ]]; then
+          target_dir="$1"
+        else
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Too many arguments"
+          echo -e "${USAGE}"
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Validate required parameters
+  if [[ -z "$permissions" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Permissions argument is required"
+    echo -e "${USAGE}"
+    return 1
+  fi
+
+  # Validate target directory
+  if [[ ! -d "$target_dir" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Directory not found: $target_dir"
+    return 1
+  fi
+
+  # Validate permissions format (basic check)
+  if [[ ! "$permissions" =~ ^([0-7]{3,4}|[ugoa]*[+-=][rwx]+)$ ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} Permission format may be invalid: $permissions"
+    echo -e "${CHIEF_COLOR_BLUE}Valid formats:${CHIEF_NO_COLOR} 644, 755, u+x, go-w, a+r, etc."
+    echo -n "Continue anyway? [y/N]: "
+    read -r confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}Operation cancelled${CHIEF_NO_COLOR}"
+      return 0
+    fi
+  fi
+
+  # Count files to be processed
+  local file_count
+  file_count=$(find "$target_dir" -type f 2>/dev/null | wc -l | tr -d ' ')
+
+  if [[ "$file_count" -eq 0 ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}No files found in: $target_dir${CHIEF_NO_COLOR}"
+    return 0
+  fi
+
+  echo -e "${CHIEF_COLOR_BLUE}Target directory:${CHIEF_NO_COLOR} $target_dir"
+  echo -e "${CHIEF_COLOR_BLUE}Permissions:${CHIEF_NO_COLOR} $permissions"
+  echo -e "${CHIEF_COLOR_BLUE}Files to process:${CHIEF_NO_COLOR} $file_count"
+
+  # Dry-run mode
+  if [[ "$dry_run" == true ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}DRY RUN: Would change permissions for these files:${CHIEF_NO_COLOR}"
+    if [[ "$verbose" == true ]]; then
+      find "$target_dir" -type f -exec echo "  chmod $permissions {}" \;
+    else
+      echo -e "${CHIEF_COLOR_BLUE}$file_count files would be processed${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_YELLOW}Use -v flag to see individual files${CHIEF_NO_COLOR}"
+    fi
+    return 0
+  fi
+
+  # Confirmation for large operations
+  if [[ "$file_count" -gt 100 ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Warning: About to change permissions for $file_count files${CHIEF_NO_COLOR}"
+    echo -n "Continue? [y/N]: "
+    read -r confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}Operation cancelled${CHIEF_NO_COLOR}"
+      return 0
+    fi
+  fi
+
+  # Execute permission changes
+  echo -e "${CHIEF_COLOR_BLUE}Changing file permissions...${CHIEF_NO_COLOR}"
+  
+  local processed=0
+  local failed=0
+  
+  if [[ "$verbose" == true ]]; then
+    while IFS= read -r -d '' file; do
+      echo -n "  $(basename "$file")... "
+      if chmod "$permissions" "$file" 2>/dev/null; then
+        echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR}"
+        ((processed++))
+      else
+        echo -e "${CHIEF_COLOR_RED}✗${CHIEF_NO_COLOR}"
+        ((failed++))
+      fi
+    done < <(find "$target_dir" -type f -print0)
+  else
+    find "$target_dir" -type f -exec chmod "$permissions" {} \; 2>/dev/null
+    # Simple success check since we can't easily count individual failures in this mode
+    if [[ $? -eq 0 ]]; then
+      processed=$file_count
+    else
+      echo -e "${CHIEF_COLOR_YELLOW}Some operations may have failed. Use -v flag for detailed output.${CHIEF_NO_COLOR}"
+    fi
+  fi
+
+  echo ""
+  if [[ "$verbose" == true ]]; then
+    echo -e "${CHIEF_COLOR_GREEN}Summary: $processed successful, $failed failed${CHIEF_NO_COLOR}"
+  else
+    echo -e "${CHIEF_COLOR_GREEN}Permission changes completed${CHIEF_NO_COLOR}"
+  fi
+}
+
+function chief.etc.chmod-d() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <permissions> [directory]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Recursively change permissions for all directories in current or specified directory.
+
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  permissions     Directory permissions (e.g., 755, 750, u+x, go-w)
+  directory       Target directory (default: current directory)
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -v, --verbose   Show each directory being processed
+  -n, --dry-run   Show what would be changed without making changes
+  -?              Show this help
+
+${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
+- Processes only directories (not files)
+- Supports both octal (755) and symbolic (u+x) permission formats
+- Safe operation with validation and confirmation
+- Verbose mode for detailed output
+
+${CHIEF_COLOR_MAGENTA}Common Directory Permissions:${CHIEF_NO_COLOR}
+- 755: Owner read/write/execute, group/others read/execute (standard)
+- 750: Owner read/write/execute, group read/execute, others no access
+- 700: Owner read/write/execute only (private)
+- u+x: Add execute (access) permission for owner
+- go-w: Remove write permission for group and others
+
+${CHIEF_COLOR_RED}Important:${CHIEF_NO_COLOR}
+Directories need execute permission (x) to be accessible. Removing execute
+permission from directories will make them inaccessible.
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME 755                    # Set all dirs to 755 in current dir
+  $FUNCNAME 750 /path/to/project   # Set all dirs to 750 in specified dir
+  $FUNCNAME u+x                    # Add execute for owner on all dirs
+  $FUNCNAME -v 755                 # Verbose mode showing each directory
+  $FUNCNAME -n 755                 # Dry-run to preview changes
+"
+
+  local permissions=""
+  local target_dir="."
+  local verbose=false
+  local dry_run=false
+
+  # Parse options and arguments
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -v|--verbose)
+        verbose=true
+        shift
+        ;;
+      -n|--dry-run)
+        dry_run=true
+        shift
+        ;;
+      -\?)
+        echo -e "${USAGE}"
+        return
+        ;;
+      -*)
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+      *)
+        if [[ -z "$permissions" ]]; then
+          permissions="$1"
+        elif [[ -z "$target_dir" || "$target_dir" == "." ]]; then
+          target_dir="$1"
+        else
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Too many arguments"
+          echo -e "${USAGE}"
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Validate required parameters
+  if [[ -z "$permissions" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Permissions argument is required"
+    echo -e "${USAGE}"
+    return 1
+  fi
+
+  # Validate target directory
+  if [[ ! -d "$target_dir" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Directory not found: $target_dir"
+    return 1
+  fi
+
+  # Validate permissions format (basic check)
+  if [[ ! "$permissions" =~ ^([0-7]{3,4}|[ugoa]*[+-=][rwx]+)$ ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} Permission format may be invalid: $permissions"
+    echo -e "${CHIEF_COLOR_BLUE}Valid formats:${CHIEF_NO_COLOR} 755, 750, u+x, go-w, a+r, etc."
+    echo -n "Continue anyway? [y/N]: "
+    read -r confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}Operation cancelled${CHIEF_NO_COLOR}"
+      return 0
+    fi
+  fi
+
+  # Warning for potentially dangerous permissions
+  if [[ "$permissions" =~ ^[0-7]*[0-6][0-6][0-6]$ ]] || [[ "$permissions" =~ -x ]]; then
+    echo -e "${CHIEF_COLOR_RED}Warning:${CHIEF_NO_COLOR} This permission may make directories inaccessible!"
+    echo -e "${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR} Directories need execute (x) permission to be accessible"
+    echo -n "Continue? [y/N]: "
+    read -r confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}Operation cancelled${CHIEF_NO_COLOR}"
+      return 0
+    fi
+  fi
+
+  # Count directories to be processed
+  local dir_count
+  dir_count=$(find "$target_dir" -type d 2>/dev/null | wc -l | tr -d ' ')
+
+  if [[ "$dir_count" -eq 0 ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}No directories found in: $target_dir${CHIEF_NO_COLOR}"
+    return 0
+  fi
+
+  echo -e "${CHIEF_COLOR_BLUE}Target directory:${CHIEF_NO_COLOR} $target_dir"
+  echo -e "${CHIEF_COLOR_BLUE}Permissions:${CHIEF_NO_COLOR} $permissions"
+  echo -e "${CHIEF_COLOR_BLUE}Directories to process:${CHIEF_NO_COLOR} $dir_count"
+
+  # Dry-run mode
+  if [[ "$dry_run" == true ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}DRY RUN: Would change permissions for these directories:${CHIEF_NO_COLOR}"
+    if [[ "$verbose" == true ]]; then
+      find "$target_dir" -type d -exec echo "  chmod $permissions {}" \;
+    else
+      echo -e "${CHIEF_COLOR_BLUE}$dir_count directories would be processed${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_YELLOW}Use -v flag to see individual directories${CHIEF_NO_COLOR}"
+    fi
+    return 0
+  fi
+
+  # Confirmation for large operations
+  if [[ "$dir_count" -gt 50 ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Warning: About to change permissions for $dir_count directories${CHIEF_NO_COLOR}"
+    echo -n "Continue? [y/N]: "
+    read -r confirm
+    if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}Operation cancelled${CHIEF_NO_COLOR}"
+      return 0
+    fi
+  fi
+
+  # Execute permission changes
+  echo -e "${CHIEF_COLOR_BLUE}Changing directory permissions...${CHIEF_NO_COLOR}"
+  
+  local processed=0
+  local failed=0
+  
+  if [[ "$verbose" == true ]]; then
+    while IFS= read -r -d '' dir; do
+      local dir_name
+      dir_name=$(basename "$dir")
+      [[ "$dir_name" == "." ]] && dir_name="(current)"
+      echo -n "  $dir_name... "
+      if chmod "$permissions" "$dir" 2>/dev/null; then
+        echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR}"
+        ((processed++))
+      else
+        echo -e "${CHIEF_COLOR_RED}✗${CHIEF_NO_COLOR}"
+        ((failed++))
+      fi
+    done < <(find "$target_dir" -type d -print0)
+  else
+    find "$target_dir" -type d -exec chmod "$permissions" {} \; 2>/dev/null
+    # Simple success check since we can't easily count individual failures in this mode
+    if [[ $? -eq 0 ]]; then
+      processed=$dir_count
+    else
+      echo -e "${CHIEF_COLOR_YELLOW}Some operations may have failed. Use -v flag for detailed output.${CHIEF_NO_COLOR}"
+    fi
+  fi
+
+  echo ""
+  if [[ "$verbose" == true ]]; then
+    echo -e "${CHIEF_COLOR_GREEN}Summary: $processed successful, $failed failed${CHIEF_NO_COLOR}"
+  else
+    echo -e "${CHIEF_COLOR_GREEN}Permission changes completed${CHIEF_NO_COLOR}"
+  fi
+}
+
+function chief.etc.create_bootusb() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <iso_file> <disk_number> [options]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Create a bootable USB drive from an ISO file (macOS/Linux).
+
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  iso_file        Path to ISO file
+  disk_number     Disk number (from 'diskutil list' on macOS or 'lsblk' on Linux)
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -f, --force     Skip confirmations (use with extreme caution)
+  -k, --keep      Keep temporary conversion file
+  -?              Show this help
+
+${CHIEF_COLOR_RED}⚠️  DANGER ZONE ⚠️${CHIEF_NO_COLOR}
+This command will COMPLETELY ERASE the target USB drive and ALL DATA on it!
+Make absolutely sure you specify the correct disk number.
+
+${CHIEF_COLOR_MAGENTA}Prerequisites:${CHIEF_NO_COLOR}
+${CHIEF_COLOR_GREEN}macOS:${CHIEF_NO_COLOR}
+- hdiutil command available
+- diskutil command available
+- Admin privileges (sudo access)
+
+${CHIEF_COLOR_GREEN}Linux:${CHIEF_NO_COLOR}
+- dd command available
+- Admin privileges (sudo access)
+
+${CHIEF_COLOR_BLUE}Safety Features:${CHIEF_NO_COLOR}
+- Validates ISO file exists and is readable
+- Shows disk information before proceeding
+- Multiple confirmation prompts
+- Automatically unmounts target disk
+- Cleans up temporary files
+
+${CHIEF_COLOR_YELLOW}How to Find Disk Number:${CHIEF_NO_COLOR}
+${CHIEF_COLOR_GREEN}macOS:${CHIEF_NO_COLOR} diskutil list
+${CHIEF_COLOR_GREEN}Linux:${CHIEF_NO_COLOR} lsblk or sudo fdisk -l
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME ubuntu.iso 2           # Create bootable USB from ubuntu.iso on disk2
+  $FUNCNAME -k installer.iso 3     # Keep temporary files after creation
+  
+${CHIEF_COLOR_RED}WARNING:${CHIEF_NO_COLOR} Always verify disk number with 'diskutil list' (macOS) or 'lsblk' (Linux)
+before running this command. Wrong disk number will destroy data!
+"
+
+  local iso_file=""
+  local disk_number=""
+  local force_mode=false
+  local keep_temp=false
+  local temp_file="/tmp/bootusb_$$.img"
+
+  # Parse options and arguments
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -f|--force)
+        force_mode=true
+        shift
+        ;;
+      -k|--keep)
+        keep_temp=true
+        shift
+        ;;
+      -\?)
+        echo -e "${USAGE}"
+        return
+        ;;
+      -*)
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+      *)
+        if [[ -z "$iso_file" ]]; then
+          iso_file="$1"
+        elif [[ -z "$disk_number" ]]; then
+          disk_number="$1"
+        else
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Too many arguments"
+          echo -e "${USAGE}"
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Validate required arguments
+  if [[ -z "$iso_file" || -z "$disk_number" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Both ISO file and disk number are required"
+    echo -e "${USAGE}"
+    return 1
+  fi
+
+  # Validate ISO file
+  if [[ ! -f "$iso_file" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} ISO file not found: $iso_file"
+    return 1
+  fi
+
+  if [[ ! -r "$iso_file" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Cannot read ISO file: $iso_file"
+    return 1
+  fi
+
+  # Validate disk number format
+  if [[ ! "$disk_number" =~ ^[0-9]+$ ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Invalid disk number format: $disk_number"
+    echo -e "${CHIEF_COLOR_BLUE}Use:${CHIEF_NO_COLOR} Numbers only (e.g., 2 for disk2)"
+    return 1
+  fi
+
+  # Detect operating system and set up commands
+  local os_type
+  if [[ "$OSTYPE" == "darwin"* ]]; then
+    os_type="macOS"
+    local disk_device="/dev/disk${disk_number}"
+    local raw_device="/dev/rdisk${disk_number}"
+    
+    # Check if required tools are available on macOS
+    if ! command -v hdiutil &>/dev/null; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} hdiutil command not found (required on macOS)"
+      return 1
+    fi
+    
+    if ! command -v diskutil &>/dev/null; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} diskutil command not found (required on macOS)"
+      return 1
+    fi
+  elif [[ "$OSTYPE" == "linux"* ]]; then
+    os_type="Linux"
+    local disk_device="/dev/sd$(printf \\$(printf '%03o' $((97+disk_number))))"
+    local raw_device="$disk_device"
+    
+    echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} On Linux, please verify disk device manually"
+  else
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unsupported operating system: $OSTYPE"
+    echo -e "${CHIEF_COLOR_BLUE}Supported:${CHIEF_NO_COLOR} macOS (darwin) and Linux"
+    return 1
+  fi
+
+  # Show ISO file information
+  local iso_size
+  iso_size=$(ls -lh "$iso_file" | awk '{print $5}')
+  echo -e "${CHIEF_COLOR_BLUE}ISO file:${CHIEF_NO_COLOR} $iso_file ($iso_size)"
+  echo -e "${CHIEF_COLOR_BLUE}Target disk:${CHIEF_NO_COLOR} $disk_device"
+  echo -e "${CHIEF_COLOR_BLUE}Operating System:${CHIEF_NO_COLOR} $os_type"
+  echo ""
+
+  # Show disk information
+  echo -e "${CHIEF_COLOR_CYAN}Current disk information:${CHIEF_NO_COLOR}"
+  if [[ "$os_type" == "macOS" ]]; then
+    if diskutil list | grep -A5 -B2 "disk${disk_number}"; then
+      echo ""
+    else
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Disk ${disk_number} not found"
+      echo -e "${CHIEF_COLOR_BLUE}Available disks:${CHIEF_NO_COLOR}"
+      diskutil list
+      return 1
+    fi
+  else
+    lsblk 2>/dev/null || echo -e "${CHIEF_COLOR_YELLOW}Please verify disk manually with 'lsblk' or 'sudo fdisk -l'${CHIEF_NO_COLOR}"
+  fi
+
+  # Safety confirmations
+  if [[ "$force_mode" != true ]]; then
+    echo -e "${CHIEF_COLOR_RED}⚠️  WARNING: This will COMPLETELY ERASE $disk_device ⚠️${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_RED}ALL DATA on the target disk will be PERMANENTLY LOST!${CHIEF_NO_COLOR}"
+    echo ""
+    
+    if [[ $(chief.etc_ask_yes_or_no "Is $disk_device the correct USB drive to ERASE?") != "yes" ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}Operation cancelled by user${CHIEF_NO_COLOR}"
+      return 0
+    fi
+    
+    echo ""
+    if [[ $(chief.etc_ask_yes_or_no "Are you absolutely sure you want to DESTROY all data on $disk_device?") != "yes" ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}Operation cancelled by user${CHIEF_NO_COLOR}"
+      return 0
+    fi
+  fi
+
+  echo ""
+  echo -e "${CHIEF_COLOR_BLUE}Starting bootable USB creation...${CHIEF_NO_COLOR}"
+
+  # Step 1: Convert ISO (macOS only)
+  if [[ "$os_type" == "macOS" ]]; then
+    echo -e "${CHIEF_COLOR_BLUE}Converting ISO to disk image...${CHIEF_NO_COLOR}"
+    if ! hdiutil convert -format UDRW -o "$temp_file" "$iso_file"; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Failed to convert ISO file"
+      return 1
+    fi
+    
+    # Remove .dmg extension if added
+    if [[ -f "${temp_file}.dmg" ]]; then
+      mv "${temp_file}.dmg" "$temp_file"
+    fi
+    
+    local source_file="$temp_file"
+  else
+    local source_file="$iso_file"
+  fi
+
+  # Step 2: Unmount the target disk
+  echo -e "${CHIEF_COLOR_BLUE}Unmounting target disk...${CHIEF_NO_COLOR}"
+  if [[ "$os_type" == "macOS" ]]; then
+    diskutil unmountDisk "$disk_device" || echo -e "${CHIEF_COLOR_YELLOW}Warning: Could not unmount disk (may not be mounted)${CHIEF_NO_COLOR}"
+  else
+    sudo umount "${disk_device}"* 2>/dev/null || echo -e "${CHIEF_COLOR_YELLOW}Warning: Could not unmount disk (may not be mounted)${CHIEF_NO_COLOR}"
+  fi
+
+  # Step 3: Write to USB drive
+  echo -e "${CHIEF_COLOR_BLUE}Writing to USB drive... (this may take several minutes)${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_YELLOW}Please be patient and do not remove the USB drive${CHIEF_NO_COLOR}"
+  
+  if ! sudo dd if="$source_file" of="$raw_device" bs=1m status=progress 2>/dev/null; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Failed to write to USB drive"
+    [[ "$os_type" == "macOS" && "$keep_temp" != true ]] && rm -f "$temp_file"
+    return 1
+  fi
+
+  # Step 4: Sync and eject
+  echo -e "${CHIEF_COLOR_BLUE}Syncing and ejecting...${CHIEF_NO_COLOR}"
+  sync
+  
+  if [[ "$os_type" == "macOS" ]]; then
+    diskutil eject "$disk_device"
+  else
+    sudo eject "$disk_device" 2>/dev/null || echo -e "${CHIEF_COLOR_YELLOW}Note: Please safely remove the USB drive${CHIEF_NO_COLOR}"
+  fi
+
+  # Cleanup
+  if [[ "$os_type" == "macOS" && "$keep_temp" != true ]]; then
+    rm -f "$temp_file"
+  elif [[ "$keep_temp" == true ]]; then
+    echo -e "${CHIEF_COLOR_BLUE}Temporary file kept:${CHIEF_NO_COLOR} $temp_file"
+  fi
+
+  echo ""
+  echo -e "${CHIEF_COLOR_GREEN}✓ Bootable USB drive created successfully!${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_BLUE}USB drive:${CHIEF_NO_COLOR} $disk_device"
+  echo -e "${CHIEF_COLOR_YELLOW}The USB drive is now ready to boot${CHIEF_NO_COLOR}"
+}
+
+function chief.etc.copy_dotfiles() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <source_directory> <destination_directory> [options]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Copy hidden files (dotfiles) from source to destination directory.
+
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  source_directory        Directory containing dotfiles to copy
+  destination_directory   Directory where dotfiles will be copied
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -v, --verbose           Show each file being copied
+  -n, --dry-run          Show what would be copied without making changes
+  -f, --force            Overwrite existing files without confirmation
+  -b, --backup           Create backups of existing files (.bak extension)
+  -?                     Show this help
+
+${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
+- Copies only hidden files (starting with '.')
+- Preserves file attributes and timestamps
+- Safe operation with validation and optional confirmations
+- Excludes directories (. and ..)
+- Shows detailed progress in verbose mode
+
+${CHIEF_COLOR_MAGENTA}What Gets Copied:${CHIEF_NO_COLOR}
+- Hidden files (.bashrc, .vimrc, .gitconfig, etc.)
+- Excludes directories (.git/, .config/, etc.)
+- Excludes current (.) and parent (..) directory references
+
+${CHIEF_COLOR_BLUE}Safety Features:${CHIEF_NO_COLOR}
+- Validates source and destination directories exist
+- Optional confirmation before overwriting existing files
+- Backup option for existing files
+- Dry-run mode to preview operations
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME ~/backup ~/                    # Copy dotfiles from backup to home
+  $FUNCNAME -v /etc/skel ~/newuser         # Verbose copy of skeleton files
+  $FUNCNAME -b -f ~/old ~/current          # Force copy with backups
+  $FUNCNAME -n ~/source ~/dest             # Dry-run to see what would be copied
+"
+
+  local source_dir=""
+  local dest_dir=""
+  local verbose=false
+  local dry_run=false
+  local force=false
+  local backup=false
+
+  # Parse options and arguments
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -v|--verbose)
+        verbose=true
+        shift
+        ;;
+      -n|--dry-run)
+        dry_run=true
+        shift
+        ;;
+      -f|--force)
+        force=true
+        shift
+        ;;
+      -b|--backup)
+        backup=true
+        shift
+        ;;
+      -\?)
+        echo -e "${USAGE}"
+        return
+        ;;
+      -*)
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+      *)
+        if [[ -z "$source_dir" ]]; then
+          source_dir="$1"
+        elif [[ -z "$dest_dir" ]]; then
+          dest_dir="$1"
+        else
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Too many arguments"
+          echo -e "${USAGE}"
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Validate required arguments
+  if [[ -z "$source_dir" || -z "$dest_dir" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Both source and destination directories are required"
+    echo -e "${USAGE}"
+    return 1
+  fi
+
+  # Validate source directory
+  if [[ ! -d "$source_dir" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Source directory not found: $source_dir"
+    return 1
+  fi
+
+  if [[ ! -r "$source_dir" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Cannot read source directory: $source_dir"
+    return 1
+  fi
+
+  # Validate/create destination directory
+  if [[ ! -d "$dest_dir" ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Destination directory doesn't exist: $dest_dir${CHIEF_NO_COLOR}"
+    echo -n "Create it? [y/N]: "
+    read -r confirm
+    if [[ "$confirm" =~ ^[Yy]$ ]]; then
+      if ! mkdir -p "$dest_dir"; then
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Cannot create destination directory: $dest_dir"
+        return 1
+      fi
+      echo -e "${CHIEF_COLOR_GREEN}Created directory: $dest_dir${CHIEF_NO_COLOR}"
+    else
+      echo -e "${CHIEF_COLOR_YELLOW}Operation cancelled${CHIEF_NO_COLOR}"
+      return 0
+    fi
+  fi
+
+  if [[ ! -w "$dest_dir" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Cannot write to destination directory: $dest_dir"
+    return 1
+  fi
+
+  # Find dotfiles
+  local dotfiles=()
+  while IFS= read -r -d '' file; do
+    dotfiles+=("$file")
+  done < <(find "$source_dir" -maxdepth 1 -mindepth 1 -type f -name ".*" -print0 2>/dev/null)
+
+  if [[ ${#dotfiles[@]} -eq 0 ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}No dotfiles found in: $source_dir${CHIEF_NO_COLOR}"
+    return 0
+  fi
+
+  echo -e "${CHIEF_COLOR_BLUE}Source directory:${CHIEF_NO_COLOR} $source_dir"
+  echo -e "${CHIEF_COLOR_BLUE}Destination directory:${CHIEF_NO_COLOR} $dest_dir"
+  echo -e "${CHIEF_COLOR_BLUE}Dotfiles found:${CHIEF_NO_COLOR} ${#dotfiles[@]}"
+  
+  if [[ "$verbose" == true || "$dry_run" == true ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}Files to copy:${CHIEF_NO_COLOR}"
+    for file in "${dotfiles[@]}"; do
+      echo "  $(basename "$file")"
+    done
+  fi
+  echo ""
+
+  # Dry-run mode
+  if [[ "$dry_run" == true ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}DRY RUN: Would copy these files:${CHIEF_NO_COLOR}"
+    for file in "${dotfiles[@]}"; do
+      local filename
+      filename=$(basename "$file")
+      local dest_file="$dest_dir/$filename"
+      
+      if [[ -f "$dest_file" ]]; then
+        if [[ "$backup" == true ]]; then
+          echo -e "  $filename ${CHIEF_COLOR_BLUE}(would backup existing file)${CHIEF_NO_COLOR}"
+        else
+          echo -e "  $filename ${CHIEF_COLOR_YELLOW}(would overwrite existing file)${CHIEF_NO_COLOR}"
+        fi
+      else
+        echo -e "  $filename ${CHIEF_COLOR_GREEN}(new file)${CHIEF_NO_COLOR}"
+      fi
+    done
+    return 0
+  fi
+
+  # Copy files
+  local copied=0
+  local skipped=0
+  local failed=0
+
+  for file in "${dotfiles[@]}"; do
+    local filename
+    filename=$(basename "$file")
+    local dest_file="$dest_dir/$filename"
+    
+    if [[ "$verbose" == true ]]; then
+      echo -n "  $filename... "
+    fi
+
+    # Handle existing files
+    if [[ -f "$dest_file" ]]; then
+      if [[ "$force" != true ]]; then
+        if [[ "$verbose" != true ]]; then
+          echo -n "File exists: $filename - "
+        fi
+        echo -n "Overwrite? [y/N]: "
+        read -r confirm
+        if [[ ! "$confirm" =~ ^[Yy]$ ]]; then
+          if [[ "$verbose" == true ]]; then
+            echo -e "${CHIEF_COLOR_YELLOW}Skipped${CHIEF_NO_COLOR}"
+          else
+            echo -e "${CHIEF_COLOR_YELLOW}Skipped${CHIEF_NO_COLOR}"
+          fi
+          ((skipped++))
+          continue
+        fi
+      fi
+      
+      # Create backup if requested
+      if [[ "$backup" == true ]]; then
+        if ! cp "$dest_file" "${dest_file}.bak"; then
+          echo -e "${CHIEF_COLOR_RED}Warning: Failed to create backup for $filename${CHIEF_NO_COLOR}"
+        elif [[ "$verbose" == true ]]; then
+          echo -n "(backed up) "
+        fi
+      fi
+    fi
+
+    # Copy the file
+    if cp -a "$file" "$dest_file"; then
+      if [[ "$verbose" == true ]]; then
+        echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR}"
+      fi
+      ((copied++))
+    else
+      if [[ "$verbose" == true ]]; then
+        echo -e "${CHIEF_COLOR_RED}✗${CHIEF_NO_COLOR}"
+      else
+        echo -e "${CHIEF_COLOR_RED}Failed to copy: $filename${CHIEF_NO_COLOR}"
+      fi
+      ((failed++))
+    fi
+  done
+
+  echo ""
+  echo -e "${CHIEF_COLOR_GREEN}Summary: $copied copied, $skipped skipped, $failed failed${CHIEF_NO_COLOR}"
+  
+  if [[ "$backup" == true && "$copied" -gt 0 ]]; then
+    echo -e "${CHIEF_COLOR_BLUE}Backup files created with .bak extension${CHIEF_NO_COLOR}"
+  fi
+}
 
 function chief.etc_create_cipher() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [file_path] [--force]

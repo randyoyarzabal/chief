@@ -8,6 +8,9 @@
 - **GitHub Actions CI/CD Integration**: Automated testing on every push/PR with cross-platform validation (Ubuntu + macOS) and build status indicators
 - **Comprehensive Test Suite**: Added syntax validation, plugin testing, and integration tests that run locally (`./test/run-tests.sh`) and in CI
 - **Quality Assurance**: Prevents broken scripts from entering main/dev branches with pre-commit validation and plugin quality control
+- **SSL/TLS Certificate Management**: Added complete certificate toolkit with `chief.ssl.view_cert` (analyze certificates), `chief.ssl.get_cert` (download from servers), `chief.ssl.create_ca` (simple CA creation), and `chief.ssl.create_tls_cert` (create signed certificates) - all designed for ease of adoption with minimal requirements
+- **OpenShift Plugin Enhancements**: Improved `chief.oc.show_stuck_resources` with professional help documentation and completely rewrote `chief.oc.approve_csrs` with interactive/batch approval modes, filtering, dry-run capabilities, and comprehensive safety features
+- **System Utilities Plugin Overhaul**: Enhanced `chief.etc.chmod-f` and `chief.etc.chmod-d` (fixed naming from `lab.chmod-d`) with comprehensive help, validation, and safety features; completely rewrote `chief.etc.create_bootusb` with extensive safety measures for cross-platform bootable USB creation; enhanced `chief.etc.copy_dotfiles` with backup options, dry-run mode, and interactive confirmations
 
 ## 3.0.3
 
