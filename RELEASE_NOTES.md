@@ -1,6 +1,21 @@
-# Chief v3.0.4 Release Notes
+# Chief v3.0.4-dev Release Notes (Unreleased)
 
 ## 🚀 Key New Features
+
+### 🏗️ Private Function Namespace Refactoring (Major Refactoring)
+- **Consistent Naming**: All 39 private functions now use `__chief_*` prefix for better identification
+- **System Isolation**: Prevents naming conflicts with other bash utilities and system functions
+- **Examples**: `__print` → `__chief_print`, `__load_file` → `__chief_load_file`, `__edit_file` → `__chief_edit_file`
+- **Complete Migration**: Updated all core files, plugins, and user plugins to use new function names
+- **No Backward Compatibility**: Clean refactoring approach without compatibility aliases for better maintainability
+
+### 🚀 Enhanced Version Management (Developer Feature)
+- **Development Workflow**: Implemented `-dev` suffix system for clear distinction between released and in-progress versions
+- **Release Automation**: Enhanced `__chief.bump` function with `release` keyword for seamless version conversion
+- **Next Development**: Added `next-dev` keyword to automatically start next development cycle with incremented version
+- **File Coordination**: Automatically updates VERSION, UPDATES, RELEASE_NOTES.md, README.md, and docs files in sync
+- **Auto Documentation**: `next-dev` creates new "Unreleased" sections and documentation structure automatically
+- **GitHub Integration**: Designed to work with GitHub releases workflow (no automatic git tagging)
 
 ### 🔄 GitHub Actions CI/CD Integration (Major Feature)
 - **Automated Testing**: Comprehensive test suite runs on every push and pull request to main/dev branches
@@ -26,6 +41,11 @@
 
 ## 🎯 Benefits for Users
 
+### **System Integration** 🔗
+- **Unique Identification**: Chief functions easily identifiable in system process lists and logs
+- **Conflict Prevention**: Eliminates potential naming conflicts with other bash tools and utilities
+- **Professional Standards**: Follows best practices for bash library namespace management
+
 ### **Code Quality Assurance** 🔍
 - **Automatic Validation**: Every commit automatically tested to prevent broken scripts
 - **Multi-Platform Support**: Ensures Chief works consistently across Ubuntu and macOS
@@ -33,6 +53,11 @@
 - **Plugin Quality Control**: Validates plugin naming conventions and structure automatically
 
 ### **Enhanced Developer Experience** ⚡
+- **Consistent Codebase**: All internal functions follow same naming convention for easier debugging
+- **Clear API**: Plugin developers can easily distinguish between Chief internal and public functions
+- **Streamlined Releases**: Simple `__chief.bump release` command converts `-dev` to release version ready for GitHub release
+- **Next Development**: `__chief.bump next-dev` automatically starts next development cycle with proper versioning
+- **Version Clarity**: `-dev` suffix prevents accidental releases and makes development status obvious
 - **Local Testing**: Run the same tests locally before pushing with `./test/run-tests.sh`
 - **Immediate Feedback**: Know within 2-3 minutes if your changes break anything
 - **Granular Control**: Run individual test suites (syntax, plugins, integration) as needed

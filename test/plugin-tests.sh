@@ -225,8 +225,8 @@ export CHIEF_NO_COLOR='\033[0m'
 export NC='\033[0m'
 
 # Mock functions
-__print() { return 0; }
-__debug() { return 0; }
+__chief_print() { return 0; }
+__chief_debug() { return 0; }
 
 # Capture functions before loading
 functions_before=$(declare -F | cut -d' ' -f3 | sort)

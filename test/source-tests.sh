@@ -132,8 +132,8 @@ export CHIEF_NO_COLOR='\033[0m'
 export NC='\033[0m'
 
 # Mock common Chief functions that plugins might use
-__print() { echo "[MOCK] $*"; }
-__debug() { echo "[DEBUG] $*" >&2; }
+__chief_print() { echo "[MOCK] $*"; }
+__chief_debug() { echo "[DEBUG] $*" >&2; }
 
 # Redirect stdout to suppress plugin loading messages
 exec 1>/dev/null

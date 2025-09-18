@@ -709,7 +709,7 @@ Output variable is set in the caller's environment for access after completion.
     echo $!
   )
   printf "$1"
-  __spinner $REPLY "$1"
+  __chief_spinner $REPLY "$1"
 
   # Clear the message in-place
   local start=1
@@ -734,8 +734,8 @@ Output variable is set in the caller's environment for access after completion.
 
 # HELPER FUNCTIONS
 ##################################################
-function __spinner() {
-  # Usage: __spinner <pid>
+function __chief_spinner() {
+  # Usage: __chief_spinner <pid>
   local pid=$1
   local delay=0.75
   local spinstr='|/-\'
@@ -755,8 +755,8 @@ function __spinner() {
   done
 }
 
-function __timer() {
-  # Usage: __timer <start | end>
+function __chief_timer() {
+  # Usage: __chief_timer <start | end>
   if [[ ${PLATFORM} != "MacOS" ]]; then # Need to figure out the Mac equivalent of below
     if [[ $1 = "start" ]]; then
       SECONDS=0
@@ -766,19 +766,19 @@ function __timer() {
   fi
 }
 
-function __proper() {
-  # Usage: __proper <string>
+function __chief_proper() {
+  # Usage: __chief_proper <string>
   sed 's/.*/\L&/; s/[a-z]*/\u&/g' <<<"$1"
 }
 
-function __trim() {
-  # Usage: __trim <string>
+function __chief_trim() {
+  # Usage: __chief_trim <string>
   awk '{$1=$1};1'
 }
 
-function __begin {
+function __chief_begin {
   # Linux implementation of Cisco's "begin"
   cat | sed -n "/$1/,\$p"
 }
-alias be='__begin'
-alias begin='__begin'
+alias be='__chief_begin'
+alias begin='__chief_begin'

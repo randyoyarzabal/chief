@@ -1,7 +1,21 @@
 # Chief Updates
 
-## 3.0.4
+## Unreleased (v3.0.4-dev)
 
+- **Private Function Namespace Refactoring**: Renamed all private functions to use consistent `__chief_*` prefix for better system identification and namespace isolation
+  - **Function Standardization**: 39 private functions renamed from `__*` to `__chief_*` pattern (e.g., `__print` → `__chief_print`, `__load_file` → `__chief_load_file`)
+  - **Core Library Updates**: Updated all references in `chief_library.sh`, `chief.sh`, and core plugins
+  - **Plugin Compatibility**: Updated OpenShift and etc plugins to use new function names
+  - **User Plugin Migration**: Automatically updated user plugins to use new function names instead of providing backward compatibility
+  - **System Isolation**: Prevents naming conflicts with other bash utilities and makes Chief functions easily identifiable in process lists
+  - **Maintainability**: Cleaner codebase with consistent naming conventions for all internal functions
+  - **Test Updates**: Updated test mock functions to match new naming scheme
+- **Enhanced Version Management**: Updated `__chief.bump` function to support complete `-dev` workflow for cleaner release process
+  - **Release Mode**: Added `release` keyword to automatically convert `-dev` versions to release versions (e.g., `v3.0.4-dev` → `v3.0.4`)
+  - **Next Dev Mode**: Added `next-dev` keyword to start next development cycle (e.g., `v3.0.4` → `v3.0.5-dev`)
+  - **File Updates**: Now updates VERSION, UPDATES, RELEASE_NOTES.md, README.md, and docs files with version references and badges
+  - **Automatic Sections**: `next-dev` automatically creates new "Unreleased" sections in documentation files
+  - **Workflow Integration**: Streamlined version management system designed to work with GitHub releases (no git tagging)
 - **GitHub Actions CI/CD Integration**: Added comprehensive automated testing workflow for continuous integration
   - **Automated Testing**: All bash scripts validated on every push and pull request to main/dev branches
   - **Cross-Platform Testing**: Tests run on both Ubuntu and macOS environments

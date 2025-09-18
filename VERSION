@@ -3,7 +3,7 @@
 # This file contains all version and URL constants used across Chief
 # Source this file to get consistent values in all scripts
 
-export CHIEF_VERSION="v3.0.4"
+export CHIEF_VERSION="v3.0.4-dev"
 export CHIEF_REPO="https://github.com/randyoyarzabal/chief"
 export CHIEF_WEBSITE="https://chief.reonetlabs.us"  
 export CHIEF_AUTHOR="Randy E. Oyarzabal"
