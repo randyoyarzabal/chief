@@ -1079,7 +1079,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
       --fix) fix_mode=true; shift ;;
       -n|--dry-run) dry_run=true; shift ;;
       -y|--yes) auto_yes=true; shift ;;
-      -?) echo -e "${USAGE}"; return 0 ;;
+      -\?|--help) echo -e "${USAGE}"; return 0 ;;
       *) __chief_print_error "Unknown option: $1"; return 1 ;;
     esac
   done
@@ -1659,7 +1659,7 @@ https://www.redhat.com/en/blog/troubleshooting-terminating-namespaces"
     case $1 in
       -n|--dry-run) dry_run=true; shift ;;
       --no-confirm) no_confirm=true; shift ;;
-      -?) echo -e "${USAGE}"; return 0 ;;
+      -\?|--help) echo -e "${USAGE}"; return 0 ;;
       *) __chief_print_error "Unknown option: $1"; return 1 ;;
     esac
   done

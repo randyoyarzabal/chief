@@ -122,9 +122,9 @@ ${CHIEF_COLOR_GREEN}Advanced usage:${CHIEF_NO_COLOR}
         force=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
-        return
+        return 0
         ;;
       -*)
         echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
@@ -289,9 +289,9 @@ ${CHIEF_COLOR_GREEN}Advanced usage:${CHIEF_NO_COLOR}
         force=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
-        return
+        return 0
         ;;
       -*)
         echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
@@ -479,9 +479,9 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
         show_raw=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
-        return
+        return 0
         ;;
       -*)
         echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
@@ -742,9 +742,9 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
         show_info=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
-        return
+        return 0
         ;;
       -*)
         echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
@@ -970,7 +970,7 @@ ${CHIEF_COLOR_RED}Prerequisites:${CHIEF_NO_COLOR}
   # Parse positional and optional arguments
   while [[ $# -gt 0 ]]; do
     case $1 in
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return 0
         ;;

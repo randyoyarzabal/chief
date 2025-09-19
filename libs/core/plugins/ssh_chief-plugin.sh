@@ -44,7 +44,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME 42     # Remove entry on line 42
 "
 
-  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
+  if [[ -z $1 ]] || [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -77,7 +77,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME /path/to/my_key
 "
 
-  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
+  if [[ -z $1 ]] || [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi

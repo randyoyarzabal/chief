@@ -511,7 +511,7 @@ ${CHIEF_COLOR_BLUE}Environment Variable Setup:${CHIEF_NO_COLOR}
         use_env_mode=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
@@ -676,7 +676,7 @@ After configuration, verify with:
         show_config=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
@@ -876,7 +876,7 @@ Changes reset by this command cannot be recovered unless previously committed.
         dry_run=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;

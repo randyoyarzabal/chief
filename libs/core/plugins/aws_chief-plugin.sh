@@ -53,6 +53,12 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME developer us-west-2
 "
 
+  # Check for help flag
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
+    echo -e "${USAGE}"
+    return 0
+  fi
+
   # Check if Python3 is installed
   if ! command -v python3 &>/dev/null; then
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Python3 is required but not found."

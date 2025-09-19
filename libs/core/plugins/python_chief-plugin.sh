@@ -100,9 +100,9 @@ ${CHIEF_COLOR_BLUE}Next Steps:${CHIEF_NO_COLOR}
 After creation, start with: chief.python_start-ve [venv_name]
 "
 
-  if [[ $1 == "-?" ]]; then
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
-    return
+    return 0
   fi
 
   # Parse arguments
@@ -256,9 +256,9 @@ ${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR}
 Use 'chief.python_stop-ve' or 'deactivate' to exit the virtual environment.
 "
 
-  if [[ $1 == "-?" ]]; then
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
-    return
+    return 0
   fi
 
   # Check if already in a virtual environment
@@ -392,9 +392,9 @@ ${CHIEF_COLOR_MAGENTA}Alternative:${CHIEF_NO_COLOR}
 You can also use the standard 'deactivate' command when in a virtual environment.
 "
 
-  if [[ $1 == "-?" ]]; then
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
-    return
+    return 0
   fi
 
   # Check if in a virtual environment

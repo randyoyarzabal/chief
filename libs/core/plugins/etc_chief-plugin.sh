@@ -77,7 +77,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
         dry_run=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
@@ -253,7 +253,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
         dry_run=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
@@ -460,7 +460,7 @@ before running this command. Wrong disk number will destroy data!
         dry_run=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
@@ -763,7 +763,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
         backup=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
@@ -1037,7 +1037,7 @@ ${CHIEF_COLOR_BLUE}Related Commands:${CHIEF_NO_COLOR}
         detached=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
@@ -1161,7 +1161,7 @@ ${CHIEF_COLOR_BLUE}Related Commands:${CHIEF_NO_COLOR}
         read_only=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
@@ -1656,7 +1656,7 @@ exist in the source. Always test with --dry-run first when using --delete.
         exclude_patterns+=("$2")
         shift 2
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
