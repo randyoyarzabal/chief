@@ -1,1 +1,11 @@
-v3.1.0
+#!/usr/bin/env bash
+# Chief Version and Constants File
+# This file contains all version and URL constants used across Chief
+# Source this file to get consistent values in all scripts
+
+export CHIEF_VERSION="v3.1.0"
+export CHIEF_REPO="https://github.com/randyoyarzabal/chief"
+export CHIEF_WEBSITE="https://chief.reonetlabs.us"  
+export CHIEF_AUTHOR="Randy E. Oyarzabal"
+export CHIEF_GIT_REPO="https://github.com/randyoyarzabal/chief.git"
+export CHIEF_INSTALL_GIT_BRANCH="main"
