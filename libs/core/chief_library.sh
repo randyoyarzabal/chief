@@ -3324,6 +3324,68 @@ EOF
     fi
   fi
 
+  # Special handling for release workflow - transform dev release notes to final
+  if $is_release_workflow && [[ "$1" == "release" ]]; then
+    local release_notes_dir="${CHIEF_PATH}/release-notes"
+    local dev_release_notes="${release_notes_dir}/${new_version}-dev.md"
+    local final_release_notes="${release_notes_dir}/${new_version}.md"
+    
+    if [[ -f "$dev_release_notes" ]]; then
+      if ! $dry_run; then
+        __chief_print_info "Transforming development release notes to final release..."
+        __chief_print_info "  ${new_version}-dev.md → ${new_version}.md"
+        
+        # Transform the content: remove -dev references and update status
+        sed -e "s/${new_version}-dev/${new_version}/g" \
+            -e 's/## 🚀 What'\''s New in Development/## 🚀 What'\''s New in '"${new_version}"'/g' \
+            -e 's/**Status:** Development in progress/**Status:** Released/g' \
+            -e 's/**Target Release:** '"${new_version}"'/**Release Date:** '"${new_version}"'/g' \
+            "$dev_release_notes" > "$final_release_notes"
+        
+        # Remove the development version file
+        rm "$dev_release_notes"
+        __chief_print_success "Release notes updated for ${new_version} release"
+      else
+        __chief_print_info "Would transform: ${new_version}-dev.md → ${new_version}.md"
+        __chief_print_info "Would update content to reflect released status"
+      fi
+    elif [[ ! -f "$final_release_notes" ]]; then
+      if ! $dry_run; then
+        __chief_print_warn "No development release notes found at: ${dev_release_notes}"
+        __chief_print_info "Creating basic release notes for ${new_version}..."
+        
+        mkdir -p "$release_notes_dir"
+        cat > "$final_release_notes" << EOF
+# Chief ${new_version} Release Notes
+
+## 🚀 What's New in ${new_version}
+
+### 🔧 Version ${new_version} Release
+
+- Release version ${new_version}
+
+## 📋 Upgrade Notes
+
+### For Users
+
+- This is a release version
+
+---
+
+**Status:** Released  
+**Release Date:** ${new_version}  
+**Breaking Changes:** TBD  
+**New Features:** TBD
+EOF
+        __chief_print_info "Created basic release notes: release-notes/${new_version}.md"
+      else
+        __chief_print_info "Would create basic release notes: release-notes/${new_version}.md"
+      fi
+    else
+      __chief_print_info "Final release notes already exist: release-notes/${new_version}.md"
+    fi
+  fi
+
   # Update each file
   local updated_count=0
   for file in "${files_to_update[@]}"; do
