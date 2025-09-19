@@ -49,6 +49,146 @@ __chief_oc_check_login() {
   return 0
 }
 
+function chief.oc_whoami() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Display comprehensive information about the current OpenShift cluster login session,
+including user identity, API server, console address, and cluster context.
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -q, --quiet     Show minimal output (user and server only)
+  -j, --json      Output information in JSON format
+  -?              Show this help
+
+${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
+- Shows current authenticated user
+- Displays API server URL
+- Retrieves console web address (if available)
+- Shows current OpenShift context
+- Validates active login session
+- Supports both detailed and minimal output modes
+
+${CHIEF_COLOR_MAGENTA}Requirements:${CHIEF_NO_COLOR}
+- OpenShift CLI (oc) must be installed and available in PATH
+- User must be logged into OpenShift cluster
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME                    # Full cluster information display
+  $FUNCNAME -q                 # Minimal output (user and server)
+  $FUNCNAME -j                 # JSON format output
+  $FUNCNAME --quiet            # Minimal output (long form)
+
+${CHIEF_COLOR_BLUE}Output Format:${CHIEF_NO_COLOR}
+Default mode shows:
+- Current user identity
+- API server URL
+- Console web address
+- Current context name
+- Login session status
+
+${CHIEF_COLOR_BLUE}JSON Format:${CHIEF_NO_COLOR}
+{
+  \"user\": \"username\",
+  \"server\": \"https://api.cluster.com:6443\",
+  \"console\": \"https://console.cluster.com\",
+  \"context\": \"context-name\"
+}"
+
+  # Check if OpenShift CLI is available
+  if ! command -v oc &>/dev/null; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} OpenShift CLI (oc) is required but not found."
+    echo -e "${CHIEF_COLOR_YELLOW}Install:${CHIEF_NO_COLOR}"
+    echo "  Download from: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
+    echo "  Or use package manager (brew install openshift-cli, etc.)"
+    return 1
+  fi
+
+  local quiet_mode=false
+  local json_output=false
+
+  # Parse arguments
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -q|--quiet)
+        quiet_mode=true
+        shift
+        ;;
+      -j|--json)
+        json_output=true
+        shift
+        ;;
+      -\?)
+        echo -e "${USAGE}"
+        return 0
+        ;;
+      -*)
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+      *)
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} No positional arguments allowed"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+    esac
+  done
+
+  # Check if logged into OpenShift
+  if ! oc whoami &>/dev/null; then
+    if [[ "$json_output" == true ]]; then
+      echo '{"error": "Not logged into OpenShift cluster", "logged_in": false}'
+    else
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Not logged into OpenShift cluster"
+      echo -e "${CHIEF_COLOR_YELLOW}Hint:${CHIEF_NO_COLOR} Run 'oc login' or 'chief.oc_login' to authenticate"
+    fi
+    return 1
+  fi
+
+  # Get cluster information
+  local current_user current_server current_console current_context
+  current_user=$(oc whoami 2>/dev/null)
+  current_server=$(oc whoami --show-server 2>/dev/null)
+  current_console=$(oc whoami --show-console 2>/dev/null)
+  current_context=$(oc config current-context 2>/dev/null)
+
+  # Handle missing console (some clusters may not have it configured)
+  if [[ -z "$current_console" || "$current_console" == "null" ]]; then
+    current_console="N/A"
+  fi
+
+  # Output based on format requested
+  if [[ "$json_output" == true ]]; then
+    # JSON output
+    cat << EOF
+{
+  "logged_in": true,
+  "user": "$current_user",
+  "server": "$current_server",
+  "console": "$current_console",
+  "context": "$current_context"
+}
+EOF
+  elif [[ "$quiet_mode" == true ]]; then
+    # Quiet mode - minimal output
+    echo "User: $current_user"
+    echo "Server: $current_server"
+  else
+    # Full detailed output
+    echo -e "${CHIEF_SYMBOL_CHECK} ${CHIEF_COLOR_GREEN}OpenShift Cluster Information${CHIEF_NO_COLOR}"
+    echo ""
+    echo -e "${CHIEF_COLOR_BLUE}User:${CHIEF_NO_COLOR} $current_user"
+    echo -e "${CHIEF_COLOR_BLUE}API Server:${CHIEF_NO_COLOR} $current_server"
+    echo -e "${CHIEF_COLOR_BLUE}Console:${CHIEF_NO_COLOR} $current_console"
+    echo -e "${CHIEF_COLOR_BLUE}Context:${CHIEF_NO_COLOR} $current_context"
+    echo ""
+    echo -e "${CHIEF_COLOR_GREEN}✓ Successfully authenticated to cluster${CHIEF_NO_COLOR}"
+  fi
+
+  return 0
+}
+
 function chief.oc_get-all-objects() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <namespace> [options]
 
@@ -1696,7 +1836,7 @@ function __chief_oc_vault_kubeconfig_login() {
   # 
   # Developer usage: Handles kubeconfig-based authentication using Vault secrets
   # - Retrieves kubeconfig content from Vault secret
-  # - Writes kubeconfig to /tmp/kubeconfig and sets KUBECONFIG environment variable
+  # - Writes kubeconfig to ~/.tmp/kubeconfig and sets KUBECONFIG environment variable
   # - Used specifically for -kc authentication method
   # - Returns 0 on success, 1 if kubeconfig not found in Vault
   #
@@ -1718,15 +1858,22 @@ function __chief_oc_vault_kubeconfig_login() {
 
   __chief_print_info "Setting up kubeconfig from Vault..."
   
+  # Create user-specific temp directory if it doesn't exist
+  local user_tmp_dir="${HOME}/.tmp"
+  mkdir -p "$user_tmp_dir"
+  chmod 700 "$user_tmp_dir"  # Secure directory permissions
+  
+  local kubeconfig_path="${user_tmp_dir}/kubeconfig"
+  
   # Remove existing kubeconfig if it exists to avoid overwrite protection
-  [[ -f /tmp/kubeconfig ]] && rm -f /tmp/kubeconfig
+  [[ -f "$kubeconfig_path" ]] && rm -f "$kubeconfig_path"
   
   # Write kubeconfig to temp file
-  echo "$kubeconfig" > /tmp/kubeconfig
-  chmod 600 /tmp/kubeconfig  # Secure permissions
+  echo "$kubeconfig" > "$kubeconfig_path"
+  chmod 600 "$kubeconfig_path"  # Secure file permissions
   
-  export KUBECONFIG=/tmp/kubeconfig
-  __chief_print_success "KUBECONFIG set to /tmp/kubeconfig"
+  export KUBECONFIG="$kubeconfig_path"
+  __chief_print_success "KUBECONFIG set to $kubeconfig_path"
   
   # Validate that the login actually works
   local current_user
@@ -1738,6 +1885,7 @@ function __chief_oc_vault_kubeconfig_login() {
   else
     __chief_print_error "Login validation failed - kubeconfig may have invalid CA or expired credentials"
     __chief_print_error "Try refreshing the kubeconfig in Vault or use -ka for kubeadmin login"
+    __chief_print_info "Kubeconfig saved to: $kubeconfig_path"
     return 1
   fi
 }
