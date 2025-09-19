@@ -2639,21 +2639,18 @@ function __chief_show_plugin_help() {
   if compgen -A function | grep -q "^chief\.ssl_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}SSL Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires openssl)${CHIEF_NO_COLOR}"
     echo "    ssl_create_ca, ssl_create_tls_cert, ssl_view_cert, ssl_get_cert"
-    echo "    Certificate authority and TLS certificate management"
     found_plugins=true
   fi
   
   if compgen -A function | grep -q "^chief\.vault_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}Vault Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires ansible-vault)${CHIEF_NO_COLOR}"
     echo "    vault_file-edit, vault_file-load"
-    echo "    Encrypt/decrypt sensitive environment variables"
     found_plugins=true
   fi
   
   if compgen -A function | grep -q "^chief\.aws_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}AWS Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires aws CLI)${CHIEF_NO_COLOR}"
     echo "    aws_set_role, aws_export_creds"
-    echo "    AWS credential and role management"
     found_plugins=true
   fi
   
@@ -2666,7 +2663,6 @@ function __chief_show_plugin_help() {
   if compgen -A function | grep -q "^chief\.python_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}Python Plugin:${CHIEF_NO_COLOR}"
     echo "    python_create_ve, python_start_ve, python_stop_ve, python_ve_dep"
-    echo "    Virtual environment management"
     found_plugins=true
   fi
   
