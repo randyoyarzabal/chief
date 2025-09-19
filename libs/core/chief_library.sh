@@ -305,7 +305,7 @@ This is the same auto-reload mechanism used by chief.bash_profile, chief.bashrc,
   __chief_edit_file "$file" "$editor_option"
 }
 
-# Internal function for file editing (used by public chief.edit_file and other functions)
+# Internal function for file editing (used by public chief.edit-file and other functions)
 function __chief_edit_file() {
   # Usage: __chief_edit_file <file> [editor_option] [reload_option]
   # Arguments:
@@ -2520,7 +2520,7 @@ ${CHIEF_COLOR_YELLOW}File Location:${CHIEF_NO_COLOR}
     return
   fi
 
-  chief.edit_file "$HOME/.bash_profile"
+  chief.edit-file "$HOME/.bash_profile"
 }
 
 function chief.bashrc() {
@@ -2558,7 +2558,7 @@ Use chief.bash_profile for most Chief and personal configurations.
     return
   fi
 
-  chief.edit_file "$HOME/.bashrc"
+  chief.edit-file "$HOME/.bashrc"
 }
 
 function chief.profile() {
@@ -2597,7 +2597,7 @@ Use ~/.profile for cross-shell environment settings and ~/.bash_profile for bash
     return
   fi
 
-  chief.edit_file "$HOME/.profile"
+  chief.edit-file "$HOME/.profile"
 }
 
 function chief.reload() {
@@ -2870,7 +2870,7 @@ function __chief_show_compact_reference() {
   echo "  config, config_set, reload, update, uninstall, whereis, hints, help"
   echo
   echo -e "${CHIEF_COLOR_CYAN}File Editors:${CHIEF_NO_COLOR}"
-  echo "  edit_file, bash_profile, bashrc, profile"
+  echo "  edit-file, bash_profile, bashrc, profile"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Plugin Management:${CHIEF_NO_COLOR}"
   echo "  plugin [name], plugins_root (navigate), plugin -? (list)"

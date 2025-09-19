@@ -120,7 +120,7 @@ chief.uninstall
 
 ```bash
 # Certificate Authority Operations
-chief.ssl_create_ca [ca_name] [options]
+chief.ssl_create-ca [ca_name] [options]
   Options:
     -c, --country CODE      Country code (default: US)
     -s, --state STATE       State/province (default: CA)
@@ -133,7 +133,7 @@ chief.ssl_create_ca [ca_name] [options]
     -f, --force             Force overwrite existing files
 
 # TLS Certificate Creation
-chief.ssl_create_tls_cert <cert_name> [ca_name] [options]
+chief.ssl_create-tls-cert <cert_name> [ca_name] [options]
   Options:
     -c, --country CODE      Country code (inherit from CA if not specified)
     -s, --state STATE       State/province (inherit from CA)
@@ -149,7 +149,7 @@ chief.ssl_create_tls_cert <cert_name> [ca_name] [options]
     -f, --force             Force overwrite existing files
 
 # Certificate Analysis
-chief.ssl_view_cert [options] <certificate_file>
+chief.ssl_view-cert [options] <certificate_file>
   Options:
     -s, --subject           Show only certificate subject information
     -i, --issuer            Show only certificate issuer information
@@ -158,7 +158,7 @@ chief.ssl_view_cert [options] <certificate_file>
     -r, --raw               Show raw certificate text without parsing
 
 # Certificate Download
-chief.ssl_get_cert [options] <hostname> [port] [output_file]
+chief.ssl_get-cert [options] <hostname> [port] [output_file]
   Options:
     -c, --chain             Download full certificate chain
     -r, --raw               Save raw certificate without text analysis
@@ -582,10 +582,10 @@ openssl version
 # Linux: Use your package manager (apt install openssl, yum install openssl, etc.)
 
 # Verify SSL functions are available
-chief.whereis chief.ssl_create_ca
+chief.whereis chief.ssl_create-ca
 
 # Test with help option
-chief.ssl_create_ca -?
+chief.ssl_create-ca -?
 ```
 
 #### Q: ETC plugin permission functions fail

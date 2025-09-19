@@ -240,10 +240,10 @@ ssh.key_add                   # Add SSH keys to agent
 ssh.agent_status              # Check SSH agent status
 
 # SSL/TLS utilities (ssl_chief-plugin.sh)
-chief.ssl_create_ca           # Create Certificate Authority
-chief.ssl_create_tls_cert     # Create TLS certificates
-chief.ssl_view_cert           # View/analyze certificates
-chief.ssl_get_cert            # Download certificates from servers
+chief.ssl_create-ca           # Create Certificate Authority
+chief.ssl_create-tls-cert     # Create TLS certificates
+chief.ssl_view-cert           # View/analyze certificates
+chief.ssl_get-cert            # Download certificates from servers
 
 # System utilities (etc_chief-plugin.sh)
 chief.etc_chmod-f             # Recursive file permission changes
@@ -274,13 +274,13 @@ Chief includes comprehensive SSL/TLS certificate management tools for creating, 
 
 ```bash
 # Create a basic CA with defaults
-chief.ssl_create_ca
+chief.ssl_create-ca
 
 # Create a named CA with custom organization
-chief.ssl_create_ca mycompany -o "ACME Corp" -d 7300
+chief.ssl_create-ca mycompany -o "ACME Corp" -d 7300
 
 # Create CA with full customization
-chief.ssl_create_ca production \
+chief.ssl_create-ca production \
   -c US -s CA -l "San Francisco" \
   -o "Production CA" -e admin@company.com \
   -d 3650 -k 4096
@@ -290,30 +290,30 @@ chief.ssl_create_ca production \
 
 ```bash
 # Create basic server certificate
-chief.ssl_create_tls_cert webserver
+chief.ssl_create-tls-cert webserver
 
 # Create certificate with Subject Alternative Names
-chief.ssl_create_tls_cert api --san "api.example.com,api.test.com"
+chief.ssl_create-tls-cert api --san "api.example.com,api.test.com"
 
 # Create certificate with IP addresses
-chief.ssl_create_tls_cert server --ip "192.168.1.10,10.0.0.5"
+chief.ssl_create-tls-cert server --ip "192.168.1.10,10.0.0.5"
 
 # Create wildcard certificate
-chief.ssl_create_tls_cert web --san "*.example.com" -d 730 -k 4096
+chief.ssl_create-tls-cert web --san "*.example.com" -d 730 -k 4096
 ```
 
 #### Certificate Analysis and Download
 
 ```bash
 # View certificate details
-chief.ssl_view_cert cert.pem
-chief.ssl_view_cert -s cert.pem          # Subject only
-chief.ssl_view_cert -d cert.pem          # Dates only
+chief.ssl_view-cert cert.pem
+chief.ssl_view-cert -s cert.pem          # Subject only
+chief.ssl_view-cert -d cert.pem          # Dates only
 
 # Download certificates from servers
-chief.ssl_get_cert google.com
-chief.ssl_get_cert mail.example.com 993  # IMAPS
-chief.ssl_get_cert -c example.com        # Full certificate chain
+chief.ssl_get-cert google.com
+chief.ssl_get-cert mail.example.com 993  # IMAPS
+chief.ssl_get-cert -c example.com        # Full certificate chain
 ```
 
 ### System Administration Tools
