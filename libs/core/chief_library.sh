@@ -3269,7 +3269,6 @@ Note: This function only handles version updates. Create GitHub releases manuall
     "${CHIEF_PATH}/README.md"
     "${CHIEF_PATH}/docs/index.md"
     "${CHIEF_PATH}/docs/getting-started.md"
-    "${CHIEF_PATH}/UPDATES"
   )
   
   # Special handling for next-dev workflow
@@ -3277,15 +3276,9 @@ Note: This function only handles version updates. Create GitHub releases manuall
   if [[ "$1" == "next-dev" ]]; then
     is_next_dev=true
     
-    # Create new Unreleased section in UPDATES file
-    local updates_file="${CHIEF_PATH}/UPDATES"
-    if [[ -f "$updates_file" ]] && ! $dry_run; then
-      __chief_print_info "$(basename "$updates_file"): Adding new Unreleased section"
-      
-      # Create backup if requested
-      if $create_backups; then
-        cp "$updates_file" "${updates_file}.backup.$(date +%s)"
-      fi
+    # Note: Using release-notes structure instead of UPDATES file
+    if ! $dry_run; then
+      __chief_print_info "Using release-notes structure for version tracking"
       
       # Add new Unreleased section at the top
       local temp_file=$(mktemp)
@@ -3329,7 +3322,7 @@ Note: This function only handles version updates. Create GitHub releases manuall
 
 ---
 
-**Full details**: See [UPDATES](../UPDATES) file for complete changelog and technical details.
+**Full details**: See [release-notes](../release-notes/) directory for complete changelog and version history.
 EOF
       else
         __chief_print_info "Release notes file already exists: release-notes/${new_version}.md"
@@ -3337,7 +3330,6 @@ EOF
     fi
     
     if $dry_run; then
-      __chief_print_info "UPDATES: Would add new Unreleased section for $new_version"
       __chief_print_info "Would create new release notes file: release-notes/${new_version}.md"
     fi
   fi
@@ -3350,10 +3342,7 @@ EOF
       continue
     fi
     
-    # Skip UPDATES for next-dev since we handled it specially
-    if $is_next_dev && [[ "$(basename "$file")" == "UPDATES" ]]; then
-      continue
-    fi
+    # Note: No special UPDATES handling needed - using release-notes structure
     
     # Check if file already has the new version (both regular and badge formats)
     local badge_current="Download-Release%20${current_version}"
