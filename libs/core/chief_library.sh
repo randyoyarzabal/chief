@@ -3375,11 +3375,11 @@ EOF
       # Next development cycle: increment minor version for next dev
       ((minor++))
       dev_badge_current="Dev%20Branch-${current_version}"
-      dev_badge_new="Dev%20Branch-v${major}.${minor}.0-dev"
+      dev_badge_new="Dev%20Branch-v${major}.${minor}.0"
     # For next-dev workflow: v3.1.1 → v3.1.2-dev, dev badge should show the new dev version
     elif [[ "${positional_args[0]}" == "next-dev" ]]; then
       # Current version would be release version, new version would be dev version
-      dev_badge_current="Dev%20Branch-.*-dev"  # Pattern to match any current dev badge
+      dev_badge_current="Dev%20Branch-.*"  # Pattern to match any current dev badge
       dev_badge_new="Dev%20Branch-${new_version}"
     fi
     
@@ -3405,7 +3405,7 @@ EOF
       if [[ -n "$dev_badge_current" && -n "$dev_badge_new" ]]; then
         if [[ "$dev_badge_current" == *".*"* ]]; then
           # Pattern matching - check if file has any dev badge
-          if grep -q "Dev%20Branch-.*-dev" "$file" 2>/dev/null; then
+          if grep -q "Dev%20Branch-.*" "$file" 2>/dev/null; then
             if [[ -n "$changes" ]]; then
               changes="$changes + dev badges"
             else
@@ -3449,7 +3449,7 @@ EOF
     if $success && [[ -n "$dev_badge_current" && -n "$dev_badge_new" ]]; then
       if [[ "$dev_badge_current" == *".*"* ]]; then
         # Use regex replacement for pattern matching
-        if ! sed -i.tmp_dev "s|Dev%20Branch-[^-]*-dev|${dev_badge_new}|g" "$file" 2>/dev/null; then
+        if ! sed -i.tmp_dev "s|Dev%20Branch-v[0-9][^-]*|${dev_badge_new}|g" "$file" 2>/dev/null; then
           success=false
         fi
       else
