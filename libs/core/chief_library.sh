@@ -3591,15 +3591,32 @@ EOF
     
     # Update dev badge if we have dev badge changes
     if $success && [[ -n "$dev_badge_current" && -n "$dev_badge_new" ]]; then
-      if [[ "$dev_badge_current" == *".*"* ]]; then
-        # Use regex replacement for pattern matching
-        if ! sed -i.tmp_dev "s|Dev%20Branch-v[0-9][^-]*|${dev_badge_new}|g" "$file" 2>/dev/null; then
-          success=false
+      # Check if dev badge exists in file
+      local dev_badge_exists=false
+      if grep -q "Dev%20Branch-" "$file" 2>/dev/null; then
+        dev_badge_exists=true
+      fi
+      
+      if $dev_badge_exists; then
+        # Update existing dev badge
+        if [[ "$dev_badge_current" == *".*"* ]]; then
+          # Use regex replacement for pattern matching
+          if ! sed -i.tmp_dev "s|Dev%20Branch-v[0-9][^-]*|${dev_badge_new}|g" "$file" 2>/dev/null; then
+            success=false
+          fi
+        else
+          # Use exact string replacement
+          if ! sed -i.tmp_dev "s/${dev_badge_current}/${dev_badge_new}/g" "$file" 2>/dev/null; then
+            success=false
+          fi
         fi
       else
-        # Use exact string replacement
-        if ! sed -i.tmp_dev "s/${dev_badge_current}/${dev_badge_new}/g" "$file" 2>/dev/null; then
-          success=false
+        # Add dev badge if it doesn't exist (for next-dev workflow in README.md)
+        if [[ "${positional_args[0]}" == "next-dev" && "$(basename "$file")" == "README.md" ]]; then
+          # Insert dev badge after the release badge
+          if ! sed -i.tmp_dev "s|\(Download-Release%20${new_version}[^]]*\)]\([^)]*\))\(.*\)Documentation|\1]]\2) [![Dev Branch](https://img.shields.io/badge/${dev_badge_new}-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev)\3Documentation|g" "$file" 2>/dev/null; then
+            success=false
+          fi
         fi
       fi
     fi
