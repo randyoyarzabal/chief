@@ -49,7 +49,7 @@ __chief_oc_check_login() {
   return 0
 }
 
-function chief.oc_get_all_objects() {
+function chief.oc_get-all-objects() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <namespace> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -230,7 +230,7 @@ Based on techniques shared by Kyle Walker from Red Hat.
   fi
 }
 
-function chief.oc_clean_olm() {
+function chief.oc_clean-olm() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -479,7 +479,7 @@ Based on techniques shared by Kyle Walker from Red Hat.
   fi
 }
 
-function chief.oc_clean_replicasets() {
+function chief.oc_clean-replicasets() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options] [namespace]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -775,7 +775,7 @@ Based on techniques shared by Kyle Walker from Red Hat.
 }
 
 
-function chief.oc_approve_csrs() {
+function chief.oc_approve-csrs() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -805,12 +805,12 @@ Approving CSRs grants certificates that provide cluster access. Only approve
 CSRs from trusted sources. Review CSR details before approval in production.
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  chief.oc_approve_csrs                          # Interactive approval of pending CSRs
-  chief.oc_approve_csrs -l                       # List pending CSRs only
-  chief.oc_approve_csrs -a                       # Approve all pending CSRs
-  chief.oc_approve_csrs -n                       # Dry-run: show what would be approved
-  chief.oc_approve_csrs -f \"node-\"               # Approve only node-related CSRs
-  chief.oc_approve_csrs -f \"system:node\"         # Approve system node CSRs only
+  chief.oc_approve-csrs                          # Interactive approval of pending CSRs
+  chief.oc_approve-csrs -l                       # List pending CSRs only
+  chief.oc_approve-csrs -a                       # Approve all pending CSRs
+  chief.oc_approve-csrs -n                       # Dry-run: show what would be approved
+  chief.oc_approve-csrs -f \"node-\"               # Approve only node-related CSRs
+  chief.oc_approve-csrs -f \"system:node\"         # Approve system node CSRs only
 "
 
   # Check if OpenShift CLI is available
@@ -1021,7 +1021,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   echo -e "${CHIEF_COLOR_GREEN}Summary: $approved approved, $skipped skipped${CHIEF_NO_COLOR}"
 }
 
-function chief.oc_show_stuck_resources() {
+function chief.oc_show-stuck-resources() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <namespace> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1057,9 +1057,9 @@ ${CHIEF_COLOR_MAGENTA}Requirements:${CHIEF_NO_COLOR}
 - User must have permissions to list and patch resources in the target namespace
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  chief.oc_show_stuck_resources my-namespace              # Show all resources in my-namespace
-  chief.oc_show_stuck_resources production --dry-run      # Preview what stuck resources would be fixed
-  chief.oc_show_stuck_resources dev-environment --fix     # Fix stuck terminating resources"
+  chief.oc_show-stuck-resources my-namespace              # Show all resources in my-namespace
+  chief.oc_show-stuck-resources production --dry-run      # Preview what stuck resources would be fixed
+  chief.oc_show-stuck-resources dev-environment --fix     # Fix stuck terminating resources"
 
   local namespace="$1"
   local fix_mode=false
@@ -1079,7 +1079,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
       --fix) fix_mode=true; shift ;;
       -n|--dry-run) dry_run=true; shift ;;
       -y|--yes) auto_yes=true; shift ;;
-      -?) echo -e "${USAGE}"; return 0 ;;
+      -\?|--help) echo -e "${USAGE}"; return 0 ;;
       *) __chief_print_error "Unknown option: $1"; return 1 ;;
     esac
   done
@@ -1590,7 +1590,7 @@ function __chief_oc_try_env_login() {
   return 1
 }
 
-function chief.oc_delete_stuck_ns() {
+function chief.oc_delete-stuck-ns() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <namespace> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1635,9 +1635,9 @@ ${CHIEF_COLOR_MAGENTA}Requirements:${CHIEF_NO_COLOR}
 - jq command must be available for JSON manipulation
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  chief.oc_delete_stuck_ns stuck-namespace                    # Force delete with confirmation
-  chief.oc_delete_stuck_ns test-env --dry-run                # Preview what would be done
-  chief.oc_delete_stuck_ns broken-ns --no-confirm            # Force delete without prompts
+  chief.oc_delete-stuck-ns stuck-namespace                    # Force delete with confirmation
+  chief.oc_delete-stuck-ns test-env --dry-run                # Preview what would be done
+  chief.oc_delete-stuck-ns broken-ns --no-confirm            # Force delete without prompts
 
 ${CHIEF_COLOR_BLUE}Reference:${CHIEF_NO_COLOR}
 Based on Red Hat's troubleshooting guide:
@@ -1659,7 +1659,7 @@ https://www.redhat.com/en/blog/troubleshooting-terminating-namespaces"
     case $1 in
       -n|--dry-run) dry_run=true; shift ;;
       --no-confirm) no_confirm=true; shift ;;
-      -?) echo -e "${USAGE}"; return 0 ;;
+      -\?|--help) echo -e "${USAGE}"; return 0 ;;
       *) __chief_print_error "Unknown option: $1"; return 1 ;;
     esac
   done

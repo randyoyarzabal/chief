@@ -242,7 +242,7 @@ function __chief_has_vscode() {
   command -v code >/dev/null 2>&1
 }
 
-function chief.edit_file() {
+function chief.edit-file() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <file> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -410,13 +410,13 @@ __chief_load_remote_plugins() {
     echo -e "  ${CHIEF_COLOR_GREEN}3.${CHIEF_NO_COLOR} Force update anyway (${CHIEF_COLOR_RED}WILL LOSE YOUR CHANGES${CHIEF_NO_COLOR})"
     echo
     
-    if chief.etc_ask_yes_or_no "Temporarily disable PLUGINS_GIT_AUTOUPDATE to preserve your local changes?"; then
+    if chief.etc_ask-yes-or-no "Temporarily disable PLUGINS_GIT_AUTOUPDATE to preserve your local changes?"; then
       skip_autoupdate=true
       echo -e "${CHIEF_COLOR_YELLOW}Auto-update disabled for this session. Your local changes are safe.${CHIEF_NO_COLOR}"
       echo -e "${CHIEF_COLOR_CYAN}To commit your changes: cd ${CHIEF_CFG_PLUGINS_PATH} && git add . && git commit -m 'your message' && git push${CHIEF_NO_COLOR}"
       echo -e "${CHIEF_COLOR_CYAN}To permanently enable auto-update again: set CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=true in your config${CHIEF_NO_COLOR}"
     else
-      if chief.etc_ask_yes_or_no "Force update anyway? This will ${CHIEF_COLOR_RED}DISCARD ALL LOCAL CHANGES${CHIEF_NO_COLOR}!"; then
+      if chief.etc_ask-yes-or-no "Force update anyway? This will ${CHIEF_COLOR_RED}DISCARD ALL LOCAL CHANGES${CHIEF_NO_COLOR}!"; then
         good_to_load=true
         echo -e "${CHIEF_COLOR_YELLOW}Proceeding with force update. Local changes will be lost.${CHIEF_NO_COLOR}"
       else
@@ -432,7 +432,7 @@ __chief_load_remote_plugins() {
     good_to_load=true
   # If the git path isn't set Or path doesn't exist Or it is empty.
   elif [[ -z ${CHIEF_CFG_PLUGINS_PATH} ]] || [[ ! -d ${CHIEF_CFG_PLUGINS_PATH} ]] || [[ -z "$(ls -A ${CHIEF_CFG_PLUGINS_PATH})" ]]; then
-    if chief.etc_ask_yes_or_no "Your Chief plugins directory is empty/doesn't exist, do you want to run the update now?
+    if chief.etc_ask-yes-or-no "Your Chief plugins directory is empty/doesn't exist, do you want to run the update now?
 You can run 'chief.plugins_update' anytime or set CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=true"; then
       good_to_load=true
     fi  
@@ -656,7 +656,7 @@ function __chief_edit_plugin() {
     __chief_edit_file ${plugin_file} ${editor_option}
   else
     echo "Chief plugin: ${plugin_name} plugin file does not exist."
-    if ! chief.etc_ask_yes_or_no "Create it?"; then
+    if ! chief.etc_ask-yes-or-no "Create it?"; then
       echo -e "${CHIEF_COLOR_YELLOW}Plugin file not created.${CHIEF_NO_COLOR}"
       return 1
     fi
@@ -1260,7 +1260,7 @@ Set CHIEF_CFG_PLUGINS_TYPE='remote' and CHIEF_CFG_PLUGINS_GIT_REPO in chief.conf
       echo -e "  ${CHIEF_COLOR_GREEN}3.${CHIEF_NO_COLOR} Cancel and handle changes manually"
       echo
       
-      if chief.etc_ask_yes_or_no "Force update anyway? This will ${CHIEF_COLOR_RED}DISCARD ALL LOCAL CHANGES${CHIEF_NO_COLOR}!"; then
+      if chief.etc_ask-yes-or-no "Force update anyway? This will ${CHIEF_COLOR_RED}DISCARD ALL LOCAL CHANGES${CHIEF_NO_COLOR}!"; then
         echo -e "${CHIEF_COLOR_YELLOW}Proceeding with force update. Local changes will be lost.${CHIEF_NO_COLOR}"
         __chief_load_remote_plugins "--verbose" "--force" "--explicit" && {
           echo -e "${CHIEF_COLOR_GREEN}Updated all plugins to the latest version.${CHIEF_NO_COLOR}"
@@ -1347,7 +1347,7 @@ You can also manually update by running git pull in the Chief directory.
   
   if [[ ${LOCAL_BRANCH} != ${TARGET_BRANCH} ]]; then
     echo -e "${CHIEF_COLOR_YELLOW}Notice: Currently on ${LOCAL_BRANCH} branch, but configured to track ${TARGET_BRANCH}${CHIEF_NO_COLOR}"
-    if chief.etc_ask_yes_or_no "Switch to ${TARGET_BRANCH} branch now?"; then
+    if chief.etc_ask-yes-or-no "Switch to ${TARGET_BRANCH} branch now?"; then
       echo -e "${CHIEF_COLOR_CYAN}Switching from ${LOCAL_BRANCH} to ${TARGET_BRANCH} branch...${CHIEF_NO_COLOR}"
       
       # Fetch all branches to ensure target branch exists
@@ -1444,7 +1444,7 @@ You can also manually update by running git pull in the Chief directory.
   chief.etc_spinner "Checking for updates..." "__chief_check_for_updates" tmp_out
   echo -e "${tmp_out}"
   if [[ ${tmp_out} == *"available"* ]]; then
-    if chief.etc_ask_yes_or_no "Updates are available, update now?"; then
+    if chief.etc_ask-yes-or-no "Updates are available, update now?"; then
       echo "Proceeding..."
       
       # We're already in CHIEF_PATH and on the correct branch
@@ -1621,7 +1621,7 @@ Some changes require terminal restart to take full effect.
   }
 }
 
-function chief.config_set() {
+function chief.config-set() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--list|-l] | <config_option>=<value> [--yes|-y]
        $FUNCNAME <config_option> <value> [--yes|-y]
 
@@ -1985,7 +1985,7 @@ function __chief_parse_user_config() {
   done < "$user_config"
 }
 
-function chief.config_update() {
+function chief.config-update() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [OPTIONS]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -2290,7 +2290,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 }
 
-function chief.plugins_root() {
+function chief.plugins-root() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -2579,20 +2579,20 @@ function __chief_show_core_commands() {
   echo
   echo -e "${CHIEF_COLOR_CYAN}Configuration & Setup:${CHIEF_NO_COLOR}"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}        Edit Chief configuration file"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.config_set${CHIEF_NO_COLOR}    Set configuration variables directly"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.config_update${CHIEF_NO_COLOR} Update config with new options from template"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.config-set${CHIEF_NO_COLOR}    Set configuration variables directly"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.config-update${CHIEF_NO_COLOR} Update config with new options from template"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.reload${CHIEF_NO_COLOR}        Reload Chief environment"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR}        Update Chief to latest version"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.uninstall${CHIEF_NO_COLOR}     Remove Chief from system"
   echo
   echo -e "${CHIEF_COLOR_CYAN}File Management:${CHIEF_NO_COLOR} ${CHIEF_COLOR_BLUE}(auto-reloads after editing)${CHIEF_NO_COLOR}"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.edit_file${CHIEF_NO_COLOR}     Edit any file with auto-reload detection"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.edit-file${CHIEF_NO_COLOR}     Edit any file with auto-reload detection"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.bash_profile${CHIEF_NO_COLOR}  Edit ~/.bash_profile"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.bashrc${CHIEF_NO_COLOR}        Edit ~/.bashrc"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.profile${CHIEF_NO_COLOR}       Edit ~/.profile"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Plugin Management:${CHIEF_NO_COLOR}"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugins_root${CHIEF_NO_COLOR}   Navigate to plugins directory"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugins-root${CHIEF_NO_COLOR}   Navigate to plugins directory"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.plugin${CHIEF_NO_COLOR}        Create/edit plugins"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR}     List available plugins"
   echo
@@ -2629,16 +2629,16 @@ function __chief_show_plugin_help() {
   
   if compgen -A function | grep -q "^chief\.git_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}Git Plugin:${CHIEF_NO_COLOR}"
-    echo "    git_branch, git_commit, git_clone, git_tag, git_delete_branch"
-    echo "    git_delete_tag, git_legend, git_rename_branch, git_reset-soft"
-    echo "    git_reset-hard, git_set_url, git_untrack, git_update, git_cred_cache"
+    echo "    git_branch, git_commit, git_clone, git_tag, git_delete-branch"
+    echo "    git_delete-tag, git_legend, git_rename-branch, git_reset-soft"
+    echo "    git_reset-hard, git_set-url, git_untrack, git_update, git_cred-cache"
     echo "    git_amend, git_url"
     found_plugins=true
   fi
   
   if compgen -A function | grep -q "^chief\.ssl_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}SSL Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires openssl)${CHIEF_NO_COLOR}"
-    echo "    ssl_create_ca, ssl_create_tls_cert, ssl_view_cert, ssl_get_cert"
+    echo "    ssl_create-ca, ssl_create-tls-cert, ssl_renew-tls-cert, ssl_view-cert, ssl_get-cert"
     found_plugins=true
   fi
   
@@ -2650,36 +2650,36 @@ function __chief_show_plugin_help() {
   
   if compgen -A function | grep -q "^chief\.aws_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}AWS Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires aws CLI)${CHIEF_NO_COLOR}"
-    echo "    aws_set_role, aws_export_creds"
+    echo "    aws_set-role, aws_export-creds"
     found_plugins=true
   fi
   
   if compgen -A function | grep -q "^chief\.ssh_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}SSH Plugin:${CHIEF_NO_COLOR}"
-    echo "    ssh_create_keypair, ssh_get_publickey, ssh_rm_host, ssh_load_keys"
+    echo "    ssh_create-keypair, ssh_get-publickey, ssh_rm-host, ssh_load_keys"
     found_plugins=true
   fi
   
   if compgen -A function | grep -q "^chief\.python_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}Python Plugin:${CHIEF_NO_COLOR}"
-    echo "    python_create_ve, python_start_ve, python_stop_ve, python_ve_dep"
+    echo "    python_create-ve, python_start-ve, python_stop-ve, python_ve-dep"
     found_plugins=true
   fi
   
   if compgen -A function | grep -q "^chief\.oc_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}OpenShift Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires oc CLI)${CHIEF_NO_COLOR}"
-    echo "    oc_login, oc_get_all_objects, oc_clean_olm, oc_clean_replicasets"
-    echo "    oc_approve_csrs, oc_show_stuck_resources, oc_delete_stuck_ns"
+    echo "    oc_login, oc_get-all-objects, oc_clean-olm, oc_clean-replicasets"
+    echo "    oc_approve-csrs, oc_show-stuck-resources, oc_delete-stuck-ns"
     echo "    OpenShift cluster management and maintenance"
     found_plugins=true
   fi
   
   if compgen -A function | grep -q "^chief\.etc_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}Utilities Plugin:${CHIEF_NO_COLOR}"
-    echo "    etc_ask_yes_or_no, etc_spinner, etc_prompt, etc_mount_share"
-    echo "    etc_isvalid_ip, etc_broadcast, etc_at_run, etc_folder_diff"
+    echo "    etc_ask-yes-or-no, etc_spinner, etc_prompt, etc_mount-share"
+    echo "    etc_isvalid-ip, etc_broadcast, etc_at-run, etc_folder-diff"
     echo "    etc_shared-term_create, etc_shared-term_connect, etc_chmod-f, etc_chmod-d"
-    echo "    etc_create_bootusb, etc_copy_dotfiles, etc_create_cipher, type_writer"
+    echo "    etc_create-bootusb, etc_copy-dotfiles, etc_create-cipher, type-writer"
     found_plugins=true
   fi
   
@@ -3269,7 +3269,6 @@ Note: This function only handles version updates. Create GitHub releases manuall
     "${CHIEF_PATH}/README.md"
     "${CHIEF_PATH}/docs/index.md"
     "${CHIEF_PATH}/docs/getting-started.md"
-    "${CHIEF_PATH}/UPDATES"
   )
   
   # Special handling for next-dev workflow
@@ -3277,27 +3276,11 @@ Note: This function only handles version updates. Create GitHub releases manuall
   if [[ "$1" == "next-dev" ]]; then
     is_next_dev=true
     
-    # Create new Unreleased section in UPDATES file
-    local updates_file="${CHIEF_PATH}/UPDATES"
-    if [[ -f "$updates_file" ]] && ! $dry_run; then
-      __chief_print_info "$(basename "$updates_file"): Adding new Unreleased section"
+    # Note: Using release-notes structure instead of UPDATES file
+    if ! $dry_run; then
+      __chief_print_info "Using release-notes structure for version tracking"
       
-      # Create backup if requested
-      if $create_backups; then
-        cp "$updates_file" "${updates_file}.backup.$(date +%s)"
-      fi
-      
-      # Add new Unreleased section at the top
-      local temp_file=$(mktemp)
-      {
-        echo "# Chief Updates"
-        echo ""
-        echo "## Unreleased ($new_version)"
-        echo ""
-        echo ""
-        tail -n +3 "$updates_file"
-      } > "$temp_file"
-      mv "$temp_file" "$updates_file"
+      # Release notes will be managed manually in release-notes/ directory
     fi
     
     # Create version-specific release notes file  
@@ -3329,7 +3312,7 @@ Note: This function only handles version updates. Create GitHub releases manuall
 
 ---
 
-**Full details**: See [UPDATES](../UPDATES) file for complete changelog and technical details.
+**Full details**: See [release-notes](../release-notes/) directory for complete changelog and version history.
 EOF
       else
         __chief_print_info "Release notes file already exists: release-notes/${new_version}.md"
@@ -3337,7 +3320,6 @@ EOF
     fi
     
     if $dry_run; then
-      __chief_print_info "UPDATES: Would add new Unreleased section for $new_version"
       __chief_print_info "Would create new release notes file: release-notes/${new_version}.md"
     fi
   fi
@@ -3350,10 +3332,7 @@ EOF
       continue
     fi
     
-    # Skip UPDATES for next-dev since we handled it specially
-    if $is_next_dev && [[ "$(basename "$file")" == "UPDATES" ]]; then
-      continue
-    fi
+    # Note: No special UPDATES handling needed - using release-notes structure
     
     # Check if file already has the new version (both regular and badge formats)
     local badge_current="Download-Release%20${current_version}"
@@ -3510,17 +3489,24 @@ EOF
       fi
     fi
     
-    __chief_print_info "Next steps:"
-    __chief_print_info "  1. Review changes: git diff"
-    __chief_print_info "  2. Commit: git add -A && git commit -m 'Bump version to $new_version'"
-    __chief_print_info "  3. Push: git push origin dev"
-    
     # Different next steps for dev vs release versions
     if [[ "$new_version" =~ -dev$ ]]; then
-      __chief_print_info "  4. Ready for development work on $new_version"
-      __chief_print_info "  5. When ready to release, run: __chief.bump release"
+      __chief_print_info "📋 Next steps for development version ($new_version):"
+      __chief_print_info "  1. ✅ Ready for development work on $new_version"
+      __chief_print_info "  2. When ready to release, run: __chief.bump release"
     else
-      __chief_print_info "  4. Create GitHub release manually for tagging and publishing"
+      __chief_print_info "🚀 Release version ready ($new_version):"
+      __chief_print_info "  📝 Badges now show release version (no -dev suffix)"
+      __chief_print_info "  📋 Next steps to publish release:"
+      __chief_print_info "  1. 🔄 Create PR: dev → main (for release)"
+      __chief_print_info "  2. 📦 Create GitHub release from tag for publishing"
+      __chief_print_info ""
+      __chief_print_info "📋 Copy-paste for GitHub release description:"
+      __chief_print_info "────────────────────────────────────────────────────"
+      __chief_print_info "See [$new_version release notes](https://github.com/randyoyarzabal/chief/blob/main/release-notes/$new_version.md)"
+      __chief_print_info "────────────────────────────────────────────────────"
+      __chief_print_info ""
+      __chief_print_info "  7. 🔄 Run: __chief.bump next-dev (to start next development cycle)"
     fi
   fi
 }

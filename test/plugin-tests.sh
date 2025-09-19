@@ -144,8 +144,8 @@ test_plugin_functions() {
     # Look for function definitions in the plugin
     local functions=()
     while IFS= read -r line; do
-        if [[ "$line" =~ ^[[:space:]]*function[[:space:]]+([a-zA-Z0-9_\.]+)\(\) ]] || 
-           [[ "$line" =~ ^[[:space:]]*([a-zA-Z0-9_\.]+)\(\)[[:space:]]*\{ ]]; then
+        if [[ "$line" =~ ^[[:space:]]*function[[:space:]]+([a-zA-Z0-9_\.-]+)\(\) ]] || 
+           [[ "$line" =~ ^[[:space:]]*([a-zA-Z0-9_\.-]+)\(\)[[:space:]]*\{ ]]; then
             local func_name="${BASH_REMATCH[1]}"
             functions+=("$func_name")
         fi
@@ -372,7 +372,9 @@ main() {
     echo -e "${BLUE}Plugins Tested:${NC} ${#plugin_files[@]}"
     echo -e "${BLUE}Total Tests:${NC} $TOTAL_TESTS"
     echo -e "${GREEN}Passed:${NC} $PASSED_TESTS"
-    echo -e "${RED}Failed:${NC} $FAILED_TESTS"
+    if [[ $FAILED_TESTS -gt 0 ]]; then
+        echo -e "${RED}Failed:${NC} $FAILED_TESTS"
+    fi
     echo ""
     
     if [[ $FAILED_TESTS -eq 0 ]]; then

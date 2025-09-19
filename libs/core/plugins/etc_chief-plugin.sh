@@ -77,7 +77,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
         dry_run=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
@@ -253,7 +253,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
         dry_run=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
@@ -388,8 +388,8 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 }
 
-function chief.etc_create_bootusb() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} chief.etc_create_bootusb <iso_file> <disk_number> [options]
+function chief.etc_create-bootusb() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} chief.etc_create-bootusb <iso_file> <disk_number> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Create a bootable USB drive from an ISO file (macOS/Linux).
@@ -430,9 +430,9 @@ ${CHIEF_COLOR_GREEN}macOS:${CHIEF_NO_COLOR} diskutil list
 ${CHIEF_COLOR_GREEN}Linux:${CHIEF_NO_COLOR} lsblk or sudo fdisk -l
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  chief.etc_create_bootusb ubuntu.iso 2           # Create bootable USB from ubuntu.iso on disk2
-  chief.etc_create_bootusb -n ubuntu.iso 2        # Dry-run: show what would be done (SAFE)
-  chief.etc_create_bootusb -k installer.iso 3     # Keep temporary files after creation
+  chief.etc_create-bootusb ubuntu.iso 2           # Create bootable USB from ubuntu.iso on disk2
+  chief.etc_create-bootusb -n ubuntu.iso 2        # Dry-run: show what would be done (SAFE)
+  chief.etc_create-bootusb -k installer.iso 3     # Keep temporary files after creation
   
 ${CHIEF_COLOR_RED}WARNING:${CHIEF_NO_COLOR} Always verify disk number with 'diskutil list' (macOS) or 'lsblk' (Linux)
 before running this command. Wrong disk number will destroy data!
@@ -460,7 +460,7 @@ before running this command. Wrong disk number will destroy data!
         dry_run=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
@@ -621,13 +621,13 @@ before running this command. Wrong disk number will destroy data!
     echo -e "${CHIEF_COLOR_RED}ALL DATA on the target disk will be PERMANENTLY LOST!${CHIEF_NO_COLOR}"
     echo ""
     
-    if [[ $(chief.etc_ask_yes_or_no "Is $disk_device the correct USB drive to ERASE?") != "yes" ]]; then
+    if [[ $(chief.etc_ask-yes-or-no "Is $disk_device the correct USB drive to ERASE?") != "yes" ]]; then
       echo -e "${CHIEF_COLOR_YELLOW}Operation cancelled by user${CHIEF_NO_COLOR}"
       return 0
     fi
     
     echo ""
-    if [[ $(chief.etc_ask_yes_or_no "Are you absolutely sure you want to DESTROY all data on $disk_device?") != "yes" ]]; then
+    if [[ $(chief.etc_ask-yes-or-no "Are you absolutely sure you want to DESTROY all data on $disk_device?") != "yes" ]]; then
       echo -e "${CHIEF_COLOR_YELLOW}Operation cancelled by user${CHIEF_NO_COLOR}"
       return 0
     fi
@@ -695,8 +695,8 @@ before running this command. Wrong disk number will destroy data!
   echo -e "${CHIEF_COLOR_YELLOW}The USB drive is now ready to boot${CHIEF_NO_COLOR}"
 }
 
-function chief.etc_copy_dotfiles() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} chief.etc_copy_dotfiles <source_directory> <destination_directory> [options]
+function chief.etc_copy-dotfiles() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} chief.etc_copy-dotfiles <source_directory> <destination_directory> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Copy hidden files (dotfiles) from source to destination directory.
@@ -731,10 +731,10 @@ ${CHIEF_COLOR_BLUE}Safety Features:${CHIEF_NO_COLOR}
 - Dry-run mode to preview operations
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  chief.etc_copy_dotfiles ~/backup ~/                    # Copy dotfiles from backup to home
-  chief.etc_copy_dotfiles -v /etc/skel ~/newuser         # Verbose copy of skeleton files
-  chief.etc_copy_dotfiles -b -f ~/old ~/current          # Force copy with backups
-  chief.etc_copy_dotfiles -n ~/source ~/dest             # Dry-run to see what would be copied
+  chief.etc_copy-dotfiles ~/backup ~/                    # Copy dotfiles from backup to home
+  chief.etc_copy-dotfiles -v /etc/skel ~/newuser         # Verbose copy of skeleton files
+  chief.etc_copy-dotfiles -b -f ~/old ~/current          # Force copy with backups
+  chief.etc_copy-dotfiles -n ~/source ~/dest             # Dry-run to see what would be copied
 "
 
   local source_dir=""
@@ -763,7 +763,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
         backup=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
@@ -938,7 +938,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 }
 
-function chief.etc_create_cipher() {
+function chief.etc_create-cipher() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [file_path] [--force]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1037,7 +1037,7 @@ ${CHIEF_COLOR_BLUE}Related Commands:${CHIEF_NO_COLOR}
         detached=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
@@ -1161,7 +1161,7 @@ ${CHIEF_COLOR_BLUE}Related Commands:${CHIEF_NO_COLOR}
         read_only=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
@@ -1231,7 +1231,7 @@ ${CHIEF_COLOR_BLUE}Related Commands:${CHIEF_NO_COLOR}
   fi
 }
 
-function chief.etc_mount_share() {
+function chief.etc_mount-share() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <share_path> <mount_path> <username>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1302,7 +1302,7 @@ ${CHIEF_COLOR_BLUE}Setup Mount Point:${CHIEF_NO_COLOR}
   fi
 }
 
-function chief.etc_folder_diff() {
+function chief.etc_folder-diff() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <folder1> <folder2>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1374,7 +1374,7 @@ This compares file names only, not file contents. Use diff for content compariso
   fi
 }
 
-function chief.etc_at_run() {
+function chief.etc_at-run() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <time> <command>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1490,7 +1490,7 @@ This command may require administrator privileges on some systems.
   fi
 }
 
-function chief.etc_isvalid_ip() {
+function chief.etc_isvalid-ip() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <ip_address>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1554,8 +1554,8 @@ ${CHIEF_COLOR_BLUE}Usage in Scripts:${CHIEF_NO_COLOR}
   return $stat
 }
 
-function chief.etc_folder_sync() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} chief.etc_folder_sync <source_directory> <destination_directory> [options]
+function chief.etc_folder-sync() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} chief.etc_folder-sync <source_directory> <destination_directory> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Synchronize two directories using rsync, keeping both folders in sync.
@@ -1596,13 +1596,13 @@ ${CHIEF_COLOR_BLUE}Safety Features:${CHIEF_NO_COLOR}
 - Detailed progress reporting in verbose mode
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  chief.etc_folder_sync ~/Documents /mnt/backup/Documents
-  chief.etc_folder_sync -a -v ~/work /backup/work            # Archive mode with verbose
-  chief.etc_folder_sync -d ~/local /remote/local            # Sync with deletion
-  chief.etc_folder_sync -n -d ~/test /backup/test           # Dry-run with delete preview
-  chief.etc_folder_sync -x '*.log' ~/app /backup/app        # Exclude log files
-  chief.etc_folder_sync -c ~/data /nfs/data                 # Use checksum comparison
-  chief.etc_folder_sync -q ~/docs /backup/docs              # Quiet mode (no progress)
+  chief.etc_folder-sync ~/Documents /mnt/backup/Documents
+  chief.etc_folder-sync -a -v ~/work /backup/work            # Archive mode with verbose
+  chief.etc_folder-sync -d ~/local /remote/local            # Sync with deletion
+  chief.etc_folder-sync -n -d ~/test /backup/test           # Dry-run with delete preview
+  chief.etc_folder-sync -x '*.log' ~/app /backup/app        # Exclude log files
+  chief.etc_folder-sync -c ~/data /nfs/data                 # Use checksum comparison
+  chief.etc_folder-sync -q ~/docs /backup/docs              # Quiet mode (no progress)
 
 ${CHIEF_COLOR_RED}Important:${CHIEF_NO_COLOR}
 The --delete option will permanently remove files from the destination that don't
@@ -1656,7 +1656,7 @@ exist in the source. Always test with --dry-run first when using --delete.
         exclude_patterns+=("$2")
         shift 2
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
@@ -1794,7 +1794,7 @@ exist in the source. Always test with --dry-run first when using --delete.
     echo -e "${CHIEF_COLOR_RED}Files in destination that don't exist in source will be DELETED!${CHIEF_NO_COLOR}"
     echo ""
     
-    if [[ $(chief.etc_ask_yes_or_no "Continue with synchronization including deletions?") != "yes" ]]; then
+    if [[ $(chief.etc_ask-yes-or-no "Continue with synchronization including deletions?") != "yes" ]]; then
       echo -e "${CHIEF_COLOR_YELLOW}Operation cancelled by user${CHIEF_NO_COLOR}"
       return 0
     fi
@@ -1829,7 +1829,7 @@ exist in the source. Always test with --dry-run first when using --delete.
   fi
 }
 
-function chief.etc_ask_yes_or_no() {
+function chief.etc_ask-yes-or-no() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <message>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1929,7 +1929,7 @@ ${CHIEF_COLOR_BLUE}Usage in Scripts:${CHIEF_NO_COLOR}
   echo "$REPLY"
 }
 
-function chief.type_writer() {
+function chief.type-writer() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <message> [delay_seconds]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}

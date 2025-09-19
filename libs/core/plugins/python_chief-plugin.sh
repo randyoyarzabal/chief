@@ -25,7 +25,7 @@ if [[ $0 == "${BASH_SOURCE[0]}" ]]; then
   exit 1
 fi
 
-function chief.python_ve_dep() {
+function chief.python_ve-dep() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -68,7 +68,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 }
 
-function chief.python_create_ve() {
+function chief.python_create-ve() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [venv_name] [python_version] [path]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -97,12 +97,12 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME venv python3.9 /opt/venvs/myapp      # Create in custom location
 
 ${CHIEF_COLOR_BLUE}Next Steps:${CHIEF_NO_COLOR}
-After creation, start with: chief.python_start_ve [venv_name]
+After creation, start with: chief.python_start-ve [venv_name]
 "
 
-  if [[ $1 == "-?" ]]; then
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
-    return
+    return 0
   fi
 
   # Parse arguments
@@ -183,7 +183,7 @@ After creation, start with: chief.python_start_ve [venv_name]
   # Check if venv already exists
   if [[ -d "$venv_path" ]]; then
     echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} Virtual environment '$venv_path' already exists"
-    if ! chief.etc_ask_yes_or_no "Do you want to recreate it?"; then
+    if ! chief.etc_ask-yes-or-no "Do you want to recreate it?"; then
       return 1
     fi
     echo -e "${CHIEF_COLOR_BLUE}Removing existing environment...${CHIEF_NO_COLOR}"
@@ -222,10 +222,10 @@ After creation, start with: chief.python_start_ve [venv_name]
   fi
 
   echo -e "${CHIEF_COLOR_GREEN}✓ Virtual environment '$venv_name' created successfully!${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_YELLOW}To start:${CHIEF_NO_COLOR} chief.python_start_ve $venv_name"
+  echo -e "${CHIEF_COLOR_YELLOW}To start:${CHIEF_NO_COLOR} chief.python_start-ve $venv_name"
 }
 
-function chief.python_start_ve() {
+function chief.python_start-ve() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [venv_name]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -253,18 +253,18 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME                    # Auto-detect venv in current directory
 
 ${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR}
-Use 'chief.python_stop_ve' or 'deactivate' to exit the virtual environment.
+Use 'chief.python_stop-ve' or 'deactivate' to exit the virtual environment.
 "
 
-  if [[ $1 == "-?" ]]; then
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
-    return
+    return 0
   fi
 
   # Check if already in a virtual environment
   if [[ -n "$VIRTUAL_ENV" ]]; then
     echo -e "${CHIEF_COLOR_YELLOW}Already in virtual environment:${CHIEF_NO_COLOR} $(basename "$VIRTUAL_ENV")"
-    if ! chief.etc_ask_yes_or_no "Stop current environment and start new one?"; then
+    if ! chief.etc_ask-yes-or-no "Stop current environment and start new one?"; then
       return 1
     fi
     deactivate
@@ -361,14 +361,14 @@ Use 'chief.python_stop_ve' or 'deactivate' to exit the virtual environment.
     echo -e "${CHIEF_COLOR_GREEN}✓ Virtual environment started!${CHIEF_NO_COLOR}"
     echo -e "${CHIEF_COLOR_BLUE}Python:${CHIEF_NO_COLOR} $(python --version)"
     echo -e "${CHIEF_COLOR_BLUE}Location:${CHIEF_NO_COLOR} $VIRTUAL_ENV"
-    echo -e "${CHIEF_COLOR_YELLOW}To stop:${CHIEF_NO_COLOR} chief.python_stop_ve"
+    echo -e "${CHIEF_COLOR_YELLOW}To stop:${CHIEF_NO_COLOR} chief.python_stop-ve"
   else
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Failed to start virtual environment"
     return 1
   fi
 }
 
-function chief.python_stop_ve() {
+function chief.python_stop-ve() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -392,9 +392,9 @@ ${CHIEF_COLOR_MAGENTA}Alternative:${CHIEF_NO_COLOR}
 You can also use the standard 'deactivate' command when in a virtual environment.
 "
 
-  if [[ $1 == "-?" ]]; then
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
-    return
+    return 0
   fi
 
   # Check if in a virtual environment

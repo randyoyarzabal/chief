@@ -88,7 +88,7 @@ test_shellcheck() {
         fi
         return 0
     else
-        echo -e "${YELLOW}  ShellCheck: Found style suggestions (informational only)${NC}"
+        # echo -e "${YELLOW}  ShellCheck: Found style suggestions (informational only)${NC}"
         if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
             shellcheck -e SC1090,SC1091,SC2034,SC2154 "$file" 2>&1 | head -5 | sed 's/^/    /'
         fi
@@ -174,7 +174,9 @@ main() {
     echo -e "${BLUE}Total Scripts:${NC} ${#scripts[@]}"
     echo -e "${BLUE}Total Tests:${NC} $TOTAL_TESTS"
     echo -e "${GREEN}Passed:${NC} $PASSED_TESTS"
-    echo -e "${RED}Failed:${NC} $FAILED_TESTS"
+    if [[ $FAILED_TESTS -gt 0 ]]; then
+        echo -e "${RED}Failed:${NC} $FAILED_TESTS"
+    fi
     echo ""
     
     if [[ ${#failed_files[@]} -eq 0 ]]; then

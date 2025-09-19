@@ -29,7 +29,7 @@ fi
 
 AWS_CREDS_SCRIPT="$CHIEF_PATH/libs/plugins/python/aws_creds.py"
 
-function chief.aws_set_role() {
+function chief.aws_set-role() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <role> <region>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -53,6 +53,12 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME developer us-west-2
 "
 
+  # Check for help flag
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
+    echo -e "${USAGE}"
+    return 0
+  fi
+
   # Check if Python3 is installed
   if ! command -v python3 &>/dev/null; then
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Python3 is required but not found."
@@ -75,7 +81,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $AWS_CREDS_SCRIPT -u "$1" -r "$2"
 }
 
-function chief.aws_export_creds() {
+function chief.aws_export-creds() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <role> <region>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}

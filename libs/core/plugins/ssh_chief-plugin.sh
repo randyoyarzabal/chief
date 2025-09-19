@@ -25,7 +25,7 @@ if [[ $0 == "${BASH_SOURCE[0]}" ]]; then
   exit 1
 fi
 
-function chief.ssh_rm_host() {
+function chief.ssh_rm-host() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <line_number>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -44,7 +44,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME 42     # Remove entry on line 42
 "
 
-  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
+  if [[ -z $1 ]] || [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -59,7 +59,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Host entry removed"
 }
 
-function chief.ssh_get_publickey() {
+function chief.ssh_get-publickey() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <private_key_file>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -77,7 +77,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME /path/to/my_key
 "
 
-  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
+  if [[ -z $1 ]] || [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -91,7 +91,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   ssh-keygen -y -f "$1"
 }
 
-function chief.ssh_create_keypair() {
+function chief.ssh_create-keypair() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [key_name] [key_type] [user_email]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -187,7 +187,7 @@ ${CHIEF_COLOR_BLUE}Next Steps:${CHIEF_NO_COLOR}
     echo -e "${CHIEF_COLOR_BLUE}Existing files:${CHIEF_NO_COLOR}"
     [[ -f "$private_key_path" ]] && echo "  - $private_key_name"
     [[ -f "$public_key_path" ]] && echo "  - $public_key_name"
-    if ! chief.etc_ask_yes_or_no "Do you want to overwrite them?"; then
+    if ! chief.etc_ask-yes-or-no "Do you want to overwrite them?"; then
       return 1
     fi
   fi
