@@ -64,6 +64,7 @@ cd chief
 ```
 
 **Benefits of air-gapped installation:**
+
 - ✅ **No internet required** during installation
 - ✅ **Complete transparency** - all files visible before installation
 - ✅ **Security compliant** - suitable for restricted environments

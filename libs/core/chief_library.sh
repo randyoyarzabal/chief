@@ -3067,9 +3067,6 @@ ${CHIEF_COLOR_BLUE}Output Features:${CHIEF_NO_COLOR}
 
 # INTERNAL: Version bump function for Chief development
 function __chief.bump() {
-  # Usage: __chief.bump <new_version> [--dry-run]
-  # WARNING: This is a development-only function, not for end users
-  
   local usage="Usage: $FUNCNAME <new_version> [--dry-run] [--backup]
 
 ${CHIEF_COLOR_RED}WARNING: DEVELOPMENT FUNCTION ONLY${CHIEF_NO_COLOR}

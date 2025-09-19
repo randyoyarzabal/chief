@@ -12,6 +12,7 @@ Complete guide to using Chief's core features, commands, and workflows.
 {: .fs-6 .fw-300 }
 
 ## Table of contents
+
 {: .no_toc .text-delta }
 
 1. TOC
@@ -576,7 +577,6 @@ chief.git_reset-hard
 ```
 
 **Best Practice**: Always run Git operations with `-n` first to understand what will be affected.
-
 ---
 
 ## 🐚 Shell Compatibility

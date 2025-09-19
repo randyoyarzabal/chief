@@ -370,7 +370,7 @@ function myproject.long_task() {
 
 For team collaboration, organize plugins in a Git repository:
 
-```text
+```
 my-team-plugins/
 ├── README.md
 ├── devops_chief-plugin.sh      # DevOps tools
