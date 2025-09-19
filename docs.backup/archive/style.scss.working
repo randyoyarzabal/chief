@@ -1,0 +1,62 @@
+---
+---
+
+@import "{{ site.theme }}";
+
+// Variables from Dinky theme
+$background-color: #ffffff;
+$border-color: #dddddd;
+$text-color: #333333;
+
+pre {
+    position: relative;
+    margin: 20px 0;
+    padding: 48px 16px 16px 16px;
+    background-color: $background-color;
+    border-radius: 4px;
+    border: 1px solid $border-color;
+    
+    code {
+        display: block;
+        padding: 0 !important;
+        margin: 0 !important;
+        
+        &.single-line {
+            white-space: nowrap;
+            overflow-x: auto;
+            max-width: 100%;
+            
+            &:hover {
+                background-color: #f8f8f8;
+            }
+        }
+        
+        &.multi-line {
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+    }
+}
+
+.copy-button {
+    position: absolute;
+    right: 16px;
+    top: 16px;
+    padding: 4px 8px;
+    background-color: transparent;
+    border: 1px solid $border-color;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 14px;
+    color: $text-color;
+    z-index: 1;
+    
+    &:hover {
+        background-color: #f0f0f0;
+    }
+    
+    &:focus {
+        outline: 2px solid #0066cc;
+        outline-offset: 2px;
+    }
+}

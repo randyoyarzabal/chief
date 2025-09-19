@@ -17,6 +17,7 @@
 
 # Chief Plugin File: git_chief-plugin.sh
 # Author: Randy E. Oyarzabal
+# ver. 1.0
 # Functions and aliases that are development to Git.
 
 # Block interactive execution
@@ -453,111 +454,48 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
 }
 
 function chief.git_cred_cache() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options] [seconds]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [seconds]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
-Configure Git credential handling to avoid repeated password prompts.
-Supports both cache-based and environment variable authentication.
-
-${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
-  --env, -e     Use environment variables (GIT_USER, GIT_PASSWORD)
-  -?            Show this help
+Configure Git credential caching to avoid repeated password prompts.
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
-  seconds       Cache timeout in seconds (cache mode only, default: 86400 = 1 day)
+  seconds  Cache timeout in seconds (default: 86400 = 1 day)
 
-${CHIEF_COLOR_GREEN}Cache Mode (Default):${CHIEF_NO_COLOR}
-- Stores credentials in memory with timeout
-- Prompts once, then reuses cached credentials
-- Automatically expires after specified time
-
-${CHIEF_COLOR_GREEN}Environment Mode (--env):${CHIEF_NO_COLOR}
-- Reads credentials from GIT_USER and GIT_PASSWORD environment variables
-- No caching or timeouts needed
-- Ideal for CI/CD pipelines and automated environments
-
-${CHIEF_COLOR_MAGENTA}Common Cache Timeouts:${CHIEF_NO_COLOR}
+${CHIEF_COLOR_GREEN}Common Timeouts:${CHIEF_NO_COLOR}
 - 3600    = 1 hour
-- 14400   = 4 hours  
+- 14400   = 4 hours
 - 28800   = 8 hours
 - 86400   = 1 day (default)
 - 604800  = 1 week
 
-${CHIEF_COLOR_BLUE}Security Considerations:${CHIEF_NO_COLOR}
-- Cache mode: credentials stored in memory only
-- Environment mode: ensure GIT_USER/GIT_PASSWORD are secure
+${CHIEF_COLOR_MAGENTA}Security Considerations:${CHIEF_NO_COLOR}
+- Credentials stored in memory (not on disk)
+- Automatically expires after timeout
 - Use shorter timeouts on shared machines
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME                # Cache for 1 day (default)
-  $FUNCNAME 3600           # Cache for 1 hour
-  $FUNCNAME --env          # Use environment variables
-  $FUNCNAME -e             # Use environment variables (short form)
-
-${CHIEF_COLOR_BLUE}Environment Variable Setup:${CHIEF_NO_COLOR}
-  export GIT_USER=your_username
-  export GIT_PASSWORD=your_password
-  $FUNCNAME --env
+  $FUNCNAME           # Cache for 1 day (default)
+  $FUNCNAME 3600      # Cache for 1 hour
+  $FUNCNAME 14400     # Cache for 4 hours
 "
 
   local re='^[0-9]+$'
-  local use_env_mode=false
-  local timeout_value=""
   
-  # Parse options
-  while [[ $# -gt 0 ]]; do
-    case $1 in
-      --env|-e)
-        use_env_mode=true
-        shift
-        ;;
-      -\?)
-        echo -e "${USAGE}"
-        return
-        ;;
-      -*)
-        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
-        echo -e "${USAGE}"
-        return 1
-        ;;
-      *)
-        if [[ -z "$timeout_value" ]]; then
-          timeout_value="$1"
-        else
-          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Multiple timeout values provided"
-          echo -e "${USAGE}"
-          return 1
-        fi
-        shift
-        ;;
-    esac
-  done
-
-  # Environment variable mode
-  if [[ "$use_env_mode" == true ]]; then
-    if [[ -n "$timeout_value" ]]; then
-      echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} Timeout value ignored in environment mode"
-    fi
-    
-    echo -e "${CHIEF_COLOR_BLUE}Configuring environment variable credential helper...${CHIEF_NO_COLOR}"
-    git config --global credential.helper '!f() { echo "username=$GIT_USER"; echo "password=$GIT_PASSWORD"; }; f'
-    echo -e "${CHIEF_COLOR_GREEN}Git credentials configured to use GIT_USER and GIT_PASSWORD environment variables${CHIEF_NO_COLOR}"
-    echo -e "${CHIEF_COLOR_YELLOW}Ensure the following variables are set:${CHIEF_NO_COLOR}"
-    echo -e "  export GIT_USER=your_username"
-    echo -e "  export GIT_PASSWORD=your_password"
+  if [[ $1 == "-?" ]]; then
+    echo -e "${USAGE}"
     return
   fi
 
-  # Cache mode (default behavior)
-  if [[ -z "$timeout_value" ]]; then
+  if [[ -z $1 ]]; then
     echo -e "${CHIEF_COLOR_BLUE}Setting default credential cache:${CHIEF_NO_COLOR} 86400 seconds (1 day)"
     git config --global credential.helper "cache --timeout=86400"
     echo -e "${CHIEF_COLOR_GREEN}Git credentials will be cached for 1 day${CHIEF_NO_COLOR}"
-  elif [[ $timeout_value =~ $re ]]; then
-    local hours=$((${timeout_value}/3600))
-    echo -e "${CHIEF_COLOR_BLUE}Setting credential cache:${CHIEF_NO_COLOR} $timeout_value seconds (~$hours hours)"
-    git config --global credential.helper "cache --timeout=$timeout_value"
-    echo -e "${CHIEF_COLOR_GREEN}Git credentials will be cached for $timeout_value seconds${CHIEF_NO_COLOR}"
+  elif [[ $1 =~ $re ]]; then
+    local hours=$((${1}/3600))
+    echo -e "${CHIEF_COLOR_BLUE}Setting credential cache:${CHIEF_NO_COLOR} $1 seconds (~$hours hours)"
+    git config --global credential.helper "cache --timeout=$1"
+    echo -e "${CHIEF_COLOR_GREEN}Git credentials will be cached for $1 seconds${CHIEF_NO_COLOR}"
   else
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Invalid timeout value. Must be a number."
     echo -e "${USAGE}"
@@ -605,186 +543,6 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   echo -e "${CHIEF_COLOR_BLUE}New URL:${CHIEF_NO_COLOR} $(git config --get remote.origin.url)"
 }
 
-function chief.git_config_user() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options] <username> [email]
-
-${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
-Configure Git username and email for the current repository or globally.
-
-${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
-  -g, --global      Apply configuration globally (all repositories)
-  -l, --local       Apply to current repository only (default)
-  -s, --show        Show current configuration and exit
-  -?                Show this help
-
-${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
-  username          Git username for commits
-  email             Git email address (optional)
-
-${CHIEF_COLOR_GREEN}Local Mode (Default):${CHIEF_NO_COLOR}
-- Configuration applies to current repository only
-- Overrides global settings for this repository
-- Requires being inside a Git repository
-
-${CHIEF_COLOR_GREEN}Global Mode (--global):${CHIEF_NO_COLOR}
-- Configuration applies to all repositories
-- Sets default values for new repositories
-- Can be overridden by local repository settings
-
-${CHIEF_COLOR_MAGENTA}Configuration Priority:${CHIEF_NO_COLOR}
-1. Local repository settings (highest priority)
-2. Global user settings
-3. System-wide settings (lowest priority)
-
-${CHIEF_COLOR_BLUE}Common Use Cases:${CHIEF_NO_COLOR}
-- Set personal info for all repositories globally
-- Use work email for specific work repositories
-- Configure different identities for different projects
-- Update email after changing providers
-
-${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME \"John Doe\" john@example.com         # Set both locally
-  $FUNCNAME -g \"John Doe\" john@example.com      # Set both globally
-  $FUNCNAME \"John Doe\"                          # Set username only (locally)
-  $FUNCNAME -g \"John Doe\"                       # Set username only (globally)
-  $FUNCNAME -s                                   # Show current settings
-  $FUNCNAME --show                               # Show current settings
-
-${CHIEF_COLOR_BLUE}Verification:${CHIEF_NO_COLOR}
-After configuration, verify with:
-  git config user.name
-  git config user.email
-"
-
-  local scope="--local"
-  local show_config=false
-  local username=""
-  local email=""
-  
-  # Parse options
-  while [[ $# -gt 0 ]]; do
-    case $1 in
-      -g|--global)
-        scope="--global"
-        shift
-        ;;
-      -l|--local)
-        scope="--local"
-        shift
-        ;;
-      -s|--show)
-        show_config=true
-        shift
-        ;;
-      -\?)
-        echo -e "${USAGE}"
-        return
-        ;;
-      -*)
-        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
-        echo -e "${USAGE}"
-        return 1
-        ;;
-      *)
-        if [[ -z "$username" ]]; then
-          username="$1"
-        elif [[ -z "$email" ]]; then
-          email="$1"
-        else
-          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Too many arguments"
-          echo -e "${USAGE}"
-          return 1
-        fi
-        shift
-        ;;
-    esac
-  done
-
-  # Show configuration mode
-  if [[ "$show_config" == true ]]; then
-    if [[ -n "$username" || -n "$email" ]]; then
-      echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} Username/email arguments ignored in show mode"
-    fi
-    
-    echo -e "${CHIEF_COLOR_CYAN}Current Git Configuration:${CHIEF_NO_COLOR}"
-    echo ""
-    
-    # Show local settings if in a git repository
-    if git rev-parse --git-dir >/dev/null 2>&1; then
-      echo -e "${CHIEF_COLOR_BLUE}Local (Repository):${CHIEF_NO_COLOR}"
-      local local_name
-      local local_email
-      local_name=$(git config --local user.name 2>/dev/null || echo "${CHIEF_COLOR_YELLOW}(not set)${CHIEF_NO_COLOR}")
-      local_email=$(git config --local user.email 2>/dev/null || echo "${CHIEF_COLOR_YELLOW}(not set)${CHIEF_NO_COLOR}")
-      echo -e "  Name:  $local_name"
-      echo -e "  Email: $local_email"
-      echo ""
-    fi
-    
-    # Show global settings
-    echo -e "${CHIEF_COLOR_BLUE}Global (User):${CHIEF_NO_COLOR}"
-    local global_name
-    local global_email
-    global_name=$(git config --global user.name 2>/dev/null || echo "${CHIEF_COLOR_YELLOW}(not set)${CHIEF_NO_COLOR}")
-    global_email=$(git config --global user.email 2>/dev/null || echo "${CHIEF_COLOR_YELLOW}(not set)${CHIEF_NO_COLOR}")
-    echo -e "  Name:  $global_name"
-    echo -e "  Email: $global_email"
-    echo ""
-    
-    # Show effective settings
-    echo -e "${CHIEF_COLOR_BLUE}Effective (Current):${CHIEF_NO_COLOR}"
-    local effective_name
-    local effective_email
-    effective_name=$(git config user.name 2>/dev/null || echo "${CHIEF_COLOR_RED}(not configured)${CHIEF_NO_COLOR}")
-    effective_email=$(git config user.email 2>/dev/null || echo "${CHIEF_COLOR_RED}(not configured)${CHIEF_NO_COLOR}")
-    echo -e "  Name:  $effective_name"
-    echo -e "  Email: $effective_email"
-    
-    return
-  fi
-
-  # Validate arguments
-  if [[ -z "$username" ]]; then
-    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Username is required"
-    echo -e "${USAGE}"
-    return 1
-  fi
-
-  # Check if we're in a git repository for local mode
-  if [[ "$scope" == "--local" ]] && ! git rev-parse --git-dir >/dev/null 2>&1; then
-    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Not in a Git repository. Use --global or run from inside a repository."
-    return 1
-  fi
-
-  # Apply configuration
-  local scope_text
-  if [[ "$scope" == "--global" ]]; then
-    scope_text="globally"
-  else
-    scope_text="for current repository"
-    echo -e "${CHIEF_COLOR_BLUE}Repository:${CHIEF_NO_COLOR} $(git config --get remote.origin.url 2>/dev/null || echo "$(pwd)")"
-  fi
-
-  echo -e "${CHIEF_COLOR_BLUE}Configuring Git user $scope_text...${CHIEF_NO_COLOR}"
-  
-  # Set username
-  git config $scope user.name "$username"
-  echo -e "${CHIEF_COLOR_GREEN}Username set:${CHIEF_NO_COLOR} $username"
-  
-  # Set email if provided
-  if [[ -n "$email" ]]; then
-    git config $scope user.email "$email"
-    echo -e "${CHIEF_COLOR_GREEN}Email set:${CHIEF_NO_COLOR} $email"
-  fi
-  
-  echo -e "${CHIEF_COLOR_GREEN}Git user configuration completed${CHIEF_NO_COLOR}"
-  
-  # Show verification info
-  echo -e "${CHIEF_COLOR_YELLOW}Verify with:${CHIEF_NO_COLOR}"
-  echo -e "  git config user.name"
-  echo -e "  git config user.email"
-}
-
 function chief.git_reset-soft() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
 
@@ -830,14 +588,10 @@ ${CHIEF_COLOR_BLUE}After running this command:${CHIEF_NO_COLOR}
 }
 
 function chief.git_reset-hard() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Reset local repository to match the latest remote version, discarding all local changes.
-
-${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
-  -n, --dry-run   Show what files would be affected without making changes
-  -?              Show this help
 
 ${CHIEF_COLOR_RED}Warning:${CHIEF_NO_COLOR}
 This operation permanently discards all uncommitted local changes!
@@ -859,105 +613,17 @@ ${CHIEF_COLOR_BLUE}Safer Alternatives:${CHIEF_NO_COLOR}
 - git checkout -- <file> (reset specific files)
 - git clean -fd (remove untracked files only)
 
-${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME              # Reset repository, discarding all local changes
-  $FUNCNAME -n           # Dry-run: show what files would be affected (SAFE)
-
 ${CHIEF_COLOR_YELLOW}Recovery Note:${CHIEF_NO_COLOR}
 Changes reset by this command cannot be recovered unless previously committed.
 "
 
-  local dry_run=false
-  
-  # Parse options
-  while [[ $# -gt 0 ]]; do
-    case $1 in
-      -n|--dry-run)
-        dry_run=true
-        shift
-        ;;
-      -\?)
-        echo -e "${USAGE}"
-        return
-        ;;
-      -*)
-        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
-        echo -e "${USAGE}"
-        return 1
-        ;;
-      *)
-        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} This command takes no positional arguments"
-        echo -e "${USAGE}"
-        return 1
-        ;;
-    esac
-  done
-
-  echo -e "${CHIEF_COLOR_BLUE}Repository:${CHIEF_NO_COLOR} $(git config --get remote.origin.url)"
-  
-  # Dry-run mode
-  if [[ "$dry_run" == true ]]; then
-    echo -e "${CHIEF_COLOR_YELLOW}DRY RUN: Analyzing what would be affected by git reset --hard${CHIEF_NO_COLOR}"
-    echo ""
-    
-    # Show modified files that would be reset
-    local modified_files
-    modified_files=$(git diff --name-only HEAD 2>/dev/null)
-    if [[ -n "$modified_files" ]]; then
-      echo -e "${CHIEF_COLOR_CYAN}Modified files that would be reset:${CHIEF_NO_COLOR}"
-      while IFS= read -r file; do
-        [[ -n "$file" ]] && echo "  - $file"
-      done <<< "$modified_files"
-      echo ""
-    fi
-    
-    # Show staged files that would be reset
-    local staged_files
-    staged_files=$(git diff --name-only --cached 2>/dev/null)
-    if [[ -n "$staged_files" ]]; then
-      echo -e "${CHIEF_COLOR_CYAN}Staged files that would be reset:${CHIEF_NO_COLOR}"
-      while IFS= read -r file; do
-        [[ -n "$file" ]] && echo "  - $file"
-      done <<< "$staged_files"
-      echo ""
-    fi
-    
-    # Show untracked files that would be removed (if git clean would run)
-    local untracked_files
-    untracked_files=$(git ls-files --others --exclude-standard 2>/dev/null)
-    if [[ -n "$untracked_files" ]]; then
-      echo -e "${CHIEF_COLOR_CYAN}Untracked files that would remain (git reset --hard doesn't remove these):${CHIEF_NO_COLOR}"
-      while IFS= read -r file; do
-        [[ -n "$file" ]] && echo "  - $file"
-      done <<< "$untracked_files"
-      echo ""
-      echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} To remove untracked files, use: git clean -fd"
-    fi
-    
-    # Show current branch and HEAD info
-    local current_branch
-    current_branch=$(git branch --show-current 2>/dev/null)
-    local head_commit
-    head_commit=$(git rev-parse --short HEAD 2>/dev/null)
-    
-    echo -e "${CHIEF_COLOR_BLUE}Current branch:${CHIEF_NO_COLOR} $current_branch"
-    echo -e "${CHIEF_COLOR_BLUE}HEAD commit:${CHIEF_NO_COLOR} $head_commit"
-    echo -e "${CHIEF_COLOR_BLUE}Reset target:${CHIEF_NO_COLOR} HEAD (same commit)"
-    echo ""
-    
-    if [[ -z "$modified_files" && -z "$staged_files" ]]; then
-      echo -e "${CHIEF_SYMBOL_CHECK} No changes to reset - working directory is clean"
-    else
-      echo -e "${CHIEF_COLOR_RED}${CHIEF_SYMBOL_WARNING}  WARNING: This would permanently discard the above changes!${CHIEF_NO_COLOR}"
-    fi
-    
-    echo ""
-    echo -e "${CHIEF_COLOR_GREEN}DRY RUN COMPLETE${CHIEF_NO_COLOR} - No changes were made"
-    echo -e "${CHIEF_COLOR_YELLOW}Remove -n/--dry-run flag to perform actual reset${CHIEF_NO_COLOR}"
-    return 0
+  if [[ $1 == "-?" ]]; then
+    echo -e "${USAGE}"
+    return
   fi
 
   echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} This will discard ALL local changes!"
+  echo -e "${CHIEF_COLOR_BLUE}Repository:${CHIEF_NO_COLOR} $(git config --get remote.origin.url)"
   echo -e "${CHIEF_COLOR_BLUE}Performing hard reset...${CHIEF_NO_COLOR}"
   git reset --hard
   echo -e "${CHIEF_COLOR_GREEN}Local repository reset to match remote${CHIEF_NO_COLOR}"

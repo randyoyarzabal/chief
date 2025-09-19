@@ -15,8 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ########################################################################
 
-# Chief Plugin File: python_chief-plugin.sh
+# Chief Plugin File: python_chief.plugin
 # Author: Randy E. Oyarzabal
+# ver. 1.0
 # Functions and aliases related to Python.
 
 # Block interactive execution
