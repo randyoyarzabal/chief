@@ -40,28 +40,28 @@ The SSL plugin provides comprehensive certificate management capabilities:
 
 ```bash
 # Certificate Authority Operations
-chief.ssl_create_ca                    # Create CA with defaults
-chief.ssl_create_ca mycompany          # Named CA
-chief.ssl_create_ca production \       # Full customization
+chief.ssl_create-ca                    # Create CA with defaults
+chief.ssl_create-ca mycompany          # Named CA
+chief.ssl_create-ca production \       # Full customization
   -c US -s CA -l "San Francisco" \
   -o "Production CA" -e admin@company.com
 
 # TLS Certificate Creation  
-chief.ssl_create_tls_cert webserver    # Basic server certificate
-chief.ssl_create_tls_cert api \        # Multi-domain certificate
+chief.ssl_create-tls-cert webserver    # Basic server certificate
+chief.ssl_create-tls-cert api \        # Multi-domain certificate
   --san "api.example.com,api.test.com"
-chief.ssl_create_tls_cert server \     # Certificate with IP SANs
+chief.ssl_create-tls-cert server \     # Certificate with IP SANs
   --ip "192.168.1.10,10.0.0.5"
 
 # Certificate Analysis and Management
-chief.ssl_view_cert cert.pem           # View certificate details
-chief.ssl_view_cert -s cert.pem        # Subject information only
-chief.ssl_view_cert -r cert.pem        # Raw certificate text
+chief.ssl_view-cert cert.pem           # View certificate details
+chief.ssl_view-cert -s cert.pem        # Subject information only
+chief.ssl_view-cert -r cert.pem        # Raw certificate text
 
 # Certificate Download from Servers  
-chief.ssl_get_cert google.com          # Download from HTTPS
-chief.ssl_get_cert mail.example.com 993 # Download from IMAPS
-chief.ssl_get_cert -c example.com      # Download full certificate chain
+chief.ssl_get-cert google.com          # Download from HTTPS
+chief.ssl_get-cert mail.example.com 993 # Download from IMAPS
+chief.ssl_get-cert -c example.com      # Download full certificate chain
 ```
 
 ### System Administration Plugin (ETC)

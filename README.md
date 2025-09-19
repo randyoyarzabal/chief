@@ -96,8 +96,8 @@ Chief comes with **8 powerful plugins** providing **56+ functions** for your dai
 
 ### 🔐 **Vault Plugin** (2 functions)
 
-- `chief.vault_file_edit` - Edit encrypted files securely
-- `chief.vault_file_load` - Load encrypted environment variables
+- `chief.vault_file-edit` - Edit encrypted files securely
+- `chief.vault_file-load` - Load encrypted environment variables
 
 ### ☸️ **OpenShift/Kubernetes Plugin** (7 functions)
 

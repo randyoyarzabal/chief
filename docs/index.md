@@ -9,7 +9,7 @@ permalink: /
 
 **Bash Plugin Manager & Terminal Enhancement Tool**
 
-[![GitHub release](https://img.shields.io/badge/Download-Release%20v3.1.1-green.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Documentation](https://img.shields.io/badge/📖-Documentation-blue)](https://chief.reonetlabs.us)
+[![GitHub release](https://img.shields.io/badge/Download-Release%20v3.1.3-dev-green.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Documentation](https://img.shields.io/badge/📖-Documentation-blue)](https://chief.reonetlabs.us)
 
 Chief is a lightweight, powerful Bash library system that helps you organize your shell environment through a plugin-based architecture. Think of it as a package manager for your bash functions, aliases, and tools.
 
@@ -103,8 +103,8 @@ Chief comes with **8 powerful plugins** providing **56+ functions** for your dai
 
 ### 🔐 **Vault Plugin** (2 functions)
 
-- `chief.vault_file_edit` - Edit encrypted files securely
-- `chief.vault_file_load` - Load encrypted environment variables
+- `chief.vault_file-edit` - Edit encrypted files securely
+- `chief.vault_file-load` - Load encrypted environment variables
 
 ### ☸️ **OpenShift/Kubernetes Plugin** (7 functions)
 
