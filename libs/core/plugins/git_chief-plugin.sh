@@ -587,10 +587,14 @@ ${CHIEF_COLOR_BLUE}After running this command:${CHIEF_NO_COLOR}
 }
 
 function chief.git_reset-hard() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Reset local repository to match the latest remote version, discarding all local changes.
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -n, --dry-run   Show what files would be affected without making changes
+  -?              Show this help
 
 ${CHIEF_COLOR_RED}Warning:${CHIEF_NO_COLOR}
 This operation permanently discards all uncommitted local changes!
@@ -612,17 +616,105 @@ ${CHIEF_COLOR_BLUE}Safer Alternatives:${CHIEF_NO_COLOR}
 - git checkout -- <file> (reset specific files)
 - git clean -fd (remove untracked files only)
 
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME              # Reset repository, discarding all local changes
+  $FUNCNAME -n           # Dry-run: show what files would be affected (SAFE)
+
 ${CHIEF_COLOR_YELLOW}Recovery Note:${CHIEF_NO_COLOR}
 Changes reset by this command cannot be recovered unless previously committed.
 "
 
-  if [[ $1 == "-?" ]]; then
-    echo -e "${USAGE}"
-    return
+  local dry_run=false
+  
+  # Parse options
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -n|--dry-run)
+        dry_run=true
+        shift
+        ;;
+      -\?)
+        echo -e "${USAGE}"
+        return
+        ;;
+      -*)
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+      *)
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} This command takes no positional arguments"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+    esac
+  done
+
+  echo -e "${CHIEF_COLOR_BLUE}Repository:${CHIEF_NO_COLOR} $(git config --get remote.origin.url)"
+  
+  # Dry-run mode
+  if [[ "$dry_run" == true ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}DRY RUN: Analyzing what would be affected by git reset --hard${CHIEF_NO_COLOR}"
+    echo ""
+    
+    # Show modified files that would be reset
+    local modified_files
+    modified_files=$(git diff --name-only HEAD 2>/dev/null)
+    if [[ -n "$modified_files" ]]; then
+      echo -e "${CHIEF_COLOR_CYAN}Modified files that would be reset:${CHIEF_NO_COLOR}"
+      while IFS= read -r file; do
+        [[ -n "$file" ]] && echo "  - $file"
+      done <<< "$modified_files"
+      echo ""
+    fi
+    
+    # Show staged files that would be reset
+    local staged_files
+    staged_files=$(git diff --name-only --cached 2>/dev/null)
+    if [[ -n "$staged_files" ]]; then
+      echo -e "${CHIEF_COLOR_CYAN}Staged files that would be reset:${CHIEF_NO_COLOR}"
+      while IFS= read -r file; do
+        [[ -n "$file" ]] && echo "  - $file"
+      done <<< "$staged_files"
+      echo ""
+    fi
+    
+    # Show untracked files that would be removed (if git clean would run)
+    local untracked_files
+    untracked_files=$(git ls-files --others --exclude-standard 2>/dev/null)
+    if [[ -n "$untracked_files" ]]; then
+      echo -e "${CHIEF_COLOR_CYAN}Untracked files that would remain (git reset --hard doesn't remove these):${CHIEF_NO_COLOR}"
+      while IFS= read -r file; do
+        [[ -n "$file" ]] && echo "  - $file"
+      done <<< "$untracked_files"
+      echo ""
+      echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} To remove untracked files, use: git clean -fd"
+    fi
+    
+    # Show current branch and HEAD info
+    local current_branch
+    current_branch=$(git branch --show-current 2>/dev/null)
+    local head_commit
+    head_commit=$(git rev-parse --short HEAD 2>/dev/null)
+    
+    echo -e "${CHIEF_COLOR_BLUE}Current branch:${CHIEF_NO_COLOR} $current_branch"
+    echo -e "${CHIEF_COLOR_BLUE}HEAD commit:${CHIEF_NO_COLOR} $head_commit"
+    echo -e "${CHIEF_COLOR_BLUE}Reset target:${CHIEF_NO_COLOR} HEAD (same commit)"
+    echo ""
+    
+    if [[ -z "$modified_files" && -z "$staged_files" ]]; then
+      echo -e "${CHIEF_SYMBOL_CHECK} No changes to reset - working directory is clean"
+    else
+      echo -e "${CHIEF_COLOR_RED}${CHIEF_SYMBOL_WARNING}  WARNING: This would permanently discard the above changes!${CHIEF_NO_COLOR}"
+    fi
+    
+    echo ""
+    echo -e "${CHIEF_COLOR_GREEN}DRY RUN COMPLETE${CHIEF_NO_COLOR} - No changes were made"
+    echo -e "${CHIEF_COLOR_YELLOW}Remove -n/--dry-run flag to perform actual reset${CHIEF_NO_COLOR}"
+    return 0
   fi
 
   echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} This will discard ALL local changes!"
-  echo -e "${CHIEF_COLOR_BLUE}Repository:${CHIEF_NO_COLOR} $(git config --get remote.origin.url)"
   echo -e "${CHIEF_COLOR_BLUE}Performing hard reset...${CHIEF_NO_COLOR}"
   git reset --hard
   echo -e "${CHIEF_COLOR_GREEN}Local repository reset to match remote${CHIEF_NO_COLOR}"

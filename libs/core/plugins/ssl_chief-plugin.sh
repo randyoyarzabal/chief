@@ -408,6 +408,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -i, --issuer      Show only certificate issuer information
   -d, --dates       Show only validity dates (not before/after)
   -c, --chain       Show certificate chain if available
+  -e, --extended    Show extended certificate details (serial, fingerprints, key info)
   -r, --raw         Show raw certificate text without parsing
   -?                Show this help
 
@@ -447,6 +448,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   local show_issuer=false
   local show_dates=false
   local show_chain=false
+  local show_extended=false
   local show_raw=false
   local cert_file=""
 
@@ -467,6 +469,10 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
         ;;
       -c|--chain)
         show_chain=true
+        shift
+        ;;
+      -e|--extended)
+        show_extended=true
         shift
         ;;
       -r|--raw)
@@ -548,35 +554,103 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 
   # Default: Show comprehensive certificate information
-  echo -e "${CHIEF_COLOR_CYAN}Certificate Information:${CHIEF_NO_COLOR}"
+  # Check how many certificates are in the file
+  local cert_count
+  cert_count=$(grep -c "BEGIN CERTIFICATE" "$cert_file" 2>/dev/null || echo "0")
+  
+  if [[ "$cert_count" -eq 0 ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} No certificates found in file"
+    return 1
+  elif [[ "$cert_count" -eq 1 ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}Certificate Information:${CHIEF_NO_COLOR}"
+    _show_single_cert_info "$cert_file" "$show_extended"
+  else
+    echo -e "${CHIEF_COLOR_CYAN}Certificate Chain Information (${cert_count} certificates):${CHIEF_NO_COLOR}"
+    echo ""
+    
+    # Extract and process each certificate individually
+    local temp_dir=$(mktemp -d)
+    local cert_num=1
+    
+    # Extract each certificate block individually
+    local cert_counter=1
+    local line_start=1
+    
+    while true; do
+      # Find the next certificate block
+      local begin_line=$(sed -n "${line_start},\$p" "$cert_file" | grep -n "BEGIN CERTIFICATE" | head -1 | cut -d: -f1)
+      if [[ -z "$begin_line" ]]; then
+        break
+      fi
+      
+      # Calculate actual line number
+      begin_line=$((line_start + begin_line - 1))
+      local end_line=$(sed -n "${begin_line},\$p" "$cert_file" | grep -n "END CERTIFICATE" | head -1 | cut -d: -f1)
+      if [[ -z "$end_line" ]]; then
+        break
+      fi
+      end_line=$((begin_line + end_line - 1))
+      
+      # Extract this certificate
+      sed -n "${begin_line},${end_line}p" "$cert_file" > "$temp_dir/cert_${cert_counter}.pem"
+      
+      # Move to next potential certificate
+      line_start=$((end_line + 1))
+      ((cert_counter++))
+    done
+    
+    # Display information for each certificate
+    for cert_temp_file in "$temp_dir"/cert_*.pem; do
+      if [[ -f "$cert_temp_file" ]]; then
+        echo -e "${CHIEF_COLOR_MAGENTA}=== Certificate #${cert_num} ===${CHIEF_NO_COLOR}"
+        _show_single_cert_info "$cert_temp_file" "$show_extended"
+        echo ""
+        ((cert_num++))
+      fi
+    done
+    
+    # Cleanup
+    rm -rf "$temp_dir"
+  fi
+  
+  echo -e "${CHIEF_COLOR_YELLOW}Use -e for extended details, -r for full certificate text${CHIEF_NO_COLOR}"
+}
+
+# Helper function to display information for a single certificate
+function _show_single_cert_info() {
+  local single_cert_file="$1"
+  local show_extended="${2:-false}"
+  
+  # Always show the basic three pieces of information
   echo -e "${CHIEF_COLOR_BLUE}Subject:${CHIEF_NO_COLOR}"
-  openssl x509 -in "$cert_file" -noout -subject
+  openssl x509 -in "$single_cert_file" -noout -subject
   echo ""
   
   echo -e "${CHIEF_COLOR_BLUE}Issuer:${CHIEF_NO_COLOR}"
-  openssl x509 -in "$cert_file" -noout -issuer
+  openssl x509 -in "$single_cert_file" -noout -issuer
   echo ""
   
   echo -e "${CHIEF_COLOR_BLUE}Validity:${CHIEF_NO_COLOR}"
-  openssl x509 -in "$cert_file" -noout -dates
+  openssl x509 -in "$single_cert_file" -noout -dates
   echo ""
   
-  echo -e "${CHIEF_COLOR_BLUE}Serial Number:${CHIEF_NO_COLOR}"
-  openssl x509 -in "$cert_file" -noout -serial
-  echo ""
-  
-  echo -e "${CHIEF_COLOR_BLUE}Fingerprints:${CHIEF_NO_COLOR}"
-  echo -n "SHA1:   "
-  openssl x509 -in "$cert_file" -noout -fingerprint -sha1 | cut -d'=' -f2
-  echo -n "SHA256: "
-  openssl x509 -in "$cert_file" -noout -fingerprint -sha256 | cut -d'=' -f2
-  echo ""
-  
-  echo -e "${CHIEF_COLOR_BLUE}Key Details:${CHIEF_NO_COLOR}"
-  openssl x509 -in "$cert_file" -noout -text | grep -A1 "Public Key Algorithm\|Signature Algorithm"
-  echo ""
-  
-  echo -e "${CHIEF_COLOR_YELLOW}Use -r flag to view full certificate text${CHIEF_NO_COLOR}"
+  # Show extended information only if requested
+  if [[ "$show_extended" == true ]]; then
+    echo -e "${CHIEF_COLOR_BLUE}Serial Number:${CHIEF_NO_COLOR}"
+    openssl x509 -in "$single_cert_file" -noout -serial
+    echo ""
+    
+    echo -e "${CHIEF_COLOR_BLUE}Fingerprints:${CHIEF_NO_COLOR}"
+    echo -n "SHA1:   "
+    openssl x509 -in "$single_cert_file" -noout -fingerprint -sha1 | cut -d'=' -f2
+    echo -n "SHA256: "
+    openssl x509 -in "$single_cert_file" -noout -fingerprint -sha256 | cut -d'=' -f2
+    echo ""
+    
+    echo -e "${CHIEF_COLOR_BLUE}Key Details:${CHIEF_NO_COLOR}"
+    openssl x509 -in "$single_cert_file" -noout -text | grep -A1 "Public Key Algorithm\|Signature Algorithm"
+    echo ""
+  fi
 }
 
 function chief.ssl_get_cert() {
@@ -720,8 +794,18 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   echo -e "${CHIEF_COLOR_BLUE}Output file:${CHIEF_NO_COLOR} $output_file"
   echo -e "${CHIEF_COLOR_BLUE}Timeout:${CHIEF_NO_COLOR} ${timeout}s"
 
-  # Test connectivity first
-  if ! timeout "$timeout" bash -c "echo >/dev/tcp/$hostname/$port" 2>/dev/null; then
+  # Test connectivity using OpenSSL (more reliable than /dev/tcp)
+  echo -e "${CHIEF_COLOR_BLUE}Testing SSL connectivity...${CHIEF_NO_COLOR}"
+  
+  # Use timeout if available, otherwise rely on OpenSSL's default behavior
+  local timeout_cmd=""
+  if command -v timeout >/dev/null 2>&1; then
+    timeout_cmd="timeout $timeout"
+  elif command -v gtimeout >/dev/null 2>&1; then
+    timeout_cmd="gtimeout $timeout"
+  fi
+  
+  if ! $timeout_cmd openssl s_client -connect "$hostname:$port" -servername "$hostname" </dev/null >/dev/null 2>&1; then
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Cannot connect to $hostname:$port"
     echo -e "${CHIEF_COLOR_YELLOW}Check:${CHIEF_NO_COLOR}"
     echo "- Hostname is correct and resolvable"
@@ -734,19 +818,35 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   if [[ "$get_chain" == true ]]; then
     echo -e "${CHIEF_COLOR_BLUE}Downloading certificate chain...${CHIEF_NO_COLOR}"
     if [[ "$raw_only" == true ]]; then
-      timeout "$timeout" openssl s_client -showcerts -servername "$hostname" -connect "$hostname:$port" </dev/null 2>/dev/null | \
+      $timeout_cmd openssl s_client -showcerts -servername "$hostname" -connect "$hostname:$port" </dev/null 2>/dev/null | \
         sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > "$output_file"
     else
-      timeout "$timeout" openssl s_client -showcerts -servername "$hostname" -connect "$hostname:$port" </dev/null 2>/dev/null | \
-        openssl crl2pkcs7 -nocrl | openssl pkcs7 -print_certs -out "$output_file"
+      # Extract certificates and process them properly for chain display
+      local temp_certs=$(mktemp)
+      # Remove any existing temp file first and use >| to override noclobber
+      rm -f "$temp_certs"
+      $timeout_cmd openssl s_client -showcerts -servername "$hostname" -connect "$hostname:$port" </dev/null 2>/dev/null | \
+        sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' >| "$temp_certs"
+      
+      if [[ -s "$temp_certs" ]]; then
+        # Convert to PKCS7 format and extract with subject/issuer info
+        openssl crl2pkcs7 -nocrl -certfile "$temp_certs" | openssl pkcs7 -print_certs >| "$output_file" 2>/dev/null
+        # If PKCS7 conversion fails, fall back to raw certificates
+        if [[ ! -s "$output_file" ]]; then
+          cp "$temp_certs" "$output_file"
+        fi
+      else
+        touch "$output_file"
+      fi
+      rm -f "$temp_certs"
     fi
   else
     echo -e "${CHIEF_COLOR_BLUE}Downloading server certificate...${CHIEF_NO_COLOR}"
     if [[ "$raw_only" == true ]]; then
-      timeout "$timeout" openssl s_client -showcerts -servername "$hostname" -connect "$hostname:$port" </dev/null 2>/dev/null | \
+      $timeout_cmd openssl s_client -showcerts -servername "$hostname" -connect "$hostname:$port" </dev/null 2>/dev/null | \
         openssl x509 -outform PEM > "$output_file"
     else
-      timeout "$timeout" openssl s_client -showcerts -servername "$hostname" -connect "$hostname:$port" </dev/null 2>/dev/null | \
+      $timeout_cmd openssl s_client -showcerts -servername "$hostname" -connect "$hostname:$port" </dev/null 2>/dev/null | \
         openssl x509 -text > "$output_file"
     fi
   fi

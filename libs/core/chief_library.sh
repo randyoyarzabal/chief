@@ -242,11 +242,76 @@ function __chief_has_vscode() {
   command -v code >/dev/null 2>&1
 }
 
+function chief.edit_file() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <file> [options]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Edit any file with automatic reload detection and sourcing. Ideal for shell scripts,
+configuration files, and any file that needs to be reloaded after editing.
+
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  file           Path to the file to edit (required)
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  --vscode, -v   Use VSCode editor (requires 'code' command)
+  -?             Show this help message
+
+${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
+- Automatically detects file changes using timestamps
+- Sources/reloads the file if modifications are detected  
+- Falls back to vi if preferred editor is unavailable
+- Works with any text file type
+- Cross-platform compatible (Linux/macOS)
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME ~/.bashrc                    # Edit bashrc with default editor
+  $FUNCNAME ~/.bashrc --vscode           # Edit bashrc with VSCode
+  $FUNCNAME /path/to/script.sh           # Edit any shell script
+  $FUNCNAME /etc/hosts                   # Edit system files (with sudo)
+
+${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR}
+This is the same auto-reload mechanism used by chief.bash_profile, chief.bashrc, etc.
+"
+
+  if [[ $1 == "-?" ]]; then
+    echo -e "${USAGE}"
+    return
+  fi
+
+  if [[ -z "$1" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} File path is required"
+    echo -e "${USAGE}"
+    return 1
+  fi
+
+  local file="$1"
+  local editor_option=""
+  
+  # Parse options
+  case "$2" in
+    --vscode|-v)
+      editor_option="vscode"
+      ;;
+    "")
+      # No option specified, use default
+      ;;
+    *)
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $2"
+      echo -e "${USAGE}"
+      return 1
+      ;;
+  esac
+
+  __chief_edit_file "$file" "$editor_option"
+}
+
+# Internal function for file editing (used by public chief.edit_file and other functions)
 function __chief_edit_file() {
-  # Usage: __chief_edit_file <file> [editor_option]
+  # Usage: __chief_edit_file <file> [editor_option] [reload_option]
   # Arguments:
   #   file - Path to the file to edit
   #   editor_option - Optional: 'vscode' to use VSCode, otherwise uses default editor
+  #   reload_option - Optional: 'reload' to reload entire Chief library instead of just the file
   local file=${1}
   local editor_option=${2}
   local date1
@@ -725,7 +790,7 @@ function __chief.hints_text() {
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Plugin Management:${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin [name]${CHIEF_NO_COLOR} to create/edit plugins | ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR} to list"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.plugins${CHIEF_NO_COLOR} to navigate to plugins directory"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.plugins_root${CHIEF_NO_COLOR} to navigate to plugins directory"
     echo ""
     if [[ ${1} != '--verbose' ]]; then
       echo -e "${CHIEF_COLOR_CYAN}** Run ${CHIEF_COLOR_GREEN}chief.config_set hints=false${CHIEF_COLOR_CYAN} to disable these hints. **${CHIEF_NO_COLOR}"
@@ -1010,6 +1075,32 @@ export CHIEF_COLOR_ORANGE='\033[0;33m'
 export CHIEF_COLOR_YELLOW='\033[1;33m'
 export CHIEF_TEXT_BLINK='\033[5m'
 export CHIEF_NO_COLOR='\033[0m' # Reset color/style
+
+# PLATFORM-SPECIFIC SYMBOLS
+########################################################################
+# macOS gets fancy emoji icons, Linux gets simple colored text symbols
+if [[ ${PLATFORM} == "MacOS" ]]; then
+  export CHIEF_SYMBOL_SUCCESS='✅'
+  export CHIEF_SYMBOL_ERROR='❌'
+  export CHIEF_SYMBOL_WARNING='⚠️'
+  export CHIEF_SYMBOL_INFO='ℹ️'
+  export CHIEF_SYMBOL_CHECK='✓'
+  export CHIEF_SYMBOL_CROSS='✗'
+  export CHIEF_SYMBOL_DANGER='🚨'
+  export CHIEF_SYMBOL_ROCKET='🚀'
+  export CHIEF_SYMBOL_GEAR='⚙️'
+else
+  # Linux: Simple colored symbols for better compatibility
+  export CHIEF_SYMBOL_SUCCESS="${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR}"
+  export CHIEF_SYMBOL_ERROR="${CHIEF_COLOR_RED}✗${CHIEF_NO_COLOR}"
+  export CHIEF_SYMBOL_WARNING="${CHIEF_COLOR_YELLOW}!${CHIEF_NO_COLOR}"
+  export CHIEF_SYMBOL_INFO="${CHIEF_COLOR_CYAN}i${CHIEF_NO_COLOR}"
+  export CHIEF_SYMBOL_CHECK="${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR}"
+  export CHIEF_SYMBOL_CROSS="${CHIEF_COLOR_RED}✗${CHIEF_NO_COLOR}"
+  export CHIEF_SYMBOL_DANGER="${CHIEF_COLOR_RED}!!${CHIEF_NO_COLOR}"
+  export CHIEF_SYMBOL_ROCKET="${CHIEF_COLOR_BLUE}>>${CHIEF_NO_COLOR}"
+  export CHIEF_SYMBOL_GEAR="${CHIEF_COLOR_CYAN}*${CHIEF_NO_COLOR}"
+fi
 
 # From: https://www.linuxquestions.org/questions/linux-newbie-8/bash-echo-the-arrow-keys-825773/
 export CHIEF_KEYS_ESC=$'\e'
@@ -1740,10 +1831,10 @@ ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
     rm -f "${temp_file}"
     
     if sed "s|^[#]*${config_var}=.*|${config_var}=${config_value}|" "${CHIEF_CONFIG}" > "${temp_file}" && command cp -f "${temp_file}" "${target_file}"; then
-      echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Updated ${config_var}"
+      echo -e "${CHIEF_SYMBOL_CHECK} Updated ${config_var}"
       rm -f "${temp_file}"
     else
-      echo -e "${CHIEF_COLOR_RED}✗${CHIEF_NO_COLOR} Failed to update ${config_var}"
+      echo -e "${CHIEF_SYMBOL_CROSS} Failed to update ${config_var}"
       rm -f "${temp_file}"
       return 1
     fi
@@ -2181,7 +2272,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 }
 
-function chief.plugins() {
+function chief.plugins_root() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -2325,7 +2416,7 @@ ${CHIEF_COLOR_YELLOW}File Location:${CHIEF_NO_COLOR}
     return
   fi
 
-  __chief_edit_file "$HOME/.bash_profile"
+  chief.edit_file "$HOME/.bash_profile"
 }
 
 function chief.bashrc() {
@@ -2363,7 +2454,7 @@ Use chief.bash_profile for most Chief and personal configurations.
     return
   fi
 
-  __chief_edit_file "$HOME/.bashrc"
+  chief.edit_file "$HOME/.bashrc"
 }
 
 function chief.profile() {
@@ -2402,7 +2493,7 @@ Use ~/.profile for cross-shell environment settings and ~/.bash_profile for bash
     return
   fi
 
-  __chief_edit_file "$HOME/.profile"
+  chief.edit_file "$HOME/.profile"
 }
 
 function chief.reload() {
@@ -2476,18 +2567,19 @@ function __chief_show_core_commands() {
   echo -e "  ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR}        Update Chief to latest version"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.uninstall${CHIEF_NO_COLOR}     Remove Chief from system"
   echo
-  echo -e "${CHIEF_COLOR_CYAN}File Management:${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_CYAN}File Management:${CHIEF_NO_COLOR} ${CHIEF_COLOR_BLUE}(auto-reloads after editing)${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.edit_file${CHIEF_NO_COLOR}     Edit any file with auto-reload detection"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.bash_profile${CHIEF_NO_COLOR}  Edit ~/.bash_profile"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.bashrc${CHIEF_NO_COLOR}        Edit ~/.bashrc"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.profile${CHIEF_NO_COLOR}       Edit ~/.profile"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Plugin Management:${CHIEF_NO_COLOR}"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugins${CHIEF_NO_COLOR}       Navigate to plugins directory"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugins_root${CHIEF_NO_COLOR}   Navigate to plugins directory"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.plugin${CHIEF_NO_COLOR}        Create/edit plugins"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR}     List available plugins"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Utilities:${CHIEF_NO_COLOR}"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.whereis${CHIEF_NO_COLOR}       Find function/variable definitions"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.whereis${CHIEF_NO_COLOR}       Find aliases, functions, and variables"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.hints${CHIEF_NO_COLOR}         Show quick tips and workflow"
   echo
   echo -e "${CHIEF_COLOR_BLUE}Usage tip:${CHIEF_NO_COLOR} Add ${CHIEF_COLOR_GREEN}-?${CHIEF_NO_COLOR} to any command for detailed help"
@@ -2517,45 +2609,63 @@ function __chief_show_plugin_help() {
   # Check for each plugin category and show organized functions
   local found_plugins=false
   
-  if compgen -A function | grep -q "^chief\.git\."; then
+  if compgen -A function | grep -q "^chief\.git_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}Git Plugin:${CHIEF_NO_COLOR}"
-    echo "    git.branch, git.commit, git.clone, git.tag, git.delete_branch"
-    echo "    git.delete_tag, git.legend, git.rename_branch, git.reset-local"
-    echo "    git.set_url, git.untrack, git.update, git.cred_cache"
+    echo "    git_branch, git_commit, git_clone, git_tag, git_delete_branch"
+    echo "    git_delete_tag, git_legend, git_rename_branch, git_reset-soft"
+    echo "    git_reset-hard, git_set_url, git_untrack, git_update, git_cred_cache"
+    echo "    git_amend, git_url"
     found_plugins=true
   fi
   
-  if compgen -A function | grep -q "^chief\.vault"; then
+  if compgen -A function | grep -q "^chief\.ssl_"; then
+    echo -e "  ${CHIEF_COLOR_GREEN}SSL Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires openssl)${CHIEF_NO_COLOR}"
+    echo "    ssl_create_ca, ssl_create_tls_cert, ssl_view_cert, ssl_get_cert"
+    echo "    Certificate authority and TLS certificate management"
+    found_plugins=true
+  fi
+  
+  if compgen -A function | grep -q "^chief\.vault_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}Vault Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires ansible-vault)${CHIEF_NO_COLOR}"
-    echo "    vault.file-edit, vault.file-load"
+    echo "    vault_file-edit, vault_file-load"
     echo "    Encrypt/decrypt sensitive environment variables"
     found_plugins=true
   fi
   
-  if compgen -A function | grep -q "^chief\.ssh"; then
-    echo -e "  ${CHIEF_COLOR_GREEN}SSH Plugin:${CHIEF_NO_COLOR}"
-    echo "    ssh.create_keypair, ssh.get_publickey, ssh.rm_host, ssh.load_keys"
+  if compgen -A function | grep -q "^chief\.aws_"; then
+    echo -e "  ${CHIEF_COLOR_GREEN}AWS Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires aws CLI)${CHIEF_NO_COLOR}"
+    echo "    aws_set_role, aws_export_creds"
+    echo "    AWS credential and role management"
     found_plugins=true
   fi
   
-  if compgen -A function | grep -q "^chief\.python"; then
+  if compgen -A function | grep -q "^chief\.ssh_"; then
+    echo -e "  ${CHIEF_COLOR_GREEN}SSH Plugin:${CHIEF_NO_COLOR}"
+    echo "    ssh_create_keypair, ssh_get_publickey, ssh_rm_host, ssh_load_keys"
+    found_plugins=true
+  fi
+  
+  if compgen -A function | grep -q "^chief\.python_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}Python Plugin:${CHIEF_NO_COLOR}"
-    echo "    python.create_ve, python.start_ve, python.stop_ve, python.ve_dep"
+    echo "    python_create_ve, python_start_ve, python_stop_ve, python_ve_dep"
     echo "    Virtual environment management"
     found_plugins=true
   fi
   
-  if compgen -A function | grep -q "^chief\.oc\."; then
+  if compgen -A function | grep -q "^chief\.oc_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}OpenShift Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires oc CLI)${CHIEF_NO_COLOR}"
-    echo "    oc.login, oc.clusters - OpenShift cluster management"
+    echo "    oc_login, oc_get_all_objects, oc_clean_olm, oc_clean_replicasets"
+    echo "    oc_approve_csrs, oc_show_stuck_resources, oc_delete_stuck_ns"
+    echo "    OpenShift cluster management and maintenance"
     found_plugins=true
   fi
   
-  if compgen -A function | grep -q "^chief\.etc"; then
+  if compgen -A function | grep -q "^chief\.etc_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}Utilities Plugin:${CHIEF_NO_COLOR}"
-    echo "    etc.ask_yes_or_no, etc.spinner, etc.prompt, etc.mount_share"
-    echo "    etc.isvalid_ip, etc.broadcast, etc.at_run, etc.folder_diff"
-    echo "    etc.shared-term_create, etc.shared-term_connect"
+    echo "    etc_ask_yes_or_no, etc_spinner, etc_prompt, etc_mount_share"
+    echo "    etc_isvalid_ip, etc_broadcast, etc_at_run, etc_folder_diff"
+    echo "    etc_shared-term_create, etc_shared-term_connect, etc_chmod-f, etc_chmod-d"
+    echo "    etc_create_bootusb, etc_copy_dotfiles, etc_create_cipher, type_writer"
     found_plugins=true
   fi
   
@@ -2660,10 +2770,10 @@ function __chief_show_compact_reference() {
   echo "  config, config_set, reload, update, uninstall, whereis, hints, help"
   echo
   echo -e "${CHIEF_COLOR_CYAN}File Editors:${CHIEF_NO_COLOR}"
-  echo "  bash_profile, bashrc, profile"
+  echo "  edit_file, bash_profile, bashrc, profile"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Plugin Management:${CHIEF_NO_COLOR}"
-  echo "  plugin [name], plugins (navigate), plugin -? (list)"
+  echo "  plugin [name], plugins_root (navigate), plugin -? (list)"
   echo
   
   # Show loaded plugin categories
@@ -2793,8 +2903,8 @@ ${CHIEF_COLOR_BLUE}Search Patterns:${CHIEF_NO_COLOR}
   Aliases:    alias name=
 
 ${CHIEF_COLOR_GREEN}Status Indicators:${CHIEF_NO_COLOR}
-  ${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Currently loaded and active
-  ${CHIEF_COLOR_RED}✗${CHIEF_NO_COLOR} Found in files but not loaded
+  ${CHIEF_SYMBOL_CHECK} Currently loaded and active
+  ${CHIEF_SYMBOL_CROSS} Found in files but not loaded
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   chief.whereis PATH           # Find PATH variable
@@ -2907,17 +3017,17 @@ ${CHIEF_COLOR_BLUE}Output Features:${CHIEF_NO_COLOR}
     echo -e "${CHIEF_COLOR_GREEN}CURRENTLY LOADED:${CHIEF_NO_COLOR}"
     
     if $is_var; then
-      echo -e "  ${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Variable: ${name}=${!name}"
+      echo -e "  ${CHIEF_SYMBOL_CHECK} Variable: ${name}=${!name}"
     fi
     
     if $is_func; then
-      echo -e "  ${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Function: ${name}()"
+      echo -e "  ${CHIEF_SYMBOL_CHECK} Function: ${name}()"
     fi
     
     if $is_alias; then
       local alias_def
       alias_def=$(alias "$name" 2>/dev/null)
-      echo -e "  ${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Alias: ${alias_def}"
+      echo -e "  ${CHIEF_SYMBOL_CHECK} Alias: ${alias_def}"
     fi
     echo
   fi

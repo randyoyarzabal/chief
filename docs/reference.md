@@ -93,6 +93,7 @@ chief.help plugins            # Show plugin-provided commands
 
 # Plugin management
 chief.plugins_update          # Update remote plugins (if configured)
+chief.plugins_root             # Navigate to plugins directory
 ```
 
 ### System Management

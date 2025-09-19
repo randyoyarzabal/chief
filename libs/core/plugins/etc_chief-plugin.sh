@@ -172,10 +172,10 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     while IFS= read -r -d '' file; do
       echo -n "  $(basename "$file")... "
       if chmod "$permissions" "$file" 2>/dev/null; then
-        echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_SYMBOL_CHECK}"
         ((processed++))
       else
-        echo -e "${CHIEF_COLOR_RED}✗${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_SYMBOL_CROSS}"
         ((failed++))
       fi
     done < <(find "$target_dir" -type f -print0)
@@ -363,10 +363,10 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
       [[ "$dir_name" == "." ]] && dir_name="(current)"
       echo -n "  $dir_name... "
       if chmod "$permissions" "$dir" 2>/dev/null; then
-        echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_SYMBOL_CHECK}"
         ((processed++))
       else
-        echo -e "${CHIEF_COLOR_RED}✗${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_SYMBOL_CROSS}"
         ((failed++))
       fi
     done < <(find "$target_dir" -type d -print0)
@@ -401,9 +401,10 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -f, --force     Skip confirmations (use with extreme caution)
   -k, --keep      Keep temporary conversion file
+  -n, --dry-run   Show what would be done without making changes
   -?              Show this help
 
-${CHIEF_COLOR_RED}⚠️  DANGER ZONE ⚠️${CHIEF_NO_COLOR}
+${CHIEF_COLOR_RED}${CHIEF_SYMBOL_DANGER}  DANGER ZONE ${CHIEF_SYMBOL_DANGER}${CHIEF_NO_COLOR}
 This command will COMPLETELY ERASE the target USB drive and ALL DATA on it!
 Make absolutely sure you specify the correct disk number.
 
@@ -430,6 +431,7 @@ ${CHIEF_COLOR_GREEN}Linux:${CHIEF_NO_COLOR} lsblk or sudo fdisk -l
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   chief.etc_create_bootusb ubuntu.iso 2           # Create bootable USB from ubuntu.iso on disk2
+  chief.etc_create_bootusb -n ubuntu.iso 2        # Dry-run: show what would be done (SAFE)
   chief.etc_create_bootusb -k installer.iso 3     # Keep temporary files after creation
   
 ${CHIEF_COLOR_RED}WARNING:${CHIEF_NO_COLOR} Always verify disk number with 'diskutil list' (macOS) or 'lsblk' (Linux)
@@ -440,6 +442,7 @@ before running this command. Wrong disk number will destroy data!
   local disk_number=""
   local force_mode=false
   local keep_temp=false
+  local dry_run=false
   local temp_file="/tmp/bootusb_$$.img"
 
   # Parse options and arguments
@@ -451,6 +454,10 @@ before running this command. Wrong disk number will destroy data!
         ;;
       -k|--keep)
         keep_temp=true
+        shift
+        ;;
+      -n|--dry-run)
+        dry_run=true
         shift
         ;;
       -\?)
@@ -554,9 +561,63 @@ before running this command. Wrong disk number will destroy data!
     lsblk 2>/dev/null || echo -e "${CHIEF_COLOR_YELLOW}Please verify disk manually with 'lsblk' or 'sudo fdisk -l'${CHIEF_NO_COLOR}"
   fi
 
+  # Dry-run mode
+  if [[ "$dry_run" == true ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}DRY RUN: Would perform these operations on $disk_device:${CHIEF_NO_COLOR}"
+    echo ""
+    echo -e "${CHIEF_COLOR_BLUE}Step 1:${CHIEF_NO_COLOR} Validation checks"
+    echo "  ${CHIEF_SYMBOL_CHECK} ISO file exists and is readable: $iso_file ($iso_size)"
+    echo "  ${CHIEF_SYMBOL_CHECK} Target disk device: $disk_device"
+    echo "  ${CHIEF_SYMBOL_CHECK} Operating system: $os_type"
+    echo ""
+    
+    if [[ "$os_type" == "macOS" ]]; then
+      echo -e "${CHIEF_COLOR_BLUE}Step 2:${CHIEF_NO_COLOR} Convert ISO to disk image"
+      echo "  Command: hdiutil convert -format UDRW -o $temp_file $iso_file"
+      echo "  Output: $temp_file"
+      echo ""
+    fi
+    
+    echo -e "${CHIEF_COLOR_BLUE}Step 3:${CHIEF_NO_COLOR} Unmount target disk"
+    if [[ "$os_type" == "macOS" ]]; then
+      echo "  Command: diskutil unmountDisk $disk_device"
+    else
+      echo "  Command: sudo umount ${disk_device}*"
+    fi
+    echo ""
+    
+    echo -e "${CHIEF_COLOR_BLUE}Step 4:${CHIEF_NO_COLOR} Write ISO to USB drive"
+    if [[ "$os_type" == "macOS" ]]; then
+      echo "  Command: sudo dd if=$temp_file of=$raw_device bs=1m"
+    else
+      echo "  Command: sudo dd if=$iso_file of=$raw_device bs=1M"
+    fi
+    echo -e "  ${CHIEF_COLOR_RED}${CHIEF_SYMBOL_WARNING}  This would COMPLETELY ERASE $disk_device${CHIEF_NO_COLOR}"
+    echo ""
+    
+    echo -e "${CHIEF_COLOR_BLUE}Step 5:${CHIEF_NO_COLOR} Sync and eject"
+    echo "  Command: sync"
+    if [[ "$os_type" == "macOS" ]]; then
+      echo "  Command: diskutil eject $disk_device"
+    else
+      echo "  Command: sudo eject $disk_device"
+    fi
+    echo ""
+    
+    if [[ "$os_type" == "macOS" && "$keep_temp" != true ]]; then
+      echo -e "${CHIEF_COLOR_BLUE}Step 6:${CHIEF_NO_COLOR} Cleanup"
+      echo "  Command: rm -f $temp_file"
+      echo ""
+    fi
+    
+    echo -e "${CHIEF_COLOR_GREEN}DRY RUN COMPLETE${CHIEF_NO_COLOR} - No changes were made"
+    echo -e "${CHIEF_COLOR_YELLOW}Remove -n/--dry-run flag to perform actual USB creation${CHIEF_NO_COLOR}"
+    return 0
+  fi
+
   # Safety confirmations
   if [[ "$force_mode" != true ]]; then
-    echo -e "${CHIEF_COLOR_RED}⚠️  WARNING: This will COMPLETELY ERASE $disk_device ⚠️${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_RED}${CHIEF_SYMBOL_WARNING}  WARNING: This will COMPLETELY ERASE $disk_device ${CHIEF_SYMBOL_WARNING}${CHIEF_NO_COLOR}"
     echo -e "${CHIEF_COLOR_RED}ALL DATA on the target disk will be PERMANENTLY LOST!${CHIEF_NO_COLOR}"
     echo ""
     
@@ -629,7 +690,7 @@ before running this command. Wrong disk number will destroy data!
   fi
 
   echo ""
-  echo -e "${CHIEF_COLOR_GREEN}✓ Bootable USB drive created successfully!${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_SYMBOL_SUCCESS} Bootable USB drive created successfully!"
   echo -e "${CHIEF_COLOR_BLUE}USB drive:${CHIEF_NO_COLOR} $disk_device"
   echo -e "${CHIEF_COLOR_YELLOW}The USB drive is now ready to boot${CHIEF_NO_COLOR}"
 }
@@ -856,12 +917,12 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     # Copy the file
     if cp -a "$file" "$dest_file"; then
       if [[ "$verbose" == true ]]; then
-        echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_SYMBOL_CHECK}"
       fi
       ((copied++))
     else
       if [[ "$verbose" == true ]]; then
-        echo -e "${CHIEF_COLOR_RED}✗${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_SYMBOL_CROSS}"
       else
         echo -e "${CHIEF_COLOR_RED}Failed to copy: $filename${CHIEF_NO_COLOR}"
       fi
@@ -1390,28 +1451,6 @@ ${CHIEF_COLOR_BLUE}Interactive Prompts:${CHIEF_NO_COLOR}
     esac
   done
 }
-
-# function chief.etc_ask_yes_or_no() {
-#   local USAGE="Usage: $FUNCNAME <msg/question>
-
-# Display a yes/no user prompt and echo the response.
-# Returns 'yes' or 'no' string.
-
-# Example:
-#    response=\$($FUNCNAME 'Do you want to continue?')
-# "
-
-#   if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
-#     echo "${USAGE}"
-#     return
-#   fi
-
-#   read -p "$1 ([y]es or [N]o): "
-#   case $(echo $REPLY | tr '[A-Z]' '[a-z]') in
-#   y | yes) echo "yes" ;;
-#   *) echo "no" ;;
-#   esac
-# }
 
 function chief.etc_prompt() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <prompt_message>

@@ -346,9 +346,12 @@ chief.etc_copy_dotfiles -b -f ~/old ~/current   # Force with backup
 
 ```bash
 # Create bootable USB drive (macOS/Linux)
-chief.etc_create_bootusb ubuntu.iso 2    # disk2 on macOS
-chief.etc_create_bootusb -k installer.iso 3  # Keep temp files
+chief.etc_create_bootusb ubuntu.iso 2          # disk2 on macOS
+chief.etc_create_bootusb -n ubuntu.iso 2       # Dry-run: SAFE preview
+chief.etc_create_bootusb -k installer.iso 3    # Keep temp files
 ```
+
+**⚠️ Safety First**: Always use `-n` flag first to preview what will happen before creating bootable media, as this operation completely erases the target drive.
 
 #### Network and Collaboration Tools
 
@@ -491,6 +494,7 @@ chief.help plugins            # Show plugin-provided commands
 
 # Plugin management
 chief.plugins_update          # Update remote plugins (if configured)
+chief.plugins_root             # Navigate to plugins directory
 ```
 
 ---
@@ -550,6 +554,28 @@ function gitflow.feature_finish() {
     git branch -d "${current_branch}"
 }
 ```
+
+### Git Safety: Dry-Run Operations
+
+Chief's Git functions include dry-run capabilities for potentially destructive operations:
+
+```bash
+# SAFE: Preview what git reset --hard would affect
+chief.git_reset-hard -n
+
+# Example output shows:
+# Modified files that would be reset:
+#   - src/config.js
+#   - README.md
+# Staged files that would be reset:
+#   - package.json
+# ⚠️ WARNING: This would permanently discard the above changes!
+
+# Only run without -n after reviewing the changes
+chief.git_reset-hard
+```
+
+**Best Practice**: Always run Git operations with `-n` first to understand what will be affected.
 
 ---
 

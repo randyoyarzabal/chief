@@ -27,6 +27,754 @@ fi
 
 # Note: Uses __chief_print_* functions from Chief core library for consistent messaging
 
+# Helper function to check OpenShift login status and display cluster info
+__chief_oc_check_login() {
+  if ! oc whoami &>/dev/null; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Not logged into OpenShift cluster"
+    echo -e "${CHIEF_COLOR_YELLOW}Hint:${CHIEF_NO_COLOR} Run 'oc login' or 'chief.oc_login' to authenticate"
+    return 1
+  fi
+
+  # Display current cluster information
+  local current_user current_server current_context
+  current_user=$(oc whoami 2>/dev/null)
+  current_server=$(oc whoami --show-server 2>/dev/null)
+  current_context=$(oc config current-context 2>/dev/null)
+  
+  echo -e "${CHIEF_SYMBOL_CHECK} Connected to OpenShift:"
+  echo -e "${CHIEF_COLOR_BLUE}  User:${CHIEF_NO_COLOR} $current_user"
+  echo -e "${CHIEF_COLOR_BLUE}  Server:${CHIEF_NO_COLOR} $current_server"
+  echo -e "${CHIEF_COLOR_BLUE}  Context:${CHIEF_NO_COLOR} $current_context"
+  echo ""
+  return 0
+}
+
+function chief.oc_get_all_objects() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <namespace> [options]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Get all objects in an OpenShift namespace by discovering and listing all available
+API resources that can be queried. Excludes events to reduce noise.
+
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  namespace       Target namespace to scan for objects
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -o, --output FORMAT    Output format (table, yaml, json, wide) [default: table]
+  -l, --selector LABEL   Label selector to filter objects
+  -f, --field SELECTOR   Field selector to filter objects
+  -q, --quiet           Suppress resource type headers
+  -?                    Show this help
+
+${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
+- Automatically discovers all listable namespaced resources
+- Filters out event resources to reduce output noise
+- Supports standard kubectl output formats
+- Provides comprehensive namespace inventory
+- Handles missing or empty resources gracefully
+
+${CHIEF_COLOR_MAGENTA}Requirements:${CHIEF_NO_COLOR}
+- OpenShift CLI (oc) must be installed and available in PATH
+- User must be logged into OpenShift cluster
+- User must have list permissions for the target namespace
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME myapp                           # List all objects in 'myapp' namespace
+  $FUNCNAME prod -o yaml                    # Get all objects in YAML format
+  $FUNCNAME test -l app=frontend            # Filter by label selector
+  $FUNCNAME dev -q                          # Quiet mode (no resource headers)
+  $FUNCNAME staging --field status.phase=Running  # Filter by field selector
+
+${CHIEF_COLOR_BLUE}Reference:${CHIEF_NO_COLOR}
+Based on techniques shared by Kyle Walker from Red Hat.
+"
+
+  # Check if OpenShift CLI is available
+  if ! command -v oc &>/dev/null; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} OpenShift CLI (oc) is required but not found."
+    echo -e "${CHIEF_COLOR_YELLOW}Install:${CHIEF_NO_COLOR}"
+    echo "  Download from: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
+    echo "  Or use package manager (brew install openshift-cli, etc.)"
+    return 1
+  fi
+
+  local namespace=""
+  local output_format="table"
+  local label_selector=""
+  local field_selector=""
+  local quiet_mode=false
+  
+  # Parse arguments
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -o|--output)
+        if [[ -n "$2" && ! "$2" =~ ^- ]]; then
+          output_format="$2"
+          shift 2
+        else
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Output format is required"
+          return 1
+        fi
+        ;;
+      -l|--selector)
+        if [[ -n "$2" && ! "$2" =~ ^- ]]; then
+          label_selector="$2"
+          shift 2
+        else
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Label selector is required"
+          return 1
+        fi
+        ;;
+      -f|--field)
+        if [[ -n "$2" && ! "$2" =~ ^- ]]; then
+          field_selector="$2"
+          shift 2
+        else
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Field selector is required"
+          return 1
+        fi
+        ;;
+      -q|--quiet)
+        quiet_mode=true
+        shift
+        ;;
+      -\?)
+        echo -e "${USAGE}"
+        return
+        ;;
+      -*)
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+      *)
+        if [[ -z "$namespace" ]]; then
+          namespace="$1"
+        else
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Multiple namespaces specified. Only one namespace allowed."
+          echo -e "${USAGE}"
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Validate required parameters
+  if [[ -z "$namespace" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Namespace is required"
+    echo -e "${USAGE}"
+    return 1
+  fi
+
+  # Check OpenShift login status and display cluster info
+  if ! __chief_oc_check_login; then
+    return 1
+  fi
+
+  # Check if namespace exists
+  if ! oc get namespace "$namespace" &>/dev/null; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Namespace '$namespace' not found or not accessible"
+    return 1
+  fi
+
+  echo -e "${CHIEF_COLOR_BLUE}Scanning namespace:${CHIEF_NO_COLOR} $namespace"
+  [[ -n "$label_selector" ]] && echo -e "${CHIEF_COLOR_BLUE}Label selector:${CHIEF_NO_COLOR} $label_selector"
+  [[ -n "$field_selector" ]] && echo -e "${CHIEF_COLOR_BLUE}Field selector:${CHIEF_NO_COLOR} $field_selector"
+  echo -e "${CHIEF_COLOR_BLUE}Output format:${CHIEF_NO_COLOR} $output_format"
+  echo ""
+
+  # Build oc command options
+  local oc_options="-n $namespace --ignore-not-found -o $output_format"
+  [[ -n "$label_selector" ]] && oc_options+=" -l $label_selector"
+  [[ -n "$field_selector" ]] && oc_options+=" --field-selector $field_selector"
+
+  # Get all namespaced API resources (excluding events)
+  local resources
+  resources=$(oc api-resources --verbs=list --namespaced -o name 2>/dev/null | \
+    grep -v "events.events.k8s.io" | grep -v "^events$" | sort | uniq)
+
+  if [[ -z "$resources" ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} No listable resources found"
+    return 0
+  fi
+
+  local resource_count=0
+  local found_objects=false
+
+  # Iterate through each resource type
+  for resource in $resources; do
+    # Get objects for this resource type
+    local objects
+    objects=$(oc get $oc_options "$resource" 2>/dev/null)
+    
+    # Check if any objects were found (more than just header line)
+    if [[ $(echo "$objects" | wc -l) -gt 1 ]]; then
+      found_objects=true
+      ((resource_count++))
+      
+      if [[ "$quiet_mode" != true ]]; then
+        echo -e "${CHIEF_COLOR_CYAN}=== Resource: ${resource} ===${CHIEF_NO_COLOR}"
+      fi
+      echo "$objects"
+      echo ""
+    fi
+  done
+
+  if [[ "$found_objects" != true ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}No objects found in namespace '$namespace'${CHIEF_NO_COLOR}"
+    [[ -n "$label_selector" ]] && echo -e "${CHIEF_COLOR_YELLOW}(with label selector: $label_selector)${CHIEF_NO_COLOR}"
+    [[ -n "$field_selector" ]] && echo -e "${CHIEF_COLOR_YELLOW}(with field selector: $field_selector)${CHIEF_NO_COLOR}"
+  else
+    echo -e "${CHIEF_SYMBOL_CHECK} Scan complete: Found objects in ${resource_count} resource types"
+  fi
+}
+
+function chief.oc_clean_olm() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Clean up OpenShift Operator Lifecycle Manager (OLM) pods and jobs to start fresh
+when dealing with operator installation or update issues. This forces OLM to
+recreate its components and can resolve stuck operator states.
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -y, --yes       Skip confirmation prompts
+  -n, --dry-run   Show what would be deleted without making changes
+  -f, --force     Force deletion even if pods are in Running state
+  -s, --selective TARGET  Clean only specific component:
+                          marketplace, lifecycle-manager, or catalog
+  -?              Show this help
+
+${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
+- Cleans OLM marketplace jobs and pods
+- Cleans OLM lifecycle manager pods
+- Interactive confirmation by default
+- Dry-run mode for safety
+- Selective cleanup options
+- Comprehensive error handling
+
+${CHIEF_COLOR_MAGENTA}Components Cleaned:${CHIEF_NO_COLOR}
+- openshift-marketplace namespace: jobs and pods
+- openshift-operator-lifecycle-manager namespace: pods
+- Catalog source pods and related resources
+
+${CHIEF_COLOR_RED}${CHIEF_SYMBOL_WARNING}  Warning:${CHIEF_NO_COLOR}
+This operation will temporarily disrupt operator management. OLM will recreate
+these components automatically, but operator installations/updates in progress
+may be interrupted. Use with caution in production environments.
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME                           # Interactive cleanup of all OLM components
+  $FUNCNAME -y                        # Non-interactive cleanup
+  $FUNCNAME -n                        # Dry-run: show what would be deleted
+  $FUNCNAME -s marketplace            # Clean only marketplace components
+  $FUNCNAME -s lifecycle-manager      # Clean only lifecycle manager components
+  $FUNCNAME -f -y                     # Force cleanup without confirmation
+
+${CHIEF_COLOR_BLUE}Reference:${CHIEF_NO_COLOR}
+Based on techniques shared by Kyle Walker from Red Hat.
+"
+
+  # Check if OpenShift CLI is available
+  if ! command -v oc &>/dev/null; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} OpenShift CLI (oc) is required but not found."
+    echo -e "${CHIEF_COLOR_YELLOW}Install:${CHIEF_NO_COLOR}"
+    echo "  Download from: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
+    echo "  Or use package manager (brew install openshift-cli, etc.)"
+    return 1
+  fi
+
+  local auto_yes=false
+  local dry_run=false
+  local force_delete=false
+  local selective_target=""
+  
+  # Parse arguments
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -y|--yes)
+        auto_yes=true
+        shift
+        ;;
+      -n|--dry-run)
+        dry_run=true
+        shift
+        ;;
+      -f|--force)
+        force_delete=true
+        shift
+        ;;
+      -s|--selective)
+        if [[ -n "$2" && ! "$2" =~ ^- ]]; then
+          case "$2" in
+            marketplace|lifecycle-manager|catalog)
+              selective_target="$2"
+              shift 2
+              ;;
+            *)
+              echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Invalid selective target: $2"
+              echo -e "${CHIEF_COLOR_YELLOW}Valid targets:${CHIEF_NO_COLOR} marketplace, lifecycle-manager, catalog"
+              return 1
+              ;;
+          esac
+        else
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Selective target is required"
+          return 1
+        fi
+        ;;
+      -\?)
+        echo -e "${USAGE}"
+        return
+        ;;
+      -*)
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+      *)
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unexpected argument: $1"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+    esac
+  done
+
+  # Check OpenShift login status and display cluster info
+  if ! __chief_oc_check_login; then
+    return 1
+  fi
+
+  # Check cluster-admin permissions (OLM cleanup requires elevated privileges)
+  if ! oc auth can-i delete pods -n openshift-marketplace &>/dev/null; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Insufficient permissions to clean OLM components"
+    echo -e "${CHIEF_COLOR_YELLOW}Required:${CHIEF_NO_COLOR} cluster-admin or equivalent permissions"
+    return 1
+  fi
+
+  echo -e "${CHIEF_COLOR_BLUE}OpenShift OLM Cleanup${CHIEF_NO_COLOR}"
+  
+  # Build mode display
+  local mode_display=""
+  [[ "$dry_run" == true ]] && mode_display+="DRY-RUN "
+  [[ "$force_delete" == true ]] && mode_display+="FORCE "
+  [[ -n "$selective_target" ]] && mode_display+="SELECTIVE ($selective_target) "
+  
+  # Trim trailing space and set default if empty
+  mode_display="${mode_display% }"
+  [[ -z "$mode_display" ]] && mode_display="LIVE"
+  
+  echo -e "${CHIEF_COLOR_BLUE}Mode:${CHIEF_NO_COLOR} $mode_display"
+  echo ""
+
+  # Function to get resources for deletion
+  __chief_get_olm_resources() {
+    local namespace="$1"
+    local resource_type="$2"
+    local resources
+    
+    resources=$(oc get "$resource_type" -n "$namespace" -o name 2>/dev/null | grep -v "^No resources found")
+    echo "$resources"
+  }
+
+  # Function to delete resources
+  __chief_delete_olm_resources() {
+    local namespace="$1"
+    local resource_type="$2"
+    local resources="$3"
+    local force_flag=""
+    
+    if [[ "$force_delete" == true ]]; then
+      force_flag="--force --grace-period=0"
+    fi
+    
+    if [[ -n "$resources" ]]; then
+      echo -e "${CHIEF_COLOR_CYAN}Deleting ${resource_type} in ${namespace}:${CHIEF_NO_COLOR}"
+      echo "$resources" | while read -r resource; do
+        [[ -n "$resource" ]] && echo "  - $resource"
+      done
+      
+      if [[ "$dry_run" != true ]]; then
+        echo "$resources" | xargs -r oc delete -n "$namespace" $force_flag 2>/dev/null || true
+        echo -e "${CHIEF_SYMBOL_CHECK} ${resource_type} deletion completed"
+      else
+        echo -e "${CHIEF_COLOR_YELLOW}[DRY-RUN] Would delete above ${resource_type}${CHIEF_NO_COLOR}"
+      fi
+      echo ""
+    else
+      echo -e "${CHIEF_COLOR_YELLOW}No ${resource_type} found in ${namespace}${CHIEF_NO_COLOR}"
+      echo ""
+    fi
+  }
+
+  # Confirm operation unless auto-yes or dry-run
+  if [[ "$auto_yes" != true && "$dry_run" != true ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}${CHIEF_SYMBOL_WARNING}  This will delete OLM pods and jobs. OLM will recreate them automatically.${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_YELLOW}   Operator installations/updates in progress may be interrupted.${CHIEF_NO_COLOR}"
+    echo ""
+    echo -e "${CHIEF_COLOR_BLUE}Target cluster:${CHIEF_NO_COLOR} $(oc whoami --show-server 2>/dev/null)"
+    echo -e "${CHIEF_COLOR_BLUE}Logged in as:${CHIEF_NO_COLOR} $(oc whoami 2>/dev/null)"
+    echo ""
+    read -p "Continue with OLM cleanup? [y/N]: " -r
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}Operation cancelled${CHIEF_NO_COLOR}"
+      return 0
+    fi
+    echo ""
+  fi
+
+  # Perform selective or full cleanup
+  case "$selective_target" in
+    "marketplace")
+      echo -e "${CHIEF_COLOR_MAGENTA}=== Cleaning openshift-marketplace ===${CHIEF_NO_COLOR}"
+      marketplace_jobs=$(__chief_get_olm_resources "openshift-marketplace" "job")
+      marketplace_pods=$(__chief_get_olm_resources "openshift-marketplace" "pod")
+      __chief_delete_olm_resources "openshift-marketplace" "jobs" "$marketplace_jobs"
+      __chief_delete_olm_resources "openshift-marketplace" "pods" "$marketplace_pods"
+      ;;
+    "lifecycle-manager")
+      echo -e "${CHIEF_COLOR_MAGENTA}=== Cleaning openshift-operator-lifecycle-manager ===${CHIEF_NO_COLOR}"
+      olm_pods=$(__chief_get_olm_resources "openshift-operator-lifecycle-manager" "pod")
+      __chief_delete_olm_resources "openshift-operator-lifecycle-manager" "pods" "$olm_pods"
+      ;;
+    "catalog")
+      echo -e "${CHIEF_COLOR_MAGENTA}=== Cleaning catalog sources ===${CHIEF_NO_COLOR}"
+      # Clean catalog source pods specifically
+      catalog_pods=$(oc get pods -A -l "olm.catalogSource" -o name 2>/dev/null)
+      if [[ -n "$catalog_pods" ]]; then
+        echo -e "${CHIEF_COLOR_CYAN}Deleting catalog source pods:${CHIEF_NO_COLOR}"
+        echo "$catalog_pods" | while read -r pod; do
+          [[ -n "$pod" ]] && echo "  - $pod"
+        done
+        if [[ "$dry_run" != true ]]; then
+          echo "$catalog_pods" | xargs -r oc delete --ignore-not-found ${force_delete:+--force --grace-period=0} 2>/dev/null || true
+          echo -e "${CHIEF_COLOR_GREEN}✓ Catalog source pods deletion completed${CHIEF_NO_COLOR}"
+        else
+          echo -e "${CHIEF_COLOR_YELLOW}[DRY-RUN] Would delete above catalog pods${CHIEF_NO_COLOR}"
+        fi
+      else
+        echo -e "${CHIEF_COLOR_YELLOW}No catalog source pods found${CHIEF_NO_COLOR}"
+      fi
+      ;;
+    *)
+      # Full cleanup
+      echo -e "${CHIEF_COLOR_MAGENTA}=== Cleaning openshift-marketplace ===${CHIEF_NO_COLOR}"
+      marketplace_jobs=$(__chief_get_olm_resources "openshift-marketplace" "job")
+      marketplace_pods=$(__chief_get_olm_resources "openshift-marketplace" "pod")
+      __chief_delete_olm_resources "openshift-marketplace" "jobs" "$marketplace_jobs"
+      __chief_delete_olm_resources "openshift-marketplace" "pods" "$marketplace_pods"
+      
+      echo -e "${CHIEF_COLOR_MAGENTA}=== Cleaning openshift-operator-lifecycle-manager ===${CHIEF_NO_COLOR}"
+      olm_pods=$(__chief_get_olm_resources "openshift-operator-lifecycle-manager" "pod")
+      __chief_delete_olm_resources "openshift-operator-lifecycle-manager" "pods" "$olm_pods"
+      ;;
+  esac
+
+  if [[ "$dry_run" != true ]]; then
+    echo -e "${CHIEF_COLOR_GREEN}✅ OLM cleanup completed${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR} OLM will automatically recreate deleted components"
+    echo -e "${CHIEF_COLOR_BLUE}Monitor:${CHIEF_NO_COLOR} Watch 'oc get pods -n openshift-marketplace' and 'oc get pods -n openshift-operator-lifecycle-manager'"
+  else
+    echo -e "${CHIEF_COLOR_YELLOW}[DRY-RUN] OLM cleanup simulation completed${CHIEF_NO_COLOR}"
+  fi
+}
+
+function chief.oc_clean_replicasets() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options] [namespace]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Clean up old and stale ReplicaSets with zero replicas. These ReplicaSets are
+typically left behind after deployments and consume resources unnecessarily.
+This function identifies and removes ReplicaSets that have 0 replicas configured.
+
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  namespace       Target namespace to clean (optional, defaults to current namespace)
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -a, --all-namespaces  Clean ReplicaSets across all accessible namespaces
+  -y, --yes            Skip confirmation prompts
+  -n, --dry-run        Show what would be deleted without making changes
+  -f, --force          Force deletion even if ReplicaSets have pods
+  -l, --selector LABEL  Label selector to filter ReplicaSets
+  -o, --older-than DURATION  Only delete ReplicaSets older than duration (e.g., 7d, 2w, 1m)
+  -?                   Show this help
+
+${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
+- Identifies ReplicaSets with zero replicas
+- Interactive confirmation by default
+- Supports namespace filtering and label selectors
+- Age-based filtering for selective cleanup
+- Dry-run mode for safety
+- Cross-namespace cleanup option
+
+${CHIEF_COLOR_MAGENTA}Requirements:${CHIEF_NO_COLOR}
+- OpenShift CLI (oc) must be installed and available in PATH
+- jq must be installed for JSON processing
+- User must be logged into OpenShift cluster
+- User must have delete permissions for ReplicaSets in target namespace(s)
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME                           # Clean zero-replica ReplicaSets in current namespace
+  $FUNCNAME myapp                     # Clean zero-replica ReplicaSets in 'myapp' namespace
+  $FUNCNAME -a                        # Clean across all accessible namespaces
+  $FUNCNAME -n                        # Dry-run: show what would be deleted
+  $FUNCNAME -l app=frontend           # Clean only ReplicaSets with app=frontend label
+  $FUNCNAME --older-than 7d -y        # Auto-delete ReplicaSets older than 7 days
+  $FUNCNAME prod -f                   # Force delete in production namespace
+
+${CHIEF_COLOR_BLUE}Reference:${CHIEF_NO_COLOR}
+Based on techniques shared by Kyle Walker from Red Hat.
+"
+
+  # Check if OpenShift CLI is available
+  if ! command -v oc &>/dev/null; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} OpenShift CLI (oc) is required but not found."
+    echo -e "${CHIEF_COLOR_YELLOW}Install:${CHIEF_NO_COLOR}"
+    echo "  Download from: https://mirror.openshift.com/pub/openshift-v4/clients/ocp/"
+    echo "  Or use package manager (brew install openshift-cli, etc.)"
+    return 1
+  fi
+
+  # Check if jq is available
+  if ! command -v jq &>/dev/null; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} jq is required but not found."
+    echo -e "${CHIEF_COLOR_YELLOW}Install:${CHIEF_NO_COLOR}"
+    echo "  macOS: brew install jq"
+    echo "  Linux: Use your package manager (apt install jq, yum install jq, etc.)"
+    return 1
+  fi
+
+  local namespace=""
+  local all_namespaces=false
+  local auto_yes=false
+  local dry_run=false
+  local force_delete=false
+  local label_selector=""
+  local older_than=""
+  
+  # Parse arguments
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -a|--all-namespaces)
+        all_namespaces=true
+        shift
+        ;;
+      -y|--yes)
+        auto_yes=true
+        shift
+        ;;
+      -n|--dry-run)
+        dry_run=true
+        shift
+        ;;
+      -f|--force)
+        force_delete=true
+        shift
+        ;;
+      -l|--selector)
+        if [[ -n "$2" && ! "$2" =~ ^- ]]; then
+          label_selector="$2"
+          shift 2
+        else
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Label selector is required"
+          return 1
+        fi
+        ;;
+      -o|--older-than)
+        if [[ -n "$2" && ! "$2" =~ ^- ]]; then
+          older_than="$2"
+          shift 2
+        else
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Duration is required"
+          return 1
+        fi
+        ;;
+      -\?)
+        echo -e "${USAGE}"
+        return
+        ;;
+      -*)
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+      *)
+        if [[ -z "$namespace" ]]; then
+          namespace="$1"
+        else
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Multiple namespaces specified. Only one namespace allowed."
+          echo -e "${USAGE}"
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Check OpenShift login status and display cluster info
+  if ! __chief_oc_check_login; then
+    return 1
+  fi
+
+  # Validate namespace if specified
+  if [[ -n "$namespace" && "$all_namespaces" != true ]]; then
+    if ! oc get namespace "$namespace" &>/dev/null; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Namespace '$namespace' not found or not accessible"
+      return 1
+    fi
+  fi
+
+  echo -e "${CHIEF_COLOR_BLUE}OpenShift ReplicaSet Cleanup${CHIEF_NO_COLOR}"
+  # Build target display
+  local target_display=""
+  if [[ "$all_namespaces" == true ]]; then
+    target_display="All namespaces"
+  elif [[ -n "$namespace" ]]; then
+    target_display="Namespace: $namespace"
+  else
+    target_display="Current namespace"
+  fi
+  
+  echo -e "${CHIEF_COLOR_BLUE}Target:${CHIEF_NO_COLOR} $target_display"
+  [[ -n "$label_selector" ]] && echo -e "${CHIEF_COLOR_BLUE}Label selector:${CHIEF_NO_COLOR} $label_selector"
+  [[ -n "$older_than" ]] && echo -e "${CHIEF_COLOR_BLUE}Age filter:${CHIEF_NO_COLOR} Older than $older_than"
+  
+  # Build mode display
+  local mode_display=""
+  [[ "$dry_run" == true ]] && mode_display+="DRY-RUN "
+  [[ "$force_delete" == true ]] && mode_display+="FORCE "
+  
+  # Trim trailing space and set default if empty
+  mode_display="${mode_display% }"
+  [[ -z "$mode_display" ]] && mode_display="LIVE"
+  
+  echo -e "${CHIEF_COLOR_BLUE}Mode:${CHIEF_NO_COLOR} $mode_display"
+  echo ""
+
+  # Build oc command for getting ReplicaSets
+  local oc_get_cmd="oc get rs -o json"
+  
+  if [[ "$all_namespaces" == true ]]; then
+    oc_get_cmd+=" --all-namespaces"
+  elif [[ -n "$namespace" ]]; then
+    oc_get_cmd+=" -n $namespace"
+  fi
+  
+  [[ -n "$label_selector" ]] && oc_get_cmd+=" -l $label_selector"
+
+  # Get zero-replica ReplicaSets
+  local jq_filter='.items[] | select(.spec.replicas == 0)'
+  
+  # Add age filter if specified
+  if [[ -n "$older_than" ]]; then
+    # Convert duration to seconds for comparison
+    local cutoff_seconds
+    case "$older_than" in
+      *d) cutoff_seconds=$((${older_than%d} * 86400)) ;;
+      *w) cutoff_seconds=$((${older_than%w} * 604800)) ;;
+      *m) cutoff_seconds=$((${older_than%m} * 2592000)) ;;
+      *h) cutoff_seconds=$((${older_than%h} * 3600)) ;;
+      *) 
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Invalid duration format: $older_than"
+        echo -e "${CHIEF_COLOR_YELLOW}Use format:${CHIEF_NO_COLOR} 7d (days), 2w (weeks), 1m (months), 24h (hours)"
+        return 1
+        ;;
+    esac
+    
+    local cutoff_date
+    cutoff_date=$(date -u -d "@$(($(date +%s) - cutoff_seconds))" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null || \
+                  date -u -r "$(($(date +%s) - cutoff_seconds))" +"%Y-%m-%dT%H:%M:%SZ" 2>/dev/null)
+    
+    if [[ -n "$cutoff_date" ]]; then
+      jq_filter+=" | select(.metadata.creationTimestamp < \"$cutoff_date\")"
+    fi
+  fi
+
+  # Get the ReplicaSets to delete
+  local replicasets_json
+  replicasets_json=$(eval "$oc_get_cmd" 2>/dev/null)
+  
+  if [[ $? -ne 0 ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Failed to retrieve ReplicaSets"
+    return 1
+  fi
+
+  local replicasets_to_delete
+  replicasets_to_delete=$(echo "$replicasets_json" | jq -r "$jq_filter | \"\(.metadata.namespace // \"default\") \(.metadata.name)\"" 2>/dev/null)
+
+  if [[ -z "$replicasets_to_delete" ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}No zero-replica ReplicaSets found matching criteria${CHIEF_NO_COLOR}"
+    return 0
+  fi
+
+  # Display ReplicaSets to be deleted
+  echo -e "${CHIEF_COLOR_CYAN}Zero-replica ReplicaSets found:${CHIEF_NO_COLOR}"
+  echo "$replicasets_to_delete" | while read -r ns_name; do
+    [[ -n "$ns_name" ]] && echo "  - $ns_name"
+  done
+  echo ""
+
+  # Count ReplicaSets
+  local rs_count
+  rs_count=$(echo "$replicasets_to_delete" | grep -c . 2>/dev/null)
+  echo -e "${CHIEF_COLOR_BLUE}Total ReplicaSets to clean:${CHIEF_NO_COLOR} $rs_count"
+  echo ""
+
+  # Confirm operation unless auto-yes or dry-run
+  if [[ "$auto_yes" != true && "$dry_run" != true ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}${CHIEF_SYMBOL_WARNING}  This will delete the above ReplicaSets.${CHIEF_NO_COLOR}"
+    echo ""
+    echo -e "${CHIEF_COLOR_BLUE}Target cluster:${CHIEF_NO_COLOR} $(oc whoami --show-server 2>/dev/null)"
+    echo -e "${CHIEF_COLOR_BLUE}Logged in as:${CHIEF_NO_COLOR} $(oc whoami 2>/dev/null)"
+    echo ""
+    read -p "Continue with ReplicaSet cleanup? [y/N]: " -r
+    if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}Operation cancelled${CHIEF_NO_COLOR}"
+      return 0
+    fi
+    echo ""
+  fi
+
+  # Delete ReplicaSets
+  if [[ "$dry_run" == true ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}[DRY-RUN] Would delete the above ReplicaSets${CHIEF_NO_COLOR}"
+  else
+    local deleted_count=0
+    local failed_count=0
+    
+    echo -e "${CHIEF_COLOR_CYAN}Deleting ReplicaSets...${CHIEF_NO_COLOR}"
+    
+    while read -r ns_name; do
+      if [[ -n "$ns_name" ]]; then
+        local namespace_part="${ns_name%% *}"
+        local name_part="${ns_name#* }"
+        
+        # Build delete command
+        local delete_cmd="oc delete rs"
+        [[ "$all_namespaces" == true || -n "$namespace" ]] && delete_cmd+=" -n $namespace_part"
+        delete_cmd+=" $name_part"
+        [[ "$force_delete" == true ]] && delete_cmd+=" --force --grace-period=0"
+        
+        if eval "$delete_cmd" &>/dev/null; then
+          echo -e "  ${CHIEF_SYMBOL_CHECK} $ns_name"
+          ((deleted_count++))
+        else
+          echo -e "  ${CHIEF_SYMBOL_CROSS} $ns_name (failed)"
+          ((failed_count++))
+        fi
+      fi
+    done <<< "$replicasets_to_delete"
+    
+    echo ""
+    if [[ $failed_count -eq 0 ]]; then
+      echo -e "${CHIEF_COLOR_GREEN}✅ Successfully deleted $deleted_count ReplicaSets${CHIEF_NO_COLOR}"
+    else
+      echo -e "${CHIEF_COLOR_YELLOW}⚠️  Deleted $deleted_count ReplicaSets, $failed_count failed${CHIEF_NO_COLOR}"
+    fi
+  fi
+}
+
+
 function chief.oc_approve_csrs() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options]
 
@@ -121,10 +869,8 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     esac
   done
 
-  # Check if user is logged into OpenShift
-  if ! oc whoami &>/dev/null; then
-    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Not logged into OpenShift cluster"
-    echo -e "${CHIEF_COLOR_YELLOW}Solution:${CHIEF_NO_COLOR} Run 'oc login' or 'chief.oc.login' first"
+  # Check OpenShift login status and display cluster info
+  if ! __chief_oc_check_login; then
     return 1
   fi
 
@@ -287,7 +1033,8 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   --fix           Automatically remove finalizers from terminating resources
-  --dry-run       Show what would be fixed without making changes
+  -n, --dry-run   Show what would be fixed without making changes
+  -y, --yes       Skip confirmation prompts (use with --fix for automation)
   -?              Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
@@ -317,6 +1064,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   local namespace="$1"
   local fix_mode=false
   local dry_run=false
+  local auto_yes=false
 
   # Handle help option and validate required arguments
   if [[ -z "$namespace" || "$namespace" == "-?" ]]; then
@@ -329,7 +1077,8 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   while [[ $# -gt 0 ]]; do
     case $1 in
       --fix) fix_mode=true; shift ;;
-      --dry-run) dry_run=true; shift ;;
+      -n|--dry-run) dry_run=true; shift ;;
+      -y|--yes) auto_yes=true; shift ;;
       -?) echo -e "${USAGE}"; return 0 ;;
       *) __chief_print_error "Unknown option: $1"; return 1 ;;
     esac
@@ -341,6 +1090,11 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     return 1
   fi
 
+  # Check OpenShift login status and display cluster info
+  if ! __chief_oc_check_login; then
+    return 1
+  fi
+
   # Validate namespace exists
   if ! oc get namespace "$namespace" &>/dev/null; then
     __chief_print_error "Namespace '$namespace' does not exist or is not accessible"
@@ -348,11 +1102,14 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 
   # Show safety warning if fix mode is enabled
-  if [[ "$fix_mode" == true ]]; then
+  if [[ "$fix_mode" == true && "$auto_yes" != true ]]; then
     echo
     __chief_print_error "⚠️  DANGER: --fix mode will remove finalizers from terminating resources!"
     __chief_print_error "This can bypass important cleanup operations and cause resource leaks."
     echo
+    echo -e "${CHIEF_COLOR_BLUE}Current cluster:${CHIEF_NO_COLOR} $(oc whoami --show-server 2>/dev/null)"
+    echo -e "${CHIEF_COLOR_BLUE}Logged in as:${CHIEF_NO_COLOR} $(oc whoami 2>/dev/null)"
+    echo ""
     read -p "Are you sure you want to proceed? Type 'yes' to continue: " confirmation
     if [[ "$confirmation" != "yes" ]]; then
       __chief_print_info "Operation cancelled by user"
@@ -845,7 +1602,7 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   namespace       Name of the namespace stuck in Terminating state
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
-  --dry-run       Show what would be done without making changes
+  -n, --dry-run   Show what would be done without making changes
   --no-confirm    Skip confirmation prompts (dangerous)
   -?              Show this help
 
@@ -900,7 +1657,7 @@ https://www.redhat.com/en/blog/troubleshooting-terminating-namespaces"
   shift
   while [[ $# -gt 0 ]]; do
     case $1 in
-      --dry-run) dry_run=true; shift ;;
+      -n|--dry-run) dry_run=true; shift ;;
       --no-confirm) no_confirm=true; shift ;;
       -?) echo -e "${USAGE}"; return 0 ;;
       *) __chief_print_error "Unknown option: $1"; return 1 ;;
@@ -923,9 +1680,8 @@ https://www.redhat.com/en/blog/troubleshooting-terminating-namespaces"
     return 1
   fi
 
-  # Check if user is logged in
-  if ! oc whoami &>/dev/null; then
-    __chief_print_error "Not logged into OpenShift cluster. Please run 'oc login' first."
+  # Check OpenShift login status and display cluster info
+  if ! __chief_oc_check_login; then
     return 1
   fi
 
@@ -942,6 +1698,9 @@ https://www.redhat.com/en/blog/troubleshooting-terminating-namespaces"
     __chief_print_warn "Namespace '$namespace' is not in Terminating state (current: $namespace_status)"
     if [[ "$no_confirm" != true ]]; then
       echo
+      echo -e "${CHIEF_COLOR_BLUE}Target cluster:${CHIEF_NO_COLOR} $(oc whoami --show-server 2>/dev/null)"
+      echo -e "${CHIEF_COLOR_BLUE}Logged in as:${CHIEF_NO_COLOR} $(oc whoami 2>/dev/null)"
+      echo ""
       read -p "Continue anyway? This may delete an active namespace! Type 'yes' to proceed: " confirmation
       if [[ "$confirmation" != "yes" ]]; then
         __chief_print_info "Operation cancelled by user"
@@ -965,6 +1724,9 @@ https://www.redhat.com/en/blog/troubleshooting-terminating-namespaces"
     echo "  1. Manually cleaned up all external resources"
     echo "  2. Verified no important data will be lost"
     echo "  3. Checked for dependencies in other namespaces"
+    echo ""
+    echo -e "${CHIEF_COLOR_BLUE}Target cluster:${CHIEF_NO_COLOR} $(oc whoami --show-server 2>/dev/null)"
+    echo -e "${CHIEF_COLOR_BLUE}Logged in as:${CHIEF_NO_COLOR} $(oc whoami 2>/dev/null)"
     echo
     read -p "I understand the risks and want to proceed. Type 'FORCE DELETE' to continue: " confirmation
     if [[ "$confirmation" != "FORCE DELETE" ]]; then

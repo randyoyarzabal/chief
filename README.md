@@ -71,6 +71,24 @@ chief.whereis git_status
 chief.plugin mytools
 ```
 
+## 🛡️ Safety First: Dry-Run Examples
+
+Preview potentially destructive operations safely:
+
+```bash
+# SAFE: Preview what a USB creation would do (before potentially erasing a drive)
+chief.etc_create_bootusb -n ubuntu.iso 2
+
+# SAFE: See what files git reset --hard would affect
+chief.git_reset-hard -n
+
+# SAFE: Preview file permission changes
+chief.etc_chmod-f -n 644 ~/scripts/
+
+# SAFE: Preview OpenShift resource cleanup
+chief.oc_clean_olm -n
+```
+
 ## ✨ Key Features
 
 - 🔐 **Vault System** - Encrypt sensitive environment variables
@@ -85,6 +103,7 @@ chief.plugin mytools
 - **Zsh/Oh My Zsh Users**: Chief won't touch your existing setup
 - **Custom Prompts**: Prompt features disabled by default
 - **Easy Removal**: Clean uninstall available anytime
+- **Dry-Run Safety**: Critical operations support `--dry-run` to preview changes safely
 
 ## 📖 Learn More
 
