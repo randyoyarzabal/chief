@@ -88,7 +88,7 @@ test_shellcheck() {
         fi
         return 0
     else
-        echo -e "${YELLOW}  ShellCheck: Found style suggestions (informational only)${NC}"
+        # echo -e "${YELLOW}  ShellCheck: Found style suggestions (informational only)${NC}"
         if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
             shellcheck -e SC1090,SC1091,SC2034,SC2154 "$file" 2>&1 | head -5 | sed 's/^/    /'
         fi
