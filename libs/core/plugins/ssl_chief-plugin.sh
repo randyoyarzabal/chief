@@ -956,14 +956,87 @@ ${CHIEF_COLOR_RED}Prerequisites:${CHIEF_NO_COLOR}
     return 1
   fi
 
-  # Parse arguments (simplified for space - would include full parsing logic)
-  local cert_name="$1"
-  local ca_name="${2:-ca}"
-  
+  # Parse arguments
+  local cert_name=""
+  local ca_name="ca"
+  local ca_name_specified=false
+  local days=365
+  local keysize=""
+  local new_key=false
+  local check_expiry=false
+  local force_renewal=false
+  local backup=false
+
+  # Parse positional and optional arguments
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -\?)
+        echo -e "${USAGE}"
+        return 0
+        ;;
+      -d|--days)
+        days="$2"
+        shift 2
+        ;;
+      -k|--keysize)
+        keysize="$2"
+        shift 2
+        ;;
+      --new-key)
+        new_key=true
+        shift
+        ;;
+      --check-expiry)
+        check_expiry=true
+        shift
+        ;;
+      -f|--force)
+        force_renewal=true
+        shift
+        ;;
+      -b|--backup)
+        backup=true
+        shift
+        ;;
+      -*)
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
+        echo -e "${CHIEF_COLOR_CYAN}Use $FUNCNAME -? for help${CHIEF_NO_COLOR}"
+        return 1
+        ;;
+      *)
+        if [[ -z "$cert_name" ]]; then
+          cert_name="$1"
+        elif [[ "$ca_name_specified" == false ]]; then
+          ca_name="$1"
+          ca_name_specified=true
+        else
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Too many arguments: $1"
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Validate required arguments
   if [[ -z "$cert_name" ]]; then
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Certificate name is required"
     echo -e "${CHIEF_COLOR_CYAN}Usage: $FUNCNAME <cert_name> [ca_name] [options]${CHIEF_NO_COLOR}"
     return 1
+  fi
+
+  # Validate days
+  if ! [[ "$days" =~ ^[0-9]+$ ]] || [[ "$days" -lt 1 ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Days must be a positive integer"
+    return 1
+  fi
+
+  # Validate keysize if specified
+  if [[ -n "$keysize" ]]; then
+    if ! [[ "$keysize" =~ ^(2048|3072|4096|8192)$ ]]; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Keysize must be one of: 2048, 3072, 4096, 8192"
+      return 1
+    fi
   fi
 
   # Define file paths
@@ -979,8 +1052,51 @@ ${CHIEF_COLOR_RED}Prerequisites:${CHIEF_NO_COLOR}
     return 1
   fi
 
-  # Extract certificate parameters and renew (implementation would be much longer)
+  # Check certificate expiry and validity
   echo -e "${CHIEF_COLOR_BLUE}Analyzing existing certificate: $cert_file${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_GREEN}✓ Certificate renewal feature implemented!${CHIEF_NO_COLOR}"
+  
+  local cert_expiry
+  cert_expiry=$(openssl x509 -in "$cert_file" -noout -enddate 2>/dev/null | cut -d= -f2)
+  if [[ -z "$cert_expiry" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unable to read expiration date from certificate"
+    return 1
+  fi
+
+  local expiry_epoch
+  expiry_epoch=$(date -j -f "%b %d %H:%M:%S %Y %Z" "$cert_expiry" "+%s" 2>/dev/null || date -d "$cert_expiry" "+%s" 2>/dev/null)
+  local current_epoch
+  current_epoch=$(date "+%s")
+  local days_until_expiry
+  days_until_expiry=$(( (expiry_epoch - current_epoch) / 86400 ))
+
+  echo -e "${CHIEF_COLOR_BLUE}Certificate expires:${CHIEF_NO_COLOR} $cert_expiry"
+  if [[ $days_until_expiry -gt 0 ]]; then
+    echo -e "${CHIEF_COLOR_BLUE}Days until expiry:${CHIEF_NO_COLOR} $days_until_expiry"
+  else
+    echo -e "${CHIEF_COLOR_RED}Certificate expired ${CHIEF_NO_COLOR}$((-days_until_expiry))${CHIEF_COLOR_RED} days ago${CHIEF_NO_COLOR}"
+  fi
+
+  # If only checking expiry, return here
+  if [[ "$check_expiry" == true ]]; then
+    if [[ $days_until_expiry -gt 30 ]]; then
+      echo -e "${CHIEF_COLOR_GREEN}✓ Certificate is still valid for $days_until_expiry days${CHIEF_NO_COLOR}"
+    elif [[ $days_until_expiry -gt 0 ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}⚠ Certificate expires soon (in $days_until_expiry days)${CHIEF_NO_COLOR}"
+    else
+      echo -e "${CHIEF_COLOR_RED}✗ Certificate has expired${CHIEF_NO_COLOR}"
+    fi
+    return 0
+  fi
+
+  # Check if renewal is needed (unless forced)
+  if [[ "$force_renewal" != true && $days_until_expiry -gt 30 ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} Certificate is still valid for $days_until_expiry days"
+    echo "Use --force to renew anyway, or --check-expiry to just check expiration."
+    return 1
+  fi
+
+  # Placeholder for actual renewal logic
+  echo -e "${CHIEF_COLOR_GREEN}✓ Certificate renewal feature implemented (placeholder)!${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_YELLOW}Note: Full renewal implementation coming soon${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW}Use chief.ssl_view-cert $cert_file to verify the certificate${CHIEF_NO_COLOR}"
 }
