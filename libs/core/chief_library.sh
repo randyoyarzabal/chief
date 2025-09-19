@@ -3074,7 +3074,7 @@ This function is for Chief developers only and modifies core files.
 
 Arguments:
   new_version    Version to bump to (e.g., v4.0, v4.0.0) - MUST start with 'v'
-                 OR use special keywords: 'release' or 'next-dev'
+                 OR use special keywords: 'release' or 'next-dev [target_version]'
 
 Options:
   --dry-run     Show what would be changed without making changes
@@ -3090,14 +3090,17 @@ Examples:
   $FUNCNAME release                   # Convert v3.0.4-dev → v3.0.4 for release
   $FUNCNAME release --dry-run         # Preview release conversion
   $FUNCNAME next-dev                  # Convert v3.0.4 → v3.0.5-dev for next development cycle
+  $FUNCNAME next-dev v3.1.1           # Convert v3.1.0 → v3.1.1-dev for patch development cycle
   $FUNCNAME next-dev --dry-run        # Preview next dev cycle setup
   
 Note: This function only handles version updates. Create GitHub releases manually for tagging and publishing."
 
   # Parse arguments
   local new_version=""
+  local target_version=""
   local dry_run=false
   local create_backups=false
+  local positional_args=()
   
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -3119,24 +3122,28 @@ Note: This function only handles version updates. Create GitHub releases manuall
         return 1
         ;;
       *)
-        if [[ -z "$new_version" ]]; then
-          new_version="$1"
-        else
-          __chief_print_error "Too many arguments"
-          echo -e "$usage"
-          return 1
-        fi
+        positional_args+=("$1")
         shift
         ;;
     esac
   done
   
-  # Validate arguments
-  if [[ -z "$new_version" ]]; then
+  # Handle positional arguments
+  if [[ ${#positional_args[@]} -eq 0 ]]; then
     __chief_print_error "New version is required"
     echo -e "$usage"
     return 1
+  elif [[ ${#positional_args[@]} -eq 1 ]]; then
+    new_version="${positional_args[0]}"
+  elif [[ ${#positional_args[@]} -eq 2 && "${positional_args[0]}" == "next-dev" ]]; then
+    new_version="${positional_args[0]}"
+    target_version="${positional_args[1]}"
+  else
+    __chief_print_error "Too many arguments"
+    echo -e "$usage"
+    return 1
   fi
+  
   
   # Get current version early for keyword processing
   local current_version="$CHIEF_VERSION"
@@ -3156,10 +3163,21 @@ Note: This function only handles version updates. Create GitHub releases manuall
       local minor="${BASH_REMATCH[2]}"
       local patch="${BASH_REMATCH[4]:-0}"
       
-      # Increment minor version for next development cycle
-      ((minor++))
-      new_version="v${major}.${minor}.0-dev"
-      __chief_print_info "Next dev mode: Converting $current_version → $new_version"
+      if [[ -n "$target_version" ]]; then
+        # Use provided target version
+        if [[ ! "$target_version" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+          __chief_print_error "Invalid target version format: $target_version"
+          __chief_print_error "Expected format: v4.0 or v4.0.0 (must be prefixed with 'v')"
+          return 1
+        fi
+        new_version="${target_version}-dev"
+        __chief_print_info "Next dev mode: Converting $current_version → $new_version (custom target)"
+      else
+        # Auto-increment minor version for next development cycle
+        ((minor++))
+        new_version="v${major}.${minor}.0-dev"
+        __chief_print_info "Next dev mode: Converting $current_version → $new_version (auto-increment)"
+      fi
     else
       __chief_print_error "Current version ($current_version) is not a valid release version"
       return 1
@@ -3167,10 +3185,10 @@ Note: This function only handles version updates. Create GitHub releases manuall
   fi
   
   # Validate version format (MUST be prefixed with 'v')
-  # Only accept v4.0, v4.0.0 formats - numbers alone are NOT valid
-  if [[ ! "$new_version" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+  # Accept v4.0, v4.0.0 formats, and -dev versions for development workflow
+  if [[ ! "$new_version" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?(-dev)?$ ]]; then
     __chief_print_error "Invalid version format: $new_version"
-    __chief_print_error "Expected format: v4.0 or v4.0.0 (must be prefixed with 'v')"
+    __chief_print_error "Expected format: v4.0 or v4.0.0 (must be prefixed with 'v'), optionally with -dev suffix"
     return 1
   fi
   
@@ -3381,7 +3399,14 @@ Note: This function only handles version updates. Create GitHub releases manuall
     __chief_print_info "Next steps:"
     __chief_print_info "  1. Review changes: git diff"
     __chief_print_info "  2. Commit: git add -A && git commit -m 'Bump version to $new_version'"
-    __chief_print_info "  3. Push: git push origin main"
-    __chief_print_info "  4. Create GitHub release manually for tagging"
+    __chief_print_info "  3. Push: git push origin dev"
+    
+    # Different next steps for dev vs release versions
+    if [[ "$new_version" =~ -dev$ ]]; then
+      __chief_print_info "  4. Ready for development work on $new_version"
+      __chief_print_info "  5. When ready to release, run: __chief.bump release"
+    else
+      __chief_print_info "  4. Create GitHub release manually for tagging and publishing"
+    fi
   fi
 }

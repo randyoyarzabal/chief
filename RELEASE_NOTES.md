@@ -1,4 +1,4 @@
-# Chief v3.1.0 Release Notes
+# Chief v3.1.1-dev Release Notes
 
 ## 🚀 What's New
 
