@@ -84,12 +84,12 @@ chief.plugin mytools
 ## ✨ Key Features
 
 - 🔐 **Vault System** - Encrypt sensitive environment variables
+- 🛠️ **Enterprise-Ready Tools** - Built-in OpenShift, SSL/TLS, SSH, AWS, Git, and Python utilities
 - 🌐 **Remote Plugin Sync** - Share plugins across teams via Git 
 - 🎨 **Git-Aware Prompts** - Beautiful, intelligent terminal prompts
 - 🔍 **Instant Discovery** - Find any function with `chief.whereis`
 - 🚀 **Zero Disruption** - Only affects Bash, won't interfere with existing setups
 - 📦 **Plugin Architecture** - Organize tools into reusable, shareable plugins
-- 🛠️ **Enterprise-Ready Tools** - Built-in OpenShift, SSL/TLS, SSH, AWS, Git, and Python utilities
 
 ## 🔌 Available Plugins
 
