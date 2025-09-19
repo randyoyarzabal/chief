@@ -242,7 +242,7 @@ function __chief_has_vscode() {
   command -v code >/dev/null 2>&1
 }
 
-function chief.edit_file() {
+function chief.edit-file() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <file> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1621,7 +1621,7 @@ Some changes require terminal restart to take full effect.
   }
 }
 
-function chief.config_set() {
+function chief.config-set() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--list|-l] | <config_option>=<value> [--yes|-y]
        $FUNCNAME <config_option> <value> [--yes|-y]
 
@@ -1985,7 +1985,7 @@ function __chief_parse_user_config() {
   done < "$user_config"
 }
 
-function chief.config_update() {
+function chief.config-update() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [OPTIONS]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -2290,7 +2290,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 }
 
-function chief.plugins_root() {
+function chief.plugins-root() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -2579,20 +2579,20 @@ function __chief_show_core_commands() {
   echo
   echo -e "${CHIEF_COLOR_CYAN}Configuration & Setup:${CHIEF_NO_COLOR}"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}        Edit Chief configuration file"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.config_set${CHIEF_NO_COLOR}    Set configuration variables directly"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.config_update${CHIEF_NO_COLOR} Update config with new options from template"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.config-set${CHIEF_NO_COLOR}    Set configuration variables directly"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.config-update${CHIEF_NO_COLOR} Update config with new options from template"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.reload${CHIEF_NO_COLOR}        Reload Chief environment"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR}        Update Chief to latest version"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.uninstall${CHIEF_NO_COLOR}     Remove Chief from system"
   echo
   echo -e "${CHIEF_COLOR_CYAN}File Management:${CHIEF_NO_COLOR} ${CHIEF_COLOR_BLUE}(auto-reloads after editing)${CHIEF_NO_COLOR}"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.edit_file${CHIEF_NO_COLOR}     Edit any file with auto-reload detection"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.edit-file${CHIEF_NO_COLOR}     Edit any file with auto-reload detection"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.bash_profile${CHIEF_NO_COLOR}  Edit ~/.bash_profile"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.bashrc${CHIEF_NO_COLOR}        Edit ~/.bashrc"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.profile${CHIEF_NO_COLOR}       Edit ~/.profile"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Plugin Management:${CHIEF_NO_COLOR}"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugins_root${CHIEF_NO_COLOR}   Navigate to plugins directory"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugins-root${CHIEF_NO_COLOR}   Navigate to plugins directory"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.plugin${CHIEF_NO_COLOR}        Create/edit plugins"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR}     List available plugins"
   echo
@@ -2629,16 +2629,16 @@ function __chief_show_plugin_help() {
   
   if compgen -A function | grep -q "^chief\.git_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}Git Plugin:${CHIEF_NO_COLOR}"
-    echo "    git_branch, git_commit, git_clone, git_tag, git_delete_branch"
-    echo "    git_delete_tag, git_legend, git_rename_branch, git_reset-soft"
-    echo "    git_reset-hard, git_set_url, git_untrack, git_update, git_cred_cache"
+    echo "    git_branch, git_commit, git_clone, git_tag, git_delete-branch"
+    echo "    git_delete-tag, git_legend, git_rename-branch, git_reset-soft"
+    echo "    git_reset-hard, git_set-url, git_untrack, git_update, git_cred-cache"
     echo "    git_amend, git_url"
     found_plugins=true
   fi
   
   if compgen -A function | grep -q "^chief\.ssl_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}SSL Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires openssl)${CHIEF_NO_COLOR}"
-    echo "    ssl_create_ca, ssl_create_tls_cert, ssl_view_cert, ssl_get_cert"
+    echo "    ssl_create-ca, ssl_create-tls-cert, ssl_renew-tls-cert, ssl_view-cert, ssl_get-cert"
     found_plugins=true
   fi
   
@@ -2650,36 +2650,36 @@ function __chief_show_plugin_help() {
   
   if compgen -A function | grep -q "^chief\.aws_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}AWS Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires aws CLI)${CHIEF_NO_COLOR}"
-    echo "    aws_set_role, aws_export_creds"
+    echo "    aws_set-role, aws_export-creds"
     found_plugins=true
   fi
   
   if compgen -A function | grep -q "^chief\.ssh_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}SSH Plugin:${CHIEF_NO_COLOR}"
-    echo "    ssh_create_keypair, ssh_get_publickey, ssh_rm_host, ssh_load_keys"
+    echo "    ssh_create-keypair, ssh_get-publickey, ssh_rm-host, ssh_load_keys"
     found_plugins=true
   fi
   
   if compgen -A function | grep -q "^chief\.python_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}Python Plugin:${CHIEF_NO_COLOR}"
-    echo "    python_create_ve, python_start_ve, python_stop_ve, python_ve_dep"
+    echo "    python_create-ve, python_start-ve, python_stop-ve, python_ve-dep"
     found_plugins=true
   fi
   
   if compgen -A function | grep -q "^chief\.oc_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}OpenShift Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires oc CLI)${CHIEF_NO_COLOR}"
-    echo "    oc_login, oc_get_all_objects, oc_clean_olm, oc_clean_replicasets"
-    echo "    oc_approve_csrs, oc_show_stuck_resources, oc_delete_stuck_ns"
+    echo "    oc_login, oc_get-all-objects, oc_clean-olm, oc_clean-replicasets"
+    echo "    oc_approve-csrs, oc_show-stuck-resources, oc_delete-stuck-ns"
     echo "    OpenShift cluster management and maintenance"
     found_plugins=true
   fi
   
   if compgen -A function | grep -q "^chief\.etc_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}Utilities Plugin:${CHIEF_NO_COLOR}"
-    echo "    etc_ask_yes_or_no, etc_spinner, etc_prompt, etc_mount_share"
-    echo "    etc_isvalid_ip, etc_broadcast, etc_at_run, etc_folder_diff"
+    echo "    etc_ask-yes-or-no, etc_spinner, etc_prompt, etc_mount-share"
+    echo "    etc_isvalid-ip, etc_broadcast, etc_at-run, etc_folder-diff"
     echo "    etc_shared-term_create, etc_shared-term_connect, etc_chmod-f, etc_chmod-d"
-    echo "    etc_create_bootusb, etc_copy_dotfiles, etc_create_cipher, type_writer"
+    echo "    etc_create-bootusb, etc_copy-dotfiles, etc_create-cipher, type-writer"
     found_plugins=true
   fi
   
