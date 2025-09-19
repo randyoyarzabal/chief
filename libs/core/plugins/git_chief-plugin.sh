@@ -46,7 +46,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME git@github.com:user/repo.git
 "
 
-  if [[ $1 == "-?" ]]; then
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -69,7 +69,7 @@ Perform a full Git repository update including pull, push, and tag synchronizati
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -p           Pull-only mode (skip push and tag operations)
-  -?           Show this help
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_GREEN}Default Operations:${CHIEF_NO_COLOR}
 1. Fetch latest changes from remote
@@ -82,7 +82,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME -p     # Pull-only update
 "
 
-  if [[ $1 == "-?" ]]; then
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -123,7 +123,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME \"Add new feature: dashboard\"   # Custom message
 "
 
-  if [[ $1 == "-?" ]]; then
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -169,7 +169,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME stable \"Stable release\"   # Named release
 "
 
-  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
+  if [[ -z $1 ]] || [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -213,7 +213,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME release/v2.0          # Release branch
 "
 
-  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
+  if [[ -z $1 ]] || [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -250,7 +250,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME temp release/v1.0                # Rename for release
 "
 
-  if [[ -z $2 ]] || [[ $1 == "-?" ]]; then
+  if [[ -z $2 ]] || [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -301,7 +301,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME old-release     # Clean up old tag
 "
 
-  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
+  if [[ -z $1 ]] || [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -352,7 +352,7 @@ ${CHIEF_COLOR_RED}Safety Notes:${CHIEF_NO_COLOR}
 - Automatically stages changes before amending
 "
 
-  if [[ $1 == "-?" ]]; then
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -433,7 +433,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME temp-experiment           # Clean up experimental branch
 "
 
-  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
+  if [[ -z $1 ]] || [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -461,7 +461,7 @@ Supports both cache-based and environment variable authentication.
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   --env, -e     Use environment variables (GIT_USER, GIT_PASSWORD)
-  -?            Show this help
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   seconds       Cache timeout in seconds (cache mode only, default: 86400 = 1 day)
@@ -592,7 +592,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME git@github.com:neworg/repo.git        # Change organization
 "
 
-  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
+  if [[ -z $1 ]] || [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -615,7 +615,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -g, --global      Apply configuration globally (all repositories)
   -l, --local       Apply to current repository only (default)
   -s, --show        Show current configuration and exit
-  -?                Show this help
+  -?, --help        Show this help
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   username          Git username for commits
@@ -817,7 +817,7 @@ ${CHIEF_COLOR_BLUE}After running this command:${CHIEF_NO_COLOR}
 - Use 'git commit' to create new commit with same or different message
 "
 
-  if [[ $1 == "-?" ]]; then
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -837,7 +837,7 @@ Reset local repository to match the latest remote version, discarding all local 
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -n, --dry-run   Show what files would be affected without making changes
-  -?              Show this help
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_RED}Warning:${CHIEF_NO_COLOR}
 This operation permanently discards all uncommitted local changes!
@@ -994,7 +994,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME *.log                  # Untrack log files
 "
 
-  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
+  if [[ -z $1 ]] || [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -1037,7 +1037,7 @@ ${CHIEF_COLOR_YELLOW}Example Prompt:${CHIEF_NO_COLOR}
   user@host ~/project (main *+) \$  # On main branch with unstaged and staged changes
 "
 
-  if [[ $1 == "-?" ]]; then
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi

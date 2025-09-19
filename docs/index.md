@@ -129,11 +129,6 @@ Chief comes with **8 powerful plugins** providing **56+ functions** for your dai
 - `chief.ssh_get-publickey` - Extract and display public keys
 - `chief.ssh_rm-host` - Clean known_hosts entries safely
 
-### ☁️ **AWS Plugin** (2 functions)
-
-- `chief.aws_set-role` - Switch between AWS IAM roles
-- `chief.aws_export-creds` - Export AWS credentials to environment
-
 ### 🛠️ **System Utilities Plugin** (18 functions)
 
 - `chief.etc_create-bootusb` - Create bootable USB drives safely
@@ -159,6 +154,11 @@ Chief comes with **8 powerful plugins** providing **56+ functions** for your dai
 - `chief.python_start-ve` - Activate virtual environments
 - `chief.python_stop-ve` - Deactivate environments
 - `chief.python_ve-dep` - Install dependencies from requirements.txt
+
+### ☁️ **AWS Plugin** (2 functions)
+
+- `chief.aws_set-role` - Switch between AWS IAM roles
+- `chief.aws_export-creds` - Export AWS credentials to environment
 
 ## 🛡️ Safety First: Dry-Run Examples
 

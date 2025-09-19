@@ -38,7 +38,7 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -v, --verbose   Show each file being processed
   -n, --dry-run   Show what would be changed without making changes
-  -?              Show this help
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Processes only files (not directories)
@@ -210,7 +210,7 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -v, --verbose   Show each directory being processed
   -n, --dry-run   Show what would be changed without making changes
-  -?              Show this help
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Processes only directories (not files)
@@ -402,7 +402,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -f, --force     Skip confirmations (use with extreme caution)
   -k, --keep      Keep temporary conversion file
   -n, --dry-run   Show what would be done without making changes
-  -?              Show this help
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_RED}${CHIEF_SYMBOL_DANGER}  DANGER ZONE ${CHIEF_SYMBOL_DANGER}${CHIEF_NO_COLOR}
 This command will COMPLETELY ERASE the target USB drive and ALL DATA on it!
@@ -710,7 +710,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -n, --dry-run          Show what would be copied without making changes
   -f, --force            Overwrite existing files without confirmation
   -b, --backup           Create backups of existing files (.bak extension)
-  -?                     Show this help
+  -?, --help             Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Copies only hidden files (starting with '.')
@@ -948,6 +948,9 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   file_path    Optional path to save the generated key
   --force      Overwrite existing file if it exists
 
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help      Show this help
+
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Cross-platform random key generation
 - Alphanumeric characters only (safe for most uses)
@@ -958,7 +961,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME ~/.cipher_key      # Save to file
   $FUNCNAME ~/.cipher_key --force  # Overwrite existing
 "
-  if [[ $1 == "-?" ]] || ([[ ! -z $2 ]] && [[ $2 != '--force' ]]); then
+  if [[ $1 == "-?" ]] || [[ $1 == "--help" ]] || ([[ ! -z $2 ]] && [[ $2 != '--force' ]]); then
     echo -e "${USAGE}"
     return
   fi
@@ -994,7 +997,7 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -d, --detached   Create session but don't attach to it
-  -?               Show this help
+  -?, --help       Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Creates tmux session with shared access
@@ -1113,7 +1116,7 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -l, --list       List all available sessions
   -r, --read-only  Connect in read-only mode
-  -?               Show this help
+  -?, --help       Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Connects to already running tmux session
@@ -1242,6 +1245,9 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   mount_path   Local directory to mount the share to
   username     Username for authentication
 
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help      Show this help
+
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Automatically detects if share is already mounted
 - Uses CIFS protocol for Windows/Samba compatibility
@@ -1263,7 +1269,7 @@ ${CHIEF_COLOR_BLUE}Setup Mount Point:${CHIEF_NO_COLOR}
   sudo mkdir -p /mnt/shared    # Create mount directory first
 "
 
-  if [[ -z $3 ]] || [[ $1 == "-?" ]]; then
+  if [[ -z $3 ]] || [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -1312,6 +1318,9 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   folder1      First directory to compare
   folder2      Second directory to compare
 
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help   Show this help
+
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Shows files that exist in one directory but not the other
 - Automatically tries both directions for comprehensive comparison
@@ -1333,7 +1342,7 @@ ${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR}
 This compares file names only, not file contents. Use diff for content comparison.
 "
 
-  if [[ -z $2 ]] || [[ $1 == "-?" ]]; then
+  if [[ -z $2 ]] || [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -1384,6 +1393,9 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   time        When to run the command (see time format examples below)
   command     Command to execute at the specified time
 
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help  Show this help
+
 ${CHIEF_COLOR_GREEN}Time Format Examples:${CHIEF_NO_COLOR}
 - now + 5 minutes
 - 14:30 (2:30 PM today)
@@ -1410,7 +1422,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_BLUE}Reference:${CHIEF_NO_COLOR} https://www.computerhope.com/unix/uat.htm
 "
 
-  if [[ -z $2 ]] || [[ $1 == "-?" ]]; then
+  if [[ -z $2 ]] || [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -1446,6 +1458,9 @@ Send a broadcast message to all currently logged-in users using the 'wall' comma
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   message     Text message to broadcast to all users
 
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help  Show this help
+
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Sends message to all active terminal sessions
 - Message appears on all user terminals immediately
@@ -1467,7 +1482,7 @@ ${CHIEF_COLOR_RED}Note:${CHIEF_NO_COLOR}
 This command may require administrator privileges on some systems.
 "
 
-  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
+  if [[ -z $1 ]] || [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -1499,6 +1514,9 @@ Validate if a given string is a properly formatted IPv4 address.
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   ip_address   IPv4 address to validate (e.g., 192.168.1.1)
 
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help   Show this help
+
 ${CHIEF_COLOR_GREEN}Validation Rules:${CHIEF_NO_COLOR}
 - Must be in dotted decimal notation (A.B.C.D)
 - Each octet must be 0-255
@@ -1523,7 +1541,7 @@ ${CHIEF_COLOR_BLUE}Usage in Scripts:${CHIEF_NO_COLOR}
   fi
 "
 
-  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
+  if [[ -z $1 ]] || [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -1573,7 +1591,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -a, --archive         Use archive mode (preserves permissions, ownership, timestamps)
   -x, --exclude <pattern>  Exclude files/directories matching pattern
   -c, --checksum        Use checksum-based comparison instead of timestamp/size
-  -?                    Show this help
+  -?, --help            Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Uses rsync for efficient file synchronization
@@ -1838,6 +1856,9 @@ Prompt the user with a yes/no question and return appropriate exit code.
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   message     Question or prompt to display to the user
 
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help  Show this help
+
 ${CHIEF_COLOR_GREEN}Return Values:${CHIEF_NO_COLOR}
 - 0 (success): User answered 'yes' (y/yes)
 - 1 (failure): User answered 'no' (n/no) or pressed Enter
@@ -1860,7 +1881,7 @@ ${CHIEF_COLOR_BLUE}Interactive Prompts:${CHIEF_NO_COLOR}
   $FUNCNAME \"Proceed with deletion?\"   # Destructive action
 "
 
-  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
+  if [[ -z $1 ]] || [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return 1
   fi
@@ -1893,6 +1914,9 @@ Display a user prompt and return the entered response.
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   prompt_message  Text to display as the prompt
 
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help      Show this help
+
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Interactive input from user
 - Returns user's response as output
@@ -1913,7 +1937,7 @@ ${CHIEF_COLOR_BLUE}Usage in Scripts:${CHIEF_NO_COLOR}
   echo \"You entered: \$response\"
 "
 
-  if [[ $1 == "-?" ]]; then
+  if [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -1963,7 +1987,7 @@ ${CHIEF_COLOR_BLUE}Speed Guide:${CHIEF_NO_COLOR}
 - 0.25s = Very slow
 "
 
-  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
+  if [[ -z $1 ]] || [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -1990,6 +2014,9 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   command         Command to execute in the background
   output_variable Name of variable to store command output
 
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help      Show this help
+
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Visual feedback for long-running operations
 - Captures command output for later use
@@ -2012,7 +2039,7 @@ ${CHIEF_COLOR_RED}Note:${CHIEF_NO_COLOR}
 Output variable is set in the caller's environment for access after completion.
 "
 
-  if [[ -z $3 ]] || [[ $1 == "-?" ]]; then
+  if [[ -z $3 ]] || [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi

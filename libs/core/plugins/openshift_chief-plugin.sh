@@ -59,7 +59,7 @@ including user identity, API server, console address, and cluster context.
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -q, --quiet     Show minimal output (user and server only)
   -j, --json      Output information in JSON format
-  -?              Show this help
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Shows current authenticated user
@@ -118,7 +118,7 @@ ${CHIEF_COLOR_BLUE}JSON Format:${CHIEF_NO_COLOR}
         json_output=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return 0
         ;;
@@ -203,8 +203,8 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -o, --output FORMAT    Output format (table, yaml, json, wide) [default: table]
   -l, --selector LABEL   Label selector to filter objects
   -f, --field SELECTOR   Field selector to filter objects
-  -q, --quiet           Suppress resource type headers
-  -?                    Show this help
+  -q, --quiet            Suppress resource type headers
+  -?, --help             Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Automatically discovers all listable namespaced resources
@@ -278,7 +278,7 @@ Based on techniques shared by Kyle Walker from Red Hat.
         quiet_mode=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
@@ -384,7 +384,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -f, --force     Force deletion even if pods are in Running state
   -s, --selective TARGET  Clean only specific component:
                           marketplace, lifecycle-manager, or catalog
-  -?              Show this help
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Cleans OLM marketplace jobs and pods
@@ -463,7 +463,7 @@ Based on techniques shared by Kyle Walker from Red Hat.
           return 1
         fi
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
@@ -637,7 +637,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -f, --force          Force deletion even if ReplicaSets have pods
   -l, --selector LABEL  Label selector to filter ReplicaSets
   -o, --older-than DURATION  Only delete ReplicaSets older than duration (e.g., 7d, 2w, 1m)
-  -?                   Show this help
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Identifies ReplicaSets with zero replicas
@@ -729,7 +729,7 @@ Based on techniques shared by Kyle Walker from Red Hat.
           return 1
         fi
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
@@ -926,7 +926,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -l, --list      List pending CSRs without approving
   -f, --filter    PATTERN  Only approve CSRs matching pattern
   -n, --dry-run   Show what would be approved without making changes
-  -?              Show this help
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Interactive approval by default (prompts for each CSR)
@@ -992,7 +992,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
         dry_run=true
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return
         ;;
@@ -1175,7 +1175,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   --fix           Automatically remove finalizers from terminating resources
   -n, --dry-run   Show what would be fixed without making changes
   -y, --yes       Skip confirmation prompts (use with --fix for automation)
-  -?              Show this help
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Iterates through all available API resources that can be listed in a namespace
@@ -1638,7 +1638,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -kc             Use kubeconfig authentication
   -ka             Use kubeadmin authentication  
   -i              Skip TLS verification (insecure)
-  -?              Show this help
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_MAGENTA}Authentication Methods (in order of preference):${CHIEF_NO_COLOR}
   ${CHIEF_COLOR_GREEN}1. Vault (Recommended)${CHIEF_NO_COLOR} - Requires:
@@ -1713,7 +1713,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
         tls_option="--insecure-skip-tls-verify=true"
         shift
         ;;
-      -\?)
+      -\?|--help)
         echo -e "${USAGE}"
         return 0
         ;;
@@ -2073,7 +2073,7 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -n, --dry-run   Show what would be done without making changes
   --no-confirm    Skip confirmation prompts (dangerous)
-  -?              Show this help
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_GREEN}Process:${CHIEF_NO_COLOR}
 1. Validates namespace is in Terminating state

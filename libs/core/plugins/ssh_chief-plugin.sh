@@ -34,6 +34,9 @@ Remove a host entry from ~/.ssh/known_hosts by line number.
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   line_number  Line number from SSH host error message
 
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help      Show this help
+
 ${CHIEF_COLOR_GREEN}Use Case:${CHIEF_NO_COLOR}
 When SSH reports host key conflict with message:
 'WARNING: REMOTE HOST IDENTIFICATION HAS CHANGED!'
@@ -67,6 +70,9 @@ Extract the public key from an OpenSSH private key file.
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   private_key_file  Path to OpenSSH private key file
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help       Show this help
 
 ${CHIEF_COLOR_GREEN}Supported Key Types:${CHIEF_NO_COLOR}
 - RSA, DSA, ECDSA, Ed25519
@@ -102,6 +108,9 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   key_type     Key type: ed25519 or rsa (default: ed25519)
   user_email   Email address for the key comment (optional)
 
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help      Show this help
+
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Creates keys in ~/.ssh directory with proper permissions
 - Supports modern Ed25519 (recommended) and RSA algorithms
@@ -129,7 +138,7 @@ ${CHIEF_COLOR_BLUE}Next Steps:${CHIEF_NO_COLOR}
 - Configure in ~/.ssh/config for specific hosts
 "
 
-  if [[ $1 == "-?" ]]; then
+  if [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi

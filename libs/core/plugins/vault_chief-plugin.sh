@@ -44,6 +44,9 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   [vault-file]  Optional vault file path (default: \$CHIEF_SECRETS_FILE)
   --load        Automatically load vault into environment after editing
 
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help      Show this help
+
 ${CHIEF_COLOR_MAGENTA}Security Notes:${CHIEF_NO_COLOR}
 - On single-user systems: Set ANSIBLE_VAULT_PASSWORD_FILE for convenience
 - On shared systems: Enter password manually (more secure)
@@ -222,6 +225,9 @@ ${CHIEF_COLOR_GREEN}Requirements:${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   [vault-file]  Optional vault file path (default: \$CHIEF_SECRETS_FILE)
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_MAGENTA}Security Notes:${CHIEF_NO_COLOR}
 - Variables are loaded into current shell session

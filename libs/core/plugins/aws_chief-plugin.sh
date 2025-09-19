@@ -43,6 +43,9 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   role         AWS role to set as default
   region       AWS region to set as default
 
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help      Show this help
+
 ${CHIEF_COLOR_MAGENTA}Environment:${CHIEF_NO_COLOR}
 Clears existing AWS session variables:
 - AWS_SECRET_ACCESS_KEY, AWS_ACCESS_KEY_ID

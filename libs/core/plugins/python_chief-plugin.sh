@@ -33,7 +33,7 @@ Install all packages from requirements.txt in the current directory.
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   --ignore_version, -i    Install latest versions (ignore pinned versions)
-  -?                      Show this help
+  -?, --help              Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Upgrades pip, setuptools, and wheel first
@@ -49,7 +49,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME -i        # Install latest versions of all packages
 "
 
-  if [[ $1 == '-?' ]]; then
+  if [[ $1 == '-?' ]] || [[ $1 == '--help' ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -78,6 +78,9 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   venv_name       Name for the virtual environment (default: venv)
   python_version  Python version to use (default: python3)
   path           Absolute path where to create the environment
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Creates isolated Python environment
@@ -234,6 +237,9 @@ Start a Python virtual environment and update your shell prompt.
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   venv_name    Name/path of virtual environment to start (default: venv)
 
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help      Show this help
+
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Starts Python virtual environment
 - Updates shell prompt to show active environment
@@ -373,6 +379,9 @@ function chief.python_stop-ve() {
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Stop the currently active Python virtual environment and restore the system Python.
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Stops current virtual environment

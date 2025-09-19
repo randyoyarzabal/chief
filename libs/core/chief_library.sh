@@ -254,7 +254,7 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   --vscode, -v   Use VSCode editor (requires 'code' command)
-  -?             Show this help message
+  -?, --help     Show this help message
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Automatically detects file changes using timestamps
@@ -273,7 +273,7 @@ ${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR}
 This is the same auto-reload mechanism used by chief.bash_profile, chief.bashrc, etc.
 "
 
-  if [[ $1 == "-?" ]]; then
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -937,6 +937,7 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   --compact, -c   Show compact command reference
   --search <term> Search for specific commands or topics
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_GREEN}Categories:${CHIEF_NO_COLOR}
   commands    Core Chief commands and usage
@@ -953,7 +954,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME --search git      # Search for git-related commands
 "
 
-  if [[ $1 == "-?" ]]; then
+  if [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
@@ -1259,6 +1260,7 @@ function __chief_print_info(){
 ########################################################################
 
 alias chief.ver='__chief.info'
+alias chief.banner='chief.ver'
 
 function chief.root() {
   local USAGE="Usage: $FUNCNAME
@@ -2431,7 +2433,7 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   --code, --vscode  Use VSCode editor (requires 'code' command)
-  -?               Show this help message
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_GREEN}Available Plugins:${CHIEF_NO_COLOR}
 $(__chief_get_plugins)
@@ -2687,7 +2689,7 @@ function __chief_show_core_commands() {
   echo -e "  ${CHIEF_COLOR_GREEN}chief.whereis${CHIEF_NO_COLOR}       Find aliases, functions, and variables"
   echo -e "  ${CHIEF_COLOR_GREEN}chief.hints${CHIEF_NO_COLOR}         Show quick tips and workflow"
   echo
-  echo -e "${CHIEF_COLOR_BLUE}Usage tip:${CHIEF_NO_COLOR} Add ${CHIEF_COLOR_GREEN}-?${CHIEF_NO_COLOR} to any command for detailed help"
+  echo -e "${CHIEF_COLOR_BLUE}Usage tip:${CHIEF_NO_COLOR} All commands support ${CHIEF_COLOR_GREEN}-?${CHIEF_NO_COLOR} or ${CHIEF_COLOR_GREEN}--help${CHIEF_NO_COLOR} for detailed help"
 }
 
 # Show plugin-related help
@@ -2980,6 +2982,9 @@ Find where environment variables, functions, and aliases are defined across your
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   name    Name to search for (functions, variables, aliases)
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_GREEN}Search Locations:${CHIEF_NO_COLOR}
   ${CHIEF_COLOR_MAGENTA}System Startup Scripts:${CHIEF_NO_COLOR}

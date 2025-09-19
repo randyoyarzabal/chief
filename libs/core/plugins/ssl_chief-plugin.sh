@@ -44,7 +44,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -d, --days DAYS         Validity period in days (default: 3650)
   -k, --keysize SIZE      Key size in bits (default: 4096)
   -f, --force             Force overwrite existing files
-  -?                      Show this help
+  -?, --help              Show this help
 
 ${CHIEF_COLOR_GREEN}Simple Usage:${CHIEF_NO_COLOR}
 All options are optional! Just provide what you want to customize.
@@ -193,7 +193,7 @@ ${CHIEF_COLOR_BLUE}Optional Settings:${CHIEF_NO_COLOR}
   -k, --keysize SIZE      Key size in bits (default: 2048)
   -t, --type TYPE         Certificate type: server, client, email (default: server)
   -f, --force             Force overwrite existing files
-  -?                      Show this help
+  -?, --help              Show this help
 
 ${CHIEF_COLOR_GREEN}Simple Usage:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_RED}Required:${CHIEF_NO_COLOR} cert_name | ${CHIEF_COLOR_BLUE}Optional:${CHIEF_NO_COLOR} everything else with smart defaults
@@ -410,7 +410,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -c, --chain       Show certificate chain if available
   -e, --extended    Show extended certificate details (serial, fingerprints, key info)
   -r, --raw         Show raw certificate text without parsing
-  -?                Show this help
+  -?, --help        Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Displays certificate subject, issuer, and validity dates
@@ -670,7 +670,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -t, --timeout SECONDS  Connection timeout (default: 10)
   -v, --verify  Verify certificate chain (show verification status)
   -i, --info    Display certificate info after download
-  -?            Show this help
+  -?, --help      Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Downloads server certificate with SNI support
@@ -917,7 +917,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   --check-expiry          Check expiration without renewing
   -f, --force             Force renewal even if certificate is not near expiry
   -b, --backup            Backup existing certificate before renewal
-  -?                      Show this help
+  -?, --help              Show this help
 
 ${CHIEF_COLOR_GREEN}Smart Renewal Features:${CHIEF_NO_COLOR}
 - Automatically extracts Subject, SAN, and certificate type from existing certificate
