@@ -64,7 +64,10 @@ chief.vault_file-load ~/.my-personal-vault     # Personal vault
 # See what's available
 chief.help
 
-# Find any function, alias or env var
+# See available user and core plugin tools
+chief.help plugins
+
+# Find any function, alias or environment variable
 chief.whereis git_status
 
 # Create a custom function
