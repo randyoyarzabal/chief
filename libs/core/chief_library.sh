@@ -3221,7 +3221,6 @@ Note: This function only handles version updates. Create GitHub releases manuall
     "${CHIEF_PATH}/docs/index.md"
     "${CHIEF_PATH}/docs/getting-started.md"
     "${CHIEF_PATH}/UPDATES"
-    "${CHIEF_PATH}/RELEASE_NOTES.md"
   )
   
   # Special handling for next-dev workflow
@@ -3252,37 +3251,45 @@ Note: This function only handles version updates. Create GitHub releases manuall
       mv "$temp_file" "$updates_file"
     fi
     
-    # Create new release notes file  
-    local release_notes_file="${CHIEF_PATH}/RELEASE_NOTES.md"
-    if [[ -f "$release_notes_file" ]] && ! $dry_run; then
-      __chief_print_info "$(basename "$release_notes_file"): Creating new dev release notes"
+    # Create version-specific release notes file  
+    local release_notes_dir="${CHIEF_PATH}/release-notes"
+    local release_notes_file="${release_notes_dir}/${new_version}.md"
+    
+    if ! $dry_run; then
+      # Ensure release-notes directory exists
+      mkdir -p "$release_notes_dir"
       
-      # Create backup if requested
-      if $create_backups; then
-        cp "$release_notes_file" "${release_notes_file}.backup.$(date +%s)"
+      # Create new release notes file if it doesn't exist
+      if [[ ! -f "$release_notes_file" ]]; then
+        __chief_print_info "Creating new release notes: release-notes/${new_version}.md"
+        
+        cat > "$release_notes_file" << EOF
+# Chief ${new_version} Release Notes
+
+## 🚀 What's New
+
+### 🔧 Version ${new_version} Development
+
+- Ready for development work on ${new_version}
+
+## 📋 Upgrade Notes
+
+### For Developers
+
+- This is a development version - features and changes will be documented as they are implemented
+
+---
+
+**Full details**: See [UPDATES](../UPDATES) file for complete changelog and technical details.
+EOF
+      else
+        __chief_print_info "Release notes file already exists: release-notes/${new_version}.md"
       fi
-      
-      # Create new release notes structure
-      local temp_file=$(mktemp)
-      {
-        echo "# Chief $new_version Release Notes (Unreleased)"
-        echo ""
-        echo "## 🚀 Key New Features"
-        echo ""
-        echo ""
-        echo "## 🎯 Benefits for Users"
-        echo ""
-        echo ""
-        echo "---"
-        echo ""
-        cat "$release_notes_file"
-      } > "$temp_file"
-      mv "$temp_file" "$release_notes_file"
     fi
     
     if $dry_run; then
       __chief_print_info "UPDATES: Would add new Unreleased section for $new_version"
-      __chief_print_info "RELEASE_NOTES.md: Would create new dev release notes structure"
+      __chief_print_info "Would create new release notes file: release-notes/${new_version}.md"
     fi
   fi
 
@@ -3294,8 +3301,8 @@ Note: This function only handles version updates. Create GitHub releases manuall
       continue
     fi
     
-    # Skip UPDATES and RELEASE_NOTES.md for next-dev since we handled them specially
-    if $is_next_dev && [[ "$(basename "$file")" == "UPDATES" || "$(basename "$file")" == "RELEASE_NOTES.md" ]]; then
+    # Skip UPDATES for next-dev since we handled it specially
+    if $is_next_dev && [[ "$(basename "$file")" == "UPDATES" ]]; then
       continue
     fi
     

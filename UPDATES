@@ -2,16 +2,10 @@
 
 ## Unreleased (v3.1.1-dev)
 
-- **NEW**: `chief.etc_folder_sync` - Professional rsync-based directory synchronization with progress, deletion sync, and exclusion patterns
-- **NEW**: tmux-based shared terminals replacing GNU Screen (`chief.etc_shared-term_create`, `chief.etc_shared-term_connect`)
-- **BREAKING**: Plugin functions now use underscore notation (e.g., `chief.ssl.view_cert` → `chief.ssl_view_cert`)
-- **NEW**: Air-gapped installation support (`./tools/install.sh --local`)
-- **CHANGE**: All private functions renamed to `__chief_*` prefix for better isolation
-- **NEW**: GitHub Actions CI/CD with automated testing on Ubuntu + macOS
-- **NEW**: SSL certificate toolkit with view, download, CA creation, and certificate generation functions
-- **NEW**: Dry-run support for `chief.etc_create_bootusb` and `chief.git_reset-hard`
-- **ENHANCED**: OpenShift plugin with stuck resource management and CSR approval automation
-- **ENHANCED**: System utilities with improved chmod, bootable USB, and dotfiles management
+- **FIX**: `__chief.bump next-dev` now accepts `-dev` version suffixes in validation
+- **NEW**: `__chief.bump next-dev` supports optional target version parameter (e.g., `__chief.bump next-dev v3.1.1`)
+- **ENHANCED**: Context-aware completion messages distinguish between development and release workflows
+- **CHANGE**: Push instructions updated to use appropriate branch context
 
 ## v3.0.3
 
