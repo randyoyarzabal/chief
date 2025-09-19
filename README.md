@@ -74,24 +74,6 @@ chief.whereis git_status
 chief.plugin mytools
 ```
 
-## 🛡️ Safety First: Dry-Run Examples
-
-Preview potentially destructive operations safely:
-
-```bash
-# SAFE: Preview what a USB creation would do (before potentially erasing a drive)
-chief.etc_create_bootusb -n ubuntu.iso 2
-
-# SAFE: See what files git reset --hard would affect
-chief.git_reset-hard -n
-
-# SAFE: Preview file permission changes
-chief.etc_chmod-f -n 644 ~/scripts/
-
-# SAFE: Preview OpenShift resource cleanup
-chief.oc_clean_olm -n
-```
-
 ## ✨ Key Features
 
 - 🔐 **Vault System** - Encrypt sensitive environment variables
@@ -100,6 +82,7 @@ chief.oc_clean_olm -n
 - 🔍 **Instant Discovery** - Find any function with `chief.whereis`
 - 🚀 **Zero Disruption** - Only affects Bash, won't interfere with existing setups
 - 📦 **Plugin Architecture** - Organize tools into reusable, shareable plugins
+- 🛠️ **Enterprise-Ready Tools** - Built-in OpenShift, SSL/TLS, SSH, AWS, Git, and Python utilities
 
 ## 🔌 Available Plugins
 
