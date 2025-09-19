@@ -2,7 +2,7 @@
 
 **Bash Plugin Manager & Terminal Enhancement Tool**
 
-[![GitHub release](https://img.shields.io/badge/Download-Release%20v3.1.0-lightgrey.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Documentation](https://img.shields.io/badge/📖-Documentation-blue)](https://chief.reonetlabs.us)
+[![GitHub release](https://img.shields.io/badge/Download-Release%20v3.1.0-green.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Development](https://img.shields.io/badge/Dev%20Branch-v3.1.0--dev-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev) [![Documentation](https://img.shields.io/badge/📖-Documentation-blue)](https://chief.reonetlabs.us)
 
 Chief is a lightweight, powerful Bash library system that helps you organize your shell environment through a plugin-based architecture. Think of it as a package manager for your bash functions, aliases, and tools.
 
@@ -104,6 +104,22 @@ chief.oc_clean_olm -n
 - **Custom Prompts**: Prompt features disabled by default
 - **Easy Removal**: Clean uninstall available anytime
 - **Dry-Run Safety**: Critical operations support `--dry-run` to preview changes safely
+
+## 🐛 Bug Reports & Support
+
+Found a bug or need help? We're here to help! Please create an issue on GitHub:
+
+**[📝 Report an Issue](https://github.com/randyoyarzabal/chief/issues)**
+
+When reporting issues, please include:
+
+- **OS version**: Run `uname -a` to get your system details
+- **Chief version**: Run `chief.help` to see the current version
+- **Steps to reproduce**: Clear, step-by-step instructions
+- **Error messages**: Copy the exact error output
+- **Expected vs actual behavior**: What you expected vs what happened
+
+This helps us quickly identify and fix issues!
 
 ## 📖 Learn More
 

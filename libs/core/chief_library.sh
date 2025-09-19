@@ -903,6 +903,13 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
       echo -e "• ${CHIEF_COLOR_GREEN}chief.hints${CHIEF_NO_COLOR}          - Quick tips and workflow"
       echo
       echo -e "${CHIEF_COLOR_CYAN}Quick start: ${CHIEF_COLOR_GREEN}chief.[tab][tab]${CHIEF_NO_COLOR} to see all commands"
+      echo
+      echo -e "${CHIEF_COLOR_YELLOW}🐛 Bug Reports & Issues:${CHIEF_NO_COLOR}"
+      echo -e "Found a bug or need help? Please create an issue on GitHub:"
+      echo -e "• ${CHIEF_COLOR_CYAN}${CHIEF_REPO}/issues${CHIEF_NO_COLOR}"
+      echo -e "• Include your OS version: ${CHIEF_COLOR_GREEN}$(uname -s) $(uname -r)${CHIEF_NO_COLOR}"
+      echo -e "• Provide steps to reproduce the issue"
+      echo -e "• Include relevant error messages and Chief version: ${CHIEF_COLOR_GREEN}${CHIEF_VERSION}${CHIEF_NO_COLOR}"
       ;;
   esac
 }
@@ -3074,11 +3081,12 @@ This function is for Chief developers only and modifies core files.
 
 Arguments:
   new_version    Version to bump to (e.g., v4.0, v4.0.0) - MUST start with 'v'
-                 OR use special keywords: 'release' or 'next-dev'
+                 OR use special keywords: 'release' or 'next-dev [target_version]'
 
 Options:
   --dry-run     Show what would be changed without making changes
   --backup      Create backup files before modifying (default: no backups)
+  --skip-tests  Skip test validation (NOT recommended for releases)
   
 Examples:
   $FUNCNAME v4.0 --dry-run           # Preview changes
@@ -3089,15 +3097,20 @@ Examples:
   # For dev workflow:
   $FUNCNAME release                   # Convert v3.0.4-dev → v3.0.4 for release
   $FUNCNAME release --dry-run         # Preview release conversion
+  $FUNCNAME release --skip-tests      # Emergency release without test validation (NOT recommended)
   $FUNCNAME next-dev                  # Convert v3.0.4 → v3.0.5-dev for next development cycle
+  $FUNCNAME next-dev v3.1.1           # Convert v3.1.0 → v3.1.1-dev for patch development cycle
   $FUNCNAME next-dev --dry-run        # Preview next dev cycle setup
   
 Note: This function only handles version updates. Create GitHub releases manually for tagging and publishing."
 
   # Parse arguments
   local new_version=""
+  local target_version=""
   local dry_run=false
   local create_backups=false
+  local skip_tests=false
+  local positional_args=()
   
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -3113,30 +3126,38 @@ Note: This function only handles version updates. Create GitHub releases manuall
         create_backups=true
         shift
         ;;
+      --skip-tests)
+        skip_tests=true
+        shift
+        ;;
       -*)
         __chief_print_error "Unknown option: $1"
         echo -e "$usage"
         return 1
         ;;
       *)
-        if [[ -z "$new_version" ]]; then
-          new_version="$1"
-        else
-          __chief_print_error "Too many arguments"
-          echo -e "$usage"
-          return 1
-        fi
+        positional_args+=("$1")
         shift
         ;;
     esac
   done
   
-  # Validate arguments
-  if [[ -z "$new_version" ]]; then
+  # Handle positional arguments
+  if [[ ${#positional_args[@]} -eq 0 ]]; then
     __chief_print_error "New version is required"
     echo -e "$usage"
     return 1
+  elif [[ ${#positional_args[@]} -eq 1 ]]; then
+    new_version="${positional_args[0]}"
+  elif [[ ${#positional_args[@]} -eq 2 && "${positional_args[0]}" == "next-dev" ]]; then
+    new_version="${positional_args[0]}"
+    target_version="${positional_args[1]}"
+  else
+    __chief_print_error "Too many arguments"
+    echo -e "$usage"
+    return 1
   fi
+  
   
   # Get current version early for keyword processing
   local current_version="$CHIEF_VERSION"
@@ -3156,10 +3177,21 @@ Note: This function only handles version updates. Create GitHub releases manuall
       local minor="${BASH_REMATCH[2]}"
       local patch="${BASH_REMATCH[4]:-0}"
       
-      # Increment minor version for next development cycle
-      ((minor++))
-      new_version="v${major}.${minor}.0-dev"
-      __chief_print_info "Next dev mode: Converting $current_version → $new_version"
+      if [[ -n "$target_version" ]]; then
+        # Use provided target version
+        if [[ ! "$target_version" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+          __chief_print_error "Invalid target version format: $target_version"
+          __chief_print_error "Expected format: v4.0 or v4.0.0 (must be prefixed with 'v')"
+          return 1
+        fi
+        new_version="${target_version}-dev"
+        __chief_print_info "Next dev mode: Converting $current_version → $new_version (custom target)"
+      else
+        # Auto-increment minor version for next development cycle
+        ((minor++))
+        new_version="v${major}.${minor}.0-dev"
+        __chief_print_info "Next dev mode: Converting $current_version → $new_version (auto-increment)"
+      fi
     else
       __chief_print_error "Current version ($current_version) is not a valid release version"
       return 1
@@ -3167,16 +3199,55 @@ Note: This function only handles version updates. Create GitHub releases manuall
   fi
   
   # Validate version format (MUST be prefixed with 'v')
-  # Only accept v4.0, v4.0.0 formats - numbers alone are NOT valid
-  if [[ ! "$new_version" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
+  # Accept v4.0, v4.0.0 formats, and -dev versions for development workflow
+  if [[ ! "$new_version" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?(-dev)?$ ]]; then
     __chief_print_error "Invalid version format: $new_version"
-    __chief_print_error "Expected format: v4.0 or v4.0.0 (must be prefixed with 'v')"
+    __chief_print_error "Expected format: v4.0 or v4.0.0 (must be prefixed with 'v'), optionally with -dev suffix"
     return 1
   fi
   
   # Normalize to full semantic version (add .0 if missing patch version)
   if [[ "$new_version" =~ ^v[0-9]+\.[0-9]+$ ]]; then
     new_version="${new_version}.0"
+  fi
+  
+  # Test validation for releases only
+  local is_release_workflow=false
+  local is_next_dev_workflow=false
+  
+  if [[ "${positional_args[0]}" == "release" ]] || [[ ! "$new_version" =~ -dev$ ]]; then
+    is_release_workflow=true
+  elif [[ "${positional_args[0]}" == "next-dev" ]]; then
+    is_next_dev_workflow=true
+  fi
+  
+  # Only run tests for release workflows (next-dev skips tests since it follows a successful release)
+  if ! $dry_run && ! $skip_tests && $is_release_workflow; then
+    local test_script="${CHIEF_PATH}/test/run-tests.sh"
+    
+    if [[ -f "$test_script" ]]; then
+      __chief_print_info "Running test suite (required for releases)..."
+      
+      if ! "$test_script"; then
+        __chief_print_error "Test suite failed!"
+        __chief_print_error "Cannot proceed with release while tests are failing."
+        __chief_print_info "Fix failing tests or use --skip-tests (NOT recommended)"
+        return 1
+      else
+        __chief_print_success "All tests passed! ✅"
+        echo ""
+      fi
+    else
+      __chief_print_warn "Test suite not found at: $test_script"
+      __chief_print_warn "Proceeding without test validation (not recommended)"
+    fi
+  elif $skip_tests && $is_release_workflow; then
+    __chief_print_warn "⚠️  SKIPPING TESTS FOR RELEASE - THIS IS DANGEROUS!"
+    __chief_print_warn "Release versions should always pass tests before deployment."
+    echo ""
+  elif $is_next_dev_workflow; then
+    __chief_print_info "Skipping tests for next-dev (tests passed in previous release cycle)"
+    echo ""
   fi
   
   # Set version file path
@@ -3203,7 +3274,6 @@ Note: This function only handles version updates. Create GitHub releases manuall
     "${CHIEF_PATH}/docs/index.md"
     "${CHIEF_PATH}/docs/getting-started.md"
     "${CHIEF_PATH}/UPDATES"
-    "${CHIEF_PATH}/RELEASE_NOTES.md"
   )
   
   # Special handling for next-dev workflow
@@ -3234,37 +3304,45 @@ Note: This function only handles version updates. Create GitHub releases manuall
       mv "$temp_file" "$updates_file"
     fi
     
-    # Create new release notes file  
-    local release_notes_file="${CHIEF_PATH}/RELEASE_NOTES.md"
-    if [[ -f "$release_notes_file" ]] && ! $dry_run; then
-      __chief_print_info "$(basename "$release_notes_file"): Creating new dev release notes"
+    # Create version-specific release notes file  
+    local release_notes_dir="${CHIEF_PATH}/release-notes"
+    local release_notes_file="${release_notes_dir}/${new_version}.md"
+    
+    if ! $dry_run; then
+      # Ensure release-notes directory exists
+      mkdir -p "$release_notes_dir"
       
-      # Create backup if requested
-      if $create_backups; then
-        cp "$release_notes_file" "${release_notes_file}.backup.$(date +%s)"
+      # Create new release notes file if it doesn't exist
+      if [[ ! -f "$release_notes_file" ]]; then
+        __chief_print_info "Creating new release notes: release-notes/${new_version}.md"
+        
+        cat > "$release_notes_file" << EOF
+# Chief ${new_version} Release Notes
+
+## 🚀 What's New
+
+### 🔧 Version ${new_version} Development
+
+- Ready for development work on ${new_version}
+
+## 📋 Upgrade Notes
+
+### For Developers
+
+- This is a development version - features and changes will be documented as they are implemented
+
+---
+
+**Full details**: See [UPDATES](../UPDATES) file for complete changelog and technical details.
+EOF
+      else
+        __chief_print_info "Release notes file already exists: release-notes/${new_version}.md"
       fi
-      
-      # Create new release notes structure
-      local temp_file=$(mktemp)
-      {
-        echo "# Chief $new_version Release Notes (Unreleased)"
-        echo ""
-        echo "## 🚀 Key New Features"
-        echo ""
-        echo ""
-        echo "## 🎯 Benefits for Users"
-        echo ""
-        echo ""
-        echo "---"
-        echo ""
-        cat "$release_notes_file"
-      } > "$temp_file"
-      mv "$temp_file" "$release_notes_file"
     fi
     
     if $dry_run; then
       __chief_print_info "UPDATES: Would add new Unreleased section for $new_version"
-      __chief_print_info "RELEASE_NOTES.md: Would create new dev release notes structure"
+      __chief_print_info "Would create new release notes file: release-notes/${new_version}.md"
     fi
   fi
 
@@ -3276,14 +3354,34 @@ Note: This function only handles version updates. Create GitHub releases manuall
       continue
     fi
     
-    # Skip UPDATES and RELEASE_NOTES.md for next-dev since we handled them specially
-    if $is_next_dev && [[ "$(basename "$file")" == "UPDATES" || "$(basename "$file")" == "RELEASE_NOTES.md" ]]; then
+    # Skip UPDATES for next-dev since we handled it specially
+    if $is_next_dev && [[ "$(basename "$file")" == "UPDATES" ]]; then
       continue
     fi
     
     # Check if file already has the new version (both regular and badge formats)
     local badge_current="Download-Release%20${current_version}"
     local badge_new="Download-Release%20${new_version}"
+    
+    # Handle dev badge updates for two-badge structure
+    local dev_badge_current=""
+    local dev_badge_new=""
+    
+    # For release workflow: v3.1.1-dev → v3.1.1, dev badge should show next dev version  
+    if [[ "${positional_args[0]}" == "release" && "$current_version" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)-dev$ ]]; then
+      local major="${BASH_REMATCH[1]}"
+      local minor="${BASH_REMATCH[2]}"
+      local patch="${BASH_REMATCH[3]}"
+      # Next development cycle: increment minor version for next dev
+      ((minor++))
+      dev_badge_current="Dev%20Branch-${current_version}"
+      dev_badge_new="Dev%20Branch-v${major}.${minor}.0--dev"
+    # For next-dev workflow: v3.1.1 → v3.1.2-dev, dev badge should show the new dev version
+    elif [[ "${positional_args[0]}" == "next-dev" ]]; then
+      # Current version would be release version, new version would be dev version
+      dev_badge_current="Dev%20Branch-.*--dev"  # Pattern to match any current dev badge
+      dev_badge_new="Dev%20Branch-${new_version}"
+    fi
     
     if grep -q "$new_version" "$file" 2>/dev/null && grep -q "$badge_new" "$file" 2>/dev/null; then
       __chief_print_info "$(basename "$file"): Already up to date ($new_version)"
@@ -3300,6 +3398,29 @@ Note: This function only handles version updates. Create GitHub releases manuall
           changes="$changes + badges"
         else
           changes="badges"
+        fi
+      fi
+      
+      # Check for dev badge changes
+      if [[ -n "$dev_badge_current" && -n "$dev_badge_new" ]]; then
+        if [[ "$dev_badge_current" == *".*"* ]]; then
+          # Pattern matching - check if file has any dev badge
+          if grep -q "Dev%20Branch-.*--dev" "$file" 2>/dev/null; then
+            if [[ -n "$changes" ]]; then
+              changes="$changes + dev badges"
+            else
+              changes="dev badges"
+            fi
+          fi
+        else
+          # Exact match
+          if grep -q "$dev_badge_current" "$file" 2>/dev/null; then
+            if [[ -n "$changes" ]]; then
+              changes="$changes + dev badges"
+            else
+              changes="dev badges"
+            fi
+          fi
         fi
       fi
       __chief_print_info "$(basename "$file"): Would update $changes ($current_version → $new_version)"
@@ -3324,6 +3445,21 @@ Note: This function only handles version updates. Create GitHub releases manuall
       success=false
     fi
     
+    # Update dev badge if we have dev badge changes
+    if $success && [[ -n "$dev_badge_current" && -n "$dev_badge_new" ]]; then
+      if [[ "$dev_badge_current" == *".*"* ]]; then
+        # Use regex replacement for pattern matching
+        if ! sed -i.tmp_dev "s|Dev%20Branch-[^-]*--dev|${dev_badge_new}|g" "$file" 2>/dev/null; then
+          success=false
+        fi
+      else
+        # Use exact string replacement
+        if ! sed -i.tmp_dev "s/${dev_badge_current}/${dev_badge_new}/g" "$file" 2>/dev/null; then
+          success=false
+        fi
+      fi
+    fi
+    
     # For release bumps (not next-dev), remove "(Unreleased)" markers
     if $success && [[ "$1" == "release" ]]; then
       # Handle different unreleased patterns
@@ -3336,7 +3472,7 @@ Note: This function only handles version updates. Create GitHub releases manuall
     fi
     
     if $success; then
-      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" 2>/dev/null
+      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp_dev" 2>/dev/null
       __chief_print_success "$(basename "$file"): Updated $current_version → $new_version (including badges)"
       ((updated_count++))
     else
@@ -3347,7 +3483,7 @@ Note: This function only handles version updates. Create GitHub releases manuall
           mv "$backup_file" "$file" 2>/dev/null
         fi
       fi
-      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" 2>/dev/null
+      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp_dev" 2>/dev/null
       __chief_print_error "$(basename "$file"): Failed to update"
       return 1
     fi
@@ -3381,7 +3517,14 @@ Note: This function only handles version updates. Create GitHub releases manuall
     __chief_print_info "Next steps:"
     __chief_print_info "  1. Review changes: git diff"
     __chief_print_info "  2. Commit: git add -A && git commit -m 'Bump version to $new_version'"
-    __chief_print_info "  3. Push: git push origin main"
-    __chief_print_info "  4. Create GitHub release manually for tagging"
+    __chief_print_info "  3. Push: git push origin dev"
+    
+    # Different next steps for dev vs release versions
+    if [[ "$new_version" =~ -dev$ ]]; then
+      __chief_print_info "  4. Ready for development work on $new_version"
+      __chief_print_info "  5. When ready to release, run: __chief.bump release"
+    else
+      __chief_print_info "  4. Create GitHub release manually for tagging and publishing"
+    fi
   fi
 }
