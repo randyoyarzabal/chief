@@ -1,129 +1,62 @@
-# Chief v3.0.4 Release Notes
+# Chief v3.0.2 Release Notes
 
-## 🚀 What's New
+## 🚀 Key New Features
 
-### 📂 Advanced Folder Synchronization
+### 🔐 Portable Vault Files (Major Feature)
+- **Multi-system sync**: Store `.chief_shared-vault` in plugins repository for automatic sync across systems
+- **Zero configuration**: Vault files detected automatically when loading remote plugins  
+- **Secure portability**: Encrypted secrets follow users across laptop, server, and development environments
+- **Cross-system consistency**: Same vault file everywhere via git synchronization
+- **In-place usage**: Vault files used directly from plugins directory (no copying required)
+- **Team collaboration**: Optional team vault sharing through repository
+- **🚨 Security**: In team environments, `chief.vault_file-edit` (no params) edits SHARED team vault - always specify path for personal secrets
 
-- **`chief.etc_folder_sync`** - Professional-grade directory synchronization using rsync
-- **Progress by default** - See real-time sync progress without verbose mode
-- **Flexible options** - Archive mode, deletion sync, checksum comparison, pattern exclusion
-- **Safety features** - Dry-run mode, confirmation prompts for destructive operations
-- **Perfect for backups** - Sync local directories to NFS mounts or remote locations
-- **Cross-platform** - Works on macOS, Linux, and other Unix systems
+### ⚡ Improved Vault Editing UX
+- **Eliminated double password prompts**: Default behavior no longer auto-loads after editing
+- **Opt-in auto-loading**: Use `--load` flag when you want automatic loading after editing
+- **Better workflow**: Edit vault without being prompted for password twice
+- **Maintains security**: No compromise on encryption or security practices
 
-### 🖥️ Modern Terminal Multiplexer Support
+## 🛡️ Enhanced Safety & Reliability (from v3.0.1)
 
-- **tmux-based shared terminals** - Replaced archaic GNU Screen with modern tmux
-- **Enhanced collaboration** - Better multi-user support with read-only observer mode
-- **Rich feature set** - Window/pane management, customizable status bars, better key bindings
-- **Session listing** - Easy discovery of available shared sessions
-- **Detached session creation** - Create background sessions without immediate attachment
-- **Comprehensive help** - Built-in tmux key binding reference and session management tips
+### Plugin Safety
+- **Smart Local Changes Protection**: Prevents accidental loss of plugin customizations during auto-updates
+- Interactive prompts when local changes detected: commit first, disable auto-update, or force update
+- Fixed `chief.plugins_update` to respect local changes (no more silent overwrites)
 
-### 🛡️ Enhanced Safety: Dry-Run for Critical Operations
+### Update Management  
+- **Branch Configuration**: Track "main" (stable) or "dev" (bleeding-edge) with `CHIEF_CFG_UPDATE_BRANCH`
+- **Fixed shallow clone issues**: Installation now supports full branch switching
+- **Improved git operations**: Better handling of remote branches and updates
 
-- **`chief.etc_create_bootusb -n`** - Preview USB creation operations safely
-- **`chief.git_reset-hard -n`** - Preview what files would be affected by git reset
-- **Comprehensive preview** - Shows exact commands and files that would be affected
-- **Zero risk testing** - Validate operations before execution
+## 🎯 Benefits for Users
 
-### 🔐 Air-Gapped Installation Support
+### **Multi-System Portability** 🚀
+- **Same setup everywhere**: Plugins and encrypted secrets sync automatically across all your systems
+- **Zero reconfiguration**: Once set up, Chief works identically on laptop, server, and CI/CD
+- **Secure secret sharing**: Encrypted vault files travel with your plugins via git
 
-- **`./tools/install.sh --local`** - Install from local files in disconnected environments
-- **Security compliant** - No internet required during installation
-- **Complete transparency** - All files visible before installation
-- **Manual update control** - Updates require explicit file replacement
+### **Enhanced User Experience** ⚡
+- **No more double passwords**: Vault editing workflow dramatically improved
+- **Protected local changes**: Auto-updates won't accidentally delete your plugin customizations
+- **Better error handling**: Clear prompts and guidance when conflicts arise
 
-### 🏗️ Private Function Namespace Refactoring
-
-- **All 39 private functions** now use `__chief_*` prefix
-- **Prevents conflicts** with other bash utilities
-- **Clean refactoring** - no backward compatibility aliases
-
-### 🔄 GitHub Actions CI/CD Integration
-
-- **Automated testing** on every push to main/dev branches
-- **Cross-platform validation** (Ubuntu + macOS)
-- **Build status visibility** with ✅/❌ on commits
-- **Zero configuration** - works immediately
-
-### 🧪 Comprehensive Test Suite
-
-- **Syntax validation** using `bash -n`
-- **Plugin structure validation** and naming conventions
-- **Integration testing** for core functionality
-- **Local + CI compatible** - run `./test/run-tests.sh`
-
-### 🚀 Enhanced Version Management
-
-- **Development workflow** with `-dev` suffix system
-- **Release automation** via `__chief.bump` commands
-- **Auto documentation** updates across all files
-
-### 🔒 SSL/TLS Certificate Management
-
-- **`chief.ssl_view_cert`** - Comprehensive certificate analysis with multiple display options
-- **`chief.ssl_get_cert`** - Download certificates from remote servers with chain support
-- **`chief.ssl_create_ca`** - Simple CA creation with minimal requirements (just run it!)
-- **`chief.ssl_create_tls_cert`** - Easy certificate creation signed by your CA
-- **Rich help documentation** and error handling for certificate operations
-
-### 🔧 SSL Plugin Bug Fixes & Enhancements
-
-- **Fixed connectivity issues** - Resolved macOS timeout command compatibility for `chief.ssl_get_cert`
-- **Certificate chain downloads** - Fixed noclobber protection issues preventing chain downloads
-- **Enhanced certificate viewing** - `chief.ssl_view_cert` now properly displays all certificates in chain files
-- **Simplified default output** - Shows only essential information (Subject, Issuer, Validity) by default
-- **Extended details option** - Use `-e` flag for comprehensive certificate information
-
-### ☸️ OpenShift Management Enhancements
-
-- **`chief.oc.show_stuck_resources`** - Enhanced with `--fix` option to automatically remove finalizers from terminating resources
-- **`chief.oc_delete_stuck_ns`** - Force delete stuck terminating namespaces using Red Hat's troubleshooting methodology
-- **`chief.oc.approve_csrs`** - Complete rewrite with interactive/batch modes, filtering, and safety features
-- **Professional documentation** and color-coded terminal output following codebase standards
-
-### 🔧 OpenShift Core Functions Enhancement
-
-- **`chief.oc_get_all_objects`** - Complete rewrite with filtering, output formats, and comprehensive error handling
-- **`chief.oc_clean_olm`** - Enhanced OLM cleanup with selective targeting, dry-run modes, and safety features
-- **`chief.oc_clean_replicasets`** - Advanced ReplicaSet cleanup with age filtering and cross-namespace support
-- **Colorized output** - Professional terminal colors following Chief standards
-- **Attribution added** - Proper credit to Kyle Walker from Red Hat for original techniques
-
-### 🛠️ System Utilities Enhancement
-
-- **`chief.etc.chmod-f`** - Enhanced file permission management with verbose/dry-run modes and validation
-- **`chief.etc.chmod-d`** - Fixed naming consistency and added comprehensive directory permission management
-- **`chief.etc.create_bootusb`** - Complete safety overhaul for bootable USB creation with multi-platform support
-- **`chief.etc.copy_dotfiles`** - Enhanced dotfiles management with backup options and interactive confirmations
+### **Team Collaboration** 👥
+- **Optional team vaults**: Share encrypted secrets alongside shared plugins
+- **Safe plugin updates**: Team members protected from losing local modifications
+- **Consistent environments**: Same functions, aliases, and tools across the entire team
 
 ## 📋 Upgrade Notes
 
-### ⚠️ BREAKING CHANGES
+### For Existing Users (v3.0.1 → v3.0.2)
+- **No breaking changes**: All existing configurations remain compatible
+- **New vault features**: Automatic if you store `.chief_shared-vault` in plugins repo
+- **Better editing UX**: `chief.vault_file-edit` no longer auto-loads by default (use `--load` if desired)
 
-**Plugin Function Naming Convention Update**
-All plugin functions now use consistent underscore notation for better uniformity:
-
-**Before (v3.0.3 and earlier):**
-
-- `chief.ssl.view_cert` → **Now:** `chief.ssl_view_cert`
-- `chief.oc.login` → **Now:** `chief.oc_login`
-- `chief.aws.set_role` → **Now:** `chief.aws_set_role`
-- `chief.etc.chmod-f` → **Now:** `chief.etc_chmod-f`
-
-**Migration:** Update any scripts or aliases that reference the old dot notation.
-
-### For Everyone
-
-- **New test infrastructure** automatically available
-- **Air-gapped support** ready for restricted environments
-
-### For Developers
-
-- Run `./test/run-tests.sh` locally before pushing
-- Use `-v` flag for verbose test output
-- Monitor build status in GitHub Actions
+### For New Users
+- **Full clone installation**: New installs support branch switching out of the box
+- **Portable vault ready**: Simply add `.chief_shared-vault` to your plugins repo for cross-system sync
+- **⚠️ Team Security**: Use `chief.vault_file-edit ~/.personal-vault` for private secrets, not `chief.vault_file-edit` alone
 
 ---
 

@@ -32,7 +32,6 @@ CHIEF_BASH_PROFILE="$HOME/.bash_profile"
 CHIEF_CONFIG="$HOME/.chief_config.sh"
 CHIEF_PATH="$HOME/.chief"
 LOCAL_INSTALL=false
-BRANCH_SPECIFIED=false
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -43,7 +42,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --branch)
       CHIEF_INSTALL_GIT_BRANCH="$2"
-      BRANCH_SPECIFIED=true
       shift 2
       ;;
     --path)
@@ -60,10 +58,8 @@ while [[ $# -gt 0 ]]; do
       echo "Install Chief - Bash Plugin Manager & Terminal Enhancement Tool"
       echo ""
       echo "Options:"
-      echo "  --local           Install from local directory (for air-gapped/disconnected"
-      echo "                    environments with restricted internet access)"
+      echo "  --local           Install from local directory (for development)"
       echo "  --branch BRANCH   Git branch to install from (default: main)"
-      echo "                    Note: Ignored when using --local"
       echo "  --path PATH       Installation directory (default: ~/.chief)"
       echo "  --config CONFIG   Configuration file path (default: ~/.chief_config.sh)"
       echo "  --help, -h        Show this help message"
@@ -77,14 +73,6 @@ while [[ $# -gt 0 ]]; do
       ;;
   esac
 done
-
-# Validate argument combinations
-if $LOCAL_INSTALL && $BRANCH_SPECIFIED; then
-  echo -e "\033[1;33mWARNING: --branch option is ignored when using --local installation.\033[0m"
-  echo -e "\033[0;36mLocal installations use the files present in the current directory,\033[0m"
-  echo -e "\033[0;36mnot a specific git branch. This is intended for air-gapped environments.\033[0m"
-  echo ""
-fi
 
 # Colors
 RED='\033[0;31m'
@@ -130,11 +118,7 @@ install_chief() {
   echo -e "${BLUE}Installing Chief...${NC}"
   echo -e "${CYAN}  Directory: ${NC}$CHIEF_PATH"
   echo -e "${CYAN}  Config:    ${NC}$CHIEF_CONFIG"
-  if ! $LOCAL_INSTALL; then
-    echo -e "${CYAN}  Branch:    ${NC}$CHIEF_INSTALL_GIT_BRANCH"
-  else
-    echo -e "${CYAN}  Mode:      ${NC}Local installation (air-gapped)"
-  fi
+  echo -e "${CYAN}  Branch:    ${NC}$CHIEF_INSTALL_GIT_BRANCH"
   echo ""
 
   # Check if already installed
@@ -163,10 +147,9 @@ install_chief() {
 
   # Install Chief
   if $LOCAL_INSTALL; then
-    echo -e "${BLUE}Copying from local directory (air-gapped installation)...${NC}"
+    echo -e "${BLUE}Copying from local directory...${NC}"
     local source_path="$(cd "$(dirname "$0")/.." && pwd)"
     cp -a "$source_path" "$CHIEF_PATH"
-    echo -e "${GREEN}SUCCESS: Local files copied for air-gapped environment${NC}"
   else
     echo -e "${BLUE}Cloning fresh installation from GitHub (branch: $CHIEF_INSTALL_GIT_BRANCH)...${NC}"
     
@@ -239,8 +222,8 @@ setup_config() {
     echo -e "${YELLOW}INFO: Configuration file already exists at $CHIEF_CONFIG${NC}"
   fi
 
-  # Update config to match the installed branch if not default (skip for local installs)
-  if ! $LOCAL_INSTALL && [[ "$CHIEF_INSTALL_GIT_BRANCH" != "main" ]]; then
+  # Update config to match the installed branch if not default
+  if [[ "$CHIEF_INSTALL_GIT_BRANCH" != "main" ]]; then
     echo -e "${CYAN}Updating configuration to track ${CHIEF_INSTALL_GIT_BRANCH} branch...${NC}"
     if grep -q "CHIEF_CFG_UPDATE_BRANCH=" "$CHIEF_CONFIG"; then
       # Update existing setting
@@ -257,9 +240,6 @@ setup_config() {
       echo "CHIEF_CFG_UPDATE_BRANCH=\"${CHIEF_INSTALL_GIT_BRANCH}\"" >> "$CHIEF_CONFIG"
       echo -e "${GREEN}SUCCESS: Added branch tracking configuration (${CHIEF_INSTALL_GIT_BRANCH})${NC}"
     fi
-  elif $LOCAL_INSTALL; then
-    echo -e "${CYAN}Local installation: Skipping branch tracking configuration${NC}"
-    echo -e "${CYAN}Air-gapped environments manage updates manually${NC}"
   fi
 
   echo ""
@@ -352,38 +332,17 @@ echo -e "${BLUE}Step 4: Installation complete!${NC}"
 print_banner
 
 echo ""
-echo -e "${CYAN}INSTALLATION SUMMARY:${NC}"
-echo -e "${CYAN}The following changes were made to your system:${NC}"
-if $LOCAL_INSTALL; then
-  echo -e "${CYAN}  • Copied files from local directory to: ${YELLOW}$CHIEF_PATH${NC}"
-else
-  echo -e "${CYAN}  • Downloaded Chief files from GitHub to: ${YELLOW}$CHIEF_PATH${NC}"
-fi
-echo -e "${CYAN}  • Created/updated configuration file: ${YELLOW}$CHIEF_CONFIG${NC}"
-if [[ -f "$CHIEF_BASH_PROFILE" ]]; then
-  echo -e "${CYAN}  • Added 3 export/source lines to: ${YELLOW}$CHIEF_BASH_PROFILE${NC}"
-else
-  echo -e "${CYAN}  • Bash profile setup skipped (user choice)${NC}"
-fi
-echo -e "${CYAN}  • No system-wide changes, no sudo required${NC}"
-echo ""
 echo -e "${CYAN}NEXT STEPS:${NC}"
 echo -e "${CYAN}  1. Restart your terminal (or run: source ~/.bash_profile)${NC}"
 echo -e "${CYAN}  2. Run 'chief.config' to customize your settings${NC}"
 echo -e "${CYAN}  3. Run 'chief.plugin -?' to learn about plugins${NC}"
 echo -e "${CYAN}  4. Try 'chief.help' to explore all available commands${NC}"
-if ! $LOCAL_INSTALL && [[ "$CHIEF_INSTALL_GIT_BRANCH" != "main" ]]; then
+if [[ "$CHIEF_INSTALL_GIT_BRANCH" != "main" ]]; then
 echo ""
 echo -e "${CYAN}BRANCH TRACKING:${NC}"
 echo -e "${CYAN}  • Installed from: ${YELLOW}${CHIEF_INSTALL_GIT_BRANCH}${NC} branch"
 echo -e "${CYAN}  • Future updates will track: ${YELLOW}${CHIEF_INSTALL_GIT_BRANCH}${NC} branch"
 echo -e "${CYAN}  • To switch branches: chief.config_set update_branch <branch_name>${NC}"
-elif $LOCAL_INSTALL; then
-echo ""
-echo -e "${CYAN}AIR-GAPPED INSTALLATION:${NC}"
-echo -e "${CYAN}  • Installed from local files (no git repository)${NC}"
-echo -e "${CYAN}  • Updates must be done manually by replacing files${NC}"
-echo -e "${CYAN}  • Auto-update features are disabled for security${NC}"
 fi
 echo ""
 echo -e "${GREEN}Chief installation completed successfully!${NC}"

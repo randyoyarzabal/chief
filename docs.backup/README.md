@@ -1,0 +1,1380 @@
+# 🚀 Chief 
+
+## Bash Plugin Manager & Terminal Enhancement Tool
+
+[![GitHub release](https://img.shields.io/badge/Download-Release%20v3.0.2-lightgrey.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![GitHub commits (since latest release)](https://img.shields.io/github/commits-since/randyoyarzabal/chief/latest.svg?style=social)](https://github.com/randyoyarzabal/chief/commits/master)
+
+Chief is a lightweight, powerful Bash library system that helps you organize your shell environment through a plugin-based architecture. Think of it as a package manager for your bash functions, aliases, and tools.
+
+## 📦 Installation
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
+```
+
+**That's it!** Restart your terminal and start using Chief.
+
+> **🛡️ Safe for Zsh Users:** Chief only affects your Bash shell environment. If you're currently using Zsh, Oh My Zsh, or any other shell, Chief won't interfere with your existing setup. It only activates when you explicitly run `bash` or switch to a Bash session.
+
+> **💡 Using Oh My Bash or Custom Prompts?** Chief's prompt customizations are **disabled by default** (`CHIEF_CFG_PROMPT=false`). If you have Oh My Bash, Starship, or other prompt tools, keep this setting disabled to avoid conflicts.
+
+## ✨ Key Features Highlight
+
+- 🔐 **Vault System** - Encrypt sensitive environment variables with `chief.vault_*` (requires ansible-vault)  
+  Store secrets safely, load into memory when needed
+
+- 🌐 **Remote Plugin Sync** - Share plugins across teams via Git repositories (`CHIEF_CFG_PLUGINS_TYPE="remote"`)  
+  Automatic updates and version control for your shell tools
+
+- 🎨 **Git-Aware Prompts** - Beautiful, intelligent prompts with branch status (`CHIEF_CFG_PROMPT=true`)  
+  See repository info at a glance without cluttering your terminal
+
+- 🔍 **Instant Discovery** - Find any function, alias, or variable with `chief.whereis`  
+  Never lose track of where your tools are defined
+
+- 🚀 **Zero Disruption** - Only affects Bash, won't interfere with existing setups  
+  Safe for Zsh, Oh My Zsh, and custom prompt users
+
+- 📦 **Plugin Architecture** - Organize your tools into reusable, shareable plugins (`chief.plugin`)  
+  Clean, modular approach to shell environment management  
+
+👉 **[See complete feature list and benefits ↓](#-why-choose-chief)**
+
+## 📑 Table of Contents
+
+- [📦 Installation](#-installation)
+- [⬆️ Upgrade](#️-upgrade)
+- [🗑️ Uninstall](#️-uninstall)
+- [🤝 Why Choose Chief?](#-why-choose-chief)
+- [⚡ Quick Start](#-quick-start-portable-setup)
+- [📖 Help System](#-help-system)
+- [🎯 What is Chief?](#-what-is-chief)
+- [📋 Requirements](#-requirements)
+- [🎪 What You Get Out of the Box](#-what-you-get-out-of-the-box)
+- [💡 Common Use Cases](#-common-use-cases)
+- [👥 Team Collaboration](#-team-collaboration)
+- [🛠️ Configuration Options](#️-configuration-options)
+- [📚 Plugin Development](#-plugin-development)
+- [🌟 Advanced Features](#-advanced-features)
+- [🔧 Built-in Plugins](#-built-in-plugins)
+- [📖 Examples & Tutorials](#-examples--tutorials)
+- [🐚 Shell Compatibility](#-shell-compatibility)
+- [🛟 Troubleshooting](#-troubleshooting)
+- [🤖 Contributing](#-contributing)
+- [📄 License](#-license)
+
+---
+
+## 🤝 Why Choose Chief?
+
+### ✅ **Safe & Non-Disruptive**
+
+- **Bash-only installation** - Won't interfere with Zsh, Fish, or other shells
+- **Zero impact on existing setups** - Your Oh My Zsh, custom prompts remain untouched
+- **Only activates in Bash** - Chief functions only available when you're in a Bash session
+- Easy to uninstall completely
+
+### ✅ **Plugin System & Organization**
+
+- 📦 **Organize functions & aliases** - Group related tools into reusable plugins
+- 🔄 **Remote sync** - Sync plugins across machines via Git repositories
+- 🔍 **Find anything instantly** - `chief.whereis` locates any function or alias
+- 📂 **Version control** - Track your shell environment changes
+
+### ✅ **Enhanced Terminal Experience**
+
+- 🎨 **Git-aware prompts** - Colorized prompts that actually look good
+- 🔐 **SSH key management** - Auto-load your SSH keys with intelligent handling
+- 🛠️ **Built-in tools** - Utilities for Git, SSL, OpenShift, Vault, and AWS
+- ⚡ **Auto-reload** - No more `source ~/.bash_profile` after edits
+
+### ✅ **Team & Productivity**
+
+- 👥 **Team collaboration** - Share plugins via Git and standardize tooling across teams
+- 📚 **Built-in help** - Every command has help (`chief.* -?`)
+- 🔗 **Tab completion** - All Chief commands are tab-completable
+- 🚀 **Instant onboarding** - New team members get standardized tools immediately
+- 🔄 **Version control** - Track and manage team tool changes over time
+
+## ⚡ Quick Start: Portable Setup
+
+**Real-world example**: Set up Chief with remote plugins and vault that follows you across all systems.
+
+### 🚀 **One-Time Setup (any new system)**
+
+```bash
+# 1. Install Chief (one command)
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
+
+# 2. Configure your plugin repository (replace with your repo)
+chief.config_set -y PLUGINS_GIT_REPO="git@github.com:yourusername/my-plugins.git"
+chief.config_set -y PLUGINS_PATH="${HOME}/chief_plugins"
+chief.config_set -y PLUGINS_GIT_BRANCH="main"
+chief.config_set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root
+chief.config_set -y PLUGINS_GIT_AUTOUPDATE="false"    # manual updates
+chief.config_set -y PLUGINS_TYPE="remote"             # 🔑 Enable remote sync
+
+# 3. Customize prompt (optional)
+chief.config_set -y SHORT_PATH=false
+chief.config_set -y MULTILINE_PROMPT=true
+
+# 4. Load your encrypted secrets
+chief.vault_file-load                          # Team vault (.chief_shared-vault - if exists, automatically loaded)
+chief.vault_file-load ~/.my-personal-vault     # Personal vault
+```
+
+💡 If vaults don't exist, see [Vault Creation Guide](#-critical-security-vault-files) to create them
+
+### 🎯 **Result**
+
+- ✅ **Same plugins everywhere**: Functions, aliases, and tools sync across laptop, server, CI/CD
+- ✅ **Encrypted secrets**: Vault files travel with your setup (team + personal)
+- ✅ **Zero reconfiguration**: New systems work identically after this setup
+- ✅ **Version controlled**: Track changes to your shell environment
+
+### 🔍 **Daily Workflow**
+
+```bash
+chief.plugins_update           # Get latest team plugins
+chief.vault_file-load          # Load secrets when needed
+chief.plugin mytools           # Edit/create plugins
+chief.whereis my_function      # Find any function instantly
+```
+
+---
+
+## 🎯 Getting Started: Core Features
+
+**New to Chief?** Start here to explore the essential features before setting up remote sync.
+
+```bash
+# Get comprehensive help
+chief.help
+
+# Quick tips and workflow hints
+chief.hints
+
+# Explore all commands (tab completion)
+chief.[tab][tab]
+
+# Create your first plugin
+chief.plugin mytools
+
+# Configure Chief (opens editor)
+chief.config                    
+chief.config_set -l             # 🌟 List all available configuration options
+chief.config_set prompt true    # Direct config (option without CHIEF_CFG_ prefix)
+chief.config_update             # Update config with new template options
+
+# Edit shell files with auto-reload
+chief.bash_profile              # Edit .bash_profile (auto-reloads)
+chief.bashrc                    # Edit .bashrc (auto-reloads)
+
+# Find any function or alias instantly
+chief.whereis my_function
+
+# Get help for any specific command
+chief.update -?
+
+# Uninstall Chief completely (with confirmation prompts)
+chief.uninstall
+```
+
+### 💡 **Pro Tips**
+- Every command has help: `chief.command -?`
+- Tab completion works for all Chief functions
+- Set a shorter alias: `chief.config_set alias "cf"` → use `cf.config`, `cf.plugin`, etc.
+
+### 🔧 Need More Options?
+
+<details>
+<summary>Manual installation and environment checks</summary>
+
+#### Manual Installation
+
+```bash
+# 1. Clone the repository
+git clone --depth=1 https://github.com/randyoyarzabal/chief.git ~/.chief
+
+# 2. Copy config template
+cp ~/.chief/templates/chief_config_template.sh ~/.chief_config.sh
+
+# 3. Add to your shell config
+echo 'export CHIEF_CONFIG="$HOME/.chief_config.sh"' >> ~/.bash_profile
+echo 'export CHIEF_PATH="$HOME/.chief"' >> ~/.bash_profile
+echo 'source ${CHIEF_PATH}/chief.sh' >> ~/.bash_profile
+
+# 4. Restart terminal or source config
+source ~/.bash_profile
+```
+
+#### Environment Check
+
+```bash
+# Verify your environment meets requirements
+bash --version    # Should be 4.0+
+git --version     # Required for installation
+ansible-vault --version 2>/dev/null || echo "Ansible not installed (optional)"
+oc version --client 2>/dev/null || echo "OpenShift CLI not installed (optional)"
+```
+
+
+</details>
+
+## ⬆️ Upgrade
+
+When upgrading Chief to a newer version, use the automated configuration update feature:
+
+```bash
+# Method 1: Automatic config reconciliation (Recommended for v3.0+)
+chief.config_update                   # Updates config with new options, handles renames
+chief.config_update --dry-run         # Preview changes before applying
+
+# Method 2: Manual reinstall
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
+```
+
+### 🌿 Branch Tracking
+
+Chief supports tracking any valid Git branch for updates:
+
+```bash
+# Track stable releases (default)
+chief.config_set update_branch main
+
+# Track bleeding-edge development features (⚠️ use with caution)  
+chief.config_set update_branch dev
+
+# Track custom branches (team-specific, staging, etc.)
+chief.config_set update_branch staging
+chief.config_set update_branch release-v2.1
+chief.config_set update_branch feature/new-ui
+
+# Note: Both syntaxes are supported
+# ✅ Option 1: chief.config_set update_branch staging
+# ✅ Option 2: chief.config_set update_branch=staging
+
+# Update to your configured branch
+chief.update
+```
+
+⚠️ **Important**: Non-main branches may contain unstable features and should be used with caution in production environments.
+
+**What `chief.config_update` does:**
+
+- ✅ **Adds new features** - Automatically adds new configuration options from latest template
+- ✅ **Handles renames** - Seamlessly migrates renamed variables (e.g., RSA_KEYS_PATH → SSH_KEYS_PATH)
+- ✅ **Preserves customizations** - Keeps all your existing settings and values
+- ✅ **Creates backup** - Makes timestamped backup before any changes
+- ✅ **Validates syntax** - Ensures new config is valid before applying
+- ✅ **Reloads automatically** - Activates new features immediately
+
+> **💡 Tip**: Always run `chief.config_update` after upgrading to get access to new v3.0 features like enhanced SSH key management, VSCode plugin editing, and improved help system.
+
+## 🗑️ Uninstall
+
+```bash
+# Method 1: Using Chief command (easiest if Chief is working)
+chief.uninstall
+
+# Method 2: One-liner (works from anywhere)
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/uninstall.sh)"
+```
+
+**What happens during uninstall:**
+
+- ✅ **Installation directory** (`~/.chief`) is completely removed
+- ✅ **Configuration file** is backed up as `~/.chief_config.sh.backup` then removed
+- ✅ **Shell configuration** (`~/.bash_profile`) is cleaned up automatically
+- ✅ **Environment variables** (CHIEF_PATH, CHIEF_CONFIG) are removed from shell
+- ✅ **Custom plugins directory** remains untouched (if different from `~/.chief`)
+- ✅ **Safe operation** - Changes directory before removal to avoid conflicts
+
+> **🛡️ Safe Uninstall**: Your personal plugins, shell customizations outside Chief, and other configurations remain completely untouched.
+
+## 📖 Help System
+
+Chief provides a comprehensive, multi-layered help system to help you discover and use commands effectively.
+
+### 🎯 `chief.help` - Comprehensive Help
+
+The main help system with categorized, searchable documentation:
+
+```bash
+chief.help                    # Full help with banner and categories  
+chief.help commands           # Core Chief commands reference
+chief.help plugins            # Plugin management and available commands
+chief.help config             # Configuration options and current settings
+chief.help --compact          # Quick command reference
+chief.help --search <term>    # Search for commands containing term
+```
+
+**Features:**
+
+- **Dynamic content** - Shows your actual loaded plugins and current settings
+- **Categorized help** - Organized by commands, plugins, configuration
+- **Search functionality** - Find commands by keyword
+- **Status information** - Current Chief status, plugin count, configuration
+- **Quick reference mode** - Compact view for experienced users
+
+### 💡 `chief.hints` - Quick Tips
+
+Compact workflow tips and essential command reference:
+
+```bash
+chief.hints                   # Quick tips and workflow hints
+chief.hints --banner          # Show tips with Chief banner
+```
+
+**Perfect for:**
+
+- Daily workflow reminders
+- Essential command quick reference  
+- New user onboarding
+- Plugin status at-a-glance
+
+### 🔍 Command-Specific Help
+
+Every Chief command has detailed help documentation:
+
+```bash
+chief.config -?               # Help for any command
+chief.plugin -?               # Detailed usage and examples
+chief.whereis -?              # Function-specific documentation
+```
+
+### 🚀 Discovery Methods
+
+Multiple ways to explore available commands:
+
+| Method | Purpose | Example |
+|--------|---------|---------|
+| `chief.[tab][tab]` | Bash completion | See all available commands |
+| `chief.help --search git` | Search commands | Find git-related functions |
+| `chief.help plugins` | Plugin commands | See what plugins provide |
+| `chief.whereis <name>` | Find definitions | Locate where functions are defined |
+
+## 🎯 What is Chief?
+
+Chief transforms your terminal into a powerful, organized workspace. It's like having a package manager for your bash functions, aliases, and tools - but better.
+
+**Core Philosophy:** Keep your shell environment clean, organized, and team-friendly without breaking existing setups.
+
+## 📋 Requirements
+
+### System Requirements
+
+- **Bash 4.0+** - Chief requires modern bash features (associative arrays, etc.)
+- **Git** - Required for installation and plugin management
+- **Unix-like OS** - Linux, macOS, WSL, or Cygwin
+
+### Optional Dependencies
+
+- **Ansible Core 2.9+** - Required only for Vault-related functions (`chief.vault.*`)
+  - `ansible-vault` command must be in PATH
+  - Used for encrypting/decrypting secrets in Chief configurations
+  - If not installed, vault functions will show helpful error messages
+
+- **OpenShift CLI (oc)** - Required only for OpenShift-related functions (`chief.oc.*`)
+  - `oc` command must be in PATH
+  - Used for OpenShift cluster operations and authentication
+  - If not installed, OpenShift functions will show helpful error messages
+
+### Version Compatibility
+
+| Component | Minimum Version | Recommended | Notes |
+|-----------|----------------|-------------|-------|
+| Bash | 4.0 | 5.0+ | Associative arrays, process substitution |
+| Git | 2.0 | Latest | Clone, fetch, submodules |
+| Ansible Core | 2.9 | Latest | Optional - vault functions only |
+| OpenShift CLI (oc) | 4.0 | Latest | Optional - OpenShift functions only |
+
+### Check Your Environment
+
+```bash
+# Check bash version
+bash --version
+
+# Check if git is available
+git --version
+
+# Check ansible (optional)
+ansible-vault --version 2>/dev/null || echo "Ansible not installed (optional)"
+
+# Check OpenShift CLI (optional)
+oc version --client 2>/dev/null || echo "OpenShift CLI not installed (optional)"
+```
+
+## 🎪 What You Get Out of the Box
+
+### Plugin Management
+
+```bash
+# Create your first plugin
+chief.plugin mytools
+
+# List all plugins
+chief.plugin -?
+
+# Find where a function is defined
+chief.whereis my_function
+```
+
+### Terminal Enhancements
+
+```bash
+# Configure your experience
+chief.config                     # Edit config file
+chief.config_set banner false    # Quick config (sets CHIEF_CFG_BANNER=false)
+
+# Update Chief
+chief.update
+
+# Edit shell files with auto-reload
+chief.bash_profile  # Edit .bash_profile
+```
+
+### Built-in Tools (Available Immediately)
+
+- **Git**: Enhanced git commands and completion
+- **SSH**: Automatic key loading and management
+- **SSL**: Certificate inspection and validation tools
+- **OpenShift**: Container platform utilities (requires `oc` CLI)
+- **Vault**: HashiCorp Vault integration
+- **AWS**: Cloud service helpers
+
+## 💡 Common Use Cases
+
+### 1. Organize Your Functions
+
+**Before:** Functions scattered across multiple files
+
+```bash
+# Hard to find, no organization
+function deploy() { ... }
+function backup() { ... }
+function cleanup() { ... }
+```
+
+**After:** Clean plugin-based organization
+
+```bash
+# ~/chief_plugins/devops_chief-plugin.sh
+function devops.deploy() { ... }
+function devops.backup() { ... }
+function devops.cleanup() { ... }
+```
+
+### 2. Sync Configuration Across Machines
+
+```bash
+# Set up remote plugin sync
+chief.config
+# Set CHIEF_CFG_PLUGINS_TYPE="remote"
+# Set CHIEF_CFG_PLUGINS_GIT_REPO="git@github.com:youruser/bash-plugins.git"
+
+# Now your plugins sync across all your machines!
+```
+
+### 3. Enhanced Development Workflow
+
+```bash
+# Create project-specific environments
+chief.plugin myproject
+
+# Auto-reload configurations when files change
+chief.bash_profile  # Edit and auto-reloads
+
+# Find any function or command instantly
+chief.whereis deploy  # Shows all deploy functions across plugins
+```
+
+## 🌐 Multi-System & Team Usage
+
+### 🎯 **Primary Use Case: Single User, Multiple Systems**
+
+Chief is primarily designed as a **single-user system** that follows you across multiple environments:
+
+- **Personal workflows**: Your plugins and vault sync from laptop → server → development environments
+- **Consistent setup**: Same functions, aliases, and secrets everywhere you use Chief
+- **Zero reconfiguration**: Once set up, Chief works identically on all your systems
+
+```bash
+# Your personal setup works the same everywhere:
+# Laptop:     chief.vault_file-load → access your secrets
+# Server:     chief.vault_file-load → same secrets, same functions  
+# CI/CD:      chief.vault_file-load → consistent automation
+```
+
+### 👥 **Bonus: Team Collaboration**
+
+The remote plugins feature also enables powerful **team collaboration**:
+
+Chief is designed with teams in mind. Share your bash functions, aliases, and tools across your entire team for consistent development environments.
+
+> **🔑 Key Concept**: Chief automatically loads any file ending with `_chief-plugin.sh` from your configured plugin directory. The prefix before `_chief-plugin.sh` becomes the **plugin name** (e.g., `devops_chief-plugin.sh` → plugin name "devops"). This makes it perfect for both existing repositories and new team setups, with easy plugin management via `chief.plugin <name>`.
+
+### 📋 Two Setup Scenarios
+
+Choose the approach that fits your team's situation:
+
+- **🔄 Scenario A**: [Use Existing Repository](#-scenario-a-existing-repository) - Add Chief plugins to your current team repo
+- **🆕 Scenario B**: [Create New Repository](#-scenario-b-new-repository) - Start fresh with a dedicated plugins repo
+
+### 🔄 **Scenario A: Existing Repository**
+
+Perfect when you already have a team repository and want to add Chief plugins alongside your existing code.
+
+#### **1. Add Plugins to Existing Repo**
+
+```bash
+# Navigate to your existing team repository
+cd ~/your-existing-team-repo
+
+# Create plugins in any subdirectory (or repo root)
+mkdir -p tools/bash-plugins  # or scripts/, devops/, etc.
+
+# Create your first team plugin - MUST end with _chief-plugin.sh
+# Plugin name will be "devops" (prefix before _chief-plugin.sh)
+cat > tools/bash-plugins/devops_chief-plugin.sh << 'EOF'
+#!/usr/bin/env bash
+# Team DevOps Tools - loaded automatically by Chief
+
+# Prevent direct execution
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  echo "Error: $(basename "${BASH_SOURCE[0]}") must be sourced, not executed."
+  exit 1
+fi
+
+echo "Team DevOps plugin loaded"
+
+function devops.deploy() {
+    echo "🚀 Deploying with team standards..."
+    # Your existing deployment scripts/logic
+    ./scripts/deploy.sh "$@"
+}
+
+function devops.logs() {
+    echo "📋 Fetching application logs..."
+    kubectl logs -f deployment/app --tail=100
+}
+
+function devops.status() {
+    echo "📊 System status check..."
+    # Check your services, databases, etc.
+}
+EOF
+
+# Add more plugins as needed - each must end with _chief-plugin.sh
+# Plugin name will be "testing" (prefix before _chief-plugin.sh)
+cat > tools/bash-plugins/testing_chief-plugin.sh << 'EOF'
+#!/usr/bin/env bash
+# Team Testing Tools
+
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  echo "Error: $(basename "${BASH_SOURCE[0]}") must be sourced, not executed."
+  exit 1
+fi
+
+echo "Team Testing plugin loaded"
+
+function testing.unit() {
+    echo "🧪 Running unit tests..."
+    npm test
+}
+
+function testing.integration() {
+    echo "🔗 Running integration tests..."
+    ./scripts/integration-tests.sh
+}
+
+alias testing.watch='npm run test:watch'
+EOF
+
+# Commit to your existing repo
+git add tools/bash-plugins/
+git commit -m "Add Chief plugins for team automation"
+git push origin main
+```
+
+#### **2. Team Member Configuration**
+
+Each team member points Chief to your existing repository:
+
+```bash
+# Configure Chief to use your existing team repo
+chief.config_set plugins_git_repo "git@github.com:yourteam/existing-repo.git"
+chief.config_set plugins_git_branch "main"
+chief.config_set plugins_path "$HOME/team-repo"
+chief.config_set plugins_git_path "tools/bash-plugins"  # Relative path to plugin files
+chief.config_set plugins_git_autoupdate true
+
+# Set to remote LAST - Chief will offer to update plugins when git config is ready
+chief.config_set plugins_type remote
+
+# Restart terminal or reload Chief
+chief.reload
+
+# Your team functions are now available!
+devops.deploy
+testing.unit
+```
+
+#### **3. Plugin File Discovery Rules**
+
+Chief automatically discovers and loads files with specific naming:
+
+```bash
+# ✅ These files WILL be loaded:
+devops_chief-plugin.sh       # Plugin name: "devops"
+testing_chief-plugin.sh      # Plugin name: "testing"
+monitoring_chief-plugin.sh   # Plugin name: "monitoring"  
+k8s_chief-plugin.sh         # Plugin name: "k8s"
+
+# ❌ These files will NOT be loaded:
+devops.sh                   # Missing _chief-plugin.sh suffix
+testing_plugin.sh           # Missing chief- prefix  
+readme.md                   # Not a shell script
+utilities.bash              # Wrong file extension
+```
+
+**🔑 Important**: The prefix before `_chief-plugin.sh` becomes the **plugin name**. For example:
+- `devops_chief-plugin.sh` → plugin name is **"devops"**
+- `testing_chief-plugin.sh` → plugin name is **"testing"**
+
+This plugin name is used with Chief commands:
+```bash
+chief.plugin devops         # Edit the devops_chief-plugin.sh file
+chief.plugin testing        # Edit the testing_chief-plugin.sh file
+chief.whereis devops        # Find all functions starting with "devops"
+```
+
+### 🆕 **Scenario B: New Repository**
+
+Create a dedicated repository for team plugins from scratch.
+
+#### **1. Create Dedicated Plugin Repository**
+
+```bash
+# Create new repository for team plugins
+git init my-team-plugins
+cd my-team-plugins
+
+# Create organized structure
+mkdir -p plugins docs templates
+
+# Create comprehensive team plugin
+cat > plugins/devops_chief-plugin.sh << 'EOF'
+#!/usr/bin/env bash
+# Team DevOps Tools
+
+function team.deploy() {
+    echo "Deploying with team standards..."
+    # Your team deployment logic
+}
+
+function team.test() {
+    echo "Running team test suite..."
+    # Your team testing logic
+}' > plugins/devops_chief-plugin.sh
+
+# 3. Commit and push
+git add .
+git commit -m "Initial team plugins"
+git push origin main
+```
+
+### 🔧 Team Member Setup
+
+Each team member configures Chief to use the shared repository:
+
+```bash
+# Configure Chief for remote plugins
+chief.config
+
+# Set these values:
+# CHIEF_CFG_PLUGINS_TYPE="remote"
+# CHIEF_CFG_PLUGINS_GIT_REPO="git@github.com:yourteam/bash-plugins.git"
+# CHIEF_CFG_PLUGINS_GIT_BRANCH="main"
+# CHIEF_CFG_PLUGINS_PATH="$HOME/team-plugins"
+# CHIEF_CFG_PLUGINS_GIT_PATH="tools/bash"  # Relative path to plugins (empty = repo root)
+# CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="true"
+
+# Restart terminal - team plugins are now available!
+chief.reload
+```
+
+### 📦 **Plugin Management & Development**
+
+#### **Adding New Team Plugins**
+
+```bash
+# Update team plugins to latest version
+chief.plugins_update
+
+# Create new team plugin
+chief.plugin teamtools
+
+# Check which plugins are loaded
+chief.plugin -?
+
+# Find specific functions across all plugins
+chief.whereis deploy        # Shows all functions containing "deploy"
+chief.whereis devops        # Shows all functions starting with "devops"
+
+# Update team plugins to latest version
+chief.plugins_update       # Safe update with local changes protection
+chief.plugins_update --force  # Force update (discards local changes)
+
+# Check plugin loading during Chief startup
+chief.reload --verbose     # See detailed plugin loading information
+
+# See plugin configuration
+chief.config_set --list | grep -i plugin
+```
+
+### 🔒 Security Best Practices
+
+> **⚠️ Important for Team Sharing**: When sharing plugins with your team, sensitive information will be visible to all team members.
+
+#### ✅ **Safe to Share (in team plugins):**
+- Functions and aliases
+- General configuration templates
+- Team-wide environment variables
+- Shared tool configurations
+
+#### 🚫 **Keep Private (in personal ~/.bash_profile or personal vault):**
+- `CHIEF_OC_USERNAME` - Personal OpenShift credentials
+- `CHIEF_SECRETS_FILE` - Path to personal encrypted secrets
+- `VAULT_ADDR`, `VAULT_TOKEN` - Personal Vault credentials
+- Personal API keys, tokens, passwords
+- Personal file paths and preferences
+- **Personal vault files** - Use `chief.vault_file-edit ~/.my-personal-vault`
+
+#### 📁 **Recommended Repository Structure:**
+
+```
+team-plugins/
+├── plugins/
+│   ├── devops_chief-plugin.sh     # Deployment tools
+│   ├── testing_chief-plugin.sh    # Test automation
+│   ├── docker_chief-plugin.sh     # Container tools
+│   └── k8s_chief-plugin.sh        # Kubernetes helpers
+├── templates/
+│   └── personal_config_template.sh # Template for personal settings
+├── .chief_shared-vault            # 🚨 TEAM SHARED vault (see security note below)
+└── README.md                      # Team onboarding guide
+```
+
+### 🔐 **Critical Security: Vault Files**
+
+> **🚨 SECURITY WARNING**: Any `.chief_shared-vault` file in your team repository will be **SHARED BY ALL TEAM MEMBERS**. This file is automatically detected and loaded by Chief.
+
+#### **📁 Creating the Default Team Vault File**
+
+Chief automatically looks for and loads `.chief_shared-vault` in your plugin repository root. Here's how to create it:
+
+```bash
+# 1. Navigate to your team plugin repository root
+cd ~/team-plugins  # (or wherever your CHIEF_CFG_PLUGINS_PATH points)
+
+# 2. Create the team vault file (SHARED by all team members)
+chief.vault_file-edit .chief_shared-vault
+
+# This will:
+# - Create .chief_shared-vault in the current directory 
+# - Open it for editing with your default editor
+# - Encrypt it when saved (requires ansible-vault)
+# - Be automatically loaded by Chief when team members sync plugins
+
+# 3. Add team-shared secrets (example content):
+export SHARED_DB_PASSWORD="team_database_password_here"
+export TEAM_API_KEY="shared_service_account_key"
+export TEAM_REGISTRY_URL="company-docker-registry.com"
+export SHARED_VAULT_TOKEN="hvs.team_vault_token"
+
+# 4. Commit to your team repository
+git add .chief_shared-vault
+git commit -m "Add team shared vault (encrypted)"
+git push origin main
+```
+
+**Automatic Loading Behavior:**
+
+- ✅ **Team vault** (`.chief_shared-vault` in plugin repo root) - Automatically loaded on startup
+- ✅ **Personal vault** (any path with `chief.vault_file-load <path>`) - Manual loading required
+
+#### **🏠 Team Vault vs Personal Vault**
+
+**Team Vault (in repository):**
+```bash
+# ✅ Safe for team vault (in repo):
+export SHARED_DB_PASSWORD="vault_reference_here"
+export TEAM_API_KEY="shared_service_account"
+export TEAM_REGISTRY_URL="company-docker-registry"
+```
+
+**Personal Vault (local only):**
+```bash
+# ❌ NEVER put in team vault:
+export MY_PERSONAL_API_KEY="your_personal_key"
+export MY_SSH_PASSPHRASE="personal_ssh_key_password"
+export HOME_SERVER_PASSWORD="personal_server_access"
+
+# ✅ Create personal vault instead:
+chief.vault_file-edit ~/.my-personal-secrets
+```
+
+#### **🛡️ Best Practice: Multiple Vaults**
+
+> **🚨 CRITICAL**: In team environments, `chief.vault_file-edit` (no parameters) edits the **SHARED team vault**. Always specify a path for personal secrets!
+
+```bash
+# 1. Team vault (automatically loaded from repo)
+#    Contains: shared service accounts, team API keys, common passwords
+#    Location: /path/to/team-plugins/.chief_shared-vault (synced via git)
+#    Edit with: chief.vault_file-edit          # ⚠️ SHARED BY ALL TEAM MEMBERS
+
+# 2. Personal vault (your private secrets) 
+chief.vault_file-edit ~/.my-personal-vault  # ✅ ALWAYS specify path for personal secrets
+#    Contains: personal API keys, SSH passphrases, individual credentials
+#    Location: ~/.my-personal-vault (local only, never committed)
+
+# 3. Load both vaults:
+chief.vault_file-load                        # Loads team vault (automatic)
+chief.vault_file-load ~/.my-personal-vault   # Load personal vault (manual)
+```
+
+#### **⚠️ Team Environment Commands:**
+
+```bash
+# DANGEROUS - edits SHARED team vault:
+chief.vault_file-edit                       # ❌ All team members see this!
+
+# SAFE - creates/edits personal vault:
+chief.vault_file-edit ~/.my-personal-vault  # ✅ Only you can see this
+chief.vault_file-edit ~/.my-work-secrets    # ✅ Any personal path works
+```
+
+#### 🛡️ **Local Changes Protection**
+
+Chief automatically protects your local plugin modifications when `CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="true"`:
+
+- **Detects local changes** before auto-updating plugins
+- **Warns and prompts** when changes would be overwritten  
+- **Offers safe options**: commit changes first, temporarily disable auto-update, or force update
+- **Prevents data loss** from accidental overwrites during startup
+
+```bash
+# If local changes detected, Chief will prompt:
+# "Local changes found in plugins directory. Auto-update enabled but would overwrite changes.
+#  Temporarily disable PLUGINS_GIT_AUTOUPDATE to preserve your local changes? (y/n)"
+
+# Safely handle local changes:
+cd ~/team-plugins
+git add .
+git commit -m "My local plugin improvements"
+git push origin main
+# Then restart Chief for normal auto-updates
+```
+
+### 🌟 Team Workflow Benefits
+
+#### **Standardized Tooling**
+- Everyone uses the same functions and aliases
+- Consistent deployment and testing procedures
+- Shared knowledge base of team practices
+
+#### **Easy Onboarding**
+- New team members get all tools instantly
+- No manual setup of individual development environments  
+- Documentation lives with the code
+
+#### **Version Control for Shell Environment**
+- Track changes to team tools over time
+- Roll back problematic updates
+- Review changes before deployment
+
+#### **Cross-Machine Consistency**
+- Same tools on laptop, server, and CI/CD
+- No "works on my machine" problems
+
+#### **Flexible Integration**
+- Works with existing repositories - no need to reorganize
+- Supports any directory structure within your repos
+- Plugin files can coexist with your regular codebase
+- Gradual adoption - start with one plugin, expand over time
+- Shared configuration across all environments
+
+### 🔄 Advanced Team Features
+
+#### **Multiple Plugin Sources**
+```bash
+# Mix team plugins with personal plugins
+CHIEF_CFG_PLUGINS_TYPE="remote"              # Use team repo
+CHIEF_CFG_PLUGINS="/path/to/personal/plugins" # Plus personal plugins
+```
+
+#### **Branched Development**
+```bash
+# Use development branch for testing
+CHIEF_CFG_PLUGINS_GIT_BRANCH="development"
+
+# Switch back to stable
+CHIEF_CFG_PLUGINS_GIT_BRANCH="main"
+chief.plugins_update
+```
+
+#### **Selective Plugin Loading**
+```bash
+# Team can organize plugins by category
+# Plugins organized in subdirectories within the same repo
+CHIEF_CFG_PLUGINS_PATH="$HOME/team-plugins"
+CHIEF_CFG_PLUGINS_GIT_PATH="backend"  # Relative path: $HOME/team-plugins/backend/*.sh
+
+# Or for frontend tools:
+# CHIEF_CFG_PLUGINS_PATH="$HOME/team-plugins"  
+# CHIEF_CFG_PLUGINS_GIT_PATH="frontend"  # Relative path: $HOME/team-plugins/frontend/*.sh
+
+# Or for plugins in repo root:
+# CHIEF_CFG_PLUGINS_PATH="$HOME/team-plugins"
+# CHIEF_CFG_PLUGINS_GIT_PATH=""  # Empty = repo root: $HOME/team-plugins/*.sh
+```
+
+### 📁 Plugin Path Configuration
+
+For **remote plugins**, understand how the two path variables work together:
+
+- **`CHIEF_CFG_PLUGINS_PATH`**: Where the remote repo is cloned locally
+- **`CHIEF_CFG_PLUGINS_GIT_PATH`**: **Relative path** within that repo to the plugin files
+
+```bash
+# Example 1: Plugins in repo root
+CHIEF_CFG_PLUGINS_PATH="$HOME/team-plugins"  # Repo cloned here
+CHIEF_CFG_PLUGINS_GIT_PATH=""                # Empty = use repo root
+# Final path: $HOME/team-plugins/*.sh
+
+# Example 2: Plugins in subdirectory  
+CHIEF_CFG_PLUGINS_PATH="$HOME/team-plugins"  # Repo cloned here
+CHIEF_CFG_PLUGINS_GIT_PATH="tools/bash"      # Relative path from repo root
+# Final path: $HOME/team-plugins/tools/bash/*.sh
+
+# Example 3: Different subdirectories
+CHIEF_CFG_PLUGINS_PATH="$HOME/company-tools"
+CHIEF_CFG_PLUGINS_GIT_PATH="scripts/chief-plugins"
+# Final path: $HOME/company-tools/scripts/chief-plugins/*.sh
+```
+
+## 🛠️ Configuration Options
+
+Chief is highly customizable. Use `chief.config` to edit the config file or `chief.config_set <option> <value>` for direct command-line configuration.
+
+**Interactive Behavior:** By default, `chief.config_set` prompts for confirmation before modifying your configuration file. Use `--yes` (or `-y`) to skip prompts for scripting.
+
+```bash
+# Edit configuration file
+chief.config
+
+# Set configuration variables directly (use option name without CHIEF_CFG_ prefix)
+chief.config_set banner false         # Sets CHIEF_CFG_BANNER=false (prompts for confirmation)
+chief.config_set banner=false         # Same as above using key=value syntax
+chief.config_set --yes prompt true    # Sets CHIEF_CFG_PROMPT=true (no prompt)  
+chief.config_set colored_ls=true      # Sets CHIEF_CFG_COLORED_LS=true (prompts for confirmation)
+
+# List all configuration variables and current values  
+chief.config_set --list
+
+# Update configuration with new template options (perfect for upgrades)
+chief.config_update                   # Add missing options, handle renames, preserve customizations
+chief.config_update --dry-run         # Preview changes without applying them
+
+# Disable interactive prompts globally
+chief.config_set config_set_interactive false
+```
+
+| Configuration | Default | Description |
+|---------------|---------|-------------|
+| `CHIEF_CFG_BANNER` | `true` | Show startup banner |
+| `CHIEF_CFG_HINTS` | `true` | Display helpful tips on startup |
+| `CHIEF_CFG_PROMPT` | `false` | Use Chief's custom prompt (keep disabled if using Oh My Bash/Starship) |
+| `CHIEF_CFG_COLORED_PROMPT` | `true` | Colorize the prompt |
+| `CHIEF_CFG_GIT_PROMPT` | `true` | Git-aware prompt features |
+| `CHIEF_CFG_MULTILINE_PROMPT` | `false` | Enable multiline prompt display |
+| `CHIEF_CFG_SHORT_PATH` | `false` | Show only current directory name in prompt |
+| `CHIEF_CFG_COLORED_LS` | `false` | Colorize ls command output |
+| `CHIEF_CFG_CONFIG_SET_INTERACTIVE` | `true` | Prompt for confirmation in `chief.config_set` |
+| `CHIEF_CFG_CONFIG_UPDATE_BACKUP` | `true` | Create backups during config updates (only when changes made) |
+| `CHIEF_CFG_PLUGINS_TYPE` | `"local"` | Use `"local"` or `"remote"` plugins |
+| `CHIEF_CFG_SSH_KEYS_PATH` | _unset_ | Auto-load SSH keys from path |
+| `CHIEF_CFG_ALIAS` | _unset_ | Create short alias (e.g., `"cf"`) |
+| `CHIEF_CFG_AUTOCHECK_UPDATES` | `false` | Check for updates on startup |
+| `CHIEF_CFG_UPDATE_BRANCH` | `"main"` | Branch to track for updates: any valid Git branch (⚠️ non-main may be unstable) |
+
+### Plugin Configuration
+
+| Configuration | Description |
+|---------------|-------------|
+| `CHIEF_CFG_PLUGINS_GIT_REPO` | Remote Git repository URL for plugins |
+| `CHIEF_CFG_PLUGINS_GIT_BRANCH` | Git branch to use (default: "main") |
+| `CHIEF_CFG_PLUGINS_PATH` | Local plugin directory (also remote repo clone location) |
+| `CHIEF_CFG_PLUGINS_GIT_PATH` | [Remote only] Relative path within repo containing plugins (empty = repo root) |
+| `CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE` | Auto-update plugins on startup (with local changes protection) |
+
+## 🔧 Built-in Plugins
+
+Chief comes with several useful plugins ready to use:
+
+| Plugin | Commands Available | Purpose |
+|--------|-------------------|---------|
+| **Git** | `chief.git_*` | Enhanced git operations, branch management |
+| **SSH** | `chief.ssh_*` | SSH key management, connection helpers |
+| **AWS** | `chief.aws_*` | AWS credential management, S3 operations |
+| **OpenShift** | `chief.oc_*` | Container platform operations (requires `oc` CLI) |
+| **Vault** | `chief.vault_*` | Ansible-vault secret management |
+| **Python** | `chief.python_*` | Python environment and tool helpers |
+| **ETC** | `chief.etc_*` | Miscellaneous system utilities |
+
+### Example Commands
+
+```bash
+# Git operations
+chief.git_branch_cleanup    # Remove merged branches
+chief.git_commit_stats     # Show commit statistics
+
+# SSH management
+chief.ssh_load_keys        # Load SSH keys
+chief.ssh_test_connection  # Test SSH connections
+
+# AWS helpers  
+chief.aws_profile_switch   # Switch AWS profiles
+chief.aws_s3_sync         # S3 synchronization
+
+# Vault operations (improved UX in v3.0.2)
+chief.vault_file-edit         # Create/edit encrypted vault (no auto-load)
+chief.vault_file-edit --load  # Create/edit and auto-load vault
+chief.vault_file-load         # Load vault into environment
+
+# System utilities
+chief.etc_spinner         # Show progress spinner
+chief.etc_confirm         # Interactive confirmation prompts
+```
+
+## 📚 Plugin Development
+
+### Creating a Plugin
+
+```bash
+# Create a new plugin
+chief.plugin myproject
+
+# This creates ~/chief_plugins/myproject_chief-plugin.sh
+# Edit it to add your functions:
+```
+
+### Plugin Template
+
+```bash
+#!/usr/bin/env bash
+# Your custom plugin
+
+# Prevent direct execution
+if [[ "${BASH_SOURCE[0]}" == "${0}" ]]; then
+  echo "Error: $(basename "${BASH_SOURCE[0]}") must be sourced, not executed."
+  exit 1
+fi
+
+echo "Chief plugin: myproject loaded."
+
+# Your functions
+function myproject.deploy() {
+    echo "Deploying project..."
+    # Your deployment logic
+}
+
+function myproject.backup() {
+    echo "Backing up project..."
+    # Your backup logic
+}
+
+# Your aliases
+alias myproject.status='git status && docker ps'
+alias myproject.logs='tail -f /var/log/myproject.log'
+```
+
+### Plugin Naming Convention
+
+- File name: `{plugin-name}_chief-plugin.sh`
+- Functions: `{plugin-name}.function_name`
+- Place in: `~/chief_plugins/` directory
+
+## 🌟 Advanced Features
+
+### SSH Key Auto-loading
+
+```bash
+# In chief.config, set:
+CHIEF_CFG_SSH_KEYS_PATH="$HOME/.ssh"
+
+# Chief automatically loads all *.key files
+# Supports RSA, ed25519, and other key types
+# Use symlinks for selective loading (e.g., ln -s id_rsa mykey.key)
+```
+
+### Custom Prompt Features
+
+> **⚠️ Important:** Only enable Chief's prompt if you're **not** using Oh My Bash, Starship, or other prompt customization tools. Chief's prompt is **disabled by default** to prevent conflicts.
+
+```bash
+# Enable git-aware prompt (only if not using other prompt tools)
+CHIEF_CFG_PROMPT=true
+CHIEF_CFG_GIT_PROMPT=true
+
+# Shows: user@host:~/project (main|+2-1) $ 
+#        ↑              ↑     ↑    ↑  ↑
+#        user           path  branch +staged -unstaged
+```
+
+### Personal Plugin Sync
+
+```bash
+# Sync your personal plugins across machines
+CHIEF_CFG_PLUGINS_TYPE="remote"
+CHIEF_CFG_PLUGINS_GIT_REPO="git@github.com:yourusername/my-bash-plugins.git"
+
+# Auto-update on startup
+CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="true"
+```
+
+## 📦 Installation Methods
+
+### Method 1: Quick Install (Recommended)
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
+```
+
+> **Note:** This installation only affects your Bash environment. Your current shell (Zsh, Fish, etc.) and any custom configurations remain completely untouched.
+
+### Method 2: Manual Install
+
+```bash
+# 1. Clone the repository
+git clone --depth=1 https://github.com/randyoyarzabal/chief.git ~/.chief
+
+# 2. Copy configuration template
+cp ~/.chief/templates/chief_config_template.sh ~/.chief_config.sh
+
+# 3. Add to shell config file
+echo 'export CHIEF_CONFIG="$HOME/.chief_config.sh"' >> ~/.bash_profile
+echo 'export CHIEF_PATH="$HOME/.chief"' >> ~/.bash_profile
+echo 'source ${CHIEF_PATH}/chief.sh' >> ~/.bash_profile
+
+# 4. Restart terminal
+```
+
+### Method 3: Library-Only Usage
+```bash
+# Use Chief's functions without full setup
+source ~/.chief/chief.sh --lib-only
+```
+
+
+
+## 📖 Command Reference
+
+```bash
+# Get comprehensive help system
+chief.help                    # Full help with categories
+chief.help commands           # Core commands only
+chief.help plugins            # Plugin management  
+chief.help config             # Configuration options
+chief.help --compact          # Quick reference
+chief.help --search git       # Search for git commands
+
+# Quick tips and workflow hints
+chief.hints                   # Compact tips
+chief.hints --banner          # Tips with banner
+
+# Explore all commands
+chief.[tab][tab]
+
+# Get help for any command
+chief.update -?
+
+# Find where any function/alias is defined
+chief.whereis my_function
+
+# Edit and auto-reload your bashrc
+chief.bashrc
+
+# Edit and auto-reload your bash_profile
+chief.bash_profile
+
+# Create/edit plugins instantly
+chief.plugin mytools
+
+# Set a shorter alias for Chief commands
+# In chief.config: CHIEF_CFG_ALIAS="cf"
+# Now use: cf.config, cf.plugin, etc.
+```
+
+## 🐚 Shell Compatibility
+
+Chief is designed specifically for **Bash** and won't interfere with other shells:
+
+### Bash Integration
+
+- **Isolated to Bash only** - No impact on Zsh, Fish, or other shell environments
+- Full compatibility with existing `.bash_profile` files
+- Git-aware prompts using `__git_ps1` (when enabled)
+- Tab completion via `complete` builtin
+- **Works alongside Oh My Bash** - Chief's prompt is disabled by default to prevent conflicts
+
+### Shell Isolation
+
+- **Chief only loads in Bash sessions** - Your default shell remains unchanged
+- **Zsh users safe** - Oh My Zsh, custom prompts, and plugins remain untouched
+- **Per-shell activation** - Switch to bash when you want Chief features
+- **Clean separation** - No cross-shell pollution or conflicts
+
+### Features
+
+- Function introspection uses Bash methods
+- Prompt systems use shell-native features
+- Colors and escaping adjust automatically
+- Cross-shell execution prevention works everywhere
+
+## 📖 Examples & Tutorials
+
+### Example 1: DevOps Plugin
+
+```bash
+# Create a DevOps plugin
+chief.plugin devops
+
+# Add functions like:
+function devops.docker_cleanup() {
+    docker system prune -f
+    docker volume prune -f
+}
+
+function devops.k8s_pods() {
+    kubectl get pods --all-namespaces
+}
+```
+
+### Example 2: Project Plugin
+```bash
+# Create project-specific plugin
+chief.plugin myapp
+
+function myapp.deploy() {
+    cd ~/projects/myapp
+    ./deploy.sh production
+}
+
+function myapp.logs() {
+    tail -f ~/projects/myapp/logs/app.log
+}
+```
+
+## 🛟 Troubleshooting
+
+### Common Issues
+
+#### Q: Chief commands not found after installation
+
+```bash
+# Solution: Restart terminal or source config file
+source ~/.bash_profile
+```
+
+#### Q: "Bad substitution" or "Syntax error" messages
+
+```bash
+# Check bash version - Chief requires Bash 4.0+
+bash --version
+
+# If using older bash (like macOS default), upgrade:
+# macOS: brew install bash
+# Linux: Update your package manager
+```
+
+#### Q: Vault functions not working
+
+```bash
+# Check if ansible is installed (optional dependency)
+ansible-vault --version
+
+# Install if needed:
+# macOS: brew install ansible
+# Linux: pip3 install ansible-core
+```
+
+#### Q: OpenShift functions not working
+
+```bash
+# Check if OpenShift CLI is installed (optional dependency)
+oc version --client
+
+# Install if needed:
+# macOS: brew install openshift-cli
+# Linux: Download from https://mirror.openshift.com/pub/openshift-v4/clients/ocp/
+# Windows: Download from Red Hat or use package manager
+
+# Verify oc is in PATH
+which oc
+```
+
+#### Q: Plugins not loading
+
+```bash
+# Check plugin directory and file naming
+ls ~/chief_plugins/*_chief-plugin.sh
+```
+
+#### Q: SSH keys not auto-loading
+
+```bash
+# Verify key naming (must end in .key) and path
+ls ~/.ssh/*.key
+chief.config  # Check CHIEF_CFG_SSH_KEYS_PATH
+```
+
+#### Q: Git prompt not working
+
+```bash
+# Enable git prompt in config
+chief.config
+# Set CHIEF_CFG_PROMPT=true and CHIEF_CFG_GIT_PROMPT=true
+```
+
+## 🤖 Contributing
+
+We welcome contributions! Here's how:
+
+1. **Fork** the repository
+2. **Create** a feature branch (`git checkout -b feature/amazing-feature`)
+3. **Commit** your changes (`git commit -m 'Add amazing feature'`)
+4. **Push** to the branch (`git push origin feature/amazing-feature`)
+5. **Open** a Pull Request
+
+### Development Resources
+
+- [Bash Reference Manual](https://www.gnu.org/software/bash/manual/bash.html)
+- [Plugin Development Guide](docs/plugin-development.md)
+- [Contributing Guidelines](CONTRIBUTING.md)
+
+## 📄 License
+
+This project is licensed under the GNU General Public License v3.0 - see the [LICENSE](LICENSE) file for details.
+
+## 🙏 Acknowledgments
+
+- Git completion and prompt scripts from the Git project
+- Inspired by various Bash framework projects
+- Built with ❤️ for the terminal-loving community
+
+---
+
+**Ready to transform your terminal experience?** [Get started now](#-installation) or [explore the documentation](docs/) for advanced usage.

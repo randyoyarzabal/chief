@@ -15,8 +15,9 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ########################################################################
 
-# Chief Plugin File: aws_chief-plugin.sh
+# Chief Plugin File: aws_chief.plugin
 # Author: Randy E. Oyarzabal
+# ver. 1.0.1
 # AWS related functions and aliases
 
 # Block interactive execution
@@ -29,7 +30,7 @@ fi
 
 AWS_CREDS_SCRIPT="$CHIEF_PATH/libs/plugins/python/aws_creds.py"
 
-function chief.aws_set_role() {
+function chief.aws.set_role() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <role> <region>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -68,14 +69,14 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   unset AWS_DEFAULT_REGION
 
   if [[ -z $2 ]] || [[ $1 == "-?" ]]; then
-    echo -e "${USAGE}"
+    echo "${USAGE}"
     return
   fi
 
   $AWS_CREDS_SCRIPT -u "$1" -r "$2"
 }
 
-function chief.aws_export_creds() {
+function chief.aws.export_creds() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <role> <region>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
