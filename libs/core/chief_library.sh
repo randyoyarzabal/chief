@@ -373,6 +373,78 @@ __chief_check_plugins_local_changes() {
   return 1  # No local changes or not a git repo
 }
 
+# Helper function to validate git repository access without cloning
+__chief_validate_git_access() {
+  # Usage: __chief_validate_git_access <repo_url> [branch]
+  # Returns: 0 if access is valid, 1 if access fails
+  local repo_url="$1"
+  local branch="${2:-main}"
+  
+  if [[ -z "$repo_url" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error: Repository URL is required for git access validation.${CHIEF_NO_COLOR}"
+    return 1
+  fi
+  
+  # Test git access by doing a lightweight ls-remote operation
+  echo "Testing git access to repository..."
+  if git ls-remote --heads "$repo_url" "$branch" >/dev/null 2>&1; then
+    echo -e "${CHIEF_COLOR_GREEN}✓ Git repository access validated successfully.${CHIEF_NO_COLOR}"
+    return 0
+  else
+    echo -e "${CHIEF_COLOR_RED}✗ Failed to access git repository: $repo_url${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_YELLOW}This could be due to:${CHIEF_NO_COLOR}"
+    echo -e "  - Invalid repository URL"
+    echo -e "  - Network connectivity issues"
+    echo -e "  - Authentication/permission problems"
+    echo -e "  - Repository does not exist or branch '$branch' not found"
+    return 1
+  fi
+}
+
+# Helper function to backup existing local plugins directory
+__chief_backup_local_plugins() {
+  # Usage: __chief_backup_local_plugins <plugins_path>
+  local plugins_path="$1"
+  
+  if [[ -z "$plugins_path" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error: Plugins path is required for backup.${CHIEF_NO_COLOR}"
+    return 1
+  fi
+  
+  if [[ ! -d "$plugins_path" ]]; then
+    # Directory doesn't exist, nothing to backup
+    return 0
+  fi
+  
+  # Check if it's a git repository
+  if [[ -d "$plugins_path/.git" ]]; then
+    echo -e "${CHIEF_COLOR_BLUE}Existing git repository detected at: $plugins_path${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_YELLOW}This directory will be replaced with the remote repository.${CHIEF_NO_COLOR}"
+    return 0
+  fi
+  
+  # Check if directory has any files
+  if [[ -n "$(ls -A "$plugins_path" 2>/dev/null)" ]]; then
+    local timestamp=$(date +"%Y%m%d_%H%M%S")
+    local backup_path="${plugins_path}_backup_${timestamp}"
+    
+    echo -e "${CHIEF_COLOR_YELLOW}Local plugins directory exists and contains files.${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_BLUE}Creating backup: $backup_path${CHIEF_NO_COLOR}"
+    
+    if mv "$plugins_path" "$backup_path"; then
+      echo -e "${CHIEF_COLOR_GREEN}✓ Local plugins backed up successfully to: $backup_path${CHIEF_NO_COLOR}"
+      return 0
+    else
+      echo -e "${CHIEF_COLOR_RED}✗ Failed to backup local plugins directory.${CHIEF_NO_COLOR}"
+      return 1
+    fi
+  fi
+  
+  # Directory exists but is empty, safe to remove
+  rmdir "$plugins_path" 2>/dev/null || true
+  return 0
+}
+
 __chief_load_remote_plugins() {
   # Usage: __chief_load_remote_plugins [--verbose] [--force] [--explicit]
   # 
@@ -451,20 +523,34 @@ CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}"
       return 1
     fi
 
-    if [[ -z ${CHIEF_CFG_PLUGINS_PATH} ]] || [[ ! -d ${CHIEF_CFG_PLUGINS_PATH} ]]; then
-      mkdir -p ${CHIEF_CFG_PLUGINS_PATH} || {
-        echo -e "${CHIEF_COLOR_RED}Error: Unable to create directory '${CHIEF_CFG_PLUGINS_PATH}'.${CHIEF_NO_COLOR}"
-        return 1
-      }
-    fi
-
     # Check if a git branch is defined, if not, set to default.
     if [[ -z ${CHIEF_CFG_PLUGINS_GIT_BRANCH} ]]; then
       CHIEF_CFG_PLUGINS_GIT_BRANCH=${CHIEF_DEFAULT_PLUGINS_GIT_BRANCH}
     fi
 
+    # Validate git repository access BEFORE creating any directories or modifying filesystem
+    if ! __chief_validate_git_access "${CHIEF_CFG_PLUGINS_GIT_REPO}" "${CHIEF_CFG_PLUGINS_GIT_BRANCH}"; then
+      echo -e "${CHIEF_COLOR_RED}Aborting plugins update due to git access failure.${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_CYAN}Please check your repository URL, network connection, and authentication.${CHIEF_NO_COLOR}"
+      return 1
+    fi
+
     # Check if the git repository exists, if not, clone it.
     if [[ ! -d ${CHIEF_CFG_PLUGINS_PATH}/.git ]]; then
+      # Handle existing local plugins directory by backing it up
+      if ! __chief_backup_local_plugins "${CHIEF_CFG_PLUGINS_PATH}"; then
+        echo -e "${CHIEF_COLOR_RED}Failed to backup existing plugins directory. Aborting.${CHIEF_NO_COLOR}"
+        return 1
+      fi
+      
+      # Now create the directory (only after validation and backup)
+      if [[ ! -d ${CHIEF_CFG_PLUGINS_PATH} ]]; then
+        mkdir -p ${CHIEF_CFG_PLUGINS_PATH} || {
+          echo -e "${CHIEF_COLOR_RED}Error: Unable to create directory '${CHIEF_CFG_PLUGINS_PATH}'.${CHIEF_NO_COLOR}"
+          return 1
+        }
+      fi
+      
       echo "Cloning remote plugins repository..."
       git clone --branch ${CHIEF_CFG_PLUGINS_GIT_BRANCH} ${CHIEF_CFG_PLUGINS_GIT_REPO} ${CHIEF_CFG_PLUGINS_PATH}
     else
@@ -3168,7 +3254,8 @@ Note: This function only handles version updates. Create GitHub releases manuall
       return 1
     fi
   elif [[ "$new_version" == "next-dev" ]]; then
-    if [[ "$current_version" =~ ^v([0-9]+)\.([0-9]+)(\.([0-9]+))?$ ]]; then
+    # Allow both release versions (v3.1.1) and dev versions (v3.1.1-dev) for next-dev workflow
+    if [[ "$current_version" =~ ^v([0-9]+)\.([0-9]+)(\.([0-9]+))?(-dev)?$ ]]; then
       local major="${BASH_REMATCH[1]}"
       local minor="${BASH_REMATCH[2]}"
       local patch="${BASH_REMATCH[4]:-0}"
@@ -3273,7 +3360,7 @@ Note: This function only handles version updates. Create GitHub releases manuall
   
   # Special handling for next-dev workflow
   local is_next_dev=false
-  if [[ "$1" == "next-dev" ]]; then
+  if [[ "${positional_args[0]}" == "next-dev" ]]; then
     is_next_dev=true
     
     # Note: Using release-notes structure instead of UPDATES file
@@ -3325,7 +3412,7 @@ EOF
   fi
 
   # Special handling for release workflow - transform dev release notes to final
-  if $is_release_workflow && [[ "$1" == "release" ]]; then
+  if $is_release_workflow && [[ "${positional_args[0]}" == "release" ]]; then
     local release_notes_dir="${CHIEF_PATH}/release-notes"
     local dev_release_notes="${release_notes_dir}/${new_version}-dev.md"
     local final_release_notes="${release_notes_dir}/${new_version}.md"
@@ -3420,7 +3507,26 @@ EOF
       dev_badge_new="Dev%20Branch-${new_version}"
     fi
     
-    if grep -q "$new_version" "$file" 2>/dev/null && grep -q "$badge_new" "$file" 2>/dev/null; then
+    # Check if file already has the new version (check version first, then badges if they exist)
+    local has_new_version=false
+    local has_badges=false
+    local badge_needs_update=false
+    
+    if grep -q "$new_version" "$file" 2>/dev/null; then
+      has_new_version=true
+    fi
+    
+    # Check if file has badges at all
+    if grep -q "shields\.io\|badge" "$file" 2>/dev/null; then
+      has_badges=true
+      # If it has badges, check if they need updating
+      if ! grep -q "$badge_new" "$file" 2>/dev/null; then
+        badge_needs_update=true
+      fi
+    fi
+    
+    # File is up to date if version is correct AND (no badges OR badges are correct)
+    if $has_new_version && (! $has_badges || ! $badge_needs_update); then
       __chief_print_info "$(basename "$file"): Already up to date ($new_version)"
       continue
     fi
