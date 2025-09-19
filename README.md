@@ -2,7 +2,7 @@
 
 **Bash Plugin Manager & Terminal Enhancement Tool**
 
-[![GitHub release](https://img.shields.io/badge/Download-Release%20v3.0.4-lightgrey.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Documentation](https://img.shields.io/badge/📖-Documentation-blue)](https://chief.reonetlabs.us)
+[![GitHub release](https://img.shields.io/badge/Download-Release%20v3.1.0-lightgrey.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Documentation](https://img.shields.io/badge/📖-Documentation-blue)](https://chief.reonetlabs.us)
 
 Chief is a lightweight, powerful Bash library system that helps you organize your shell environment through a plugin-based architecture. Think of it as a package manager for your bash functions, aliases, and tools.
 
@@ -13,6 +13,15 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 ```
 
 **That's it!** Restart your terminal and start using Chief.
+
+### Air-Gapped Installation
+
+For disconnected environments:
+
+```bash
+# Download Chief, transfer to target system, then:
+./tools/install.sh --local
+```
 
 ## ⚡ Quick Start: Portable Setup
 
@@ -28,20 +37,22 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 chief.config_set -y PLUGINS_GIT_REPO="git@github.com:yourusername/my-plugins.git"
 chief.config_set -y PLUGINS_PATH="${HOME}/chief_plugins"
 chief.config_set -y PLUGINS_GIT_BRANCH="main"
-chief.config_set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root
+chief.config_set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root, this is plugins path relative to PLUGINS_PATH
 chief.config_set -y PLUGINS_GIT_AUTOUPDATE="false"    # manual updates
 chief.config_set -y PLUGINS_TYPE="remote"             # 🔑 Enable remote sync
 
-# 3. Customize prompt (optional)
-chief.config_set -y SHORT_PATH=false
-chief.config_set -y MULTILINE_PROMPT=true
+# 3. (Optional) Enable multi-line prompt, useful when current working dir is deep.
+chief.config_set -y MULTILINE_PROMPT=true 
 
-# 4. Load your encrypted secrets
-chief.vault_file-load                          # Team vault (.chief_shared-vault - if exists, automatically loaded)
+# 4. (Optional) Load your encrypted secrets (if exists)
+chief.vault_file-load  # Team vault (.chief_shared-vault - if exists)
 chief.vault_file-load ~/.my-personal-vault     # Personal vault
 ```
 
+📖 For detailed vault setup and management, see: [Vault Configuration](https://chief.reonetlabs.us/configuration.html#-vault-configuration)
+
 ### 🎯 Result
+
 - ✅ **Same plugins everywhere**: Functions, aliases, and tools sync across laptop, server, CI/CD
 - ✅ **Encrypted secrets**: Vault files travel with your setup (team + personal)
 - ✅ **Zero reconfiguration**: New systems work identically after this setup
@@ -53,11 +64,29 @@ chief.vault_file-load ~/.my-personal-vault     # Personal vault
 # See what's available
 chief.help
 
-# Find any function/alias
+# Find any function, alias or env var
 chief.whereis git_status
 
 # Create a custom function
 chief.plugin mytools
+```
+
+## 🛡️ Safety First: Dry-Run Examples
+
+Preview potentially destructive operations safely:
+
+```bash
+# SAFE: Preview what a USB creation would do (before potentially erasing a drive)
+chief.etc_create_bootusb -n ubuntu.iso 2
+
+# SAFE: See what files git reset --hard would affect
+chief.git_reset-hard -n
+
+# SAFE: Preview file permission changes
+chief.etc_chmod-f -n 644 ~/scripts/
+
+# SAFE: Preview OpenShift resource cleanup
+chief.oc_clean_olm -n
 ```
 
 ## ✨ Key Features
@@ -74,6 +103,7 @@ chief.plugin mytools
 - **Zsh/Oh My Zsh Users**: Chief won't touch your existing setup
 - **Custom Prompts**: Prompt features disabled by default
 - **Easy Removal**: Clean uninstall available anytime
+- **Dry-Run Safety**: Critical operations support `--dry-run` to preview changes safely
 
 ## 📖 Learn More
 

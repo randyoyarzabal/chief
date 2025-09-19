@@ -15,9 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ########################################################################
 
-# Chief Plugin File: etc_chief.plugin
+# Chief Plugin File: vault_chief-plugin.sh
 # Author: Randy E. Oyarzabal
-# ver. 1.0.1
 # Functions and aliases that are Vault (HashiCorp vault or ansible-vault) related.
 
 # Block interactive execution

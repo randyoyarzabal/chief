@@ -1,245 +1,90 @@
 # Chief Updates
 
-## 3.0.3
+## Unreleased (v3.1.0)
 
-- **Updated Default Vault File Names**: Clarified vault file naming convention for better distinction between personal and shared vaults
-  - Changed default personal vault from `$HOME/.chief_secret-vault` to `$HOME/.chief_user-vault`
-  - Changed default shared vault from `.chief_secret-vault` to `.chief_shared-vault`
-  - Updated help text to show "Default Vault File Name" instead of "Vault File Types"
-  - Enhanced help text to dynamically display current configuration (local vs remote setup)
-  - **MIGRATION NOTE**: Existing users should rename their vault files to match new naming convention
-- **Fixed `chief.plugins_update` Git Pull Issue**: Resolved bug where `chief.plugins_update` wouldn't perform a git pull when `CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false`
-  - Added `--explicit` flag to distinguish between automatic loading and manual update requests
-  - Now `chief.plugins_update` always performs git pull regardless of auto-update setting
-  - Maintains existing behavior for automatic plugin loading during Chief startup
-  - Ensures users can manually update plugins even with auto-update disabled
+- **NEW**: `chief.etc_folder_sync` - Professional rsync-based directory synchronization with progress, deletion sync, and exclusion patterns
+- **NEW**: tmux-based shared terminals replacing GNU Screen (`chief.etc_shared-term_create`, `chief.etc_shared-term_connect`)
+- **BREAKING**: Plugin functions now use underscore notation (e.g., `chief.ssl.view_cert` → `chief.ssl_view_cert`)
+- **NEW**: Air-gapped installation support (`./tools/install.sh --local`)
+- **CHANGE**: All private functions renamed to `__chief_*` prefix for better isolation
+- **NEW**: GitHub Actions CI/CD with automated testing on Ubuntu + macOS
+- **NEW**: SSL certificate toolkit with view, download, CA creation, and certificate generation functions
+- **NEW**: Dry-run support for `chief.etc_create_bootusb` and `chief.git_reset-hard`
+- **ENHANCED**: OpenShift plugin with stuck resource management and CSR approval automation
+- **ENHANCED**: System utilities with improved chmod, bootable USB, and dotfiles management
 
-## 3.0.2
+## v3.0.3
 
-- **Portable Vault Files**: Store `.chief_shared-vault` in plugins repository for automatic sync across systems
-  - Vault files are automatically detected when loading remote plugins
-  - `CHIEF_SECRETS_FILE` automatically points to synced vault when available
-  - No configuration needed - works with existing plugin sync mechanism
-  - Enables users to carry encrypted secrets alongside their plugins across multiple systems
-  - Vault file is used in-place from plugins directory, ensuring consistency across all environments
-  - **SECURITY NOTE**: Vault files in team repositories are shared by ALL team members - use only for team secrets, create personal vaults for private credentials
-- **Improved Vault Editing UX**: Enhanced `chief.vault_file-edit` to avoid double password prompts
-  - Changed default behavior: no longer auto-loads vault after editing (prevents double password entry)
-  - Added `--load` flag for users who want automatic loading after editing
-  - Better user experience when editing vault files frequently
-  - Maintains security while improving usability
+- **CHANGE**: Default vault file names (`.chief_user-vault` for personal, `.chief_shared-vault` for shared)
+- **FIX**: `chief.plugins_update` now works when auto-update is disabled
 
-## 3.0.1
+## v3.0.2
 
-- Ability to reinstall tracking a different branch
-- Platform version/distribution detection
-- Installation documentation updates
-- **Branch Configuration for Updates**: Added `CHIEF_CFG_UPDATE_BRANCH` configuration option to track either "main" (stable) or "dev" (bleeding-edge) branch for Chief updates
-  - Set `CHIEF_CFG_UPDATE_BRANCH="main"` for stable releases (default)
-  - Set `CHIEF_CFG_UPDATE_BRANCH="dev"` for latest features (⚠️ WARNING: not production ready)
-  - `chief.update` now automatically switches to configured branch before updating
-  - Update checking (`__check_for_updates`) now monitors the configured branch instead of current branch
-- **Plugin Configuration Reorganization**: Clarified plugin path configuration for better separation
-  - `CHIEF_CFG_PLUGINS_PATH`: Now used for both local plugin directory AND remote repo clone location
-  - `CHIEF_CFG_PLUGINS_GIT_PATH`: Now used ONLY for remote plugins (path within repo containing plugin files)
-  - Local plugins: Use `CHIEF_CFG_PLUGINS_PATH` directly
-  - Remote plugins: Use `CHIEF_CFG_PLUGINS_PATH` (clone location) + `CHIEF_CFG_PLUGINS_GIT_PATH` (relative path within repo)
-  - `CHIEF_CFG_PLUGINS_GIT_PATH` is a relative path from repo root (empty string = use repo root)
-  - Updated all documentation, help text, and plugin loading logic to reflect clearer separation
-- **Fixed chief.update Branch Switching**: Resolved issue where `chief.update` would switch branches but not pull the latest changes before reloading
-  - Now properly pulls latest changes from target branch after switching
-  - Ensures you get the actual latest version when switching from dev to main (or any branch)
-  - Added proper error handling for git pull operations
-  - Shows success message with version and branch information
-- **Fixed Vault Plugin Path Resolution**: Resolved issues with `chief.vault_file-edit` and `chief.vault_file-load` when running from directories other than home directory
-  - Added automatic path resolution for relative paths using `realpath` (with fallback)
-  - Now works correctly when specifying relative paths like `./my-secrets` or `../secrets`
-  - Ensures directory creation and file operations work from any working directory
-  - Maintains backward compatibility with absolute paths and default locations
-- **Enhanced Remote Plugin Auto-Update Safety**: Added intelligent local changes protection for `CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE`
-  - Detects local modifications in plugins directory before auto-updating
-  - Warns users when local changes would be overwritten by auto-update
-  - Provides interactive options: commit changes first, temporarily disable auto-update, or force update
-  - Prevents accidental loss of local plugin customizations
-  - Guides users with exact commands to safely handle local changes
-  - Maintains all existing functionality while adding safety layer
+- **NEW**: Portable vault files sync automatically with remote plugins
+- **ENHANCED**: Vault editing UX - no double password prompts
 
-## 3.0
+## v3.0.1
 
-### Upgrading from v2.1.1 to v3.0
+- **NEW**: Branch tracking configuration (`CHIEF_CFG_UPDATE_BRANCH`)
+- **NEW**: Platform version/distribution detection  
+- **FIX**: Plugin path configuration reorganization
+- **FIX**: Update branch switching and vault path resolution
+- **ENHANCED**: Remote plugin auto-update with local changes protection
 
-When upgrading from v2.1.1 to v3.0, you should add the following configuration options to your `chief.config` file for full compatibility:
+## v3.0
 
-#### Required New Configuration Options
+### Breaking Changes
+- **SSH**: Keys require `.key` extension (was `.rsa`)
+- **CONFIG**: `CHIEF_CFG_RSA_KEYS_PATH` → `CHIEF_CFG_SSH_KEYS_PATH`
 
+### New Features
+- Complete help system rewrite with categories and search
+- Python virtual environment management
+- Enhanced SSH key management with ed25519 support
+- Configuration management (`chief.config_set`, `chief.config_update`)
+- Improved `chief.whereis` finds all occurrences
+
+### Migration
 ```bash
-# New in v3.0: Control interactive behavior of chief.config_set command
-# Set to false for non-interactive operation by default (useful for automation/scripts)
-CHIEF_CFG_CONFIG_SET_INTERACTIVE=true
+# Update config
+chief.config_set ssh_keys_path "$HOME/.ssh"
 
-# New in v3.0: Enable multi-line prompt layout for better readability
-CHIEF_CFG_MULTILINE_PROMPT=false
+# Rename SSH keys
+cd ~/.ssh && mv id_rsa id_rsa.key
 ```
 
-#### Breaking Changes
+## v2.1.2
 
-**SSH Configuration Breaking Changes:**
+- **FIX**: AWS functions prefixed with `chief.*`
+- **NEW**: Core `__print` functions
 
-1. **SSH Key Extension Change:** SSH keys now require `.key` extension instead of `.rsa` extension:
-   - **Old:** Keys needed to end with `.rsa`
-   - **New:** Keys need to end with `.key`
-   - **Benefits:** Supports RSA, ed25519, and other key types with selective loading via symlinks
+## v2.1.1
 
-2. **Configuration Variable Renamed:** SSH keys configuration variable has been renamed:
-   - **Old:** `CHIEF_CFG_RSA_KEYS_PATH`
-   - **New:** `CHIEF_CFG_SSH_KEYS_PATH`
-   - **Reason:** Better reflects support for all SSH key types, not just RSA
-
-Migration for SSH configuration:
-
-```bash
-# Update your chief.config file
-# Change: CHIEF_CFG_RSA_KEYS_PATH="$HOME/.ssh"
-# To:     CHIEF_CFG_SSH_KEYS_PATH="$HOME/.ssh"
-
-# Or use the new config command (will create new variable)
-chief.config_set --yes ssh_keys_path "$HOME/.ssh"
-```
-
-Migration for SSH keys:
-
-```bash
-# Option 1: Create symlinks for existing keys (selective loading)
-cd ~/.ssh
-ln -s id_rsa mykey.key           # Link RSA key
-ln -s id_ed25519 mykey_ed.key    # Link ed25519 key
-
-# Option 2: Rename directly (loads all keys)
-mv id_rsa id_rsa.key
-mv id_ed25519 id_ed25519.key
-```
-
-### Issues Fixed/Implemented
-
-- Fixed chief.whereis sometimes doesn't find an alias/function #69
-- Implemented Add local install support #66
-- Fixed Bug in updates functionality #65
-- Implemented Add feature to edit plugins with VScode #60
-- Implemented Add colored __print* functions standard to the library. #59
-- Fixed When uninstalling, change out of install dir #47
-
-### Major System Overhauls
-
-- **Complete Help System Rewrite**: New `chief.help` with categories (commands, plugins, config), search functionality (`--search`), and compact mode (`--compact`). Original help moved to improved `chief.hints`.
-- **chief.whereis Complete Rewrite**: Now finds ALL occurrences of functions, variables, and aliases across system startup scripts, Chief core files, and user plugins. Shows exact line numbers and indicates if definitions are loaded (green) or inactive (red).
-
-### New Python Virtual Environment Management
-
-- **chief.python_create_ve**: Create virtual environments using venv module, defaults to `~/.venv` in home directory
-- **chief.python_start_ve**: Start/activate virtual environments with smart detection
-- **chief.python_stop_ve**: Stop/deactivate virtual environments
-- All functions use standardized usage and support custom paths
-
-### Enhanced SSH Key Management
-
-- **SSH Key Loading**: Changed from `.rsa` to `.key` extension requirement for broader key type support
-- **chief.ssh_create_keypair**: Now supports both `rsa` and `ed25519` key types with flexible naming
-- Automatically creates `~/.ssh` directory with proper permissions (700)
-- Uses `name_type.private`/`name_type.public` naming convention for custom keys
-- Sets secure permissions: private keys (600), public keys (644)
-- **Selective Loading**: Use symlinks with `.key` extension to choose which keys to auto-load
-
-### New Configuration Management
-
-- **chief.config_set**: Set configuration options directly from command line with comprehensive feedback
-- Supports case-insensitive config names (without CHIEF_CFG_ prefix)  
-- Shows previous vs new values, handles both boolean and string values
-- `--list` option shows all available configuration variables and current values
-- **Interactive by default**: Prompts for confirmation before modifying config file
-- `--yes/-y` flag for non-interactive operation (ideal for scripting)
-- Global `CHIEF_CFG_CONFIG_SET_INTERACTIVE` setting to control default behavior
-- Config reload after changes and smart validation
-
-- **chief.config_update**: Intelligent configuration file reconciliation system
-- Automatically adds new configuration options from template to user config
-- Preserves all user customizations and values during update
-- Handles renamed configuration variables (e.g., RSA_KEYS_PATH → SSH_KEYS_PATH)
-- Maintains all comments and documentation from template
-- Creates timestamped backups for safety
-- `--dry-run` option to preview changes before applying
-- Validates configuration syntax before applying changes
-- Automatically reloads Chief after successful update
-
-### Comprehensive Configuration Help
-
-- **chief.help config**: Now shows ALL 17+ configuration options organized by category
-- Added missing options: BANNER, COLORED_PROMPT, GIT_PROMPT, MULTILINE_PROMPT, COLORED_LS, AUTOCHECK_UPDATES, plugin templates, remote git settings, SSH_KEYS_PATH
-- Shows current values and conditional information for remote plugin configurations
-
-### Critical Bug Fixes
-
-- **Fixed chief.update**: Corrected critical bug where `${CHIEF_PATH}` was executed as command instead of changing directory
-- **Installation Script**: Fixed prompt setup and validation issues, added post-installation reminders
-- **Terminal Compatibility**: Removed problematic icons from help system and commands (kept simple ✓/✗ for status)
-
-### User Experience Improvements
-
-- **Clean Help Output**: Removed repetitive `chief.` prefixes from help text, added clear notes about command usage
-- **Better Documentation**: Added "Key Features Highlight" section to README with anchor links
-- **Improved Installation**: Enhanced messaging, validation steps, and post-install guidance
-- **Standardized Usage**: Consistent usage text formatting across all functions and plugins
-
-### Code Quality & Compatibility
-
-- **Error Handling**: Improved validation and error messages throughout the system
-- **Documentation Updates**: Comprehensive help system documentation and feature highlights
-
-## 2.1.2
-
-- Fixed #63, (aws functions prefixed with chief.*)
-- Implements #59 (Adds __print functions to core.)
-
-## 2.1.1
-
-- Bug fix release
-- Improved vault and oc plugin commands.
+- **FIX**: Vault and OpenShift plugin improvements
 
 ## v2.1
 
-- Fixed issue #31 for main library functions
-- Added new core functions for Openshift and Vault
-- Added `chief.whereis`
-- Consolidated library into one file.
-- Added `--lib-only` option when sourcing Chief.  Allowing library-only use of Chief.
+- **NEW**: OpenShift and Vault core functions
+- **NEW**: `chief.whereis` command
+- **CHANGE**: Consolidated library into single file
+- **NEW**: `--lib-only` option for library-only use
 
 ## v2.0.1
 
-- Added license headers.
-- Added parameters to install/uninstall scripts.
-- Improved git plugin loading.
+- **NEW**: License headers
+- **ENHANCED**: Install/uninstall script parameters
+- **ENHANCED**: Git plugin loading
 
 ## v2.0
 
-- Chief alias is enabled. If defined, `chief.*` commands will be aliased as `alias.*`
-- Streamlined plugin loading and management.
-- Streamlined plugin creation and editing.
-- Enhanced `chief.plugin` command to create, edit, and load plugins.
-- Added `chief.plugins_update` to update remote plugins.
-- Added remote plugins support from a git repository.
-- Plugin templates feature added.
+- **NEW**: Chief alias support (`alias.*` commands)
+- **NEW**: Remote plugins from git repositories
+- **NEW**: Plugin templates
+- **ENHANCED**: Streamlined plugin management
 
 ## v1.3.0
 
-- Updated git completion/prompt scripts.
-- Standard SSH keys (id_rsa, id_ed25519, etc.) are no longer loaded via ssh-add.
-- Added install.sh for simplifying adoption.
-- Disabled custom prompt on default installation.
-- Plugins have been revamped:
-  - Plugins loaded in alphabetical order to account for dependencies.
-  - Default plugin will be auto-created if necessary.
-  - Plugins will be created if not exists.
-  - All files named `*_chief-plugin.sh` will be loaded automatically (prefix will be the plugin name.)
-  - Loaded plugins will show in the banner as well as help text of `chief.plugin`.
-  - No longer necessary to define individual plugins in config file.
-- Deprecated CONTRIB plugins for simplicity.
-- Added chief.update to update Chief itself.
+- **CHANGE**: Standard SSH keys no longer auto-loaded
+- **NEW**: `install.sh` for simplified adoption
+- **ENHANCED**: Plugin system overhaul with automatic loading
+- **NEW**: `chief.update` command
