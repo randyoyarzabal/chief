@@ -3280,17 +3280,7 @@ Note: This function only handles version updates. Create GitHub releases manuall
     if ! $dry_run; then
       __chief_print_info "Using release-notes structure for version tracking"
       
-      # Add new Unreleased section at the top
-      local temp_file=$(mktemp)
-      {
-        echo "# Chief Updates"
-        echo ""
-        echo "## Unreleased ($new_version)"
-        echo ""
-        echo ""
-        tail -n +3 "$updates_file"
-      } > "$temp_file"
-      mv "$temp_file" "$updates_file"
+      # Release notes will be managed manually in release-notes/ directory
     fi
     
     # Create version-specific release notes file  
