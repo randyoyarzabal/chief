@@ -59,6 +59,7 @@ chief.vault_file-load ~/.my-personal-vault     # Personal vault
 📖 For detailed vault setup and management, see: [Vault Configuration](configuration.html#vault-configuration)
 
 ### 🎯 Result
+
 - ✅ **Same plugins everywhere**: Functions, aliases, and tools sync across laptop, server, CI/CD
 - ✅ **Encrypted secrets**: Vault files travel with your setup (team + personal)
 - ✅ **Zero reconfiguration**: New systems work identically after this setup
@@ -85,6 +86,74 @@ chief.plugin mytools
 - 🔍 **Instant Discovery** - Find any function with `chief.whereis`
 - 🚀 **Zero Disruption** - Only affects Bash, won't interfere with existing setups
 - 📦 **Plugin Architecture** - Organize tools into reusable, shareable plugins
+
+## 🔌 Available Plugins
+
+Chief comes with **8 powerful plugins** providing **56+ functions** for your daily workflow:
+
+### 🔍 **Discovery & Help**
+
+- `chief.help` - Interactive help system with plugin browsing
+- `chief.whereis <function>` - Find any function across all plugins
+- `chief.plugins_*` - Plugin management and discovery tools
+
+### 🔐 **Vault Plugin** (2 functions)
+
+- `chief.vault_file_edit` - Edit encrypted files securely
+- `chief.vault_file_load` - Load encrypted environment variables
+
+### ☸️ **OpenShift/Kubernetes Plugin** (7 functions)
+
+- `chief.oc_get_all_objects` - Comprehensive resource discovery with filtering
+- `chief.oc_clean_olm` - OLM cleanup with selective targeting
+- `chief.oc_show_stuck_resources` - Troubleshoot stuck resources with auto-fix
+- `chief.oc_delete_stuck_ns` - Force delete terminating namespaces
+- `chief.oc_approve_csrs` - Batch CSR approval with interactive mode
+- `chief.oc_login` - Enhanced login with context management
+
+### 🔒 **SSL/TLS Plugin** (4 functions)
+
+- `chief.ssl_create_ca` - Create certificate authorities with minimal setup
+- `chief.ssl_create_tls_cert` - Generate TLS certificates signed by your CA
+- `chief.ssl_view_cert` - Analyze certificates with multiple display options
+- `chief.ssl_get_cert` - Download certificates from remote servers
+
+### 🔑 **SSH Plugin** (3 functions)
+
+- `chief.ssh_create_keypair` - Generate SSH key pairs with best practices
+- `chief.ssh_get_publickey` - Extract and display public keys
+- `chief.ssh_rm_host` - Clean known_hosts entries safely
+
+### ☁️ **AWS Plugin** (2 functions)
+
+- `chief.aws_set_role` - Switch between AWS IAM roles
+- `chief.aws_export_creds` - Export AWS credentials to environment
+
+### 🛠️ **System Utilities Plugin** (18 functions)
+
+- `chief.etc_create_bootusb` - Create bootable USB drives safely
+- `chief.etc_folder_sync` - Professional rsync-based directory synchronization  
+- `chief.etc_copy_dotfiles` - Copy configuration files with backup support
+- `chief.etc_shared_term_*` - Create and manage shared tmux sessions
+- `chief.etc_chmod_*` - Enhanced file permission management
+- `chief.etc_mount_share` - Network share mounting utilities
+- File comparison, IP validation, system prompts, and more...
+
+### 🔧 **Git Plugin** (16 functions)
+
+- `chief.git_clone` - Enhanced git cloning with safety checks
+- `chief.git_commit` - Streamlined commit workflow
+- `chief.git_reset_*` - Safe reset operations with dry-run support
+- `chief.git_branch` - Advanced branch management
+- `chief.git_config_user` - Quick user configuration setup
+- Complete workflow support: tagging, amending, credential caching, URL management
+
+### 🐍 **Python Plugin** (4 functions)
+
+- `chief.python_create_ve` - Virtual environment creation and setup
+- `chief.python_start_ve` - Activate virtual environments
+- `chief.python_stop_ve` - Deactivate environments
+- `chief.python_ve_dep` - Install dependencies from requirements.txt
 
 ## 🛡️ Safe for Everyone
 
@@ -113,6 +182,7 @@ Found a bug or need help? We're here to help! Please create an issue on GitHub:
 **[📝 Report an Issue](https://github.com/randyoyarzabal/chief/issues)**
 
 When reporting issues, please include:
+
 - **OS version**: Run `uname -a` to get your system details
 - **Chief version**: Run `chief.help` to see the current version
 - **Steps to reproduce**: Clear, step-by-step instructions
