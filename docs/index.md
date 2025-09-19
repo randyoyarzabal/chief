@@ -59,6 +59,7 @@ chief.vault_file-load ~/.my-personal-vault     # Personal vault
 📖 For detailed vault setup and management, see: [Vault Configuration](configuration.html#vault-configuration)
 
 ### 🎯 Result
+
 - ✅ **Same plugins everywhere**: Functions, aliases, and tools sync across laptop, server, CI/CD
 - ✅ **Encrypted secrets**: Vault files travel with your setup (team + personal)
 - ✅ **Zero reconfiguration**: New systems work identically after this setup
@@ -181,6 +182,7 @@ Found a bug or need help? We're here to help! Please create an issue on GitHub:
 **[📝 Report an Issue](https://github.com/randyoyarzabal/chief/issues)**
 
 When reporting issues, please include:
+
 - **OS version**: Run `uname -a` to get your system details
 - **Chief version**: Run `chief.help` to see the current version
 - **Steps to reproduce**: Clear, step-by-step instructions
