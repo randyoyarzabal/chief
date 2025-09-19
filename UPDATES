@@ -1,6 +1,6 @@
 # Chief Updates
 
-## Unreleased (v3.0.4)
+## Unreleased (v3.1.0)
 
 - **NEW**: `chief.etc_folder_sync` - Professional rsync-based directory synchronization with progress, deletion sync, and exclusion patterns
 - **NEW**: tmux-based shared terminals replacing GNU Screen (`chief.etc_shared-term_create`, `chief.etc_shared-term_connect`)

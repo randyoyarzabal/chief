@@ -1745,7 +1745,7 @@ https://www.redhat.com/en/blog/troubleshooting-terminating-namespaces"
   fi
 
   # Cleanup function
-  cleanup() {
+  __chief_oc_cleanup() {
     local proxy_pid="$1"
     if [[ -n "$proxy_pid" ]] && kill -0 "$proxy_pid" 2>/dev/null; then
       __chief_print_info "Stopping oc proxy (PID: $proxy_pid)"
@@ -1764,7 +1764,7 @@ https://www.redhat.com/en/blog/troubleshooting-terminating-namespaces"
 
   # Set up trap for cleanup
   local proxy_pid=""
-  trap 'cleanup "$proxy_pid"' EXIT INT TERM
+  trap '__chief_oc_cleanup "$proxy_pid"' EXIT INT TERM
 
   if [[ "$dry_run" == true ]]; then
     __chief_print_info "DRY RUN: Would force delete namespace '$namespace'"
@@ -1784,7 +1784,7 @@ https://www.redhat.com/en/blog/troubleshooting-terminating-namespaces"
     
     __chief_print_info "Step 5: Cleanup proxy and temp files"
     
-    cleanup ""
+    __chief_oc_cleanup ""
     return 0
   fi
 
@@ -1792,7 +1792,7 @@ https://www.redhat.com/en/blog/troubleshooting-terminating-namespaces"
   __chief_print_info "Step 1: Exporting namespace '$namespace' to JSON..."
   if ! oc get namespace "$namespace" -o json > "$temp_file"; then
     __chief_print_error "Failed to export namespace to JSON"
-    cleanup ""
+    __chief_oc_cleanup ""
     return 1
   fi
 
@@ -1811,7 +1811,7 @@ https://www.redhat.com/en/blog/troubleshooting-terminating-namespaces"
   # Remove finalizers using jq
   if ! jq 'del(.spec.finalizers)' "$temp_file" > "${temp_file}.new" && mv "${temp_file}.new" "$temp_file"; then
     __chief_print_error "Failed to remove finalizers from JSON"
-    cleanup ""
+    __chief_oc_cleanup ""
     return 1
   fi
 
@@ -1858,7 +1858,7 @@ https://www.redhat.com/en/blog/troubleshooting-terminating-namespaces"
 
   if [[ $retries -eq 0 ]]; then
     __chief_print_error "Proxy failed to start or is not responding"
-    cleanup "$proxy_pid"
+    __chief_oc_cleanup "$proxy_pid"
     return 1
   fi
 
@@ -1890,13 +1890,13 @@ https://www.redhat.com/en/blog/troubleshooting-terminating-namespaces"
   else
     __chief_print_error "Failed to call finalize API"
     echo "API Response: $api_response"
-    cleanup "$proxy_pid"
+    __chief_oc_cleanup "$proxy_pid"
     return 1
   fi
 
   # Step 5: Cleanup
   __chief_print_info "Step 5: Cleaning up..."
-  cleanup "$proxy_pid"
+  __chief_oc_cleanup "$proxy_pid"
   proxy_pid=""  # Clear so trap doesn't try to clean up again
 
   __chief_print_success "Force delete operation completed for namespace '$namespace'"

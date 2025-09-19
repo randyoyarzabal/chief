@@ -563,7 +563,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     return 1
   elif [[ "$cert_count" -eq 1 ]]; then
     echo -e "${CHIEF_COLOR_CYAN}Certificate Information:${CHIEF_NO_COLOR}"
-    _show_single_cert_info "$cert_file" "$show_extended"
+    __chief_ssl_show_single_cert_info "$cert_file" "$show_extended"
   else
     echo -e "${CHIEF_COLOR_CYAN}Certificate Chain Information (${cert_count} certificates):${CHIEF_NO_COLOR}"
     echo ""
@@ -603,7 +603,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     for cert_temp_file in "$temp_dir"/cert_*.pem; do
       if [[ -f "$cert_temp_file" ]]; then
         echo -e "${CHIEF_COLOR_MAGENTA}=== Certificate #${cert_num} ===${CHIEF_NO_COLOR}"
-        _show_single_cert_info "$cert_temp_file" "$show_extended"
+        __chief_ssl_show_single_cert_info "$cert_temp_file" "$show_extended"
         echo ""
         ((cert_num++))
       fi
@@ -617,7 +617,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
 }
 
 # Helper function to display information for a single certificate
-function _show_single_cert_info() {
+function __chief_ssl__chief_ssl_show_single_cert_info() {
   local single_cert_file="$1"
   local show_extended="${2:-false}"
   
