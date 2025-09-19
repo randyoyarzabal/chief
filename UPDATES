@@ -7,18 +7,55 @@
 
 ## v3.1.0
 
-- **FIX**: `__chief.bump next-dev` now accepts `-dev` version suffixes in validation
-- **NEW**: `__chief.bump next-dev` supports optional target version parameter (e.g., `__chief.bump next-dev v3.1.1`)
+### 🔒 SSL/TLS Certificate Management
+- **NEW**: `chief.ssl_create_ca` - Simple CA creation with minimal requirements  
+- **NEW**: `chief.ssl_create_tls_cert` - Easy certificate creation signed by your CA
+- **NEW**: `chief.ssl_view_cert` - Comprehensive certificate analysis with multiple display options
+- **NEW**: `chief.ssl_get_cert` - Download certificates from remote servers with chain support
+- **ENHANCED**: Rich help documentation and error handling for certificate operations
+- **FIX**: macOS timeout command compatibility and certificate chain downloads
+
+### ☸️ OpenShift Management Enhancements  
+- **ENHANCED**: `chief.oc_show_stuck_resources` - Added `--fix` option to automatically remove finalizers
+- **NEW**: `chief.oc_delete_stuck_ns` - Force delete stuck terminating namespaces using Red Hat methodology
+- **ENHANCED**: `chief.oc_approve_csrs` - Complete rewrite with interactive/batch modes and filtering
+- **ENHANCED**: `chief.oc_get_all_objects` - Complete rewrite with filtering and output formats
+- **ENHANCED**: `chief.oc_clean_olm` - Enhanced OLM cleanup with selective targeting and dry-run modes
+- **ENHANCED**: `chief.oc_clean_replicasets` - Advanced ReplicaSet cleanup with age filtering
+- **ENHANCED**: Professional terminal colors and attribution to Red Hat techniques
+
+### 🛠️ System Utilities Enhancement
+- **NEW**: `chief.etc_folder_sync` - Professional-grade directory synchronization using rsync
+- **ENHANCED**: `chief.etc_create_bootusb` - Complete safety overhaul with multi-platform support and dry-run
+- **ENHANCED**: `chief.etc_copy_dotfiles` - Enhanced dotfiles management with backup options
+- **ENHANCED**: `chief.etc_chmod_f` and `chief.etc_chmod_d` - Enhanced file permission management with validation
+
+### 🖥️ Modern Terminal Multiplexer Support
+- **NEW**: tmux-based shared terminals (replaced archaic GNU Screen)
+- **ENHANCED**: Better multi-user support with read-only observer mode
+- **NEW**: Session listing and detached session creation capabilities
+- **ENHANCED**: Built-in tmux key binding reference and session management tips
+
+### 🛡️ Enhanced Safety Features
+- **NEW**: Dry-run support for critical operations (`chief.etc_create_bootusb -n`, `chief.git_reset-hard -n`)
+- **ENHANCED**: Comprehensive preview showing exact commands and affected files
+- **SAFETY**: Zero risk testing with validation before execution
+
+### 🔐 Air-Gapped Installation Support
+- **NEW**: `./tools/install.sh --local` - Install from local files in disconnected environments
+- **SECURITY**: No internet required during installation with complete file transparency
+- **ENHANCED**: Manual update control for security compliance
+
+### 🏗️ Development & Quality Improvements
+- **REFACTOR**: All 39 private functions now use `__chief_*` prefix (prevents conflicts with other utilities)
+- **NEW**: GitHub Actions CI/CD integration with automated testing on main/dev branches
+- **NEW**: Comprehensive test suite with syntax, plugin, and integration validation
+- **ENHANCED**: Version management with development workflow and release automation
+- **FIX**: `__chief.bump next-dev` validation now accepts `-dev` version suffixes
 - **NEW**: Test validation integrated into release workflows - tests must pass before releases
-- **ENHANCED**: Context-aware completion messages distinguish between development and release workflows
-- **ENHANCED**: Version-specific release notes structure in `release-notes/` directory
-- **CHANGE**: Push instructions updated to use appropriate branch context
-- **SAFETY**: Release workflow now requires passing tests (emergency `--skip-tests` option available)
-- **OPTIMIZATION**: `next-dev` workflow skips tests since it follows a successful release cycle
-- **ENHANCED**: Added comprehensive bug reporting instructions to main help and documentation
-- **FIX**: Restored v3.0 release notes that were lost during version-specific structure implementation
-- **FIX**: Fixed broken badge in README - separated release badge (links to actual releases) from dev badge (links to dev branch)
-- **ENHANCED**: `__chief.bump` now properly handles both release and dev badges during version updates
+- **ENHANCED**: Context-aware completion messages and version-specific release notes structure
+- **FIX**: Badge management system separating release badges from development badges
+- **ENHANCED**: User experience with comprehensive bug reporting guidance and OS detection
 
 ## v3.0.3
 
