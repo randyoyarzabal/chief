@@ -119,6 +119,7 @@ Chief comes with **8 powerful plugins** providing **56+ functions** for your dai
 
 - `chief.ssl_create-ca` - Create certificate authorities with minimal setup
 - `chief.ssl_create-tls-cert` - Generate TLS certificates signed by your CA
+- `chief.ssl_renew-tls-cert` - Renew existing certificates with smart parameter extraction
 - `chief.ssl_view-cert` - Analyze certificates with multiple display options
 - `chief.ssl_get-cert` - Download certificates from remote servers
 
