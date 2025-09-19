@@ -3489,17 +3489,24 @@ EOF
       fi
     fi
     
-    __chief_print_info "Next steps:"
-    __chief_print_info "  1. Review changes: git diff"
-    __chief_print_info "  2. Commit: git add -A && git commit -m 'Bump version to $new_version'"
-    __chief_print_info "  3. Push: git push origin dev"
-    
     # Different next steps for dev vs release versions
     if [[ "$new_version" =~ -dev$ ]]; then
-      __chief_print_info "  4. Ready for development work on $new_version"
-      __chief_print_info "  5. When ready to release, run: __chief.bump release"
+      __chief_print_info "📋 Next steps for development version ($new_version):"
+      __chief_print_info "  1. ✅ Ready for development work on $new_version"
+      __chief_print_info "  2. When ready to release, run: __chief.bump release"
     else
-      __chief_print_info "  4. Create GitHub release manually for tagging and publishing"
+      __chief_print_info "🚀 Release version ready ($new_version):"
+      __chief_print_info "  📝 Badges now show release version (no -dev suffix)"
+      __chief_print_info "  📋 Next steps to publish release:"
+      __chief_print_info "  1. 🔄 Create PR: dev → main (for release)"
+      __chief_print_info "  2. 📦 Create GitHub release from tag for publishing"
+      __chief_print_info ""
+      __chief_print_info "📋 Copy-paste for GitHub release description:"
+      __chief_print_info "────────────────────────────────────────────────────"
+      __chief_print_info "See [$new_version release notes](https://github.com/randyoyarzabal/chief/blob/main/release-notes/$new_version.md)"
+      __chief_print_info "────────────────────────────────────────────────────"
+      __chief_print_info ""
+      __chief_print_info "  7. 🔄 Run: __chief.bump next-dev (to start next development cycle)"
     fi
   fi
 }
