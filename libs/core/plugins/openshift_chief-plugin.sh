@@ -1220,16 +1220,281 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   return 0
 }
 
+# Helper function to list available clusters from Vault (non-interactive)
+function __chief_oc_list_vault_clusters_only() {
+  # Usage: __chief_oc_list_vault_clusters_only [filter_pattern]
+  # 
+  # Lists available OpenShift clusters from Vault without any prompting.
+  # Useful for scripting or quick reference.
+  #
+  # Arguments:
+  #   filter_pattern - Optional pattern to filter cluster names (supports wildcards)
+  #
+  # Returns 0 on success, 1 on failure
+  
+  local filter_pattern="$1"
+  
+  # Check Vault prerequisites
+  if ! command -v vault &>/dev/null; then
+    __chief_print_error "Vault CLI not available - cannot list clusters from Vault"
+    __chief_print_info "Install Vault CLI to use this feature"
+    return 1
+  fi
+
+  if [[ -z "$VAULT_ADDR" || -z "$VAULT_TOKEN" ]]; then
+    __chief_print_error "VAULT_ADDR or VAULT_TOKEN not set - cannot access Vault"
+    __chief_print_info "Set Vault environment variables to use this feature"
+    return 1
+  fi
+
+  if [[ -z "$CHIEF_VAULT_OC_PATH" ]]; then
+    __chief_print_error "CHIEF_VAULT_OC_PATH not set - cannot determine Vault path for OpenShift clusters"
+    __chief_print_info "Set CHIEF_VAULT_OC_PATH environment variable (e.g., 'secrets/openshift')"
+    return 1
+  fi
+
+  __chief_print_info "Available OpenShift clusters from Vault:"
+  __chief_print_info "Vault path: ${CHIEF_VAULT_OC_PATH}"
+  [[ -n "$filter_pattern" ]] && __chief_print_info "Filter: $filter_pattern"
+  echo
+  
+  # List secrets under the OpenShift path
+  local clusters_list
+  clusters_list=$(vault kv list -format=json "${CHIEF_VAULT_OC_PATH}" 2>/dev/null)
+  
+  if [[ $? -ne 0 ]] || [[ -z "$clusters_list" ]]; then
+    __chief_print_error "Failed to list secrets from Vault path: ${CHIEF_VAULT_OC_PATH}"
+    __chief_print_info "Verify the path exists and you have read permissions"
+    return 1
+  fi
+
+  # Parse cluster names from JSON response
+  local clusters
+  clusters=$(echo "$clusters_list" | jq -r '.[]' 2>/dev/null | sort)
+  
+  if [[ -z "$clusters" ]]; then
+    __chief_print_warn "No OpenShift clusters found in Vault path: ${CHIEF_VAULT_OC_PATH}"
+    return 1
+  fi
+
+  # Display clusters as a simple list (with optional filtering)
+  local cluster_count=0
+  local filtered_count=0
+  while IFS= read -r cluster; do
+    if [[ -n "$cluster" ]]; then
+      ((cluster_count++))
+      # Apply filter if specified
+      if [[ -z "$filter_pattern" ]] || [[ "$cluster" == $filter_pattern ]]; then
+        echo "  $cluster"
+        ((filtered_count++))
+      fi
+    fi
+  done <<< "$clusters"
+
+  echo
+  if [[ -n "$filter_pattern" ]]; then
+    __chief_print_info "Clusters displayed: $filtered_count (of $cluster_count total)"
+    if [[ $filtered_count -eq 0 ]]; then
+      __chief_print_warn "No clusters match filter pattern: $filter_pattern"
+    fi
+  else
+    __chief_print_info "Total clusters found: $cluster_count"
+  fi
+  echo
+  __chief_print_info "To connect to a cluster, use:"
+  echo "  chief.oc_login <cluster_name>     # User authentication"
+  echo "  chief.oc_login <cluster_name> -kc # Kubeconfig authentication"
+  echo "  chief.oc_login <cluster_name> -ka # Kubeadmin authentication"
+  echo ""
+  echo "Note: Add -i to any command to skip TLS verification (insecure)"
+  echo
+  __chief_print_info "To interactively select a cluster, use:"
+  echo "  chief.oc_login -l"
+  
+  return 0
+}
+
+# Helper function to list available clusters from Vault and prompt for selection
+function __chief_oc_list_vault_clusters() {
+  # Usage: __chief_oc_list_vault_clusters <auth_method> <tls_option> [filter_pattern]
+  # 
+  # Lists available OpenShift clusters from Vault and prompts user to select one.
+  # After selection, automatically proceeds with login using the specified auth method.
+  #
+  # Arguments:
+  #   auth_method - Authentication method: "kubeconfig", "kubeadmin", or "user"
+  #   tls_option - TLS option string for oc login command
+  #   filter_pattern - Optional pattern to filter cluster names (supports wildcards)
+  
+  local auth_method="$1"
+  local tls_option="$2"
+  local filter_pattern="$3"
+  
+  # Check Vault prerequisites
+  if ! command -v vault &>/dev/null; then
+    __chief_print_error "Vault CLI not available - cannot list clusters from Vault"
+    __chief_print_info "Install Vault CLI or specify cluster name directly"
+    return 1
+  fi
+
+  if [[ -z "$VAULT_ADDR" || -z "$VAULT_TOKEN" ]]; then
+    __chief_print_error "VAULT_ADDR or VAULT_TOKEN not set - cannot access Vault"
+    __chief_print_info "Set Vault environment variables or specify cluster name directly"
+    return 1
+  fi
+
+  if [[ -z "$CHIEF_VAULT_OC_PATH" ]]; then
+    __chief_print_error "CHIEF_VAULT_OC_PATH not set - cannot determine Vault path for OpenShift clusters"
+    __chief_print_info "Set CHIEF_VAULT_OC_PATH environment variable (e.g., 'secrets/openshift')"
+    return 1
+  fi
+
+  __chief_print_info "Discovering available OpenShift clusters from Vault..."
+  __chief_print_info "Vault path: ${CHIEF_VAULT_OC_PATH}"
+  
+  # List secrets under the OpenShift path
+  local clusters_list
+  clusters_list=$(vault kv list -format=json "${CHIEF_VAULT_OC_PATH}" 2>/dev/null)
+  
+  if [[ $? -ne 0 ]] || [[ -z "$clusters_list" ]]; then
+    __chief_print_error "Failed to list secrets from Vault path: ${CHIEF_VAULT_OC_PATH}"
+    __chief_print_info "Verify the path exists and you have read permissions"
+    return 1
+  fi
+
+  # Parse cluster names from JSON response
+  local clusters
+  clusters=$(echo "$clusters_list" | jq -r '.[]' 2>/dev/null | sort)
+  
+  if [[ -z "$clusters" ]]; then
+    __chief_print_warn "No OpenShift clusters found in Vault path: ${CHIEF_VAULT_OC_PATH}"
+    return 1
+  fi
+
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}Available OpenShift clusters:${CHIEF_NO_COLOR}"
+  [[ -n "$filter_pattern" ]] && echo -e "${CHIEF_COLOR_YELLOW}Filter: $filter_pattern${CHIEF_NO_COLOR}"
+  echo
+
+  # Display numbered list of clusters (with optional filtering)
+  local cluster_array=()
+  local i=1
+  local total_clusters=0
+  
+  while IFS= read -r cluster; do
+    if [[ -n "$cluster" ]]; then
+      ((total_clusters++))
+      # Apply filter if specified
+      if [[ -z "$filter_pattern" ]] || [[ "$cluster" == $filter_pattern ]]; then
+        cluster_array+=("$cluster")
+        echo -e "  ${CHIEF_COLOR_BLUE}$i)${CHIEF_NO_COLOR} $cluster"
+        ((i++))
+      fi
+    fi
+  done <<< "$clusters"
+
+  if [[ ${#cluster_array[@]} -eq 0 ]]; then
+    if [[ -n "$filter_pattern" ]]; then
+      __chief_print_warn "No clusters match filter pattern: $filter_pattern"
+      __chief_print_info "Total clusters available: $total_clusters"
+    else
+      __chief_print_warn "No valid cluster names found"
+    fi
+    return 1
+  fi
+
+  echo
+  echo -e "${CHIEF_COLOR_YELLOW}Authentication method:${CHIEF_NO_COLOR} $auth_method"
+  [[ -n "$tls_option" ]] && echo -e "${CHIEF_COLOR_YELLOW}TLS option:${CHIEF_NO_COLOR} $tls_option"
+  if [[ -n "$filter_pattern" ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Clusters shown:${CHIEF_NO_COLOR} ${#cluster_array[@]} (of $total_clusters total, filtered by '$filter_pattern')"
+  fi
+  echo
+
+  # Prompt for selection
+  while true; do
+    echo -n "Select cluster [1-${#cluster_array[@]}] or 'q' to quit: "
+    read -r choice
+    
+    case "$choice" in
+      [Qq]|[Qq][Uu][Ii][Tt])
+        __chief_print_info "Operation cancelled by user"
+        return 0
+        ;;
+      ''|*[!0-9]*)
+        __chief_print_error "Invalid selection. Please enter a number between 1 and ${#cluster_array[@]}"
+        continue
+        ;;
+      *)
+        if [[ "$choice" -ge 1 && "$choice" -le ${#cluster_array[@]} ]]; then
+          local selected_cluster="${cluster_array[$((choice-1))]}"
+          echo
+          __chief_print_info "Selected cluster: $selected_cluster"
+          echo
+          
+          # Proceed with login using the selected cluster
+          __chief_oc_login_with_cluster "$selected_cluster" "$auth_method" "$tls_option"
+          return $?
+        else
+          __chief_print_error "Invalid selection. Please enter a number between 1 and ${#cluster_array[@]}"
+          continue
+        fi
+        ;;
+    esac
+  done
+}
+
+# Helper function to perform login with specified cluster (extracted from main function)
+function __chief_oc_login_with_cluster() {
+  # Usage: __chief_oc_login_with_cluster <cluster> <auth_method> <tls_option>
+  # 
+  # Performs the actual OpenShift login with the specified cluster and auth method.
+  # This is the core login logic extracted from chief.oc_login for reuse.
+  #
+  # Arguments:
+  #   cluster - Name of the cluster to connect to
+  #   auth_method - Authentication method: "kubeconfig", "kubeadmin", or "user"
+  #   tls_option - TLS option string for oc login command
+  
+  local cluster="$1"
+  local auth_method="$2"
+  local tls_option="$3"
+
+  # Handle specific authentication methods (don't fall back to others)
+  if [[ "$auth_method" == "kubeconfig" ]]; then
+    __chief_oc_try_vault_login "$cluster" "$auth_method" "$tls_option"
+    return $?
+  elif [[ "$auth_method" == "kubeadmin" ]]; then
+    __chief_oc_try_vault_login "$cluster" "$auth_method" "$tls_option"
+    return $?
+  fi
+  
+  # Try authentication methods in order of preference (auto mode)
+  if __chief_oc_try_vault_login "$cluster" "$auth_method" "$tls_option"; then
+    return 0
+  elif __chief_oc_try_local_clusters_login "$cluster" "$auth_method" "$tls_option"; then
+    return 0
+  elif __chief_oc_try_env_login "$cluster" "$auth_method" "$tls_option"; then
+    return 0
+  else
+    __chief_print_error "All authentication methods failed for cluster: $cluster"
+    return 1
+  fi
+}
+
 function chief.oc_login() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <cluster_name> [options]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [cluster_name] [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Login to an OpenShift cluster using Vault secrets (preferred) or local cluster definitions.
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
-  cluster_name    Name of the cluster to connect to
+  cluster_name    Name of the cluster to connect to (optional if using -l or --list-only)
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -l, --list      List available clusters from Vault and prompt for selection
+  --list-only     List available clusters from Vault without prompting (non-interactive)
+  -f, --filter PATTERN  Filter clusters by pattern (supports wildcards like 'ocp*' or 'prod*')
   -kc             Use kubeconfig authentication
   -ka             Use kubeadmin authentication  
   -i              Skip TLS verification (insecure)
@@ -1253,30 +1518,103 @@ ${CHIEF_COLOR_MAGENTA}Authentication Methods (in order of preference):${CHIEF_NO
      • CHIEF_OC_USERNAME and optionally CHIEF_OC_PASSWORD
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  chief.oc_login -l              # List available clusters and choose one
+  chief.oc_login --list-only     # Just list clusters (non-interactive)
+  chief.oc_login -l -f 'ocp*'    # List only clusters starting with 'ocp'
+  chief.oc_login --list-only -f 'prod*'  # List only production clusters
   chief.oc_login hub -kc         # Login with kubeconfig
   chief.oc_login hub -ka         # Login as kubeadmin  
   chief.oc_login hub -i          # Login with TLS verification disabled
   chief.oc_login hub             # Login with user credentials"
-  # Parse arguments
-  local cluster="$1"
+  # Parse arguments and options
+  local cluster=""
   local auth_method="user"
   local tls_option=""
+  local list_clusters=false
+  local list_only=false
+  local filter_pattern=""
 
-  if [[ -z "$cluster" || "$cluster" == "-?" ]]; then
+  # Check for help first
+  if [[ "$1" == "-?" ]]; then
     echo -e "${USAGE}"
     return 0
   fi
 
-  # Parse options
-  shift
+  # Parse all arguments
   while [[ $# -gt 0 ]]; do
     case $1 in
-      -kc) auth_method="kubeconfig"; shift ;;
-      -ka) auth_method="kubeadmin"; shift ;;
-      -i) tls_option="--insecure-skip-tls-verify=true"; shift ;;
-      *) __chief_print_error "Unknown option: $1"; return 1 ;;
+      -l|--list)
+        list_clusters=true
+        shift
+        ;;
+      --list-only)
+        list_only=true
+        shift
+        ;;
+      -f|--filter)
+        if [[ -n "$2" && ! "$2" =~ ^- ]]; then
+          filter_pattern="$2"
+          shift 2
+        else
+          __chief_print_error "Filter pattern is required"
+          echo -e "${USAGE}"
+          return 1
+        fi
+        ;;
+      -kc) 
+        auth_method="kubeconfig"
+        shift
+        ;;
+      -ka) 
+        auth_method="kubeadmin"
+        shift
+        ;;
+      -i) 
+        tls_option="--insecure-skip-tls-verify=true"
+        shift
+        ;;
+      -\?)
+        echo -e "${USAGE}"
+        return 0
+        ;;
+      -*)
+        __chief_print_error "Unknown option: $1"
+        return 1
+        ;;
+      *)
+        if [[ -z "$cluster" ]]; then
+          cluster="$1"
+        else
+          __chief_print_error "Multiple cluster names specified. Only one cluster allowed."
+          return 1
+        fi
+        shift
+        ;;
     esac
   done
+
+  # Handle list clusters option
+  if [[ "$list_clusters" == true ]]; then
+    if ! __chief_oc_list_vault_clusters "$auth_method" "$tls_option" "$filter_pattern"; then
+      return 1
+    fi
+    return 0
+  fi
+
+  # Handle list-only option (non-interactive)
+  if [[ "$list_only" == true ]]; then
+    if ! __chief_oc_list_vault_clusters_only "$filter_pattern"; then
+      return 1
+    fi
+    return 0
+  fi
+
+  # Validate cluster name is provided for non-list mode
+  if [[ -z "$cluster" ]]; then
+    __chief_print_error "Cluster name is required (or use -l/--list-only to list available clusters)"
+    echo -e "${USAGE}"
+    return 1
+  fi
 
   # Validate prerequisites
   if ! command -v oc &>/dev/null; then
@@ -1284,26 +1622,9 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     return 1
   fi
 
-  # Handle specific authentication methods (don't fall back to others)
-  if [[ "$auth_method" == "kubeconfig" ]]; then
-    __chief_oc_try_vault_login "$cluster" "$auth_method" "$tls_option"
-    return $?
-  elif [[ "$auth_method" == "kubeadmin" ]]; then
-    __chief_oc_try_vault_login "$cluster" "$auth_method" "$tls_option"
-    return $?
-  fi
-  
-  # Try authentication methods in order of preference (auto mode)
-  if __chief_oc_try_vault_login "$cluster" "$auth_method" "$tls_option"; then
-    return 0
-  elif __chief_oc_try_local_clusters_login "$cluster" "$auth_method" "$tls_option"; then
-    return 0
-  elif __chief_oc_try_env_login "$cluster" "$auth_method" "$tls_option"; then
-    return 0
-  else
-    __chief_print_error "All authentication methods failed for cluster: $cluster"
-    return 1
-  fi
+  # Use the extracted login helper function
+  __chief_oc_login_with_cluster "$cluster" "$auth_method" "$tls_option"
+  return $?
 }
 
 # Helper function to attempt Vault-based login
