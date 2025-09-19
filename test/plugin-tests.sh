@@ -372,7 +372,9 @@ main() {
     echo -e "${BLUE}Plugins Tested:${NC} ${#plugin_files[@]}"
     echo -e "${BLUE}Total Tests:${NC} $TOTAL_TESTS"
     echo -e "${GREEN}Passed:${NC} $PASSED_TESTS"
-    echo -e "${RED}Failed:${NC} $FAILED_TESTS"
+    if [[ $FAILED_TESTS -gt 0 ]]; then
+        echo -e "${RED}Failed:${NC} $FAILED_TESTS"
+    fi
     echo ""
     
     if [[ $FAILED_TESTS -eq 0 ]]; then

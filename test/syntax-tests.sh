@@ -174,7 +174,9 @@ main() {
     echo -e "${BLUE}Total Scripts:${NC} ${#scripts[@]}"
     echo -e "${BLUE}Total Tests:${NC} $TOTAL_TESTS"
     echo -e "${GREEN}Passed:${NC} $PASSED_TESTS"
-    echo -e "${RED}Failed:${NC} $FAILED_TESTS"
+    if [[ $FAILED_TESTS -gt 0 ]]; then
+        echo -e "${RED}Failed:${NC} $FAILED_TESTS"
+    fi
     echo ""
     
     if [[ ${#failed_files[@]} -eq 0 ]]; then
