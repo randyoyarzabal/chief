@@ -3,7 +3,8 @@
 ## v3.1.1-dev
 
 - **FIX**: Badge configuration after next-dev bump
-- **CLEAN**: Removed unnecessary plugin descriptions from help output
+- **CLEAN**: Removed unnecessary plugin descriptions from help output  
+- **ENHANCED**: Added "Enterprise-Ready Tools" feature highlight to Key Features section
 
 ## v3.1.0
 
