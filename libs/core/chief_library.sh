@@ -410,13 +410,13 @@ __chief_load_remote_plugins() {
     echo -e "  ${CHIEF_COLOR_GREEN}3.${CHIEF_NO_COLOR} Force update anyway (${CHIEF_COLOR_RED}WILL LOSE YOUR CHANGES${CHIEF_NO_COLOR})"
     echo
     
-    if chief.etc_ask_yes_or_no "Temporarily disable PLUGINS_GIT_AUTOUPDATE to preserve your local changes?"; then
+    if chief.etc_ask-yes-or-no "Temporarily disable PLUGINS_GIT_AUTOUPDATE to preserve your local changes?"; then
       skip_autoupdate=true
       echo -e "${CHIEF_COLOR_YELLOW}Auto-update disabled for this session. Your local changes are safe.${CHIEF_NO_COLOR}"
       echo -e "${CHIEF_COLOR_CYAN}To commit your changes: cd ${CHIEF_CFG_PLUGINS_PATH} && git add . && git commit -m 'your message' && git push${CHIEF_NO_COLOR}"
       echo -e "${CHIEF_COLOR_CYAN}To permanently enable auto-update again: set CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=true in your config${CHIEF_NO_COLOR}"
     else
-      if chief.etc_ask_yes_or_no "Force update anyway? This will ${CHIEF_COLOR_RED}DISCARD ALL LOCAL CHANGES${CHIEF_NO_COLOR}!"; then
+      if chief.etc_ask-yes-or-no "Force update anyway? This will ${CHIEF_COLOR_RED}DISCARD ALL LOCAL CHANGES${CHIEF_NO_COLOR}!"; then
         good_to_load=true
         echo -e "${CHIEF_COLOR_YELLOW}Proceeding with force update. Local changes will be lost.${CHIEF_NO_COLOR}"
       else
@@ -432,7 +432,7 @@ __chief_load_remote_plugins() {
     good_to_load=true
   # If the git path isn't set Or path doesn't exist Or it is empty.
   elif [[ -z ${CHIEF_CFG_PLUGINS_PATH} ]] || [[ ! -d ${CHIEF_CFG_PLUGINS_PATH} ]] || [[ -z "$(ls -A ${CHIEF_CFG_PLUGINS_PATH})" ]]; then
-    if chief.etc_ask_yes_or_no "Your Chief plugins directory is empty/doesn't exist, do you want to run the update now?
+    if chief.etc_ask-yes-or-no "Your Chief plugins directory is empty/doesn't exist, do you want to run the update now?
 You can run 'chief.plugins_update' anytime or set CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=true"; then
       good_to_load=true
     fi  
@@ -656,7 +656,7 @@ function __chief_edit_plugin() {
     __chief_edit_file ${plugin_file} ${editor_option}
   else
     echo "Chief plugin: ${plugin_name} plugin file does not exist."
-    if ! chief.etc_ask_yes_or_no "Create it?"; then
+    if ! chief.etc_ask-yes-or-no "Create it?"; then
       echo -e "${CHIEF_COLOR_YELLOW}Plugin file not created.${CHIEF_NO_COLOR}"
       return 1
     fi
@@ -1260,7 +1260,7 @@ Set CHIEF_CFG_PLUGINS_TYPE='remote' and CHIEF_CFG_PLUGINS_GIT_REPO in chief.conf
       echo -e "  ${CHIEF_COLOR_GREEN}3.${CHIEF_NO_COLOR} Cancel and handle changes manually"
       echo
       
-      if chief.etc_ask_yes_or_no "Force update anyway? This will ${CHIEF_COLOR_RED}DISCARD ALL LOCAL CHANGES${CHIEF_NO_COLOR}!"; then
+      if chief.etc_ask-yes-or-no "Force update anyway? This will ${CHIEF_COLOR_RED}DISCARD ALL LOCAL CHANGES${CHIEF_NO_COLOR}!"; then
         echo -e "${CHIEF_COLOR_YELLOW}Proceeding with force update. Local changes will be lost.${CHIEF_NO_COLOR}"
         __chief_load_remote_plugins "--verbose" "--force" "--explicit" && {
           echo -e "${CHIEF_COLOR_GREEN}Updated all plugins to the latest version.${CHIEF_NO_COLOR}"
@@ -1347,7 +1347,7 @@ You can also manually update by running git pull in the Chief directory.
   
   if [[ ${LOCAL_BRANCH} != ${TARGET_BRANCH} ]]; then
     echo -e "${CHIEF_COLOR_YELLOW}Notice: Currently on ${LOCAL_BRANCH} branch, but configured to track ${TARGET_BRANCH}${CHIEF_NO_COLOR}"
-    if chief.etc_ask_yes_or_no "Switch to ${TARGET_BRANCH} branch now?"; then
+    if chief.etc_ask-yes-or-no "Switch to ${TARGET_BRANCH} branch now?"; then
       echo -e "${CHIEF_COLOR_CYAN}Switching from ${LOCAL_BRANCH} to ${TARGET_BRANCH} branch...${CHIEF_NO_COLOR}"
       
       # Fetch all branches to ensure target branch exists
@@ -1444,7 +1444,7 @@ You can also manually update by running git pull in the Chief directory.
   chief.etc_spinner "Checking for updates..." "__chief_check_for_updates" tmp_out
   echo -e "${tmp_out}"
   if [[ ${tmp_out} == *"available"* ]]; then
-    if chief.etc_ask_yes_or_no "Updates are available, update now?"; then
+    if chief.etc_ask-yes-or-no "Updates are available, update now?"; then
       echo "Proceeding..."
       
       # We're already in CHIEF_PATH and on the correct branch

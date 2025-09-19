@@ -187,7 +187,7 @@ ${CHIEF_COLOR_BLUE}Next Steps:${CHIEF_NO_COLOR}
     echo -e "${CHIEF_COLOR_BLUE}Existing files:${CHIEF_NO_COLOR}"
     [[ -f "$private_key_path" ]] && echo "  - $private_key_name"
     [[ -f "$public_key_path" ]] && echo "  - $public_key_name"
-    if ! chief.etc_ask_yes_or_no "Do you want to overwrite them?"; then
+    if ! chief.etc_ask-yes-or-no "Do you want to overwrite them?"; then
       return 1
     fi
   fi

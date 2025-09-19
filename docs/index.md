@@ -108,39 +108,39 @@ Chief comes with **8 powerful plugins** providing **56+ functions** for your dai
 
 ### ☸️ **OpenShift/Kubernetes Plugin** (7 functions)
 
-- `chief.oc_get_all_objects` - Comprehensive resource discovery with filtering
-- `chief.oc_clean_olm` - OLM cleanup with selective targeting
-- `chief.oc_show_stuck_resources` - Troubleshoot stuck resources with auto-fix
-- `chief.oc_delete_stuck_ns` - Force delete terminating namespaces
-- `chief.oc_approve_csrs` - Batch CSR approval with interactive mode
+- `chief.oc_get-all-objects` - Comprehensive resource discovery with filtering
+- `chief.oc_clean-olm` - OLM cleanup with selective targeting
+- `chief.oc_show-stuck-resources` - Troubleshoot stuck resources with auto-fix
+- `chief.oc_delete-stuck-ns` - Force delete terminating namespaces
+- `chief.oc_approve-csrs` - Batch CSR approval with interactive mode
 - `chief.oc_login` - Enhanced login with context management
 
 ### 🔒 **SSL/TLS Plugin** (4 functions)
 
-- `chief.ssl_create_ca` - Create certificate authorities with minimal setup
-- `chief.ssl_create_tls_cert` - Generate TLS certificates signed by your CA
-- `chief.ssl_view_cert` - Analyze certificates with multiple display options
-- `chief.ssl_get_cert` - Download certificates from remote servers
+- `chief.ssl_create-ca` - Create certificate authorities with minimal setup
+- `chief.ssl_create-tls-cert` - Generate TLS certificates signed by your CA
+- `chief.ssl_view-cert` - Analyze certificates with multiple display options
+- `chief.ssl_get-cert` - Download certificates from remote servers
 
 ### 🔑 **SSH Plugin** (3 functions)
 
-- `chief.ssh_create_keypair` - Generate SSH key pairs with best practices
-- `chief.ssh_get_publickey` - Extract and display public keys
-- `chief.ssh_rm_host` - Clean known_hosts entries safely
+- `chief.ssh_create-keypair` - Generate SSH key pairs with best practices
+- `chief.ssh_get-publickey` - Extract and display public keys
+- `chief.ssh_rm-host` - Clean known_hosts entries safely
 
 ### ☁️ **AWS Plugin** (2 functions)
 
-- `chief.aws_set_role` - Switch between AWS IAM roles
-- `chief.aws_export_creds` - Export AWS credentials to environment
+- `chief.aws_set-role` - Switch between AWS IAM roles
+- `chief.aws_export-creds` - Export AWS credentials to environment
 
 ### 🛠️ **System Utilities Plugin** (18 functions)
 
-- `chief.etc_create_bootusb` - Create bootable USB drives safely
-- `chief.etc_folder_sync` - Professional rsync-based directory synchronization  
-- `chief.etc_copy_dotfiles` - Copy configuration files with backup support
+- `chief.etc_create-bootusb` - Create bootable USB drives safely
+- `chief.etc_folder-sync` - Professional rsync-based directory synchronization  
+- `chief.etc_copy-dotfiles` - Copy configuration files with backup support
 - `chief.etc_shared_term_*` - Create and manage shared tmux sessions
 - `chief.etc_chmod_*` - Enhanced file permission management
-- `chief.etc_mount_share` - Network share mounting utilities
+- `chief.etc_mount-share` - Network share mounting utilities
 - File comparison, IP validation, system prompts, and more...
 
 ### 🔧 **Git Plugin** (16 functions)
@@ -149,15 +149,15 @@ Chief comes with **8 powerful plugins** providing **56+ functions** for your dai
 - `chief.git_commit` - Streamlined commit workflow
 - `chief.git_reset_*` - Safe reset operations with dry-run support
 - `chief.git_branch` - Advanced branch management
-- `chief.git_config_user` - Quick user configuration setup
+- `chief.git_config-user` - Quick user configuration setup
 - Complete workflow support: tagging, amending, credential caching, URL management
 
 ### 🐍 **Python Plugin** (4 functions)
 
-- `chief.python_create_ve` - Virtual environment creation and setup
-- `chief.python_start_ve` - Activate virtual environments
-- `chief.python_stop_ve` - Deactivate environments
-- `chief.python_ve_dep` - Install dependencies from requirements.txt
+- `chief.python_create-ve` - Virtual environment creation and setup
+- `chief.python_start-ve` - Activate virtual environments
+- `chief.python_stop-ve` - Deactivate environments
+- `chief.python_ve-dep` - Install dependencies from requirements.txt
 
 ## 🛡️ Safety First: Dry-Run Examples
 
@@ -165,7 +165,7 @@ Preview potentially destructive operations safely:
 
 ```bash
 # SAFE: Preview what a USB creation would do (before potentially erasing a drive)
-chief.etc_create_bootusb -n ubuntu.iso 2
+chief.etc_create-bootusb -n ubuntu.iso 2
 
 # SAFE: See what files git reset --hard would affect
 chief.git_reset-hard -n
@@ -174,7 +174,7 @@ chief.git_reset-hard -n
 chief.etc_chmod-f -n 644 ~/scripts/
 
 # SAFE: Preview OpenShift resource cleanup
-chief.oc_clean_olm -n
+chief.oc_clean-olm -n
 ```
 
 ## 🛡️ Safe for Everyone

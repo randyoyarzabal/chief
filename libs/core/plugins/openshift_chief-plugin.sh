@@ -805,12 +805,12 @@ Approving CSRs grants certificates that provide cluster access. Only approve
 CSRs from trusted sources. Review CSR details before approval in production.
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  chief.oc_approve_csrs                          # Interactive approval of pending CSRs
-  chief.oc_approve_csrs -l                       # List pending CSRs only
-  chief.oc_approve_csrs -a                       # Approve all pending CSRs
-  chief.oc_approve_csrs -n                       # Dry-run: show what would be approved
-  chief.oc_approve_csrs -f \"node-\"               # Approve only node-related CSRs
-  chief.oc_approve_csrs -f \"system:node\"         # Approve system node CSRs only
+  chief.oc_approve-csrs                          # Interactive approval of pending CSRs
+  chief.oc_approve-csrs -l                       # List pending CSRs only
+  chief.oc_approve-csrs -a                       # Approve all pending CSRs
+  chief.oc_approve-csrs -n                       # Dry-run: show what would be approved
+  chief.oc_approve-csrs -f \"node-\"               # Approve only node-related CSRs
+  chief.oc_approve-csrs -f \"system:node\"         # Approve system node CSRs only
 "
 
   # Check if OpenShift CLI is available
@@ -1057,9 +1057,9 @@ ${CHIEF_COLOR_MAGENTA}Requirements:${CHIEF_NO_COLOR}
 - User must have permissions to list and patch resources in the target namespace
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  chief.oc_show_stuck_resources my-namespace              # Show all resources in my-namespace
-  chief.oc_show_stuck_resources production --dry-run      # Preview what stuck resources would be fixed
-  chief.oc_show_stuck_resources dev-environment --fix     # Fix stuck terminating resources"
+  chief.oc_show-stuck-resources my-namespace              # Show all resources in my-namespace
+  chief.oc_show-stuck-resources production --dry-run      # Preview what stuck resources would be fixed
+  chief.oc_show-stuck-resources dev-environment --fix     # Fix stuck terminating resources"
 
   local namespace="$1"
   local fix_mode=false
@@ -1635,9 +1635,9 @@ ${CHIEF_COLOR_MAGENTA}Requirements:${CHIEF_NO_COLOR}
 - jq command must be available for JSON manipulation
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  chief.oc_delete_stuck_ns stuck-namespace                    # Force delete with confirmation
-  chief.oc_delete_stuck_ns test-env --dry-run                # Preview what would be done
-  chief.oc_delete_stuck_ns broken-ns --no-confirm            # Force delete without prompts
+  chief.oc_delete-stuck-ns stuck-namespace                    # Force delete with confirmation
+  chief.oc_delete-stuck-ns test-env --dry-run                # Preview what would be done
+  chief.oc_delete-stuck-ns broken-ns --no-confirm            # Force delete without prompts
 
 ${CHIEF_COLOR_BLUE}Reference:${CHIEF_NO_COLOR}
 Based on Red Hat's troubleshooting guide:
