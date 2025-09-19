@@ -77,9 +77,9 @@ ${CHIEF_COLOR_BLUE}Configuration:${CHIEF_NO_COLOR} $(
   fi
 )
 "
-  if [[ $1 == "-?" ]]; then
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
-    return
+    return 0
   fi
 
   # Check if ansible-vault is installed and get version info
@@ -257,9 +257,9 @@ ${CHIEF_COLOR_BLUE}Troubleshooting:${CHIEF_NO_COLOR}
 - macOS with older ansible: Use ansible-vault 2.18.0+ for best compatibility
 - Permission errors: Check file ownership and vault password
 "
-  if [[ $1 == "-?" ]]; then
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
-    return
+    return 0
   fi
 
   # Check if ansible-vault is installed
