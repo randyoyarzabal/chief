@@ -4,7 +4,7 @@
 
 > ⚠️ **Warning**: This is the development branch. Features may be unstable. For stable releases, use the [main branch](https://github.com/randyoyarzabal/chief/tree/main).
 
-[![GitHub release](https://img.shields.io/badge/Version-v3.1.2--dev-orange.svg?style=social)](https://github.com/randyoyarzabal/chief) [![Documentation](https://img.shields.io/badge/📖-Documentation-blue)](https://chief.reonetlabs.us)
+[![GitHub release](https://img.shields.io/badge/Download-Release%20v3.1.1-green.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Development](https://img.shields.io/badge/Dev%20Branch-v3.1.2--dev-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev) [![Documentation](https://img.shields.io/badge/📖-Documentation-blue)](https://chief.reonetlabs.us)
 
 Chief is a lightweight, powerful Bash library system that helps you organize your shell environment through a plugin-based architecture. Think of it as a package manager for your bash functions, aliases, and tools.
 
