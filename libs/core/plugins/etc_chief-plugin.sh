@@ -984,94 +984,251 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
 }
 
 function chief.etc_shared-term_create() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <session_name>
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <session_name> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
-Create a named shared terminal session for collaborative tasks using GNU Screen.
+Create a named shared terminal session for collaborative tasks using tmux.
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
-  session_name  Name for the shared screen session
+  session_name  Name for the shared tmux session
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -d, --detached   Create session but don't attach to it
+  -?               Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
-- Creates detached screen session
-- Automatically attaches to the session
+- Creates tmux session with shared access
 - Multiple users can connect to same session
-- Session persists even if connection drops
+- Session persists even if connection drops  
+- Modern terminal multiplexer with better features
+- Window and pane management capabilities
+- Customizable status bar and key bindings
 
 ${CHIEF_COLOR_MAGENTA}Requirements:${CHIEF_NO_COLOR}
-- GNU Screen installed (screen command)
+- tmux installed (much more modern than GNU Screen)
 - Appropriate permissions for shared sessions
 
+${CHIEF_COLOR_BLUE}tmux Key Bindings (default prefix: Ctrl-b):${CHIEF_NO_COLOR}
+- Ctrl-b d        Detach from session
+- Ctrl-b c        Create new window
+- Ctrl-b n/p      Next/previous window
+- Ctrl-b \"       Split horizontally
+- Ctrl-b %        Split vertically
+- Ctrl-b arrows   Navigate panes
+
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME dev-session     # Create development session
-  $FUNCNAME meeting-room    # Create meeting session
+  $FUNCNAME dev-session      # Create and attach to development session
+  $FUNCNAME -d deploy-task   # Create detached deployment session
+  $FUNCNAME meeting-room     # Create meeting session
 
 ${CHIEF_COLOR_BLUE}Related Commands:${CHIEF_NO_COLOR}
   chief.etc_shared-term_connect <session_name>  # Connect to existing session
+  tmux list-sessions                            # List all sessions
+  tmux kill-session -t <name>                   # Kill a session
 "
 
-  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
-    echo -e "${USAGE}"
-    return
-  fi
+  local session_name=""
+  local detached=false
 
-  if ! command -v screen >/dev/null 2>&1; then
-    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} GNU Screen is required but not found."
-    echo -e "${CHIEF_COLOR_YELLOW}Install:${CHIEF_NO_COLOR}"
-    echo "  macOS: brew install screen"
-    echo "  Linux: Use your package manager (apt install screen, yum install screen, etc.)"
+  # Parse options
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -d|--detached)
+        detached=true
+        shift
+        ;;
+      -\?)
+        echo -e "${USAGE}"
+        return
+        ;;
+      -*)
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+      *)
+        if [[ -z "$session_name" ]]; then
+          session_name="$1"
+        else
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Too many arguments"
+          echo -e "${USAGE}"
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  if [[ -z "$session_name" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Session name is required"
+    echo -e "${USAGE}"
     return 1
   fi
 
-  echo -e "${CHIEF_COLOR_BLUE}Creating shared terminal session:${CHIEF_NO_COLOR} $1"
-  screen -d -m -S "$1"
-  screen -x "$1"
+  if ! command -v tmux >/dev/null 2>&1; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} tmux is required but not found."
+    echo -e "${CHIEF_COLOR_YELLOW}Install:${CHIEF_NO_COLOR}"
+    echo "  macOS: brew install tmux"
+    echo "  Ubuntu/Debian: sudo apt install tmux"
+    echo "  CentOS/RHEL: sudo yum install tmux"
+    echo "  Arch: sudo pacman -S tmux"
+    return 1
+  fi
+
+  # Check if session already exists
+  if tmux has-session -t "$session_name" 2>/dev/null; then
+    echo -e "${CHIEF_COLOR_YELLOW}Session '$session_name' already exists${CHIEF_NO_COLOR}"
+    echo -n "Connect to existing session? [Y/n]: "
+    read -r confirm
+    if [[ ! "$confirm" =~ ^[Nn]$ ]]; then
+      echo -e "${CHIEF_COLOR_BLUE}Connecting to existing session:${CHIEF_NO_COLOR} $session_name"
+      tmux attach-session -t "$session_name"
+      return 0
+    else
+      echo -e "${CHIEF_COLOR_YELLOW}Operation cancelled${CHIEF_NO_COLOR}"
+      return 0
+    fi
+  fi
+
+  echo -e "${CHIEF_COLOR_BLUE}Creating shared terminal session:${CHIEF_NO_COLOR} $session_name"
+  
+  if [[ "$detached" == true ]]; then
+    tmux new-session -d -s "$session_name"
+    echo -e "${CHIEF_COLOR_GREEN}Session created in detached mode${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_BLUE}Connect with:${CHIEF_NO_COLOR} chief.etc_shared-term_connect $session_name"
+  else
+    tmux new-session -s "$session_name"
+  fi
 }
 
 function chief.etc_shared-term_connect() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <session_name>
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <session_name> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
-Connect to an existing shared terminal session created with GNU Screen.
+Connect to an existing shared terminal session created with tmux.
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
-  session_name  Name of the existing screen session
+  session_name  Name of the existing tmux session
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -l, --list       List all available sessions
+  -r, --read-only  Connect in read-only mode
+  -?               Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
-- Connects to already running screen session
+- Connects to already running tmux session
 - Multiple users can share the same session
 - Real-time collaboration capabilities
 - Session persists even if connection drops
+- Modern terminal multiplexer features
+- Optional read-only mode for observers
 
 ${CHIEF_COLOR_MAGENTA}Requirements:${CHIEF_NO_COLOR}
-- GNU Screen installed (screen command)
+- tmux installed (modern terminal multiplexer)
 - Session must already exist (created with chief.etc_shared-term_create)
 - Appropriate permissions to access session
 
+${CHIEF_COLOR_BLUE}tmux Session Management:${CHIEF_NO_COLOR}
+- Ctrl-b d        Detach from session (keeps session running)
+- Ctrl-b s        Choose session interactively
+- Ctrl-b $        Rename session
+- tmux ls         List all sessions from command line
+
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME dev-session     # Connect to development session
-  $FUNCNAME meeting-room    # Join meeting session
+  $FUNCNAME dev-session      # Connect to development session
+  $FUNCNAME meeting-room     # Join meeting session
+  $FUNCNAME -l               # List all available sessions
+  $FUNCNAME -r prod-deploy   # Connect read-only to production deployment
 
 ${CHIEF_COLOR_BLUE}Related Commands:${CHIEF_NO_COLOR}
   chief.etc_shared-term_create <session_name>  # Create new shared session
-  screen -list                                 # List available sessions
+  tmux list-sessions                           # List all sessions
+  tmux kill-session -t <name>                  # Kill a session
 "
 
-  if [[ -z $1 ]] || [[ $1 == "-?" ]]; then
-    echo -e "${USAGE}"
-    return
-  fi
+  local session_name=""
+  local list_sessions=false
+  local read_only=false
 
-  if ! command -v screen >/dev/null 2>&1; then
-    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} GNU Screen is required but not found."
+  # Parse options
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -l|--list)
+        list_sessions=true
+        shift
+        ;;
+      -r|--read-only)
+        read_only=true
+        shift
+        ;;
+      -\?)
+        echo -e "${USAGE}"
+        return
+        ;;
+      -*)
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+      *)
+        if [[ -z "$session_name" ]]; then
+          session_name="$1"
+        else
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Too many arguments"
+          echo -e "${USAGE}"
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  if ! command -v tmux >/dev/null 2>&1; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} tmux is required but not found."
     echo -e "${CHIEF_COLOR_YELLOW}Install:${CHIEF_NO_COLOR}"
-    echo "  macOS: brew install screen"
-    echo "  Linux: Use your package manager (apt install screen, yum install screen, etc.)"
+    echo "  macOS: brew install tmux"
+    echo "  Ubuntu/Debian: sudo apt install tmux"
+    echo "  CentOS/RHEL: sudo yum install tmux"
+    echo "  Arch: sudo pacman -S tmux"
     return 1
   fi
 
-  echo -e "${CHIEF_COLOR_BLUE}Connecting to shared terminal session:${CHIEF_NO_COLOR} $1"
-  screen -x "$1"
+  # List sessions if requested
+  if [[ "$list_sessions" == true ]]; then
+    echo -e "${CHIEF_COLOR_BLUE}Available tmux sessions:${CHIEF_NO_COLOR}"
+    if tmux list-sessions 2>/dev/null; then
+      echo ""
+      echo -e "${CHIEF_COLOR_YELLOW}Use:${CHIEF_NO_COLOR} $FUNCNAME <session_name> to connect"
+    else
+      echo -e "${CHIEF_COLOR_YELLOW}No active sessions found${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_BLUE}Create one with:${CHIEF_NO_COLOR} chief.etc_shared-term_create <session_name>"
+    fi
+    return 0
+  fi
+
+  if [[ -z "$session_name" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Session name is required"
+    echo -e "${USAGE}"
+    return 1
+  fi
+
+  # Check if session exists
+  if ! tmux has-session -t "$session_name" 2>/dev/null; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Session '$session_name' not found"
+    echo -e "${CHIEF_COLOR_BLUE}Available sessions:${CHIEF_NO_COLOR}"
+    tmux list-sessions 2>/dev/null || echo -e "${CHIEF_COLOR_YELLOW}No active sessions${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_BLUE}Create session with:${CHIEF_NO_COLOR} chief.etc_shared-term_create $session_name"
+    return 1
+  fi
+
+  echo -e "${CHIEF_COLOR_BLUE}Connecting to shared terminal session:${CHIEF_NO_COLOR} $session_name"
+  
+  if [[ "$read_only" == true ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Read-only mode: You can view but not interact${CHIEF_NO_COLOR}"
+    tmux attach-session -t "$session_name" -r
+  else
+    tmux attach-session -t "$session_name"
+  fi
 }
 
 function chief.etc_mount_share() {
@@ -1395,6 +1552,281 @@ ${CHIEF_COLOR_BLUE}Usage in Scripts:${CHIEF_NO_COLOR}
   fi
   
   return $stat
+}
+
+function chief.etc_folder_sync() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} chief.etc_folder_sync <source_directory> <destination_directory> [options]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Synchronize two directories using rsync, keeping both folders in sync.
+Useful for backing up local directories to NFS mounts or other locations.
+
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  source_directory       Source directory to sync from
+  destination_directory  Destination directory to sync to
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -d, --delete          Delete files from destination that don't exist in source
+  -v, --verbose         Show detailed output of files being synchronized
+  -q, --quiet           Suppress progress output (minimal output only)
+  -n, --dry-run         Show what would be synchronized without making changes
+  -a, --archive         Use archive mode (preserves permissions, ownership, timestamps)
+  -x, --exclude <pattern>  Exclude files/directories matching pattern
+  -c, --checksum        Use checksum-based comparison instead of timestamp/size
+  -?                    Show this help
+
+${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
+- Uses rsync for efficient file synchronization
+- Preserves file attributes when using archive mode
+- Optional deletion of files removed from source
+- Pattern-based exclusion support
+- Safe dry-run mode for testing
+- Cross-platform compatibility
+
+${CHIEF_COLOR_MAGENTA}Sync Modes:${CHIEF_NO_COLOR}
+- Standard: Copy new/modified files (default)
+- Archive: Preserve permissions, ownership, timestamps (-a)
+- Delete: Remove files from destination not in source (-d)
+- Checksum: Compare file contents instead of timestamps (-c)
+
+${CHIEF_COLOR_BLUE}Safety Features:${CHIEF_NO_COLOR}
+- Validates source and destination directories exist
+- Dry-run mode to preview operations
+- Confirmation prompt for delete operations
+- Detailed progress reporting in verbose mode
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  chief.etc_folder_sync ~/Documents /mnt/backup/Documents
+  chief.etc_folder_sync -a -v ~/work /backup/work            # Archive mode with verbose
+  chief.etc_folder_sync -d ~/local /remote/local            # Sync with deletion
+  chief.etc_folder_sync -n -d ~/test /backup/test           # Dry-run with delete preview
+  chief.etc_folder_sync -x '*.log' ~/app /backup/app        # Exclude log files
+  chief.etc_folder_sync -c ~/data /nfs/data                 # Use checksum comparison
+  chief.etc_folder_sync -q ~/docs /backup/docs              # Quiet mode (no progress)
+
+${CHIEF_COLOR_RED}Important:${CHIEF_NO_COLOR}
+The --delete option will permanently remove files from the destination that don't
+exist in the source. Always test with --dry-run first when using --delete.
+"
+
+  local source_dir=""
+  local dest_dir=""
+  local delete_mode=false
+  local verbose=false
+  local quiet=false
+  local dry_run=false
+  local archive_mode=false
+  local use_checksum=false
+  local exclude_patterns=()
+  local rsync_opts=()
+
+  # Parse options and arguments
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -d|--delete)
+        delete_mode=true
+        shift
+        ;;
+      -v|--verbose)
+        verbose=true
+        shift
+        ;;
+      -q|--quiet)
+        quiet=true
+        shift
+        ;;
+      -n|--dry-run)
+        dry_run=true
+        shift
+        ;;
+      -a|--archive)
+        archive_mode=true
+        shift
+        ;;
+      -c|--checksum)
+        use_checksum=true
+        shift
+        ;;
+      -x|--exclude)
+        if [[ -z "$2" ]]; then
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} --exclude requires a pattern"
+          echo -e "${USAGE}"
+          return 1
+        fi
+        exclude_patterns+=("$2")
+        shift 2
+        ;;
+      -\?)
+        echo -e "${USAGE}"
+        return
+        ;;
+      -*)
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $1"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+      *)
+        if [[ -z "$source_dir" ]]; then
+          source_dir="$1"
+        elif [[ -z "$dest_dir" ]]; then
+          dest_dir="$1"
+        else
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Too many arguments"
+          echo -e "${USAGE}"
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Validate required arguments
+  if [[ -z "$source_dir" || -z "$dest_dir" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Both source and destination directories are required"
+    echo -e "${USAGE}"
+    return 1
+  fi
+
+  # Validate source directory
+  if [[ ! -d "$source_dir" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Source directory not found: $source_dir"
+    return 1
+  fi
+
+  if [[ ! -r "$source_dir" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Cannot read source directory: $source_dir"
+    return 1
+  fi
+
+  # Check if rsync is available
+  if ! command -v rsync >/dev/null 2>&1; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} rsync command not found."
+    echo -e "${CHIEF_COLOR_YELLOW}Install:${CHIEF_NO_COLOR}"
+    echo "  macOS: brew install rsync (or use built-in version)"
+    echo "  Ubuntu/Debian: sudo apt install rsync"
+    echo "  CentOS/RHEL: sudo yum install rsync"
+    return 1
+  fi
+
+  # Create destination directory if it doesn't exist
+  if [[ ! -d "$dest_dir" ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Destination directory doesn't exist: $dest_dir${CHIEF_NO_COLOR}"
+    if [[ "$dry_run" == true ]]; then
+      echo -e "${CHIEF_COLOR_BLUE}DRY RUN: Would create destination directory${CHIEF_NO_COLOR}"
+    else
+      echo -n "Create it? [y/N]: "
+      read -r confirm
+      if [[ "$confirm" =~ ^[Yy]$ ]]; then
+        if ! mkdir -p "$dest_dir"; then
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Cannot create destination directory: $dest_dir"
+          return 1
+        fi
+        echo -e "${CHIEF_COLOR_GREEN}Created directory: $dest_dir${CHIEF_NO_COLOR}"
+      else
+        echo -e "${CHIEF_COLOR_YELLOW}Operation cancelled${CHIEF_NO_COLOR}"
+        return 0
+      fi
+    fi
+  fi
+
+  # Validate destination directory (if not dry run and directory exists)
+  if [[ -d "$dest_dir" && "$dry_run" != true ]]; then
+    if [[ ! -w "$dest_dir" ]]; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Cannot write to destination directory: $dest_dir"
+      return 1
+    fi
+  fi
+
+  # Build rsync options
+  rsync_opts+=("-r")  # Recursive
+
+  if [[ "$archive_mode" == true ]]; then
+    rsync_opts+=("-a")  # Archive mode
+  else
+    rsync_opts+=("-t")  # Preserve modification times
+  fi
+
+  if [[ "$verbose" == true ]]; then
+    rsync_opts+=("-v")  # Verbose
+  fi
+
+  # Show progress by default unless quiet mode is enabled
+  if [[ "$quiet" != true ]]; then
+    rsync_opts+=("--progress")  # Show progress
+  fi
+
+  if [[ "$dry_run" == true ]]; then
+    rsync_opts+=("-n")  # Dry run
+  fi
+
+  if [[ "$delete_mode" == true ]]; then
+    rsync_opts+=("--delete")  # Delete extraneous files
+  fi
+
+  if [[ "$use_checksum" == true ]]; then
+    rsync_opts+=("-c")  # Use checksum
+  fi
+
+  # Add exclude patterns
+  for pattern in "${exclude_patterns[@]}"; do
+    rsync_opts+=("--exclude=$pattern")
+  done
+
+  # Display configuration
+  echo -e "${CHIEF_COLOR_BLUE}Folder Synchronization Configuration:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_CYAN}Source:${CHIEF_NO_COLOR} $source_dir"
+  echo -e "  ${CHIEF_COLOR_CYAN}Destination:${CHIEF_NO_COLOR} $dest_dir"
+  echo -e "  ${CHIEF_COLOR_CYAN}Archive mode:${CHIEF_NO_COLOR} $archive_mode"
+  echo -e "  ${CHIEF_COLOR_CYAN}Delete mode:${CHIEF_NO_COLOR} $delete_mode"
+  echo -e "  ${CHIEF_COLOR_CYAN}Checksum mode:${CHIEF_NO_COLOR} $use_checksum"
+  echo -e "  ${CHIEF_COLOR_CYAN}Verbose mode:${CHIEF_NO_COLOR} $verbose"
+  echo -e "  ${CHIEF_COLOR_CYAN}Quiet mode:${CHIEF_NO_COLOR} $quiet"
+  echo -e "  ${CHIEF_COLOR_CYAN}Dry run:${CHIEF_NO_COLOR} $dry_run"
+  
+  if [[ ${#exclude_patterns[@]} -gt 0 ]]; then
+    echo -e "  ${CHIEF_COLOR_CYAN}Exclude patterns:${CHIEF_NO_COLOR} ${exclude_patterns[*]}"
+  fi
+  echo ""
+
+  # Safety confirmation for delete mode
+  if [[ "$delete_mode" == true && "$dry_run" != true ]]; then
+    echo -e "${CHIEF_COLOR_RED}${CHIEF_SYMBOL_WARNING}  WARNING: Delete mode enabled ${CHIEF_SYMBOL_WARNING}${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_RED}Files in destination that don't exist in source will be DELETED!${CHIEF_NO_COLOR}"
+    echo ""
+    
+    if [[ $(chief.etc_ask_yes_or_no "Continue with synchronization including deletions?") != "yes" ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}Operation cancelled by user${CHIEF_NO_COLOR}"
+      return 0
+    fi
+    echo ""
+  fi
+
+  # Execute rsync
+  echo -e "${CHIEF_COLOR_BLUE}Starting synchronization...${CHIEF_NO_COLOR}"
+  
+  # Add trailing slash to source to sync contents, not the directory itself
+  local source_path="$source_dir/"
+  
+  # Execute rsync command
+  if rsync "${rsync_opts[@]}" "$source_path" "$dest_dir"; then
+    if [[ "$dry_run" == true ]]; then
+      echo ""
+      echo -e "${CHIEF_COLOR_GREEN}DRY RUN COMPLETE${CHIEF_NO_COLOR} - No changes were made"
+      echo -e "${CHIEF_COLOR_YELLOW}Remove -n/--dry-run flag to perform actual synchronization${CHIEF_NO_COLOR}"
+    else
+      echo ""
+      echo -e "${CHIEF_SYMBOL_SUCCESS} Folder synchronization completed successfully!"
+      echo -e "${CHIEF_COLOR_BLUE}Source:${CHIEF_NO_COLOR} $source_dir"
+      echo -e "${CHIEF_COLOR_BLUE}Destination:${CHIEF_NO_COLOR} $dest_dir"
+      
+      if [[ "$delete_mode" == true ]]; then
+        echo -e "${CHIEF_COLOR_YELLOW}Note: Files deleted from source have been removed from destination${CHIEF_NO_COLOR}"
+      fi
+    fi
+  else
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Synchronization failed"
+    return 1
+  fi
 }
 
 function chief.etc_ask_yes_or_no() {

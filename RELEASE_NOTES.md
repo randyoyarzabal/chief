@@ -2,6 +2,24 @@
 
 ## 🚀 What's New
 
+### 📂 Advanced Folder Synchronization
+
+- **`chief.etc_folder_sync`** - Professional-grade directory synchronization using rsync
+- **Progress by default** - See real-time sync progress without verbose mode
+- **Flexible options** - Archive mode, deletion sync, checksum comparison, pattern exclusion
+- **Safety features** - Dry-run mode, confirmation prompts for destructive operations
+- **Perfect for backups** - Sync local directories to NFS mounts or remote locations
+- **Cross-platform** - Works on macOS, Linux, and other Unix systems
+
+### 🖥️ Modern Terminal Multiplexer Support
+
+- **tmux-based shared terminals** - Replaced archaic GNU Screen with modern tmux
+- **Enhanced collaboration** - Better multi-user support with read-only observer mode
+- **Rich feature set** - Window/pane management, customizable status bars, better key bindings
+- **Session listing** - Easy discovery of available shared sessions
+- **Detached session creation** - Create background sessions without immediate attachment
+- **Comprehensive help** - Built-in tmux key binding reference and session management tips
+
 ### 🛡️ Enhanced Safety: Dry-Run for Critical Operations
 
 - **`chief.etc_create_bootusb -n`** - Preview USB creation operations safely

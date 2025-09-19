@@ -2805,7 +2805,7 @@ function __chief_show_compact_reference() {
     fi
     
     if compgen -A function | grep -q "^chief\.etc"; then
-      plugin_categories+=("etc (etc.ask_yes_or_no, etc.spinner, etc.prompt)")
+      plugin_categories+=("etc (etc.folder_sync, etc.ask_yes_or_no, etc.spinner, etc.prompt)")
     fi
     
     if [[ ${#plugin_categories[@]} -gt 0 ]]; then
