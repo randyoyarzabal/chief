@@ -7,9 +7,14 @@
 
 /* Copy button for code blocks - styled for Dinky theme */
 .copy-button {
-    position: absolute;
+    /* Use sticky positioning to prevent movement with horizontal scroll */
+    position: -webkit-sticky;
+    position: sticky;
     top: 8px;
     right: 8px;
+    float: right;
+    margin: 8px 8px 0 0;
+    clear: both;
     width: 32px;
     height: 32px;
     background: rgba(255, 255, 255, 0.8) no-repeat center center;
@@ -53,4 +58,17 @@
 /* Ensure code blocks can contain the copy button */
 pre {
     position: relative;
+    overflow-x: auto;
+    
+    /* Create a container for the copy button that doesn't scroll */
+    &::after {
+        content: '';
+        position: absolute;
+        top: 0;
+        right: 0;
+        width: 48px;
+        height: 48px;
+        pointer-events: none;
+        z-index: 5;
+    }
 }
