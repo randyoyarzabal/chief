@@ -102,6 +102,25 @@ chief.oc_clean_olm -n
 
 Chief comes with **8 powerful plugins** providing **56+ functions** for your daily workflow:
 
+### ☸️ **OpenShift/Kubernetes Plugin** (7 functions)  
+- `chief.oc_get_all_objects` - Comprehensive resource discovery with filtering
+- `chief.oc_clean_olm` - OLM cleanup with selective targeting
+- `chief.oc_show_stuck_resources` - Troubleshoot stuck resources with auto-fix
+- `chief.oc_delete_stuck_ns` - Force delete terminating namespaces
+- `chief.oc_approve_csrs` - Batch CSR approval with interactive mode
+- `chief.oc_login` - Enhanced login with context management
+
+### 🔒 **SSL/TLS Plugin** (4 functions)
+- `chief.ssl_create_ca` - Create certificate authorities with minimal setup
+- `chief.ssl_create_tls_cert` - Generate TLS certificates signed by your CA
+- `chief.ssl_view_cert` - Analyze certificates with multiple display options
+- `chief.ssl_get_cert` - Download certificates from remote servers
+
+### 🔑 **SSH Plugin** (3 functions)
+- `chief.ssh_create_keypair` - Generate SSH key pairs with best practices
+- `chief.ssh_get_publickey` - Extract and display public keys
+- `chief.ssh_rm_host` - Clean known_hosts entries safely
+
 ### ☁️ **AWS Plugin** (2 functions)
 - `chief.aws_set_role` - Switch between AWS IAM roles
 - `chief.aws_export_creds` - Export AWS credentials to environment
@@ -123,30 +142,11 @@ Chief comes with **8 powerful plugins** providing **56+ functions** for your dai
 - `chief.git_config_user` - Quick user configuration setup
 - Complete workflow support: tagging, amending, credential caching, URL management
 
-### ☸️ **OpenShift/Kubernetes Plugin** (7 functions)  
-- `chief.oc_get_all_objects` - Comprehensive resource discovery with filtering
-- `chief.oc_clean_olm` - OLM cleanup with selective targeting
-- `chief.oc_show_stuck_resources` - Troubleshoot stuck resources with auto-fix
-- `chief.oc_delete_stuck_ns` - Force delete terminating namespaces
-- `chief.oc_approve_csrs` - Batch CSR approval with interactive mode
-- `chief.oc_login` - Enhanced login with context management
-
 ### 🐍 **Python Plugin** (4 functions)
 - `chief.python_create_ve` - Virtual environment creation and setup
 - `chief.python_start_ve` - Activate virtual environments
 - `chief.python_stop_ve` - Deactivate environments
 - `chief.python_ve_dep` - Install dependencies from requirements.txt
-
-### 🔑 **SSH Plugin** (3 functions)
-- `chief.ssh_create_keypair` - Generate SSH key pairs with best practices
-- `chief.ssh_get_publickey` - Extract and display public keys
-- `chief.ssh_rm_host` - Clean known_hosts entries safely
-
-### 🔒 **SSL/TLS Plugin** (4 functions)
-- `chief.ssl_create_ca` - Create certificate authorities with minimal setup
-- `chief.ssl_create_tls_cert` - Generate TLS certificates signed by your CA
-- `chief.ssl_view_cert` - Analyze certificates with multiple display options
-- `chief.ssl_get_cert` - Download certificates from remote servers
 
 ### 🔐 **Vault Plugin** (2 functions)
 - `chief.vault_file_edit` - Edit encrypted files securely
