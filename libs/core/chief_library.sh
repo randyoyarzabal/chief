@@ -3614,9 +3614,75 @@ EOF
       fi
     fi
     
+    # Handle README.md content changes for dev vs release versions
+    if $success && [[ "$(basename "$file")" == "README.md" ]]; then
+      if [[ "$1" == "release" ]]; then
+        # RELEASE: Remove dev-specific content from README
+        # 1. Remove "(Development Version)" from title
+        if ! sed -i.tmp5 "s/# 🚀 Chief (Development Version)/# 🚀 Chief/g" "$file" 2>/dev/null; then
+          success=false
+        fi
+        
+        # 2. Remove warning box (multi-line pattern)
+        if $success; then
+          # Use perl for multi-line replacement to remove the warning block
+          if ! perl -i -pe 'BEGIN{undef $/;} s/\n> ⚠️ \*\*Warning\*\*: This is the development branch.*?\[main branch\]\(.*?\)\.\n//smg' "$file" 2>/dev/null; then
+            success=false
+          fi
+        fi
+        
+        # 3. Simplify installation section
+        if $success; then
+          # Replace development install section with simple install
+          if ! sed -i.tmp6 's/## ⚡ Quick Install (Development Version)/## ⚡ Quick Install/g' "$file" 2>/dev/null; then
+            success=false
+          fi
+          
+          # Remove the dev install block and stable alternative, keep only main install
+          if $success; then
+            # Use perl to replace the complex install section
+            perl -i -pe 'BEGIN{undef $/;} s/```bash\n# Install development version \(may be unstable\)\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/dev\/tools\/install\.sh\)"\n```\n\n\*\*For stable release\*\*, use:\n```bash\n# Install stable version from main branch\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install\.sh\)"\n```/```bash\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install\.sh\)"\n```/smg' "$file" 2>/dev/null || success=false
+          fi
+        fi
+        
+      elif [[ "$1" == "next-dev" ]]; then
+        # NEXT-DEV: Add dev-specific content to README
+        # 1. Add "(Development Version)" to title
+        if ! sed -i.tmp5 "s/# 🚀 Chief$/# 🚀 Chief (Development Version)/g" "$file" 2>/dev/null; then
+          success=false
+        fi
+        
+        # 2. Add warning box after title
+        if $success; then
+          # Insert warning after the title and description
+          if ! sed -i.tmp6 '/^\*\*Bash Plugin Manager & Terminal Enhancement Tool\*\*$/a\\n> ⚠️ **Warning**: This is the development branch. Features may be unstable. For stable releases, use the [main branch](https://github.com/randyoyarzabal/chief/tree/main).' "$file" 2>/dev/null; then
+            success=false
+          fi
+        fi
+        
+        # 3. Expand installation section
+        if $success; then
+          # Update install section title
+          if ! sed -i.tmp7 's/## ⚡ Quick Install$/## ⚡ Quick Install (Development Version)/g' "$file" 2>/dev/null; then
+            success=false
+          fi
+          
+          # Replace simple install with dev install section
+          if $success; then
+            # This is complex, so use perl for multi-line replacement
+            perl -i -pe 'BEGIN{undef $/;} s/```bash\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install\.sh\)"\n```/```bash\n# Install development version (may be unstable)\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/dev\/tools\/install\.sh\)"\n```\n\n**For stable release**, use:\n```bash\n# Install stable version from main branch\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install\.sh\)"\n```/smg' "$file" 2>/dev/null || success=false
+          fi
+        fi
+      fi
+    fi
+    
     if $success; then
-      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp_dev" 2>/dev/null
-      __chief_print_success "$(basename "$file"): Updated $current_version → $new_version (including badges)"
+      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp5" "${file}.tmp6" "${file}.tmp7" "${file}.tmp_dev" 2>/dev/null
+      if [[ "$(basename "$file")" == "README.md" ]]; then
+        __chief_print_success "$(basename "$file"): Updated $current_version → $new_version (including badges and content structure)"
+      else
+        __chief_print_success "$(basename "$file"): Updated $current_version → $new_version (including badges)"
+      fi
       ((updated_count++))
     else
       # Restore backup on failure if it exists
@@ -3626,7 +3692,7 @@ EOF
           mv "$backup_file" "$file" 2>/dev/null
         fi
       fi
-      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp_dev" 2>/dev/null
+      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp5" "${file}.tmp6" "${file}.tmp7" "${file}.tmp_dev" 2>/dev/null
       __chief_print_error "$(basename "$file"): Failed to update"
       return 1
     fi
@@ -3661,10 +3727,12 @@ EOF
     if [[ "$new_version" =~ -dev$ ]]; then
       __chief_print_info "📋 Next steps for development version ($new_version):"
       __chief_print_info "  1. ✅ Ready for development work on $new_version"
+      __chief_print_info "  📄 README.md converted to dev format (added warnings/dev structure)"
       __chief_print_info "  2. When ready to release, run: __chief.bump release"
     else
       __chief_print_info "🚀 Release version ready ($new_version):"
       __chief_print_info "  📝 Badges now show release version (no -dev suffix)"
+      __chief_print_info "  📄 README.md converted to release format (removed dev warnings/structure)"
       __chief_print_info "  📋 Next steps to publish release:"
       __chief_print_info "  1. 🔄 Create PR: dev → main (for release)"
       __chief_print_info "  2. 📦 Create GitHub release from tag for publishing"
