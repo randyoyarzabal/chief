@@ -2084,7 +2084,13 @@ function __chief_timer() {
       SECONDS=0
       return
     fi
-    if [[ $1 = "end" ]]; then echo "Task took: "$(date +%T -d "1/1 + $SECONDS sec"); fi
+    if [[ $1 = "end" ]]; then 
+      # Portable way to format seconds as HH:MM:SS (date -d is GNU extension)
+      local hours=$((SECONDS / 3600))
+      local minutes=$(((SECONDS % 3600) / 60))
+      local secs=$((SECONDS % 60))
+      printf "Task took: %02d:%02d:%02d\n" "$hours" "$minutes" "$secs"
+    fi
   fi
 }
 

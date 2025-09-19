@@ -1823,7 +1823,18 @@ ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
   if grep -q "^[#]*${config_var}=" "${CHIEF_CONFIG}"; then
     # Configuration exists, update it (remove comment if present)
     local temp_file="/tmp/chief_config_temp_$$"
-    local target_file=$(readlink -f "${CHIEF_CONFIG}" 2>/dev/null || echo "${CHIEF_CONFIG}")
+    # Portable way to resolve symlinks (readlink -f doesn't exist on macOS)
+    local target_file="${CHIEF_CONFIG}"
+    if [[ -L "${CHIEF_CONFIG}" ]]; then
+      # Handle symbolic links portably
+      if command -v readlink >/dev/null 2>&1; then
+        target_file=$(readlink "${CHIEF_CONFIG}" 2>/dev/null || echo "${CHIEF_CONFIG}")
+        # If result is relative, make it absolute
+        if [[ "${target_file}" != /* ]]; then
+          target_file="$(dirname "${CHIEF_CONFIG}")/${target_file}"
+        fi
+      fi
+    fi
     
     # Temporarily disable noclobber and clean up any existing temp file
     local old_noclobber=$(set +o | grep noclobber)
@@ -3231,8 +3242,10 @@ Note: This function only handles version updates. Create GitHub releases manuall
     if [[ -f "$release_notes_file" ]] && ! $dry_run; then
       __chief_print_info "$(basename "$release_notes_file"): Creating new dev release notes"
       
-      # Create backup
-      cp "$release_notes_file" "${release_notes_file}.backup.$(date +%s)"
+      # Create backup if requested
+      if $create_backups; then
+        cp "$release_notes_file" "${release_notes_file}.backup.$(date +%s)"
+      fi
       
       # Create new release notes structure
       local temp_file=$(mktemp)
@@ -3314,8 +3327,19 @@ Note: This function only handles version updates. Create GitHub releases manuall
       success=false
     fi
     
+    # For release bumps (not next-dev), remove "(Unreleased)" markers
+    if $success && [[ "$1" == "release" ]]; then
+      # Handle different unreleased patterns
+      if ! sed -i.tmp3 "s/## Unreleased (${new_version})/## ${new_version}/g" "$file" 2>/dev/null; then
+        success=false
+      fi
+      if $success && ! sed -i.tmp4 "s/# Chief ${new_version} Release Notes (Unreleased)/# Chief ${new_version} Release Notes/g" "$file" 2>/dev/null; then
+        success=false
+      fi
+    fi
+    
     if $success; then
-      rm -f "${file}.tmp1" "${file}.tmp2" 2>/dev/null
+      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" 2>/dev/null
       __chief_print_success "$(basename "$file"): Updated $current_version → $new_version (including badges)"
       ((updated_count++))
     else
@@ -3326,7 +3350,7 @@ Note: This function only handles version updates. Create GitHub releases manuall
           mv "$backup_file" "$file" 2>/dev/null
         fi
       fi
-      rm -f "${file}.tmp1" "${file}.tmp2" 2>/dev/null
+      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" 2>/dev/null
       __chief_print_error "$(basename "$file"): Failed to update"
       return 1
     fi

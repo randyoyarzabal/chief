@@ -569,7 +569,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     echo ""
     
     # Extract and process each certificate individually
-    local temp_dir=$(mktemp -d)
+    local temp_dir=$(mktemp -d /tmp/ssl_view.XXXXXX)
     local cert_num=1
     
     # Extract each certificate block individually
@@ -822,7 +822,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
         sed -ne '/-BEGIN CERTIFICATE-/,/-END CERTIFICATE-/p' > "$output_file"
     else
       # Extract certificates and process them properly for chain display
-      local temp_certs=$(mktemp)
+      local temp_certs=$(mktemp /tmp/ssl_certs.XXXXXX)
       # Remove any existing temp file first and use >| to override noclobber
       rm -f "$temp_certs"
       $timeout_cmd openssl s_client -showcerts -servername "$hostname" -connect "$hostname:$port" </dev/null 2>/dev/null | \
