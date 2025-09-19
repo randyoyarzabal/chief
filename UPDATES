@@ -1,6 +1,6 @@
 # Chief Updates
 
-## v3.1.0
+## v3.1.1-dev
 
 - **FIX**: `__chief.bump next-dev` now accepts `-dev` version suffixes in validation
 - **NEW**: `__chief.bump next-dev` supports optional target version parameter (e.g., `__chief.bump next-dev v3.1.1`)
@@ -12,7 +12,7 @@
 - **OPTIMIZATION**: `next-dev` workflow skips tests since it follows a successful release cycle
 - **ENHANCED**: Added comprehensive bug reporting instructions to main help and documentation
 - **FIX**: Restored v3.0 release notes that were lost during version-specific structure implementation
-- **CHANGE**: Preserved original v3.1.0 release notes as v3.1.0-original.md for reference
+- **CHANGE**: Preserved original v3.1.1-dev release notes as v3.1.1-dev-original.md for reference
 - **FIX**: Fixed broken badge in README - separated release badge (links to actual releases) from dev badge (links to dev branch)
 - **ENHANCED**: `__chief.bump` now properly handles both release and dev badges during version updates
 
