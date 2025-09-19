@@ -237,6 +237,182 @@ chief.vault_file-load         # Load secrets
 # SSH utilities (ssh_chief-plugin.sh)
 ssh.key_add                   # Add SSH keys to agent
 ssh.agent_status              # Check SSH agent status
+
+# SSL/TLS utilities (ssl_chief-plugin.sh)
+chief.ssl_create_ca           # Create Certificate Authority
+chief.ssl_create_tls_cert     # Create TLS certificates
+chief.ssl_view_cert           # View/analyze certificates
+chief.ssl_get_cert            # Download certificates from servers
+
+# System utilities (etc_chief-plugin.sh)
+chief.etc_chmod-f             # Recursive file permission changes
+chief.etc_chmod-d             # Recursive directory permission changes
+chief.etc_create_bootusb      # Create bootable USB drives
+chief.etc_copy_dotfiles       # Copy hidden files between directories
+chief.etc_create_cipher       # Generate random cipher keys
+chief.etc_mount_share         # Mount SMB/CIFS network shares
+chief.etc_spinner             # Progress spinner for long operations
+chief.etc_ask_yes_or_no       # Interactive yes/no prompts
+
+# OpenShift utilities (openshift_chief-plugin.sh)
+chief.oc_login                # Login to OpenShift with Vault integration
+chief.oc_approve_csrs         # Approve Certificate Signing Requests
+chief.oc_show_stuck_resources # Show and fix stuck resources
+chief.oc_delete_stuck_ns      # Force delete stuck namespaces
+```
+
+---
+
+## 🔧 Advanced Plugin Features
+
+### SSL/TLS Certificate Management
+
+Chief includes comprehensive SSL/TLS certificate management tools for creating, analyzing, and downloading certificates.
+
+#### Create Certificate Authority
+
+```bash
+# Create a basic CA with defaults
+chief.ssl_create_ca
+
+# Create a named CA with custom organization
+chief.ssl_create_ca mycompany -o "ACME Corp" -d 7300
+
+# Create CA with full customization
+chief.ssl_create_ca production \
+  -c US -s CA -l "San Francisco" \
+  -o "Production CA" -e admin@company.com \
+  -d 3650 -k 4096
+```
+
+#### Create TLS Certificates
+
+```bash
+# Create basic server certificate
+chief.ssl_create_tls_cert webserver
+
+# Create certificate with Subject Alternative Names
+chief.ssl_create_tls_cert api --san "api.example.com,api.test.com"
+
+# Create certificate with IP addresses
+chief.ssl_create_tls_cert server --ip "192.168.1.10,10.0.0.5"
+
+# Create wildcard certificate
+chief.ssl_create_tls_cert web --san "*.example.com" -d 730 -k 4096
+```
+
+#### Certificate Analysis and Download
+
+```bash
+# View certificate details
+chief.ssl_view_cert cert.pem
+chief.ssl_view_cert -s cert.pem          # Subject only
+chief.ssl_view_cert -d cert.pem          # Dates only
+
+# Download certificates from servers
+chief.ssl_get_cert google.com
+chief.ssl_get_cert mail.example.com 993  # IMAPS
+chief.ssl_get_cert -c example.com        # Full certificate chain
+```
+
+### System Administration Tools
+
+The ETC plugin provides essential system administration utilities for common tasks.
+
+#### File and Directory Management
+
+```bash
+# Recursively change file permissions
+chief.etc_chmod-f 644                    # All files to 644
+chief.etc_chmod-f 755 /path/to/scripts   # Executable scripts
+chief.etc_chmod-f -v 644                 # Verbose output
+chief.etc_chmod-f -n 644                 # Dry run preview
+
+# Recursively change directory permissions
+chief.etc_chmod-d 755                    # Standard directory permissions
+chief.etc_chmod-d 750 /secure/path       # Restricted access
+```
+
+#### Dotfiles Management
+
+```bash
+# Copy hidden files between directories
+chief.etc_copy_dotfiles ~/backup ~/
+chief.etc_copy_dotfiles -v /etc/skel ~/newuser  # Verbose
+chief.etc_copy_dotfiles -b -f ~/old ~/current   # Force with backup
+```
+
+#### Bootable Media Creation
+
+```bash
+# Create bootable USB drive (macOS/Linux)
+chief.etc_create_bootusb ubuntu.iso 2    # disk2 on macOS
+chief.etc_create_bootusb -k installer.iso 3  # Keep temp files
+```
+
+#### Network and Collaboration Tools
+
+```bash
+# Mount SMB/CIFS network shares
+chief.etc_mount_share //server/shared /mnt/shared john
+
+# Create shared terminal sessions
+chief.etc_shared-term_create dev-session
+chief.etc_shared-term_connect dev-session
+
+# Schedule commands to run later
+chief.etc_at_run "now + 10 minutes" "echo 'Reminder!'"
+chief.etc_at_run "2:30pm" "backup_script.sh"
+```
+
+### OpenShift Container Platform Management
+
+Advanced OpenShift cluster management with Vault integration for secure authentication.
+
+#### Cluster Authentication
+
+```bash
+# Login with Vault-stored credentials
+chief.oc_login hub                # User credentials from Vault
+chief.oc_login hub -kc            # Kubeconfig from Vault
+chief.oc_login hub -ka            # Kubeadmin password from Vault
+chief.oc_login hub -i             # Skip TLS verification
+```
+
+#### Certificate and Resource Management
+
+```bash
+# Approve pending Certificate Signing Requests
+chief.oc_approve_csrs             # Interactive approval
+chief.oc_approve_csrs -l          # List pending CSRs
+chief.oc_approve_csrs -a          # Approve all pending
+chief.oc_approve_csrs -f "node-"  # Filter by pattern
+
+# Diagnose stuck resources
+chief.oc_show_stuck_resources my-namespace
+chief.oc_show_stuck_resources production --dry-run
+chief.oc_show_stuck_resources dev-environment --fix
+
+# Force delete stuck namespaces
+chief.oc_delete_stuck_ns stuck-namespace --dry-run
+chief.oc_delete_stuck_ns broken-ns
+```
+
+#### Vault Integration Configuration
+
+For seamless OpenShift authentication, configure Vault secrets:
+
+```bash
+# Set up environment variables
+export VAULT_ADDR="https://vault.company.com"
+export VAULT_TOKEN="your-vault-token"
+export CHIEF_VAULT_OC_PATH="secrets/openshift"
+
+# Store cluster credentials in Vault
+vault kv put secrets/openshift/hub \
+  api="https://api.hub.cluster.com:6443" \
+  kubeconfig="$(cat ~/.kube/config)" \
+  kubeadmin="password123"
 ```
 
 ---

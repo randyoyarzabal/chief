@@ -21,19 +21,116 @@ Complete guide to creating custom plugins, best practices, and advanced plugin f
 
 ## 🔧 Built-in Plugins
 
-Chief comes with several useful plugins ready to use:
+Chief comes with several comprehensive plugins ready to use:
 
 | Plugin | Commands Available | Purpose |
 |--------|-------------------|---------|
+| **SSL** | `chief.ssl_*` | SSL/TLS certificate management and operations |
+| **ETC** | `chief.etc_*` | System administration and miscellaneous utilities |
+| **OpenShift** | `chief.oc_*` | Container platform operations (requires `oc` CLI) |
 | **Git** | `chief.git_*` | Enhanced git operations, branch management |
 | **SSH** | `chief.ssh_*` | SSH key management, connection helpers |
 | **AWS** | `chief.aws_*` | AWS credential management, S3 operations |
-| **OpenShift** | `chief.oc_*` | Container platform operations (requires `oc` CLI) |
 | **Vault** | `chief.vault_*` | Ansible-vault secret management |
 | **Python** | `chief.python_*` | Python environment and tool helpers |
-| **ETC** | `chief.etc_*` | Miscellaneous system utilities |
 
-### Example Built-in Commands
+### SSL/TLS Certificate Management Plugin
+
+The SSL plugin provides comprehensive certificate management capabilities:
+
+```bash
+# Certificate Authority Operations
+chief.ssl_create_ca                    # Create CA with defaults
+chief.ssl_create_ca mycompany          # Named CA
+chief.ssl_create_ca production \       # Full customization
+  -c US -s CA -l "San Francisco" \
+  -o "Production CA" -e admin@company.com
+
+# TLS Certificate Creation  
+chief.ssl_create_tls_cert webserver    # Basic server certificate
+chief.ssl_create_tls_cert api \        # Multi-domain certificate
+  --san "api.example.com,api.test.com"
+chief.ssl_create_tls_cert server \     # Certificate with IP SANs
+  --ip "192.168.1.10,10.0.0.5"
+
+# Certificate Analysis and Management
+chief.ssl_view_cert cert.pem           # View certificate details
+chief.ssl_view_cert -s cert.pem        # Subject information only
+chief.ssl_view_cert -r cert.pem        # Raw certificate text
+
+# Certificate Download from Servers  
+chief.ssl_get_cert google.com          # Download from HTTPS
+chief.ssl_get_cert mail.example.com 993 # Download from IMAPS
+chief.ssl_get_cert -c example.com      # Download full certificate chain
+```
+
+### System Administration Plugin (ETC)
+
+The ETC plugin provides essential system administration tools:
+
+```bash
+# File and Directory Permission Management
+chief.etc_chmod-f 644                  # Recursive file permissions
+chief.etc_chmod-f 755 /path/to/scripts # Executable scripts
+chief.etc_chmod-d 755                  # Directory permissions
+chief.etc_chmod-f -n 644               # Dry-run preview
+
+# Dotfiles and Configuration Management
+chief.etc_copy_dotfiles ~/backup ~/    # Copy hidden files
+chief.etc_copy_dotfiles -v /etc/skel ~/newuser # Verbose copy
+chief.etc_copy_dotfiles -b -f ~/old ~/current  # Force with backup
+
+# System Utilities
+chief.etc_create_bootusb ubuntu.iso 2  # Create bootable USB drive
+chief.etc_mount_share //server/shared /mnt/shared john # Mount SMB share
+chief.etc_create_cipher ~/.cipher_key  # Generate encryption key
+
+# Network and Collaboration Tools
+chief.etc_shared-term_create dev-session    # Create shared terminal
+chief.etc_shared-term_connect dev-session   # Connect to shared terminal
+chief.etc_at_run "now + 10 minutes" "backup.sh" # Schedule commands
+
+# Interactive Utilities
+chief.etc_ask_yes_or_no "Continue?"    # Yes/no prompts
+chief.etc_prompt "Enter username"      # Input prompts
+chief.etc_spinner "Processing..." "long_command" result_var # Progress spinner
+chief.type_writer "Hello World!" 0.1   # Typewriter effect
+
+# System Information and Validation
+chief.etc_isvalid_ip "192.168.1.1"     # IP address validation
+chief.etc_folder_diff ~/v1.0 ~/v2.0    # Directory comparison
+chief.etc_broadcast "System maintenance starting" # Broadcast message
+```
+
+### OpenShift Container Platform Plugin
+
+The OpenShift plugin provides advanced cluster management with Vault integration:
+
+```bash
+# Cluster Authentication (Vault Integration)
+chief.oc_login hub                     # User credentials from Vault
+chief.oc_login hub -kc                 # Kubeconfig from Vault  
+chief.oc_login hub -ka                 # Kubeadmin password from Vault
+chief.oc_login hub -i                  # Skip TLS verification
+
+# Certificate Signing Request Management
+chief.oc_approve_csrs                  # Interactive CSR approval
+chief.oc_approve_csrs -l               # List pending CSRs
+chief.oc_approve_csrs -a               # Approve all pending CSRs
+chief.oc_approve_csrs -f "node-"       # Filter CSRs by pattern
+chief.oc_approve_csrs -n               # Dry-run mode
+
+# Resource Troubleshooting
+chief.oc_show_stuck_resources my-namespace           # Show stuck resources
+chief.oc_show_stuck_resources production --dry-run   # Preview fixes
+chief.oc_show_stuck_resources dev-environment --fix  # Fix stuck resources
+
+# Namespace Management
+chief.oc_delete_stuck_ns stuck-namespace --dry-run   # Preview namespace deletion
+chief.oc_delete_stuck_ns broken-ns                   # Force delete stuck namespace
+```
+
+### Traditional Plugin Examples
 
 ```bash
 # Git operations
@@ -48,14 +145,10 @@ chief.ssh_test_connection  # Test SSH connections
 chief.aws_profile_switch   # Switch AWS profiles
 chief.aws_s3_sync         # S3 synchronization
 
-# Vault operations (improved UX in v3.0.2)
-chief.vault_file-edit         # Create/edit encrypted vault (no auto-load)
+# Vault operations
+chief.vault_file-edit         # Create/edit encrypted vault
 chief.vault_file-edit --load  # Create/edit and auto-load vault
 chief.vault_file-load         # Load vault into environment
-
-# System utilities
-chief.etc_spinner         # Show progress spinner
-chief.etc_confirm         # Interactive confirmation prompts
 ```
 
 ---
@@ -277,7 +370,7 @@ function myproject.long_task() {
 
 For team collaboration, organize plugins in a Git repository:
 
-```
+```text
 my-team-plugins/
 ├── README.md
 ├── devops_chief-plugin.sh      # DevOps tools
