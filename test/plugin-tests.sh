@@ -144,8 +144,8 @@ test_plugin_functions() {
     # Look for function definitions in the plugin
     local functions=()
     while IFS= read -r line; do
-        if [[ "$line" =~ ^[[:space:]]*function[[:space:]]+([a-zA-Z0-9_\.]+)\(\) ]] || 
-           [[ "$line" =~ ^[[:space:]]*([a-zA-Z0-9_\.]+)\(\)[[:space:]]*\{ ]]; then
+        if [[ "$line" =~ ^[[:space:]]*function[[:space:]]+([a-zA-Z0-9_\.-]+)\(\) ]] || 
+           [[ "$line" =~ ^[[:space:]]*([a-zA-Z0-9_\.-]+)\(\)[[:space:]]*\{ ]]; then
             local func_name="${BASH_REMATCH[1]}"
             functions+=("$func_name")
         fi
