@@ -90,18 +90,20 @@ print_summary() {
     echo -e "${CYAN}========================================${NC}"
     echo -e "${CYAN}           TEST SUMMARY${NC}"
     echo -e "${CYAN}========================================${NC}"
-    echo -e "${BLUE}Total Tests:${NC} $TOTAL_TESTS"
-    echo -e "${GREEN}Passed:${NC} $PASSED_TESTS"
+    echo -e "${BLUE}Test Suites Run:${NC} $TOTAL_TESTS"
+    echo -e "${GREEN}Suites Passed:${NC} $PASSED_TESTS"
     if [[ $FAILED_TESTS -gt 0 ]]; then
-        echo -e "${RED}Failed:${NC} $FAILED_TESTS"
+        echo -e "${RED}Suites Failed:${NC} $FAILED_TESTS"
     fi
+    echo ""
+    echo -e "${YELLOW}Note:${NC} Individual test counts are shown in each suite's detailed summary above"
     echo ""
     
     if [[ $FAILED_TESTS -eq 0 ]]; then
-        echo -e "${GREEN}🎉 ALL TESTS PASSED!${NC}"
+        echo -e "${GREEN}🎉 ALL TEST SUITES PASSED!${NC}"
         return 0
     else
-        echo -e "${RED}❌ $FAILED_TESTS TEST(S) FAILED${NC}"
+        echo -e "${RED}❌ $FAILED_TESTS TEST SUITE(S) FAILED${NC}"
         return 1
     fi
 }
@@ -131,7 +133,7 @@ main() {
         exit 1
     fi
     
-    log_success "All required tools found"
+    log_info "All required tools found"
     echo ""
     
     # Run test suites
@@ -146,10 +148,8 @@ main() {
         TOTAL_TESTS=$((TOTAL_TESTS + 1))
         if "$TEST_DIR/syntax-tests.sh"; then
             log_success "Syntax validation tests"
-            PASSED_TESTS=$((PASSED_TESTS + 1))
         else
             log_error "Syntax validation tests"
-            FAILED_TESTS=$((FAILED_TESTS + 1))
             suite_failures=$((suite_failures + 1))
         fi
         echo ""
@@ -161,10 +161,8 @@ main() {
         TOTAL_TESTS=$((TOTAL_TESTS + 1))
         if "$TEST_DIR/source-tests.sh"; then
             log_success "Source/loading tests"
-            PASSED_TESTS=$((PASSED_TESTS + 1))
         else
             log_error "Source/loading tests"
-            FAILED_TESTS=$((FAILED_TESTS + 1))
             suite_failures=$((suite_failures + 1))
         fi
         echo ""
@@ -176,10 +174,8 @@ main() {
         TOTAL_TESTS=$((TOTAL_TESTS + 1))
         if "$TEST_DIR/plugin-tests.sh"; then
             log_success "Plugin-specific tests"
-            PASSED_TESTS=$((PASSED_TESTS + 1))
         else
             log_error "Plugin-specific tests"
-            FAILED_TESTS=$((FAILED_TESTS + 1))
             suite_failures=$((suite_failures + 1))
         fi
         echo ""
@@ -191,10 +187,8 @@ main() {
         TOTAL_TESTS=$((TOTAL_TESTS + 1))
         if "$TEST_DIR/integration-tests.sh"; then
             log_success "Integration tests"
-            PASSED_TESTS=$((PASSED_TESTS + 1))
         else
             log_error "Integration tests"
-            FAILED_TESTS=$((FAILED_TESTS + 1))
             suite_failures=$((suite_failures + 1))
         fi
         echo ""
