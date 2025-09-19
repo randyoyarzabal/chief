@@ -102,6 +102,10 @@ chief.oc_clean_olm -n
 
 Chief comes with **8 powerful plugins** providing **56+ functions** for your daily workflow:
 
+### 🔐 **Vault Plugin** (2 functions)
+- `chief.vault_file_edit` - Edit encrypted files securely
+- `chief.vault_file_load` - Load encrypted environment variables
+
 ### ☸️ **OpenShift/Kubernetes Plugin** (7 functions)  
 - `chief.oc_get_all_objects` - Comprehensive resource discovery with filtering
 - `chief.oc_clean_olm` - OLM cleanup with selective targeting
@@ -147,10 +151,6 @@ Chief comes with **8 powerful plugins** providing **56+ functions** for your dai
 - `chief.python_start_ve` - Activate virtual environments
 - `chief.python_stop_ve` - Deactivate environments
 - `chief.python_ve_dep` - Install dependencies from requirements.txt
-
-### 🔐 **Vault Plugin** (2 functions)
-- `chief.vault_file_edit` - Edit encrypted files securely
-- `chief.vault_file_load` - Load encrypted environment variables
 
 ### 🔍 **Discovery & Help**
 - `chief.help` - Interactive help system with plugin browsing
