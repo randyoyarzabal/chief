@@ -3059,7 +3059,7 @@ function __chief.bump() {
   # Usage: __chief.bump <new_version> [--dry-run]
   # WARNING: This is a development-only function, not for end users
   
-  local usage="Usage: $FUNCNAME <new_version> [--dry-run]
+  local usage="Usage: $FUNCNAME <new_version> [--dry-run] [--backup]
 
 ${CHIEF_COLOR_RED}WARNING: DEVELOPMENT FUNCTION ONLY${CHIEF_NO_COLOR}
 This function is for Chief developers only and modifies core files.
@@ -3070,10 +3070,12 @@ Arguments:
 
 Options:
   --dry-run     Show what would be changed without making changes
+  --backup      Create backup files before modifying (default: no backups)
   
 Examples:
   $FUNCNAME v4.0 --dry-run           # Preview changes
-  $FUNCNAME v4.0.0                   # Bump version  
+  $FUNCNAME v4.0.0                   # Bump version (no backups)
+  $FUNCNAME v4.0.0 --backup          # Bump version with backups
   $FUNCNAME v4.1.0                   # Standard semantic version
   
   # For dev workflow:
@@ -3087,6 +3089,7 @@ Note: This function only handles version updates. Create GitHub releases manuall
   # Parse arguments
   local new_version=""
   local dry_run=false
+  local create_backups=false
   
   while [[ $# -gt 0 ]]; do
     case $1 in
@@ -3096,6 +3099,10 @@ Note: This function only handles version updates. Create GitHub releases manuall
         ;;
       --dry-run)
         dry_run=true
+        shift
+        ;;
+      --backup)
+        create_backups=true
         shift
         ;;
       -*)
@@ -3201,8 +3208,10 @@ Note: This function only handles version updates. Create GitHub releases manuall
     if [[ -f "$updates_file" ]] && ! $dry_run; then
       __chief_print_info "$(basename "$updates_file"): Adding new Unreleased section"
       
-      # Create backup
-      cp "$updates_file" "${updates_file}.backup.$(date +%s)"
+      # Create backup if requested
+      if $create_backups; then
+        cp "$updates_file" "${updates_file}.backup.$(date +%s)"
+      fi
       
       # Add new Unreleased section at the top
       local temp_file=$(mktemp)
@@ -3287,8 +3296,10 @@ Note: This function only handles version updates. Create GitHub releases manuall
       continue
     fi
     
-    # Create backup
-    cp "$file" "${file}.backup.$(date +%s)"
+    # Create backup if requested
+    if $create_backups; then
+      cp "$file" "${file}.backup.$(date +%s)"
+    fi
     
     # Perform replacements (both regular version and badge URLs)
     local success=true
@@ -3308,8 +3319,13 @@ Note: This function only handles version updates. Create GitHub releases manuall
       __chief_print_success "$(basename "$file"): Updated $current_version → $new_version (including badges)"
       ((updated_count++))
     else
-      # Restore backup on failure
-      mv "${file}.backup.$(date +%s)" "$file" 2>/dev/null
+      # Restore backup on failure if it exists
+      if $create_backups; then
+        local backup_file="${file}.backup.$(date +%s)"
+        if [[ -f "$backup_file" ]]; then
+          mv "$backup_file" "$file" 2>/dev/null
+        fi
+      fi
       rm -f "${file}.tmp1" "${file}.tmp2" 2>/dev/null
       __chief_print_error "$(basename "$file"): Failed to update"
       return 1
@@ -3326,8 +3342,20 @@ Note: This function only handles version updates. Create GitHub releases manuall
     __chief_print_success "Version bump completed: $current_version → $new_version"
     __chief_print_info "Files updated: $updated_count"
     
-    # Clean up old backups (keep only the 3 most recent)
-    find "${CHIEF_PATH}" -name "*.backup.*" -type f 2>/dev/null | sort | head -n -3 | xargs rm -f 2>/dev/null || true
+    # Clean up old backups (keep only the 3 most recent) - only if backups were created
+    if $create_backups; then
+      local backup_files
+      backup_files=$(find "${CHIEF_PATH}" -name "*.backup.*" -type f 2>/dev/null | sort)
+      if [[ -n "$backup_files" ]]; then
+        local total_backups
+        total_backups=$(echo "$backup_files" | wc -l | tr -d ' ')
+        if [[ "$total_backups" -gt 3 ]]; then
+          local files_to_delete=$((total_backups - 3))
+          echo "$backup_files" | head -n "$files_to_delete" | xargs rm -f 2>/dev/null || true
+          __chief_print_info "Cleaned up old backup files (kept 3 most recent)"
+        fi
+      fi
+    fi
     
     __chief_print_info "Next steps:"
     __chief_print_info "  1. Review changes: git diff"
