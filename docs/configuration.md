@@ -155,18 +155,19 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 chief.config_set -y PLUGINS_GIT_REPO="git@github.com:yourusername/my-plugins.git"
 chief.config_set -y PLUGINS_PATH="${HOME}/chief_plugins"
 chief.config_set -y PLUGINS_GIT_BRANCH="main"
-chief.config_set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root
+chief.config_set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root, this is plugins path relative to PLUGINS_PATH
 chief.config_set -y PLUGINS_GIT_AUTOUPDATE="false"    # manual updates
 chief.config_set -y PLUGINS_TYPE="remote"             # 🔑 Enable remote sync
 
-# 3. Customize prompt (optional)
-chief.config_set -y SHORT_PATH=false
-chief.config_set -y MULTILINE_PROMPT=true
+# 3. (Optional) Enable multi-line prompt, useful when current working dir is deep.
+chief.config_set -y MULTILINE_PROMPT=true 
 
-# 4. Load your encrypted secrets
-chief.vault_file-load                          # Team vault (.chief_shared-vault - if exists, automatically loaded)
+# 4. (Optional) Load your encrypted secrets (if exists)
+chief.vault_file-load  # Team vault (.chief_shared-vault - if exists)
 chief.vault_file-load ~/.my-personal-vault     # Personal vault
 ```
+
+📖 For detailed vault setup and management, see: [Vault Configuration](configuration.html#vault-configuration)
 
 #### 🎯 Result
 
@@ -365,7 +366,7 @@ function devops.logs() {
 EOF
 
 # Add team secrets (encrypted vault)
-chief.vault_file-create .chief_shared-vault
+chief.vault_file-edit .chief_shared-vault
 # Add shared environment variables, API keys, etc.
 
 # Commit and push
@@ -395,10 +396,10 @@ devops.deploy production
 
 ```bash
 # Create team vault (encrypted)
-chief.vault_file-create .chief_shared-vault
+chief.vault_file-edit .chief_shared-vault
 
 # Create personal vault
-chief.vault_file-create ~/.my-personal-vault
+chief.vault_file-edit ~/.my-personal-vault
 
 # Load vaults
 chief.vault_file-load .chief_shared-vault

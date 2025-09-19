@@ -57,17 +57,19 @@ source ${CHIEF_LIBRARY}
 # Main script starts here
 ########################################################################
 
-# Load core libraries
-__load_library 
-
 # Allow the script to be called with --lib-only to load only the libraries
 if [[ $1 == "--lib-only" ]]; then
+  # For lib-only mode, only the core library functions are loaded (lines 53-54)
+  # Skip plugin loading to avoid hangs in CI/testing environments
   return 0
 fi
 
+# Load core libraries (including plugins) for full interactive mode
+__chief_load_library
+
 # Load RSA/SSH keys if directory is defined
 if [[ ! -z ${CHIEF_CFG_SSH_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIEF_CFG_SSH_KEYS_PATH} && ${PLATFORM} == "Linux" ]]; then
-  chief.etc_spinner "Loading SSH keys..." "__load_ssh_keys" tmp_out
+  chief.etc_spinner "Loading SSH keys..." "__chief_load_ssh_keys" tmp_out
   echo -e "${tmp_out}"
 fi
 
@@ -84,7 +86,7 @@ fi
 
 # Apply colored LS
 if ${CHIEF_CFG_COLORED_LS}; then
-  __print "Applying ls colors..."
+  __chief_print "Applying ls colors..."
   if [[ ${PLATFORM} == "MacOS" ]]; then
     export CLICOLOR=1
     export LSCOLORS=ExFxBxDxCxegedabagacad
@@ -107,7 +109,7 @@ if ${CHIEF_CFG_PROMPT}; then
     prompt_tag='\w'
   fi
 
-  __print "Applying default prompt..."
+  __chief_print "Applying default prompt..."
   
   # If CHIEF_HOST is set, use it in the prompt
   if [[ -n ${CHIEF_HOST} ]]; then
@@ -124,7 +126,7 @@ if ${CHIEF_CFG_PROMPT}; then
 
   # Apply Git Tools (completion/prompt)
   if ${CHIEF_CFG_GIT_PROMPT}; then
-    __print "Applying git prompt/completion..."
+    __chief_print "Applying git prompt/completion..."
 
     # Variables and their respective output: https://blog.backslasher.net/git-prompt-variables.html
     export GIT_PS1_SHOWDIRTYSTATE=true     # '*'=unstaged, '+'=staged
@@ -138,10 +140,10 @@ if ${CHIEF_CFG_PROMPT}; then
 
     if ${CHIEF_CFG_COLORED_PROMPT}; then
       export GIT_PS1_SHOWCOLORHINTS=true
-      __print "Applying colored git prompt..."
+      __chief_print "Applying colored git prompt..."
     else
-      __print "Applying default non-colored git prompt..."
+      __chief_print "Applying default non-colored git prompt..."
     fi
-    PROMPT_COMMAND='__build_git_prompt'
+    PROMPT_COMMAND='__chief_build_git_prompt'
   fi
 fi

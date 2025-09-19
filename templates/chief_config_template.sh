@@ -111,7 +111,7 @@ CHIEF_CFG_GIT_PROMPT=true
 
 # Change this to false, if you prefer the full path in your prompt.
 #   Setting this to true will only show the current directory name in the prompt.
-CHIEF_CFG_SHORT_PATH=true
+CHIEF_CFG_SHORT_PATH=false
 
 # Multi-line prompt: If set to true, splits the prompt across two lines for better readability
 # in deep directory structures. The first line shows path, git info, etc., and the second

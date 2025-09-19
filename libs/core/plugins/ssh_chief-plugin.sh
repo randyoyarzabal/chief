@@ -15,9 +15,8 @@
 # along with this program.  If not, see <https://www.gnu.org/licenses/>.
 ########################################################################
 
-# Chief Plugin File: python_chief.plugin
+# Chief Plugin File: ssh_chief-plugin.sh
 # Author: Randy E. Oyarzabal
-# ver. 1.0
 # Functions and aliases related to SSH.
 
 # Block interactive execution
