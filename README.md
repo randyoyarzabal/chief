@@ -2,7 +2,7 @@
 
 **Bash Plugin Manager & Terminal Enhancement Tool**
 
-[![GitHub release](https://img.shields.io/badge/Download-Release%20v3.1.0-green.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Development](https://img.shields.io/badge/Dev%20Branch-v3.1.1--dev-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev) [![Documentation](https://img.shields.io/badge/📖-Documentation-blue)](https://chief.reonetlabs.us)
+[![GitHub release](https://img.shields.io/badge/Download-Release%20v3.1.0-green.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Development](https://img.shields.io/badge/Dev%20Branch-v3.1.0--dev-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev) [![Documentation](https://img.shields.io/badge/📖-Documentation-blue)](https://chief.reonetlabs.us)
 
 Chief is a lightweight, powerful Bash library system that helps you organize your shell environment through a plugin-based architecture. Think of it as a package manager for your bash functions, aliases, and tools.
 

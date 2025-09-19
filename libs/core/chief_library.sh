@@ -3363,6 +3363,26 @@ EOF
     local badge_current="Download-Release%20${current_version}"
     local badge_new="Download-Release%20${new_version}"
     
+    # Handle dev badge updates for two-badge structure
+    local dev_badge_current=""
+    local dev_badge_new=""
+    
+    # For release workflow: v3.1.1-dev → v3.1.1, dev badge should show next dev version  
+    if [[ "${positional_args[0]}" == "release" && "$current_version" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)-dev$ ]]; then
+      local major="${BASH_REMATCH[1]}"
+      local minor="${BASH_REMATCH[2]}"
+      local patch="${BASH_REMATCH[3]}"
+      # Next development cycle: increment minor version for next dev
+      ((minor++))
+      dev_badge_current="Dev%20Branch-${current_version}"
+      dev_badge_new="Dev%20Branch-v${major}.${minor}.0--dev"
+    # For next-dev workflow: v3.1.1 → v3.1.2-dev, dev badge should show the new dev version
+    elif [[ "${positional_args[0]}" == "next-dev" ]]; then
+      # Current version would be release version, new version would be dev version
+      dev_badge_current="Dev%20Branch-.*--dev"  # Pattern to match any current dev badge
+      dev_badge_new="Dev%20Branch-${new_version}"
+    fi
+    
     if grep -q "$new_version" "$file" 2>/dev/null && grep -q "$badge_new" "$file" 2>/dev/null; then
       __chief_print_info "$(basename "$file"): Already up to date ($new_version)"
       continue
@@ -3378,6 +3398,29 @@ EOF
           changes="$changes + badges"
         else
           changes="badges"
+        fi
+      fi
+      
+      # Check for dev badge changes
+      if [[ -n "$dev_badge_current" && -n "$dev_badge_new" ]]; then
+        if [[ "$dev_badge_current" == *".*"* ]]; then
+          # Pattern matching - check if file has any dev badge
+          if grep -q "Dev%20Branch-.*--dev" "$file" 2>/dev/null; then
+            if [[ -n "$changes" ]]; then
+              changes="$changes + dev badges"
+            else
+              changes="dev badges"
+            fi
+          fi
+        else
+          # Exact match
+          if grep -q "$dev_badge_current" "$file" 2>/dev/null; then
+            if [[ -n "$changes" ]]; then
+              changes="$changes + dev badges"
+            else
+              changes="dev badges"
+            fi
+          fi
         fi
       fi
       __chief_print_info "$(basename "$file"): Would update $changes ($current_version → $new_version)"
@@ -3402,6 +3445,21 @@ EOF
       success=false
     fi
     
+    # Update dev badge if we have dev badge changes
+    if $success && [[ -n "$dev_badge_current" && -n "$dev_badge_new" ]]; then
+      if [[ "$dev_badge_current" == *".*"* ]]; then
+        # Use regex replacement for pattern matching
+        if ! sed -i.tmp_dev "s|Dev%20Branch-[^-]*--dev|${dev_badge_new}|g" "$file" 2>/dev/null; then
+          success=false
+        fi
+      else
+        # Use exact string replacement
+        if ! sed -i.tmp_dev "s/${dev_badge_current}/${dev_badge_new}/g" "$file" 2>/dev/null; then
+          success=false
+        fi
+      fi
+    fi
+    
     # For release bumps (not next-dev), remove "(Unreleased)" markers
     if $success && [[ "$1" == "release" ]]; then
       # Handle different unreleased patterns
@@ -3414,7 +3472,7 @@ EOF
     fi
     
     if $success; then
-      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" 2>/dev/null
+      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp_dev" 2>/dev/null
       __chief_print_success "$(basename "$file"): Updated $current_version → $new_version (including badges)"
       ((updated_count++))
     else
@@ -3425,7 +3483,7 @@ EOF
           mv "$backup_file" "$file" 2>/dev/null
         fi
       fi
-      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" 2>/dev/null
+      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp_dev" 2>/dev/null
       __chief_print_error "$(basename "$file"): Failed to update"
       return 1
     fi
