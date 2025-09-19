@@ -575,8 +575,9 @@ CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}"
     fi
   else
     # Check if plugins directory is empty.
-    if [[ $(__chief_get_plugins) == "" ]] && ! ${CHIEF_CFG_HINTS}; then
-      echo -e "${CHIEF_COLOR_YELLOW}Remote plugins are not set to auto-update (CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false). ${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW}' to update.${CHIEF_NO_COLOR}"
+    # Only show warning when verbose is enabled and hints are disabled
+    if [[ $(__chief_get_plugins) == "" ]] && ! ${CHIEF_CFG_HINTS} && ${CHIEF_CFG_VERBOSE}; then
+      echo -e "${CHIEF_COLOR_YELLOW}Warning: Remote plugins are not set to auto-update (CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false). Run ${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW} to update.${CHIEF_NO_COLOR}"
     fi
   fi
   # Check for team vault file in plugins repository
