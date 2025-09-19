@@ -49,7 +49,7 @@ __chief_oc_check_login() {
   return 0
 }
 
-function chief.oc_get_all_objects() {
+function chief.oc_get-all-objects() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <namespace> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -230,7 +230,7 @@ Based on techniques shared by Kyle Walker from Red Hat.
   fi
 }
 
-function chief.oc_clean_olm() {
+function chief.oc_clean-olm() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -479,7 +479,7 @@ Based on techniques shared by Kyle Walker from Red Hat.
   fi
 }
 
-function chief.oc_clean_replicasets() {
+function chief.oc_clean-replicasets() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options] [namespace]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -775,7 +775,7 @@ Based on techniques shared by Kyle Walker from Red Hat.
 }
 
 
-function chief.oc_approve_csrs() {
+function chief.oc_approve-csrs() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1021,7 +1021,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   echo -e "${CHIEF_COLOR_GREEN}Summary: $approved approved, $skipped skipped${CHIEF_NO_COLOR}"
 }
 
-function chief.oc_show_stuck_resources() {
+function chief.oc_show-stuck-resources() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <namespace> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1590,7 +1590,7 @@ function __chief_oc_try_env_login() {
   return 1
 }
 
-function chief.oc_delete_stuck_ns() {
+function chief.oc_delete-stuck-ns() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <namespace> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}

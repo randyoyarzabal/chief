@@ -29,7 +29,7 @@ fi
 
 AWS_CREDS_SCRIPT="$CHIEF_PATH/libs/plugins/python/aws_creds.py"
 
-function chief.aws_set_role() {
+function chief.aws_set-role() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <role> <region>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -75,7 +75,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $AWS_CREDS_SCRIPT -u "$1" -r "$2"
 }
 
-function chief.aws_export_creds() {
+function chief.aws_export-creds() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <role> <region>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}

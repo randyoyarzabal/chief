@@ -388,7 +388,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 }
 
-function chief.etc_create_bootusb() {
+function chief.etc_create-bootusb() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} chief.etc_create_bootusb <iso_file> <disk_number> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -695,7 +695,7 @@ before running this command. Wrong disk number will destroy data!
   echo -e "${CHIEF_COLOR_YELLOW}The USB drive is now ready to boot${CHIEF_NO_COLOR}"
 }
 
-function chief.etc_copy_dotfiles() {
+function chief.etc_copy-dotfiles() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} chief.etc_copy_dotfiles <source_directory> <destination_directory> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -938,7 +938,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 }
 
-function chief.etc_create_cipher() {
+function chief.etc_create-cipher() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [file_path] [--force]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1231,7 +1231,7 @@ ${CHIEF_COLOR_BLUE}Related Commands:${CHIEF_NO_COLOR}
   fi
 }
 
-function chief.etc_mount_share() {
+function chief.etc_mount-share() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <share_path> <mount_path> <username>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1302,7 +1302,7 @@ ${CHIEF_COLOR_BLUE}Setup Mount Point:${CHIEF_NO_COLOR}
   fi
 }
 
-function chief.etc_folder_diff() {
+function chief.etc_folder-diff() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <folder1> <folder2>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1374,7 +1374,7 @@ This compares file names only, not file contents. Use diff for content compariso
   fi
 }
 
-function chief.etc_at_run() {
+function chief.etc_at-run() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <time> <command>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1490,7 +1490,7 @@ This command may require administrator privileges on some systems.
   fi
 }
 
-function chief.etc_isvalid_ip() {
+function chief.etc_isvalid-ip() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <ip_address>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1554,7 +1554,7 @@ ${CHIEF_COLOR_BLUE}Usage in Scripts:${CHIEF_NO_COLOR}
   return $stat
 }
 
-function chief.etc_folder_sync() {
+function chief.etc_folder-sync() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} chief.etc_folder_sync <source_directory> <destination_directory> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1829,7 +1829,7 @@ exist in the source. Always test with --dry-run first when using --delete.
   fi
 }
 
-function chief.etc_ask_yes_or_no() {
+function chief.etc_ask-yes-or-no() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <message>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1929,7 +1929,7 @@ ${CHIEF_COLOR_BLUE}Usage in Scripts:${CHIEF_NO_COLOR}
   echo "$REPLY"
 }
 
-function chief.type_writer() {
+function chief.type-writer() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <message> [delay_seconds]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}

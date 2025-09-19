@@ -25,7 +25,7 @@ if [[ $0 == "${BASH_SOURCE[0]}" ]]; then
   exit 1
 fi
 
-function chief.python_ve_dep() {
+function chief.python_ve-dep() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -68,7 +68,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 }
 
-function chief.python_create_ve() {
+function chief.python_create-ve() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [venv_name] [python_version] [path]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -225,7 +225,7 @@ After creation, start with: chief.python_start_ve [venv_name]
   echo -e "${CHIEF_COLOR_YELLOW}To start:${CHIEF_NO_COLOR} chief.python_start_ve $venv_name"
 }
 
-function chief.python_start_ve() {
+function chief.python_start-ve() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [venv_name]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -368,7 +368,7 @@ Use 'chief.python_stop_ve' or 'deactivate' to exit the virtual environment.
   fi
 }
 
-function chief.python_stop_ve() {
+function chief.python_stop-ve() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}

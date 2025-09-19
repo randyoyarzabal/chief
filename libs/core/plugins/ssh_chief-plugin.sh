@@ -25,7 +25,7 @@ if [[ $0 == "${BASH_SOURCE[0]}" ]]; then
   exit 1
 fi
 
-function chief.ssh_rm_host() {
+function chief.ssh_rm-host() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <line_number>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -59,7 +59,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Host entry removed"
 }
 
-function chief.ssh_get_publickey() {
+function chief.ssh_get-publickey() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <private_key_file>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -91,7 +91,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   ssh-keygen -y -f "$1"
 }
 
-function chief.ssh_create_keypair() {
+function chief.ssh_create-keypair() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [key_name] [key_type] [user_email]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}

@@ -225,7 +225,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   echo -e "${CHIEF_COLOR_GREEN}Branch created and tracking set up${CHIEF_NO_COLOR}"
 }
 
-function chief.git_rename_branch() {
+function chief.git_rename-branch() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <old_name> <new_name>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -272,7 +272,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   echo -e "${CHIEF_COLOR_GREEN}Branch renamed successfully${CHIEF_NO_COLOR}"
 }
 
-function chief.git_delete_tag() {
+function chief.git_delete-tag() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <tag_name>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -405,7 +405,7 @@ ${CHIEF_COLOR_RED}Safety Notes:${CHIEF_NO_COLOR}
   echo -e "${CHIEF_COLOR_GREEN}Commit amended and pushed successfully${CHIEF_NO_COLOR}"
 }
 
-function chief.git_delete_branch() {
+function chief.git_delete-branch() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <branch_name>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -452,7 +452,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   echo -e "${CHIEF_COLOR_GREEN}Branch deleted successfully${CHIEF_NO_COLOR}"
 }
 
-function chief.git_cred_cache() {
+function chief.git_cred-cache() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options] [seconds]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -565,7 +565,7 @@ ${CHIEF_COLOR_BLUE}Environment Variable Setup:${CHIEF_NO_COLOR}
   fi
 }
 
-function chief.git_set_url() {
+function chief.git_set-url() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <new_url>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -605,7 +605,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   echo -e "${CHIEF_COLOR_BLUE}New URL:${CHIEF_NO_COLOR} $(git config --get remote.origin.url)"
 }
 
-function chief.git_config_user() {
+function chief.git_config-user() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options] <username> [email]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
