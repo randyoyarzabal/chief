@@ -7,9 +7,8 @@ This directory contains version-specific release notes for Chief.
 Each version has its own release notes file:
 
 - `v3.0.md` - Released version v3.0 (historical record)
-- `v3.1.0-original.md` - Original v3.1.0 release (preserved for reference)
-- `v3.1.0-dev.md` - Current development version release notes  
-- `v3.1.0.md` - Final release version notes (will be created when releasing)
+- `v3.1.0-dev.md` - Development version release notes (work-in-progress)
+- `v3.1.0.md` - Complete v3.1.0 release notes (comprehensive re-release)
 - `v3.2.0-dev.md` - Next development cycle
 - etc.
 
