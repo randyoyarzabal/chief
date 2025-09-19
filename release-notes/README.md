@@ -5,7 +5,10 @@ This directory contains version-specific release notes for Chief.
 ## Structure
 
 Each version has its own release notes file:
-- `v3.1.1-dev.md` - Development version release notes
+
+- `v3.0.md` - Released version v3.0 (historical record)
+- `v3.1.0.md` - Released version v3.1.0 (historical record)
+- `v3.1.1-dev.md` - Current development version release notes
 - `v3.1.1.md` - Final release version notes (created when releasing)
 - `v3.2.0-dev.md` - Next development cycle
 - etc.
@@ -28,5 +31,7 @@ Each version has its own release notes file:
 
 Reference specific version release notes in documentation:
 ```markdown
-See [v3.1.1 Release Notes](release-notes/v3.1.1.md) for details.
+See [v3.0 Release Notes](release-notes/v3.0.md) for details.
+See [v3.1.0 Release Notes](release-notes/v3.1.0.md) for details.
 ```
+

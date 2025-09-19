@@ -903,6 +903,13 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
       echo -e "• ${CHIEF_COLOR_GREEN}chief.hints${CHIEF_NO_COLOR}          - Quick tips and workflow"
       echo
       echo -e "${CHIEF_COLOR_CYAN}Quick start: ${CHIEF_COLOR_GREEN}chief.[tab][tab]${CHIEF_NO_COLOR} to see all commands"
+      echo
+      echo -e "${CHIEF_COLOR_YELLOW}🐛 Bug Reports & Issues:${CHIEF_NO_COLOR}"
+      echo -e "Found a bug or need help? Please create an issue on GitHub:"
+      echo -e "• ${CHIEF_COLOR_CYAN}${CHIEF_REPO}/issues${CHIEF_NO_COLOR}"
+      echo -e "• Include your OS version: ${CHIEF_COLOR_GREEN}$(uname -s) $(uname -r)${CHIEF_NO_COLOR}"
+      echo -e "• Provide steps to reproduce the issue"
+      echo -e "• Include relevant error messages and Chief version: ${CHIEF_COLOR_GREEN}${CHIEF_VERSION}${CHIEF_NO_COLOR}"
       ;;
   esac
 }
@@ -3079,6 +3086,7 @@ Arguments:
 Options:
   --dry-run     Show what would be changed without making changes
   --backup      Create backup files before modifying (default: no backups)
+  --skip-tests  Skip test validation (NOT recommended for releases)
   
 Examples:
   $FUNCNAME v4.0 --dry-run           # Preview changes
@@ -3089,6 +3097,7 @@ Examples:
   # For dev workflow:
   $FUNCNAME release                   # Convert v3.0.4-dev → v3.0.4 for release
   $FUNCNAME release --dry-run         # Preview release conversion
+  $FUNCNAME release --skip-tests      # Emergency release without test validation (NOT recommended)
   $FUNCNAME next-dev                  # Convert v3.0.4 → v3.0.5-dev for next development cycle
   $FUNCNAME next-dev v3.1.1           # Convert v3.1.0 → v3.1.1-dev for patch development cycle
   $FUNCNAME next-dev --dry-run        # Preview next dev cycle setup
@@ -3100,6 +3109,7 @@ Note: This function only handles version updates. Create GitHub releases manuall
   local target_version=""
   local dry_run=false
   local create_backups=false
+  local skip_tests=false
   local positional_args=()
   
   while [[ $# -gt 0 ]]; do
@@ -3114,6 +3124,10 @@ Note: This function only handles version updates. Create GitHub releases manuall
         ;;
       --backup)
         create_backups=true
+        shift
+        ;;
+      --skip-tests)
+        skip_tests=true
         shift
         ;;
       -*)
@@ -3195,6 +3209,45 @@ Note: This function only handles version updates. Create GitHub releases manuall
   # Normalize to full semantic version (add .0 if missing patch version)
   if [[ "$new_version" =~ ^v[0-9]+\.[0-9]+$ ]]; then
     new_version="${new_version}.0"
+  fi
+  
+  # Test validation for releases only
+  local is_release_workflow=false
+  local is_next_dev_workflow=false
+  
+  if [[ "${positional_args[0]}" == "release" ]] || [[ ! "$new_version" =~ -dev$ ]]; then
+    is_release_workflow=true
+  elif [[ "${positional_args[0]}" == "next-dev" ]]; then
+    is_next_dev_workflow=true
+  fi
+  
+  # Only run tests for release workflows (next-dev skips tests since it follows a successful release)
+  if ! $dry_run && ! $skip_tests && $is_release_workflow; then
+    local test_script="${CHIEF_PATH}/test/run-tests.sh"
+    
+    if [[ -f "$test_script" ]]; then
+      __chief_print_info "Running test suite (required for releases)..."
+      
+      if ! "$test_script"; then
+        __chief_print_error "Test suite failed!"
+        __chief_print_error "Cannot proceed with release while tests are failing."
+        __chief_print_info "Fix failing tests or use --skip-tests (NOT recommended)"
+        return 1
+      else
+        __chief_print_success "All tests passed! ✅"
+        echo ""
+      fi
+    else
+      __chief_print_warn "Test suite not found at: $test_script"
+      __chief_print_warn "Proceeding without test validation (not recommended)"
+    fi
+  elif $skip_tests && $is_release_workflow; then
+    __chief_print_warn "⚠️  SKIPPING TESTS FOR RELEASE - THIS IS DANGEROUS!"
+    __chief_print_warn "Release versions should always pass tests before deployment."
+    echo ""
+  elif $is_next_dev_workflow; then
+    __chief_print_info "Skipping tests for next-dev (tests passed in previous release cycle)"
+    echo ""
   fi
   
   # Set version file path

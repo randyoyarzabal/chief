@@ -105,6 +105,22 @@ chief.oc_clean_olm -n
 - **Easy Removal**: Clean uninstall available anytime
 - **Dry-Run Safety**: Critical operations support `--dry-run` to preview changes safely
 
+## 🐛 Bug Reports & Support
+
+Found a bug or need help? We're here to help! Please create an issue on GitHub:
+
+**[📝 Report an Issue](https://github.com/randyoyarzabal/chief/issues)**
+
+When reporting issues, please include:
+
+- **OS version**: Run `uname -a` to get your system details
+- **Chief version**: Run `chief.help` to see the current version
+- **Steps to reproduce**: Clear, step-by-step instructions
+- **Error messages**: Copy the exact error output
+- **Expected vs actual behavior**: What you expected vs what happened
+
+This helps us quickly identify and fix issues!
+
 ## 📖 Learn More
 
 **[📚 Complete Documentation](https://chief.reonetlabs.us)** - Installation, tutorials, examples, and advanced features

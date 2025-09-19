@@ -4,8 +4,14 @@
 
 - **FIX**: `__chief.bump next-dev` now accepts `-dev` version suffixes in validation
 - **NEW**: `__chief.bump next-dev` supports optional target version parameter (e.g., `__chief.bump next-dev v3.1.1`)
+- **NEW**: Test validation integrated into release workflows - tests must pass before releases
 - **ENHANCED**: Context-aware completion messages distinguish between development and release workflows
+- **ENHANCED**: Version-specific release notes structure in `release-notes/` directory
 - **CHANGE**: Push instructions updated to use appropriate branch context
+- **SAFETY**: Release workflow now requires passing tests (emergency `--skip-tests` option available)
+- **OPTIMIZATION**: `next-dev` workflow skips tests since it follows a successful release cycle
+- **ENHANCED**: Added comprehensive bug reporting instructions to main help and documentation
+- **FIX**: Restored v3.0 and v3.1.0 release notes that were lost during version-specific structure implementation
 
 ## v3.0.3
 
