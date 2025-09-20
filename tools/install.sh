@@ -355,27 +355,45 @@ setup_config() {
 
 setup_prompt() {
   echo ""
-  echo -e "${BLUE}Would you like to enable Chief's git-aware prompt?${NC}"
-  echo -e "${CYAN}  If you are using a custom prompt, such as Oh-My-BASH, this will have no effect.${NC}"
-  echo -e "${CYAN}  Note that you can disable this later by running 'chief.config'.${NC}"
-  echo ""
+  echo -e "${BLUE}Checking prompt configuration...${NC}"
   
-  if confirm "Enable git-aware prompt?"; then
-    if sed -i.bak 's/CHIEF_CFG_PROMPT=false/CHIEF_CFG_PROMPT=true/' "$CHIEF_CONFIG" 2>/dev/null; then
-      rm -f "$CHIEF_CONFIG.bak" 2>/dev/null
-      echo -e "${GREEN}SUCCESS: Git-aware prompt enabled${NC}"
-      echo -e "${CYAN}INFO: The prompt will show branch status and repository information${NC}"
-      echo ""
-      echo -e "${CYAN}Additional prompt options:${NC}"
-      echo -e "${CYAN}  • Enable multi-line prompt: Set CHIEF_CFG_MULTILINE_PROMPT=true in chief.config${NC}"
-      echo -e "${CYAN}  • View prompt legend: Run 'chief.git_legend' to see color meanings${NC}"
-    else
-      echo -e "${RED}ERROR: Failed to update configuration file${NC}"
-      exit 1
-    fi
+  # Check current CHIEF_CFG_PROMPT value in the config file
+  local current_prompt_setting
+  if [[ -f "$CHIEF_CONFIG" ]] && grep -q "CHIEF_CFG_PROMPT=" "$CHIEF_CONFIG"; then
+    current_prompt_setting=$(grep "^CHIEF_CFG_PROMPT=" "$CHIEF_CONFIG" | cut -d'=' -f2)
   else
-    echo -e "${YELLOW}INFO: Git-aware prompt disabled (you can enable it later with chief.config)${NC}"
-    echo -e "${CYAN}TIP: When you enable it, use 'chief.git_legend' to learn the prompt colors${NC}"
+    current_prompt_setting="false"  # Default fallback
+  fi
+  
+  # Only prompt if current setting is false
+  if [[ "$current_prompt_setting" == "true" ]]; then
+    echo -e "${GREEN}SUCCESS: Git-aware prompt already enabled in template${NC}"
+    echo -e "${CYAN}INFO: The prompt will show branch status and repository information${NC}"
+    echo -e "${CYAN}TIP: Use 'chief.git_legend' to see color meanings, or 'chief.config' to modify${NC}"
+  else
+    echo -e "${CYAN}Current template setting: ${YELLOW}CHIEF_CFG_PROMPT=$current_prompt_setting${NC}"
+    echo -e "${BLUE}Would you like to enable Chief's git-aware prompt?${NC}"
+    echo -e "${CYAN}  If you are using a custom prompt, such as Oh-My-BASH, this will have no effect.${NC}"
+    echo -e "${CYAN}  Note that you can disable this later by running 'chief.config'.${NC}"
+    echo ""
+    
+    if confirm "Enable git-aware prompt?"; then
+      if sed -i.bak 's/CHIEF_CFG_PROMPT=false/CHIEF_CFG_PROMPT=true/' "$CHIEF_CONFIG" 2>/dev/null; then
+        rm -f "$CHIEF_CONFIG.bak" 2>/dev/null
+        echo -e "${GREEN}SUCCESS: Git-aware prompt enabled${NC}"
+        echo -e "${CYAN}INFO: The prompt will show branch status and repository information${NC}"
+        echo ""
+        echo -e "${CYAN}Additional prompt options:${NC}"
+        echo -e "${CYAN}  • Enable multi-line prompt: Set CHIEF_CFG_MULTILINE_PROMPT=true in chief.config${NC}"
+        echo -e "${CYAN}  • View prompt legend: Run 'chief.git_legend' to see color meanings${NC}"
+      else
+        echo -e "${RED}ERROR: Failed to update configuration file${NC}"
+        exit 1
+      fi
+    else
+      echo -e "${YELLOW}INFO: Git-aware prompt disabled (you can enable it later with chief.config)${NC}"
+      echo -e "${CYAN}TIP: When you enable it, use 'chief.git_legend' to learn the prompt colors${NC}"
+    fi
   fi
 }
 

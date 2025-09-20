@@ -101,7 +101,7 @@ CHIEF_CFG_PLUGIN_TEMPLATE="${CHIEF_PATH}/templates/chief_plugin_template.sh"
 ####################################
 
 # If set to true, will display a custom prompt. If set to false, all following options below will be ignored.
-CHIEF_CFG_PROMPT=false
+CHIEF_CFG_PROMPT=true
 
 # Apply colored prompt if CHIEF_CFG_PROMPT is set to true.
 CHIEF_CFG_COLORED_PROMPT=true
