@@ -3563,20 +3563,38 @@ EOF
     # Check if file already has the new version (both regular and badge formats)
     # Handle badge URL encoding with proper shields.io format: label-message-color
     local badge_current=""
-    local badge_new_encoded="${new_version//-/--}"  # Double dashes for shields.io
-    local badge_new="Download%20Release-${badge_new_encoded}"
     
-    # For release workflow: current version might have -dev, new version won't
-    local badge_current_encoded="${current_version//-/--}"  # Double dashes for shields.io
-    if [[ "${positional_args[0]}" == "release" ]]; then
-      badge_current="Download%20Release-${badge_current_encoded}"
-    # For next-dev workflow: current version won't have -dev, new version will
-    elif [[ "${positional_args[0]}" == "next-dev" ]]; then
-      badge_current="Download%20Release-${badge_current_encoded}"
+    # For Download Release badge: should always show the latest stable version
+    local download_release_version=""
+    if [[ "${positional_args[0]}" == "next-dev" ]]; then
+      # For next-dev: Download Release shows the current stable version (remove -dev from current)
+      download_release_version="${current_version%-dev}"
+    elif [[ "${positional_args[0]}" == "release" ]]; then
+      # For release: Download Release shows the new release version
+      download_release_version="${new_version}"
     else
       # Default case
-      badge_current="Download%20Release-${badge_current_encoded}"
+      download_release_version="${new_version}"
     fi
+    
+    local badge_new_encoded="${download_release_version//-/--}"  # Double dashes for shields.io
+    local badge_new="Download%20Release-${badge_new_encoded}"
+    
+    # For badge_current: determine what the current Download Release badge should contain
+    local current_download_release_version=""
+    if [[ "${positional_args[0]}" == "release" ]]; then
+      # For release: current badge might show dev version, will change to release version
+      current_download_release_version="${current_version%-dev}"  # Strip -dev to get stable version
+    elif [[ "${positional_args[0]}" == "next-dev" ]]; then
+      # For next-dev: current badge shows stable version, should continue showing stable version
+      current_download_release_version="${current_version%-dev}"  # Strip -dev to get stable version
+    else
+      # Default case
+      current_download_release_version="${current_version}"
+    fi
+    
+    local badge_current_encoded="${current_download_release_version//-/--}"  # Double dashes for shields.io
+    badge_current="Download%20Release-${badge_current_encoded}"
     
     # Handle dev badge updates for two-badge structure
     local dev_badge_current=""
@@ -3698,8 +3716,8 @@ EOF
     # Handle stable badge first (before general version replacement)
     if [[ "$(basename "$file")" == "README.md" ]]; then
       if [[ "${positional_args[0]}" == "next-dev" ]]; then
-        # For next-dev: stable badge should show the base stable version (remove -dev if present)
-        local stable_version="${new_version%-dev}"  # Get base version from new version
+        # For next-dev: stable badge should show the current stable version (remove -dev from current)
+        local stable_version="${current_version%-dev}"  # Get stable version from current version
         if ! sed -i.tmp_stable "s|Stable-[^-]*-green|Stable-${stable_version}-green|g" "$file" 2>/dev/null; then
           success=false
         fi
