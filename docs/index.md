@@ -21,9 +21,9 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 
 **That's it!** Restart your terminal and start using Chief.
 
-### Air-Gapped Installation
+### Disconnected Installation
 
-For disconnected environments:
+For environments without git connectivity:
 
 ```bash
 # Download Chief, transfer to target system, then:

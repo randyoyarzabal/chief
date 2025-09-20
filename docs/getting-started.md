@@ -45,16 +45,16 @@ CHIEF_VERSION="v2.1.0" bash -c "$(curl -fsSL https://raw.githubusercontent.com/r
 CHIEF_INSTALL_GIT_BRANCH="dev" bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
 ```
 
-### Air-Gapped Installation (Disconnected Environments)
+### Disconnected Installation
 
-For environments with restricted internet access, you can install Chief from local files:
+For environments without git connectivity, you can install Chief from local files:
 
 ```bash
 # 1. Download Chief manually (on a connected machine)
 git clone https://github.com/randyoyarzabal/chief.git
 cd chief
 
-# 2. Transfer the entire directory to your air-gapped system
+# 2. Transfer the entire directory to your disconnected system
 
 # 3. Install from local files
 ./tools/install.sh --local
@@ -63,7 +63,7 @@ cd chief
 ./tools/install.sh --local --path /opt/chief
 ```
 
-**Benefits of air-gapped installation:**
+**Benefits of disconnected installation:**
 
 - ✅ **No internet required** during installation
 - ✅ **Complete transparency** - all files visible before installation

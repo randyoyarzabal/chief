@@ -60,8 +60,8 @@ while [[ $# -gt 0 ]]; do
       echo "Install Chief - Bash Plugin Manager & Terminal Enhancement Tool"
       echo ""
       echo "Options:"
-      echo "  --local           Install from local directory (for air-gapped/disconnected"
-      echo "                    environments with restricted internet access)"
+      echo "  --local           Install from local directory (for disconnected"
+      echo "                    environments without git connectivity)"
       echo "  --branch BRANCH   Git branch to install from (default: main)"
       echo "                    Note: Ignored when using --local"
       echo "  --path PATH       Installation directory (default: ~/.chief)"
@@ -82,7 +82,7 @@ done
 if $LOCAL_INSTALL && $BRANCH_SPECIFIED; then
   echo -e "\033[1;33mWARNING: --branch option is ignored when using --local installation.\033[0m"
   echo -e "\033[0;36mLocal installations use the files present in the current directory,\033[0m"
-  echo -e "\033[0;36mnot a specific git branch. This is intended for air-gapped environments.\033[0m"
+  echo -e "\033[0;36mnot a specific git branch. This is intended for disconnected environments.\033[0m"
   echo ""
 fi
 
@@ -127,22 +127,34 @@ print_banner() {
 }
 
 install_chief() {
+  local existing_installation=false
   echo -e "${BLUE}Installing Chief...${NC}"
   echo -e "${CYAN}  Directory: ${NC}$CHIEF_PATH"
   echo -e "${CYAN}  Config:    ${NC}$CHIEF_CONFIG"
   if ! $LOCAL_INSTALL; then
     echo -e "${CYAN}  Branch:    ${NC}$CHIEF_INSTALL_GIT_BRANCH"
   else
-    echo -e "${CYAN}  Mode:      ${NC}Local installation (air-gapped)"
+    echo -e "${CYAN}  Mode:      ${NC}Local installation (disconnected)"
   fi
   echo ""
 
   # Check if already installed
   if [[ -d "$CHIEF_PATH" ]]; then
-    echo -e "${YELLOW}WARNING: Chief is already installed at $CHIEF_PATH${NC}"
-    if ! confirm "Remove existing installation and reinstall?"; then
-      echo -e "${YELLOW}Installation aborted${NC}"
-      exit 1
+    existing_installation=true
+    if $LOCAL_INSTALL; then
+      echo -e "${YELLOW}INFO: Chief is already installed at $CHIEF_PATH${NC}"
+      if ! confirm "Update existing installation with local files?"; then
+        echo -e "${YELLOW}Update aborted${NC}"
+        exit 1
+      fi
+      echo -e "${CYAN}Updating existing installation...${NC}"
+    else
+      echo -e "${YELLOW}WARNING: Chief is already installed at $CHIEF_PATH${NC}"
+      if ! confirm "Remove existing installation and reinstall?"; then
+        echo -e "${YELLOW}Installation aborted${NC}"
+        exit 1
+      fi
+      echo -e "${CYAN}Removing existing installation...${NC}"
     fi
     
     # Check if we're running from within the target directory
@@ -157,16 +169,36 @@ install_chief() {
       }
     fi
     
-    echo -e "${CYAN}Removing existing installation...${NC}"
     rm -rf "$CHIEF_PATH"
   fi
 
   # Install Chief
   if $LOCAL_INSTALL; then
-    echo -e "${BLUE}Copying from local directory (air-gapped installation)...${NC}"
+    if $existing_installation; then
+      echo -e "${BLUE}Updating from local directory (disconnected update)...${NC}"
+    else
+      echo -e "${BLUE}Copying from local directory (disconnected installation)...${NC}"
+    fi
     local source_path="$(cd "$(dirname "$0")/.." && pwd)"
     cp -a "$source_path" "$CHIEF_PATH"
-    echo -e "${GREEN}SUCCESS: Local files copied for air-gapped environment${NC}"
+    
+    # Remove any .git directory and git-related files to ensure disconnected mode
+    if [[ -d "$CHIEF_PATH/.git" ]]; then
+      echo -e "${CYAN}Removing git repository data for disconnected environment...${NC}"
+      rm -rf "$CHIEF_PATH/.git"
+    fi
+    
+    # Remove other git-related files that might exist  
+    rm -f "$CHIEF_PATH/.gitignore" "$CHIEF_PATH/.gitattributes" 2>/dev/null || true
+    
+    # Confirm disconnected mode setup
+    echo -e "${CYAN}Disconnected installation: git connectivity disabled${NC}"
+    
+    if $existing_installation; then
+      echo -e "${GREEN}SUCCESS: Local files updated for disconnected environment${NC}"
+    else
+      echo -e "${GREEN}SUCCESS: Local files copied for disconnected environment${NC}"
+    fi
   else
     echo -e "${BLUE}Cloning fresh installation from GitHub (branch: $CHIEF_INSTALL_GIT_BRANCH)...${NC}"
     
@@ -259,7 +291,7 @@ setup_config() {
     fi
   elif $LOCAL_INSTALL; then
     echo -e "${CYAN}Local installation: Skipping branch tracking configuration${NC}"
-    echo -e "${CYAN}Air-gapped environments manage updates manually${NC}"
+    echo -e "${CYAN}Disconnected environments manage updates manually${NC}"
   fi
 
   echo ""
@@ -380,7 +412,7 @@ echo -e "${CYAN}  • Future updates will track: ${YELLOW}${CHIEF_INSTALL_GIT_BR
 echo -e "${CYAN}  • To switch branches: chief.config_set update_branch <branch_name>${NC}"
 elif $LOCAL_INSTALL; then
 echo ""
-echo -e "${CYAN}AIR-GAPPED INSTALLATION:${NC}"
+echo -e "${CYAN}DISCONNECTED INSTALLATION:${NC}"
 echo -e "${CYAN}  • Installed from local files (no git repository)${NC}"
 echo -e "${CYAN}  • Updates must be done manually by replacing files${NC}"
 echo -e "${CYAN}  • Auto-update features are disabled for security${NC}"

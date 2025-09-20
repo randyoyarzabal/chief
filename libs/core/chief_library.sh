@@ -77,6 +77,16 @@ case "${uname_out}" in
   *) PLATFORM="UNKNOWN:${uname_out}" ;;
 esac
 
+# Detect if Chief is running in disconnected mode
+function __chief_is_disconnected_mode() {
+  # Check if Chief directory is not a git repository
+  if [[ -d "${CHIEF_PATH}" ]] && ! [[ -d "${CHIEF_PATH}/.git" ]]; then
+    return 0  # true - disconnected mode (no git repository)
+  fi
+  
+  return 1  # false - connected mode (git repository present)
+}
+
 #  Note: this only applied to any function/alias starting with "chief."
 function __chief_load_file() {
   # Usage: __chief_load_file <source_file>
@@ -803,14 +813,18 @@ function __chief.banner {
     git_status="plugins: ${CHIEF_COLOR_CYAN}local${CHIEF_NO_COLOR}"
   fi
 
-  # Show which branch is being tracked for updates
-  local update_branch="${CHIEF_CFG_UPDATE_BRANCH:-main}"
-  if [[ "${update_branch}" == "dev" ]]; then
-    branch_status="tracking: ${CHIEF_COLOR_YELLOW}${update_branch} ${CHIEF_COLOR_RED}(bleeding-edge)${CHIEF_NO_COLOR}"
-  elif [[ "${update_branch}" == "main" ]]; then
-    branch_status="tracking: ${CHIEF_COLOR_GREEN}${update_branch} ${CHIEF_COLOR_CYAN}(stable)${CHIEF_NO_COLOR}"
+  # Show connection status and branch tracking
+  if __chief_is_disconnected_mode; then
+    branch_status="mode: ${CHIEF_COLOR_RED}disconnected ${CHIEF_COLOR_YELLOW}(no git)${CHIEF_NO_COLOR}"
   else
-    branch_status="tracking: ${CHIEF_COLOR_CYAN}${update_branch} ${CHIEF_COLOR_YELLOW}(custom)${CHIEF_NO_COLOR}"
+    local update_branch="${CHIEF_CFG_UPDATE_BRANCH:-main}"
+    if [[ "${update_branch}" == "dev" ]]; then
+      branch_status="tracking: ${CHIEF_COLOR_YELLOW}${update_branch} ${CHIEF_COLOR_RED}(bleeding-edge)${CHIEF_NO_COLOR}"
+    elif [[ "${update_branch}" == "main" ]]; then
+      branch_status="tracking: ${CHIEF_COLOR_GREEN}${update_branch} ${CHIEF_COLOR_CYAN}(stable)${CHIEF_NO_COLOR}"
+    else
+      branch_status="tracking: ${CHIEF_COLOR_CYAN}${update_branch} ${CHIEF_COLOR_YELLOW}(custom)${CHIEF_NO_COLOR}"
+    fi
   fi
 
   echo -e "${CHIEF_COLOR_YELLOW}        __    _      ____${CHIEF_NO_COLOR}"
@@ -1117,6 +1131,12 @@ function __chief_build_git_prompt() {
 }
 
 function __chief_check_for_updates (){
+  # Skip update checks in disconnected mode
+  if __chief_is_disconnected_mode; then
+    echo -e "${CHIEF_COLOR_YELLOW}Update checks disabled in disconnected mode.${CHIEF_NO_COLOR}"
+    return 0
+  fi
+  
   cd ${CHIEF_PATH}
   local CHANGE_MSG="${CHIEF_COLOR_GREEN}**Chief updates available**${CHIEF_NO_COLOR}"
 
@@ -1428,6 +1448,23 @@ You can also manually update by running git pull in the Chief directory.
   fi
 
   __chief.banner
+  
+  # Check for disconnected mode
+  if __chief_is_disconnected_mode; then
+    echo ""
+    echo -e "${CHIEF_COLOR_RED}DISCONNECTED MODE DETECTED${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_YELLOW}Chief was installed with --local flag for disconnected environments.${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_CYAN}Automatic updates are disabled for security in disconnected environments.${CHIEF_NO_COLOR}"
+    echo ""
+    echo -e "${CHIEF_COLOR_BLUE}To update Chief in disconnected mode:${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_CYAN}  1. Download the latest Chief version on a connected system${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_CYAN}  2. Transfer the files to this disconnected system${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_CYAN}  3. Run: ./tools/install.sh --local --path \"${CHIEF_PATH}\"${CHIEF_NO_COLOR}"
+    echo ""
+    echo -e "${CHIEF_COLOR_GREEN}Current version: ${CHIEF_VERSION}${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_YELLOW}Manual update required for disconnected installations.${CHIEF_NO_COLOR}"
+    return 0
+  fi
   
   # Check if we need to switch branches first (regardless of updates)
   cd "${CHIEF_PATH}"
