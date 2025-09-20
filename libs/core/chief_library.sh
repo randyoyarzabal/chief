@@ -3741,8 +3741,8 @@ EOF
       else
         # Add dev badge if it doesn't exist (for next-dev workflow in README.md)
         if [[ "${positional_args[0]}" == "next-dev" && "$(basename "$file")" == "README.md" ]]; then
-          # Insert dev badge after the release badge - simplified pattern
-          if ! sed -i.tmp_dev "s|\(Download-Release%20[^-]*\(-dev\)\?[^]]*\)]\([^)]*\))\(.*\)Documentation|\1]]\3) [![Dev Branch](https://img.shields.io/badge/${dev_badge_new}-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev)\4Documentation|g" "$file" 2>/dev/null; then
+          # Insert dev badge after the release badge - fixed pattern
+          if ! sed -i.tmp_dev "s|\(Download-Release%20[^-]*\(-dev\)\?[^]]*\)]\([^)]*\))\(.*\)Documentation|\1]\3) [![Dev Branch](https://img.shields.io/badge/${dev_badge_new}-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev)\4Documentation|g" "$file" 2>/dev/null; then
             success=false
           fi
         fi
@@ -3798,11 +3798,14 @@ EOF
           success=false
         fi
         
-        # 2. Add warning box after title
+        # 2. Add warning box after title (only if it doesn't exist)
         if $success; then
-          # Insert warning after the title and description
-          if ! sed -i.tmp6 '/^\*\*Bash Plugin Manager & Terminal Enhancement Tool\*\*$/a\\n> ⚠️ **Warning**: This is the development branch. Features may be unstable. For stable releases, use the [main branch](https://github.com/randyoyarzabal/chief/tree/main).' "$file" 2>/dev/null; then
-            success=false
+          # Check if warning box already exists
+          if ! grep -q "Warning.*development branch" "$file" 2>/dev/null; then
+            # Insert warning after the title and description
+            if ! sed -i.tmp6 '/^\*\*Bash Plugin Manager & Terminal Enhancement Tool\*\*$/a\\n> ⚠️ **Warning**: This is the development branch. Features may be unstable. For stable releases, use the [main branch](https://github.com/randyoyarzabal/chief/tree/main).' "$file" 2>/dev/null; then
+              success=false
+            fi
           fi
         fi
         
