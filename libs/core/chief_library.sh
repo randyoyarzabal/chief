@@ -3698,9 +3698,9 @@ EOF
     # Handle stable badge first (before general version replacement)
     if [[ "$(basename "$file")" == "README.md" ]]; then
       if [[ "${positional_args[0]}" == "next-dev" ]]; then
-        # For next-dev: stable badge should show current stable version (remove -dev if present)
-        local stable_version="${current_version%-dev}"  # Remove -dev suffix if present
-        if ! sed -i.tmp_stable "s|Stable-[^-]*\(-dev\)\?-green|Stable-${stable_version}-green|g" "$file" 2>/dev/null; then
+        # For next-dev: stable badge should show the base stable version (remove -dev if present)
+        local stable_version="${new_version%-dev}"  # Get base version from new version
+        if ! sed -i.tmp_stable "s|Stable-[^-]*-green|Stable-${stable_version}-green|g" "$file" 2>/dev/null; then
           success=false
         fi
       elif [[ "${positional_args[0]}" == "release" ]]; then
@@ -3748,8 +3748,8 @@ EOF
       if $dev_badge_exists; then
         # Update existing dev badge
         if [[ "$dev_badge_current" == *".*"* ]]; then
-          # Use regex replacement for pattern matching - improved pattern
-          if ! sed -i.tmp_dev "s|Dev%20Branch-v[0-9][^-]*\(-dev\)\?|${dev_badge_new}|g" "$file" 2>/dev/null; then
+          # Use regex replacement for pattern matching - prevent --dev accumulation
+          if ! sed -i.tmp_dev "s|Dev%20Branch-[^-]*\(--dev\)*|${dev_badge_new}|g" "$file" 2>/dev/null; then
             success=false
           fi
         else
