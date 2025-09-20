@@ -3561,19 +3561,21 @@ EOF
     # Note: No special UPDATES handling needed - using release-notes structure
     
     # Check if file already has the new version (both regular and badge formats)
-    # Handle badge URL encoding with proper -dev suffix handling
+    # Handle badge URL encoding with proper shields.io format: label-message-color
     local badge_current=""
-    local badge_new="Download-Release%20${new_version}"
+    local badge_new_encoded="${new_version//-/--}"  # Double dashes for shields.io
+    local badge_new="Download%20Release-${badge_new_encoded}"
     
     # For release workflow: current version might have -dev, new version won't
+    local badge_current_encoded="${current_version//-/--}"  # Double dashes for shields.io
     if [[ "${positional_args[0]}" == "release" ]]; then
-      badge_current="Download-Release%20${current_version}"
+      badge_current="Download%20Release-${badge_current_encoded}"
     # For next-dev workflow: current version won't have -dev, new version will
     elif [[ "${positional_args[0]}" == "next-dev" ]]; then
-      badge_current="Download-Release%20${current_version}"
+      badge_current="Download%20Release-${badge_current_encoded}"
     else
       # Default case
-      badge_current="Download-Release%20${current_version}"
+      badge_current="Download%20Release-${badge_current_encoded}"
     fi
     
     # Handle dev badge updates for two-badge structure
@@ -3587,13 +3589,15 @@ EOF
       local patch="${BASH_REMATCH[3]}"
       # Next development cycle: increment minor version for next dev
       ((minor++))
-      dev_badge_current="Dev%20Branch-${current_version}"
+      local current_encoded="${current_version//-/--}"  # Double dashes for shields.io
+      dev_badge_current="Dev%20Branch-${current_encoded}"
       dev_badge_new="Dev%20Branch-v${major}.${minor}.0"
     # For next-dev workflow: v3.1.1 → v3.1.2-dev, dev badge should show the new dev version
     elif [[ "${positional_args[0]}" == "next-dev" ]]; then
       # Current version would be release version, new version would be dev version
       dev_badge_current="Dev%20Branch-.*"  # Pattern to match any current dev badge
-      dev_badge_new="Dev%20Branch-${new_version}"
+      local dev_badge_new_encoded="${new_version//-/--}"  # Double dashes for shields.io
+      dev_badge_new="Dev%20Branch-${dev_badge_new_encoded}"
     fi
     
     # Check if file already has the new version (check version first, then badges if they exist)
@@ -3718,13 +3722,13 @@ EOF
       if ! sed -i.tmp2 "s/${badge_current}/${badge_new}/g" "$file" 2>/dev/null; then
         # If that fails, try a more flexible pattern-based replacement
         if [[ "${positional_args[0]}" == "next-dev" ]]; then
-          # For next-dev, we need to add -dev to the version
-          if ! sed -i.tmp2 "s|Download-Release%20${current_version}\([^-]\)|${badge_new}\1|g" "$file" 2>/dev/null; then
+          # For next-dev, try pattern matching for old format
+          if ! sed -i.tmp2 "s|Download%20Release-[^-]*\(--dev\)\?|${badge_new}|g" "$file" 2>/dev/null; then
             success=false
           fi
         elif [[ "${positional_args[0]}" == "release" ]]; then
-          # For release, we need to remove -dev from the version
-          if ! sed -i.tmp2 "s|Download-Release%20${current_version}|${badge_new}|g" "$file" 2>/dev/null; then
+          # For release, try pattern matching for old format
+          if ! sed -i.tmp2 "s|Download%20Release-[^-]*\(--dev\)\?|${badge_new}|g" "$file" 2>/dev/null; then
             success=false
           fi
         else
@@ -3757,8 +3761,8 @@ EOF
       else
         # Add dev badge if it doesn't exist (for next-dev workflow in README.md)
         if [[ "${positional_args[0]}" == "next-dev" && "$(basename "$file")" == "README.md" ]]; then
-          # Insert dev badge after the release badge - fixed pattern
-          if ! sed -i.tmp_dev "s|\(Download-Release%20[^-]*\(-dev\)\?[^]]*\)]\([^)]*\))\(.*\)Documentation|\1]\3) [![Dev Branch](https://img.shields.io/badge/${dev_badge_new}-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev)\4Documentation|g" "$file" 2>/dev/null; then
+          # Insert dev badge after the release badge - fixed pattern for shields.io format
+          if ! sed -i.tmp_dev "s|\(Download%20Release-[^-]*\(--dev\)\?[^]]*\)]\([^)]*\))\(.*\)Documentation|\1]\3) [![Dev Branch](https://img.shields.io/badge/${dev_badge_new}-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev)\4Documentation|g" "$file" 2>/dev/null; then
             success=false
           fi
         fi
