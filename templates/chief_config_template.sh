@@ -32,7 +32,7 @@ CHIEF_CFG_AUTOCHECK_UPDATES=false
 # Custom branches can be used for specific versions or team-specific branches.
 # WARNING: Non-main branches may contain unstable features and should be used with caution.
 # This setting affects both automatic update checks and manual updates via chief.update.
-CHIEF_CFG_UPDATE_BRANCH="main"
+CHIEF_CFG_UPDATE_BRANCH="dev"
 
 # PLUG-INS CONFIGURATION
 ####################################

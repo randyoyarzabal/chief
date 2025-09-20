@@ -3373,7 +3373,23 @@ Note: This function only handles version updates. Create GitHub releases manuall
     if ! $dry_run; then
       __chief_print_info "Using release-notes structure for version tracking"
       
+      # Update configuration for development workflow
+      local config_file="${CHIEF_CONFIG}"
+      if [[ -f "$config_file" ]]; then
+        # Update UPDATE_BRANCH to dev for development workflow
+        if grep -q "^CHIEF_CFG_UPDATE_BRANCH=" "$config_file"; then
+          sed -i.tmp_config 's/^CHIEF_CFG_UPDATE_BRANCH=.*/CHIEF_CFG_UPDATE_BRANCH="dev"/' "$config_file"
+          rm -f "${config_file}.tmp_config" 2>/dev/null
+          __chief_print_info "Updated CHIEF_CFG_UPDATE_BRANCH to 'dev' for development workflow"
+        else
+          echo 'CHIEF_CFG_UPDATE_BRANCH="dev"' >> "$config_file"
+          __chief_print_info "Added CHIEF_CFG_UPDATE_BRANCH='dev' to configuration"
+        fi
+      fi
+      
       # Release notes will be managed manually in release-notes/ directory
+    elif $dry_run; then
+      __chief_print_info "Would update CHIEF_CFG_UPDATE_BRANCH to 'dev' for development workflow"
     fi
     
     # Create version-specific release notes file  
@@ -3419,6 +3435,24 @@ EOF
 
   # Special handling for release workflow - transform dev release notes to final
   if $is_release_workflow && [[ "${positional_args[0]}" == "release" ]]; then
+    # Update configuration for release workflow
+    if ! $dry_run; then
+      local config_file="${CHIEF_CONFIG}"
+      if [[ -f "$config_file" ]]; then
+        # Update UPDATE_BRANCH to main for release workflow
+        if grep -q "^CHIEF_CFG_UPDATE_BRANCH=" "$config_file"; then
+          sed -i.tmp_config 's/^CHIEF_CFG_UPDATE_BRANCH=.*/CHIEF_CFG_UPDATE_BRANCH="main"/' "$config_file"
+          rm -f "${config_file}.tmp_config" 2>/dev/null
+          __chief_print_info "Updated CHIEF_CFG_UPDATE_BRANCH to 'main' for stable release tracking"
+        else
+          echo 'CHIEF_CFG_UPDATE_BRANCH="main"' >> "$config_file"
+          __chief_print_info "Added CHIEF_CFG_UPDATE_BRANCH='main' to configuration"
+        fi
+      fi
+    elif $dry_run; then
+      __chief_print_info "Would update CHIEF_CFG_UPDATE_BRANCH to 'main' for stable release tracking"
+    fi
+    
     local release_notes_dir="${CHIEF_PATH}/release-notes"
     local dev_release_notes="${release_notes_dir}/${new_version}-dev.md"
     local final_release_notes="${release_notes_dir}/${new_version}.md"
@@ -3490,8 +3524,20 @@ EOF
     # Note: No special UPDATES handling needed - using release-notes structure
     
     # Check if file already has the new version (both regular and badge formats)
-    local badge_current="Download-Release%20${current_version}"
+    # Handle badge URL encoding with proper -dev suffix handling
+    local badge_current=""
     local badge_new="Download-Release%20${new_version}"
+    
+    # For release workflow: current version might have -dev, new version won't
+    if [[ "${positional_args[0]}" == "release" ]]; then
+      badge_current="Download-Release%20${current_version}"
+    # For next-dev workflow: current version won't have -dev, new version will
+    elif [[ "${positional_args[0]}" == "next-dev" ]]; then
+      badge_current="Download-Release%20${current_version}"
+    else
+      # Default case
+      badge_current="Download-Release%20${current_version}"
+    fi
     
     # Handle dev badge updates for two-badge structure
     local dev_badge_current=""
@@ -3589,9 +3635,25 @@ EOF
       success=false
     fi
     
-    # Update badge URL-encoded versions  
-    if $success && ! sed -i.tmp2 "s/${badge_current}/${badge_new}/g" "$file" 2>/dev/null; then
-      success=false
+    # Update badge URL-encoded versions - improved to handle -dev suffix variations
+    if $success; then
+      # Try exact replacement first
+      if ! sed -i.tmp2 "s/${badge_current}/${badge_new}/g" "$file" 2>/dev/null; then
+        # If that fails, try a more flexible pattern-based replacement
+        if [[ "${positional_args[0]}" == "next-dev" ]]; then
+          # For next-dev, we need to add -dev to the version
+          if ! sed -i.tmp2 "s|Download-Release%20${current_version}\([^-]\)|${badge_new}\1|g" "$file" 2>/dev/null; then
+            success=false
+          fi
+        elif [[ "${positional_args[0]}" == "release" ]]; then
+          # For release, we need to remove -dev from the version
+          if ! sed -i.tmp2 "s|Download-Release%20${current_version}|${badge_new}|g" "$file" 2>/dev/null; then
+            success=false
+          fi
+        else
+          success=false
+        fi
+      fi
     fi
     
     # Update dev badge if we have dev badge changes
@@ -3605,8 +3667,8 @@ EOF
       if $dev_badge_exists; then
         # Update existing dev badge
         if [[ "$dev_badge_current" == *".*"* ]]; then
-          # Use regex replacement for pattern matching
-          if ! sed -i.tmp_dev "s|Dev%20Branch-v[0-9][^-]*|${dev_badge_new}|g" "$file" 2>/dev/null; then
+          # Use regex replacement for pattern matching - improved pattern
+          if ! sed -i.tmp_dev "s|Dev%20Branch-v[0-9][^-]*\(-dev\)\?|${dev_badge_new}|g" "$file" 2>/dev/null; then
             success=false
           fi
         else
@@ -3618,8 +3680,8 @@ EOF
       else
         # Add dev badge if it doesn't exist (for next-dev workflow in README.md)
         if [[ "${positional_args[0]}" == "next-dev" && "$(basename "$file")" == "README.md" ]]; then
-          # Insert dev badge after the release badge
-          if ! sed -i.tmp_dev "s|\(Download-Release%20${new_version}[^]]*\)]\([^)]*\))\(.*\)Documentation|\1]]\2) [![Dev Branch](https://img.shields.io/badge/${dev_badge_new}-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev)\3Documentation|g" "$file" 2>/dev/null; then
+          # Insert dev badge after the release badge - simplified pattern
+          if ! sed -i.tmp_dev "s|\(Download-Release%20[^-]*\(-dev\)\?[^]]*\)]\([^)]*\))\(.*\)Documentation|\1]]\3) [![Dev Branch](https://img.shields.io/badge/${dev_badge_new}-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev)\4Documentation|g" "$file" 2>/dev/null; then
             success=false
           fi
         fi
@@ -3750,12 +3812,14 @@ EOF
     if [[ "$new_version" =~ -dev$ ]]; then
       __chief_print_info "📋 Next steps for development version ($new_version):"
       __chief_print_info "  1. ✅ Ready for development work on $new_version"
-      __chief_print_info "  📄 README.md converted to dev format (added warnings/dev structure)"
-      __chief_print_info "  2. When ready to release, run: __chief.bump release"
+      __chief_print_info "  2. 📄 README.md converted to dev format (added warnings/dev structure)"
+      __chief_print_info "  3. 🔄 Update branch set to 'dev' (will track development updates)"
+      __chief_print_info "  4. When ready to release, run: __chief.bump release"
     else
       __chief_print_info "🚀 Release version ready ($new_version):"
       __chief_print_info "  📝 Badges now show release version (no -dev suffix)"
       __chief_print_info "  📄 README.md converted to release format (removed dev warnings/structure)"
+      __chief_print_info "  🔄 Update branch set to 'main' (will track stable releases)"
       __chief_print_info "  📋 Next steps to publish release:"
       __chief_print_info "  1. 🔄 Create PR: dev → main (for release)"
       __chief_print_info "  2. 📦 Create GitHub release from tag for publishing"
