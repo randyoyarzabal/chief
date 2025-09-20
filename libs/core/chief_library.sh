@@ -3614,8 +3614,32 @@ EOF
       fi
     fi
     
-    # File is up to date if version is correct AND (no badges OR badges are correct)
-    if $has_new_version && (! $has_badges || ! $badge_needs_update); then
+    # For README.md, also check content structure for dev vs release versions
+    local readme_content_correct=true
+    if [[ "$(basename "$file")" == "README.md" ]]; then
+      if [[ "${positional_args[0]}" == "next-dev" ]]; then
+        # For next-dev, README should have dev content structure
+        if ! grep -q "# 🚀 Chief (Development Version)" "$file" 2>/dev/null; then
+          readme_content_correct=false
+        elif ! grep -q "Warning.*development branch" "$file" 2>/dev/null; then
+          readme_content_correct=false
+        elif ! grep -q "Quick Install (Development Version)" "$file" 2>/dev/null; then
+          readme_content_correct=false
+        fi
+      elif [[ "${positional_args[0]}" == "release" ]]; then
+        # For release, README should have release content structure
+        if ! grep -q "^# 🚀 Chief$" "$file" 2>/dev/null; then
+          readme_content_correct=false
+        elif grep -q "Warning.*development branch" "$file" 2>/dev/null; then
+          readme_content_correct=false
+        elif ! grep -q "^## ⚡ Quick Install$" "$file" 2>/dev/null; then
+          readme_content_correct=false
+        fi
+      fi
+    fi
+    
+    # File is up to date if version is correct AND (no badges OR badges are correct) AND README content is correct
+    if $has_new_version && (! $has_badges || ! $badge_needs_update) && $readme_content_correct; then
       __chief_print_info "$(basename "$file"): Already up to date ($new_version)"
       continue
     fi
@@ -3726,7 +3750,7 @@ EOF
     fi
     
     # For release bumps (not next-dev), remove "(Unreleased)" markers
-    if $success && [[ "$1" == "release" ]]; then
+    if $success && [[ "${positional_args[0]}" == "release" ]]; then
       # Handle different unreleased patterns
       if ! sed -i.tmp3 "s/## Unreleased (${new_version})/## ${new_version}/g" "$file" 2>/dev/null; then
         success=false
@@ -3738,7 +3762,7 @@ EOF
     
     # Handle README.md content changes for dev vs release versions
     if $success && [[ "$(basename "$file")" == "README.md" ]]; then
-      if [[ "$1" == "release" ]]; then
+      if [[ "${positional_args[0]}" == "release" ]]; then
         # RELEASE: Remove dev-specific content from README
         # 1. Remove "(Development Version)" from title
         if ! sed -i.tmp5 "s/# 🚀 Chief (Development Version)/# 🚀 Chief/g" "$file" 2>/dev/null; then
@@ -3767,7 +3791,7 @@ EOF
           fi
         fi
         
-      elif [[ "$1" == "next-dev" ]]; then
+      elif [[ "${positional_args[0]}" == "next-dev" ]]; then
         # NEXT-DEV: Add dev-specific content to README
         # 1. Add "(Development Version)" to title
         if ! sed -i.tmp5 "s/# 🚀 Chief$/# 🚀 Chief (Development Version)/g" "$file" 2>/dev/null; then
