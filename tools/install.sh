@@ -290,8 +290,22 @@ setup_config() {
       echo -e "${GREEN}SUCCESS: Added branch tracking configuration (${CHIEF_INSTALL_GIT_BRANCH})${NC}"
     fi
   elif $LOCAL_INSTALL; then
-    echo -e "${CYAN}Local installation: Skipping branch tracking configuration${NC}"
-    echo -e "${CYAN}Disconnected environments manage updates manually${NC}"
+    echo -e "${CYAN}Disconnected installation: Setting stable branch configuration${NC}"
+    # Set to 'main' (stable) branch for disconnected installs since it's more appropriate
+    # than 'dev' even though the setting is ignored in disconnected mode
+    if grep -q "CHIEF_CFG_UPDATE_BRANCH=" "$CHIEF_CONFIG"; then
+      if sed -i.bak "s/CHIEF_CFG_UPDATE_BRANCH=.*/CHIEF_CFG_UPDATE_BRANCH=\"main\"/" "$CHIEF_CONFIG" 2>/dev/null; then
+        rm -f "$CHIEF_CONFIG.bak" 2>/dev/null
+        echo -e "${GREEN}SUCCESS: Configuration set to stable (main) branch${NC}"
+      fi
+    else
+      # Add setting if it doesn't exist (for older config files)
+      echo "" >> "$CHIEF_CONFIG"
+      echo "# Branch tracking configuration (disconnected mode - setting ignored)" >> "$CHIEF_CONFIG"
+      echo "CHIEF_CFG_UPDATE_BRANCH=\"main\"" >> "$CHIEF_CONFIG"
+      echo -e "${GREEN}SUCCESS: Added stable branch configuration${NC}"
+    fi
+    echo -e "${CYAN}Note: Disconnected environments manage updates manually${NC}"
   fi
 
   echo ""
