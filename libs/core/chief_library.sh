@@ -3691,8 +3691,24 @@ EOF
     # Perform replacements (both regular version and badge URLs)
     local success=true
     
+    # Handle stable badge first (before general version replacement)
+    if [[ "$(basename "$file")" == "README.md" ]]; then
+      if [[ "${positional_args[0]}" == "next-dev" ]]; then
+        # For next-dev: stable badge should show current stable version (remove -dev if present)
+        local stable_version="${current_version%-dev}"  # Remove -dev suffix if present
+        if ! sed -i.tmp_stable "s|Stable-[^-]*\(-dev\)\?-green|Stable-${stable_version}-green|g" "$file" 2>/dev/null; then
+          success=false
+        fi
+      elif [[ "${positional_args[0]}" == "release" ]]; then
+        # For release: stable badge should show new release version
+        if ! sed -i.tmp_stable "s|Stable-[^-]*\(-dev\)\?-green|Stable-${new_version}-green|g" "$file" 2>/dev/null; then
+          success=false
+        fi
+      fi
+    fi
+    
     # Update regular version references
-    if ! sed -i.tmp1 "s/${current_version}/${new_version}/g" "$file" 2>/dev/null; then
+    if $success && ! sed -i.tmp1 "s/${current_version}/${new_version}/g" "$file" 2>/dev/null; then
       success=false
     fi
     
@@ -3826,7 +3842,7 @@ EOF
     fi
     
     if $success; then
-      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp5" "${file}.tmp6" "${file}.tmp7" "${file}.tmp_dev" 2>/dev/null
+      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp5" "${file}.tmp6" "${file}.tmp7" "${file}.tmp_dev" "${file}.tmp_stable" 2>/dev/null
       if [[ "$(basename "$file")" == "README.md" ]]; then
         __chief_print_success "$(basename "$file"): Updated $current_version → $new_version (including badges and content structure)"
       else
@@ -3841,7 +3857,7 @@ EOF
           mv "$backup_file" "$file" 2>/dev/null
         fi
       fi
-      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp5" "${file}.tmp6" "${file}.tmp7" "${file}.tmp_dev" 2>/dev/null
+      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp5" "${file}.tmp6" "${file}.tmp7" "${file}.tmp_dev" "${file}.tmp_stable" 2>/dev/null
       __chief_print_error "$(basename "$file"): Failed to update"
       return 1
     fi
