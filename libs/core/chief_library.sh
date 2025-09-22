@@ -190,6 +190,25 @@ function __chief_lower() {
   echo $valStr
 }
 
+function __chief_get_command_prefix() {
+  # Usage: __chief_get_command_prefix
+  # 
+  # Developer usage: Returns the appropriate command prefix for help text
+  # - Returns alias prefix if CHIEF_CFG_ALIAS is set (e.g., "cf.")
+  # - Returns "chief." if no alias is configured
+  # - Used internally by help functions to display correct command names
+  #
+  # Returns:
+  #   string - Command prefix with trailing dot (e.g., "chief." or "cf.")
+  
+  if [[ -n ${CHIEF_CFG_ALIAS} ]]; then
+    local alias=$(__chief_lower ${CHIEF_CFG_ALIAS})
+    echo "${alias}."
+  else
+    echo "chief."
+  fi
+}
+
 function __chief_upper() {
   # Usage: __upper <string>
   # 
@@ -853,12 +872,13 @@ function __chief.hints_text() {
   done
   
   if ${CHIEF_CFG_HINTS} || $show_hints; then
+    local cmd_prefix=$(__chief_get_command_prefix)
     # If plugins are not set to auto-update, display a message.
     if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]] && ! ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE}; then   
-      echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands."
-      echo -e "${CHIEF_COLOR_GREEN}chief.plugins_update${CHIEF_NO_COLOR} to update/load plugins. | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief."
+      echo -e "${CHIEF_COLOR_GREEN}${cmd_prefix}[tab]${CHIEF_NO_COLOR} for available commands."
+      echo -e "${CHIEF_COLOR_GREEN}${cmd_prefix}plugins_update${CHIEF_NO_COLOR} to update/load plugins. | ${CHIEF_COLOR_GREEN}${cmd_prefix}update${CHIEF_NO_COLOR} to update Chief."
     else
-      echo -e "${CHIEF_COLOR_GREEN}chief.[tab]${CHIEF_NO_COLOR} for available commands. | ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR} to update Chief.${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_GREEN}${cmd_prefix}[tab]${CHIEF_NO_COLOR} for available commands. | ${CHIEF_COLOR_GREEN}${cmd_prefix}update${CHIEF_NO_COLOR} to update Chief.${CHIEF_NO_COLOR}"
     fi
     local plugin_list=$(__chief_get_plugins)
     if [[ ${plugin_list} != "" ]]; then
@@ -993,18 +1013,19 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
       __chief_search_help "$2"
       ;;
     full|*)
+      local cmd_prefix=$(__chief_get_command_prefix)
       __chief.banner
       echo
       __chief_show_chief_stats
       echo
       echo -e "${CHIEF_COLOR_YELLOW}Available help categories:${CHIEF_NO_COLOR}"
-      echo -e "• ${CHIEF_COLOR_GREEN}chief.help commands${CHIEF_NO_COLOR}  - Core commands and usage"
-      echo -e "• ${CHIEF_COLOR_GREEN}chief.help plugins${CHIEF_NO_COLOR}   - Plugin management"
-      echo -e "• ${CHIEF_COLOR_GREEN}chief.help config${CHIEF_NO_COLOR}    - Configuration options"
-      echo -e "• ${CHIEF_COLOR_GREEN}chief.help --compact${CHIEF_NO_COLOR} - Quick reference"
-      echo -e "• ${CHIEF_COLOR_GREEN}chief.hints${CHIEF_NO_COLOR}          - Quick tips and workflow"
+      echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}help commands${CHIEF_NO_COLOR}  - Core commands and usage"
+      echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}help plugins${CHIEF_NO_COLOR}   - Plugin management"
+      echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}help config${CHIEF_NO_COLOR}    - Configuration options"
+      echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}help --compact${CHIEF_NO_COLOR} - Quick reference"
+      echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}hints${CHIEF_NO_COLOR}          - Quick tips and workflow"
       echo
-      echo -e "${CHIEF_COLOR_CYAN}Quick start: ${CHIEF_COLOR_GREEN}chief.[tab][tab]${CHIEF_NO_COLOR} to see all commands"
+      echo -e "${CHIEF_COLOR_CYAN}Quick start: ${CHIEF_COLOR_GREEN}${cmd_prefix}[tab][tab]${CHIEF_NO_COLOR} to see all commands"
       echo
       echo -e "${CHIEF_COLOR_YELLOW}🐛 Bug Reports & Issues:${CHIEF_NO_COLOR}"
       echo -e "Found a bug or need help? Please create an issue on GitHub:"
@@ -2528,10 +2549,14 @@ ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
 }
 
 function chief.bash_profile() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Edit your ~/.bash_profile file with automatic reload on changes.
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -r, --reload      Reload ~/.bash_profile without editing
+  -?, --help        Show this help
 
 ${CHIEF_COLOR_GREEN}What is .bash_profile:${CHIEF_NO_COLOR}
 - Login shell initialization script
@@ -2551,23 +2576,59 @@ ${CHIEF_COLOR_MAGENTA}Best Practices:${CHIEF_NO_COLOR}
 - Configure personal aliases and functions
 - Source other configuration files
 
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME                        # Edit ~/.bash_profile
+  $FUNCNAME -r                     # Reload ~/.bash_profile
+  $FUNCNAME --reload               # Reload ~/.bash_profile
+
 ${CHIEF_COLOR_YELLOW}File Location:${CHIEF_NO_COLOR}
 ~/.bash_profile
 "
 
-  if [[ $1 == "-?" ]]; then
-    echo -e "${USAGE}"
-    return
-  fi
+  # Parse options
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -r|--reload)
+        if [[ -f "$HOME/.bash_profile" ]]; then
+          echo -e "${CHIEF_COLOR_BLUE}Reloading ~/.bash_profile...${CHIEF_NO_COLOR}"
+          source "$HOME/.bash_profile"
+          echo -e "${CHIEF_COLOR_GREEN}Successfully reloaded ~/.bash_profile${CHIEF_NO_COLOR}"
+        else
+          echo -e "${CHIEF_COLOR_YELLOW}Warning: ~/.bash_profile does not exist${CHIEF_NO_COLOR}"
+          return 1
+        fi
+        return
+        ;;
+      -\?|--help)
+        echo -e "${USAGE}"
+        return
+        ;;
+      -*)
+        echo -e "${CHIEF_COLOR_RED}Error: Unknown option: $1${CHIEF_NO_COLOR}"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+      *)
+        echo -e "${CHIEF_COLOR_RED}Error: Unexpected argument: $1${CHIEF_NO_COLOR}"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+    esac
+    shift
+  done
 
   chief.edit-file "$HOME/.bash_profile"
 }
 
 function chief.bashrc() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Edit your ~/.bashrc file with automatic reload on changes.
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -r, --reload      Reload ~/.bashrc without editing
+  -?, --help        Show this help
 
 ${CHIEF_COLOR_GREEN}What is .bashrc:${CHIEF_NO_COLOR}
 - Non-login shell initialization script
@@ -2586,6 +2647,11 @@ ${CHIEF_COLOR_MAGENTA}Usage Notes:${CHIEF_NO_COLOR}
 - .bashrc is better for non-login interactive shells
 - Some systems source .bashrc from .bash_profile
 
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME                        # Edit ~/.bashrc
+  $FUNCNAME -r                     # Reload ~/.bashrc
+  $FUNCNAME --reload               # Reload ~/.bashrc
+
 ${CHIEF_COLOR_YELLOW}File Location:${CHIEF_NO_COLOR}
 ~/.bashrc
 
@@ -2593,19 +2659,50 @@ ${CHIEF_COLOR_BLUE}Recommendation:${CHIEF_NO_COLOR}
 Use chief.bash_profile for most Chief and personal configurations.
 "
 
-  if [[ $1 == "-?" ]]; then
-    echo -e "${USAGE}"
-    return
-  fi
+  # Parse options
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -r|--reload)
+        if [[ -f "$HOME/.bashrc" ]]; then
+          echo -e "${CHIEF_COLOR_BLUE}Reloading ~/.bashrc...${CHIEF_NO_COLOR}"
+          source "$HOME/.bashrc"
+          echo -e "${CHIEF_COLOR_GREEN}Successfully reloaded ~/.bashrc${CHIEF_NO_COLOR}"
+        else
+          echo -e "${CHIEF_COLOR_YELLOW}Warning: ~/.bashrc does not exist${CHIEF_NO_COLOR}"
+          return 1
+        fi
+        return
+        ;;
+      -\?|--help)
+        echo -e "${USAGE}"
+        return
+        ;;
+      -*)
+        echo -e "${CHIEF_COLOR_RED}Error: Unknown option: $1${CHIEF_NO_COLOR}"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+      *)
+        echo -e "${CHIEF_COLOR_RED}Error: Unexpected argument: $1${CHIEF_NO_COLOR}"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+    esac
+    shift
+  done
 
   chief.edit-file "$HOME/.bashrc"
 }
 
 function chief.profile() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Edit your ~/.profile file with automatic reload on changes.
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -r, --reload      Reload ~/.profile without editing
+  -?, --help        Show this help
 
 ${CHIEF_COLOR_GREEN}What is .profile:${CHIEF_NO_COLOR}
 - POSIX-compliant shell initialization script
@@ -2625,6 +2722,11 @@ ${CHIEF_COLOR_MAGENTA}Compatibility:${CHIEF_NO_COLOR}
 - Use for environment variables and paths
 - Shell-agnostic configurations
 
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME                        # Edit ~/.profile
+  $FUNCNAME -r                     # Reload ~/.profile
+  $FUNCNAME --reload               # Reload ~/.profile
+
 ${CHIEF_COLOR_YELLOW}File Location:${CHIEF_NO_COLOR}
 ~/.profile
 
@@ -2632,10 +2734,37 @@ ${CHIEF_COLOR_BLUE}Best Practice:${CHIEF_NO_COLOR}
 Use ~/.profile for cross-shell environment settings and ~/.bash_profile for bash-specific configurations.
 "
 
-  if [[ $1 == "-?" ]]; then
-    echo -e "${USAGE}"
-    return
-  fi
+  # Parse options
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -r|--reload)
+        if [[ -f "$HOME/.profile" ]]; then
+          echo -e "${CHIEF_COLOR_BLUE}Reloading ~/.profile...${CHIEF_NO_COLOR}"
+          source "$HOME/.profile"
+          echo -e "${CHIEF_COLOR_GREEN}Successfully reloaded ~/.profile${CHIEF_NO_COLOR}"
+        else
+          echo -e "${CHIEF_COLOR_YELLOW}Warning: ~/.profile does not exist${CHIEF_NO_COLOR}"
+          return 1
+        fi
+        return
+        ;;
+      -\?|--help)
+        echo -e "${USAGE}"
+        return
+        ;;
+      -*)
+        echo -e "${CHIEF_COLOR_RED}Error: Unknown option: $1${CHIEF_NO_COLOR}"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+      *)
+        echo -e "${CHIEF_COLOR_RED}Error: Unexpected argument: $1${CHIEF_NO_COLOR}"
+        echo -e "${USAGE}"
+        return 1
+        ;;
+    esac
+    shift
+  done
 
   chief.edit-file "$HOME/.profile"
 }
@@ -2701,38 +2830,40 @@ function __chief_show_chief_stats() {
 
 # Show core Chief commands
 function __chief_show_core_commands() {
+  local cmd_prefix=$(__chief_get_command_prefix)
   echo -e "${CHIEF_COLOR_YELLOW}Core Chief Commands:${CHIEF_NO_COLOR}"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Configuration & Setup:${CHIEF_NO_COLOR}"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}        Edit Chief configuration file"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.config-set${CHIEF_NO_COLOR}    Set configuration variables directly"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.config-update${CHIEF_NO_COLOR} Update config with new options from template"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.reload${CHIEF_NO_COLOR}        Reload Chief environment"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.update${CHIEF_NO_COLOR}        Update Chief to latest version"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.uninstall${CHIEF_NO_COLOR}     Remove Chief from system"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}config${CHIEF_NO_COLOR}        Edit Chief configuration file"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}config-set${CHIEF_NO_COLOR}    Set configuration variables directly"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}config-update${CHIEF_NO_COLOR} Update config with new options from template"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}reload${CHIEF_NO_COLOR}        Reload Chief environment"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}update${CHIEF_NO_COLOR}        Update Chief to latest version"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}uninstall${CHIEF_NO_COLOR}     Remove Chief from system"
   echo
   echo -e "${CHIEF_COLOR_CYAN}File Management:${CHIEF_NO_COLOR} ${CHIEF_COLOR_BLUE}(auto-reloads after editing)${CHIEF_NO_COLOR}"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.edit-file${CHIEF_NO_COLOR}     Edit any file with auto-reload detection"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.bash_profile${CHIEF_NO_COLOR}  Edit ~/.bash_profile"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.bashrc${CHIEF_NO_COLOR}        Edit ~/.bashrc"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.profile${CHIEF_NO_COLOR}       Edit ~/.profile"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}edit-file${CHIEF_NO_COLOR}     Edit any file with auto-reload detection"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}bash_profile${CHIEF_NO_COLOR}  Edit ~/.bash_profile"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}bashrc${CHIEF_NO_COLOR}        Edit ~/.bashrc"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}profile${CHIEF_NO_COLOR}       Edit ~/.profile"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Plugin Management:${CHIEF_NO_COLOR}"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugins-root${CHIEF_NO_COLOR}   Navigate to plugins directory"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugin${CHIEF_NO_COLOR}        Create/edit plugins"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR}     List available plugins"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}plugins-root${CHIEF_NO_COLOR}   Navigate to plugins directory"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin${CHIEF_NO_COLOR}        Create/edit plugins"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin -?${CHIEF_NO_COLOR}     List available plugins"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Utilities:${CHIEF_NO_COLOR}"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.whereis${CHIEF_NO_COLOR}       Find aliases, functions, and variables"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.hints${CHIEF_NO_COLOR}         Show quick tips and workflow"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}whereis${CHIEF_NO_COLOR}       Find aliases, functions, and variables"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}hints${CHIEF_NO_COLOR}         Show quick tips and workflow"
   echo
   echo -e "${CHIEF_COLOR_BLUE}Usage tip:${CHIEF_NO_COLOR} All commands support ${CHIEF_COLOR_GREEN}-?${CHIEF_NO_COLOR} or ${CHIEF_COLOR_GREEN}--help${CHIEF_NO_COLOR} for detailed help"
 }
 
 # Show plugin-related help
 function __chief_show_plugin_help() {
+  local cmd_prefix=$(__chief_get_command_prefix)
   echo -e "${CHIEF_COLOR_YELLOW}Plugin Management:${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR} All commands below should be prefixed with ${CHIEF_COLOR_GREEN}chief.${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR} All commands below should be prefixed with ${CHIEF_COLOR_GREEN}${cmd_prefix}${CHIEF_NO_COLOR}"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Plugin Commands:${CHIEF_NO_COLOR}"
   echo -e "  ${CHIEF_COLOR_GREEN}plugins${CHIEF_NO_COLOR}              Navigate to plugins directory"
@@ -2813,26 +2944,27 @@ function __chief_show_plugin_help() {
     echo -e "  ${CHIEF_COLOR_YELLOW}No plugin functions loaded yet${CHIEF_NO_COLOR}"
     echo
     echo -e "${CHIEF_COLOR_BLUE}To get started:${CHIEF_NO_COLOR}"
-    echo -e "  • Run ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR} to see available plugins"
-    echo -e "  • Create your first plugin: ${CHIEF_COLOR_GREEN}chief.plugin mytools${CHIEF_NO_COLOR}"
+    echo -e "  • Run ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin -?${CHIEF_NO_COLOR} to see available plugins"
+    echo -e "  • Create your first plugin: ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin mytools${CHIEF_NO_COLOR}"
   fi
   
   echo
   echo -e "${CHIEF_COLOR_BLUE}Plugin Development:${CHIEF_NO_COLOR}"
   echo -e "• Plugin location: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS_PATH:-~/.chief_plugins}${CHIEF_NO_COLOR}"
   echo -e "• Template: ${CHIEF_COLOR_CYAN}${CHIEF_DEFAULT_PLUGIN_TEMPLATE}${CHIEF_NO_COLOR}"
-  echo -e "• Edit config: ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to set CHIEF_CFG_PLUGINS_PATH"
+  echo -e "• Edit config: ${CHIEF_COLOR_GREEN}${cmd_prefix}config${CHIEF_NO_COLOR} to set CHIEF_CFG_PLUGINS_PATH"
 }
 
 # Show configuration help
 function __chief_show_configuration_help() {
+  local cmd_prefix=$(__chief_get_command_prefix)
   echo -e "${CHIEF_COLOR_YELLOW}Chief Configuration:${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR} All configuration variables below should be prefixed with ${CHIEF_COLOR_GREEN}CHIEF_CFG_${CHIEF_NO_COLOR}"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Configuration File:${CHIEF_NO_COLOR}"
   echo -e "  Location: ${CHIEF_COLOR_CYAN}$CHIEF_CONFIG${CHIEF_NO_COLOR}"
-  echo -e "  Edit: ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}"
-  echo -e "  Set directly: ${CHIEF_COLOR_GREEN}chief.config_set <option> <value>${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(omit CHIEF_CFG_ prefix)${CHIEF_NO_COLOR}"
+  echo -e "  Edit: ${CHIEF_COLOR_GREEN}${cmd_prefix}config${CHIEF_NO_COLOR}"
+  echo -e "  Set directly: ${CHIEF_COLOR_GREEN}${cmd_prefix}config_set <option> <value>${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(omit CHIEF_CFG_ prefix)${CHIEF_NO_COLOR}"
   echo
   
   echo -e "${CHIEF_COLOR_CYAN}Display & Interface:${CHIEF_NO_COLOR}"
@@ -2886,25 +3018,26 @@ function __chief_show_configuration_help() {
   echo
   
   echo -e "${CHIEF_COLOR_BLUE}Configuration Commands:${CHIEF_NO_COLOR}"
-  echo -e "• Edit config file: ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR}"
-  echo -e "• Set config directly: ${CHIEF_COLOR_GREEN}chief.config_set <option> <value>${CHIEF_NO_COLOR}"
-  echo -e "• List all config vars: ${CHIEF_COLOR_GREEN}chief.config_set --list${CHIEF_NO_COLOR}"
-  echo -e "• Update config with latest options: ${CHIEF_COLOR_GREEN}chief.config_update${CHIEF_NO_COLOR}"
+  echo -e "• Edit config file: ${CHIEF_COLOR_GREEN}${cmd_prefix}config${CHIEF_NO_COLOR}"
+  echo -e "• Set config directly: ${CHIEF_COLOR_GREEN}${cmd_prefix}config_set <option> <value>${CHIEF_NO_COLOR}"
+  echo -e "• List all config vars: ${CHIEF_COLOR_GREEN}${cmd_prefix}config_set --list${CHIEF_NO_COLOR}"
+  echo -e "• Update config with latest options: ${CHIEF_COLOR_GREEN}${cmd_prefix}config_update${CHIEF_NO_COLOR}"
   echo -e "• View current config: ${CHIEF_COLOR_GREEN}cat $CHIEF_CONFIG${CHIEF_NO_COLOR}"
-  echo -e "• Reload after changes: ${CHIEF_COLOR_GREEN}chief.reload${CHIEF_NO_COLOR}"
-  echo -e "• Test prompt: ${CHIEF_COLOR_GREEN}chief.git.legend${CHIEF_NO_COLOR} (if git prompt enabled)"
+  echo -e "• Reload after changes: ${CHIEF_COLOR_GREEN}${cmd_prefix}reload${CHIEF_NO_COLOR}"
+  echo -e "• Test prompt: ${CHIEF_COLOR_GREEN}${cmd_prefix}git.legend${CHIEF_NO_COLOR} (if git prompt enabled)"
   echo
   echo -e "${CHIEF_COLOR_BLUE}Configuration Examples:${CHIEF_NO_COLOR}"
-  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set banner false${CHIEF_NO_COLOR}     # Disable startup banner (with prompt)"
-  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set --yes prompt true${CHIEF_NO_COLOR}      # Enable Chief prompt (no prompt)"  
-  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set colored_ls true${CHIEF_NO_COLOR}  # Enable colored ls (with prompt)"
-  echo -e "• ${CHIEF_COLOR_GREEN}chief.config_set config_set_interactive false${CHIEF_NO_COLOR} # Disable prompts globally"
+  echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}config_set banner false${CHIEF_NO_COLOR}     # Disable startup banner (with prompt)"
+  echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}config_set --yes prompt true${CHIEF_NO_COLOR}      # Enable Chief prompt (no prompt)"  
+  echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}config_set colored_ls true${CHIEF_NO_COLOR}  # Enable colored ls (with prompt)"
+  echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}config_set config_set_interactive false${CHIEF_NO_COLOR} # Disable prompts globally"
 }
 
 # Show compact command reference
 function __chief_show_compact_reference() {
+  local cmd_prefix=$(__chief_get_command_prefix)
   echo -e "${CHIEF_COLOR_YELLOW}Chief Quick Reference:${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR} All commands below should be prefixed with ${CHIEF_COLOR_GREEN}chief.${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR} All commands below should be prefixed with ${CHIEF_COLOR_GREEN}${cmd_prefix}${CHIEF_NO_COLOR}"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Core Commands:${CHIEF_NO_COLOR}"
   echo "  config, config_set, reload, update, uninstall, whereis, hints, help"
@@ -2958,31 +3091,39 @@ function __chief_show_compact_reference() {
     echo
   else
     echo -e "${CHIEF_COLOR_CYAN}Plugins:${CHIEF_NO_COLOR}"
-    echo "  No plugins loaded yet - try 'chief.plugin -?' to see available"
+    echo "  No plugins loaded yet - try '${cmd_prefix}plugin -?' to see available"
     echo
   fi
   
   echo -e "${CHIEF_COLOR_BLUE}Quick Tips:${CHIEF_NO_COLOR}"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.[tab][tab]${CHIEF_NO_COLOR} - see all commands"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.help${CHIEF_NO_COLOR} - detailed help system"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} - customize settings"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}[tab][tab]${CHIEF_NO_COLOR} - see all commands"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}help${CHIEF_NO_COLOR} - detailed help system"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}config${CHIEF_NO_COLOR} - customize settings"
 }
 
 # Search through Chief commands and help
 function __chief_search_help() {
   local search_term="$1"
+  local cmd_prefix=$(__chief_get_command_prefix)
+  local search_prefix="chief"
+  
+  # If alias is configured, also search for alias functions
+  if [[ -n ${CHIEF_CFG_ALIAS} ]]; then
+    local alias=$(__chief_lower ${CHIEF_CFG_ALIAS})
+    search_prefix="(chief|$alias)"
+  fi
   
   if [[ -z "$search_term" ]]; then
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Please provide a search term"
-    echo -e "${CHIEF_COLOR_BLUE}Usage:${CHIEF_NO_COLOR} chief.help --search <term>"
+    echo -e "${CHIEF_COLOR_BLUE}Usage:${CHIEF_NO_COLOR} ${cmd_prefix}help --search <term>"
     return 1
   fi
   
   echo -e "${CHIEF_COLOR_CYAN}Searching for: ${CHIEF_COLOR_YELLOW}$search_term${CHIEF_NO_COLOR}"
   echo
   
-  # Search function names
-  local matching_functions=($(compgen -A function | grep -i "chief.*$search_term" | sort))
+  # Search function names (look for both chief.* and alias.* if applicable)
+  local matching_functions=($(compgen -A function | grep -iE "^${search_prefix}.*$search_term" | sort))
   if [[ ${#matching_functions[@]} -gt 0 ]]; then
     echo -e "${CHIEF_COLOR_GREEN}Matching Functions:${CHIEF_NO_COLOR}"
     for func in "${matching_functions[@]}"; do
@@ -2991,8 +3132,8 @@ function __chief_search_help() {
     echo
   fi
   
-  # Search aliases
-  local matching_aliases=($(compgen -A alias | grep -i "chief.*$search_term" | sort))
+  # Search aliases (look for both chief.* and alias.* if applicable)
+  local matching_aliases=($(compgen -A alias | grep -iE "^${search_prefix}.*$search_term" | sort))
   if [[ ${#matching_aliases[@]} -gt 0 ]]; then
     echo -e "${CHIEF_COLOR_GREEN}Matching Aliases:${CHIEF_NO_COLOR}"
     for alias_name in "${matching_aliases[@]}"; do
@@ -3005,9 +3146,9 @@ function __chief_search_help() {
     echo -e "${CHIEF_COLOR_YELLOW}No matches found for '$search_term'${CHIEF_NO_COLOR}"
     echo
     echo -e "${CHIEF_COLOR_BLUE}Try:${CHIEF_NO_COLOR}"
-    echo -e "• ${CHIEF_COLOR_GREEN}chief.help commands${CHIEF_NO_COLOR} - see all core commands"
-    echo -e "• ${CHIEF_COLOR_GREEN}chief.help plugins${CHIEF_NO_COLOR} - see plugin commands"
-    echo -e "• ${CHIEF_COLOR_GREEN}chief.[tab][tab]${CHIEF_NO_COLOR} - bash completion"
+    echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}help commands${CHIEF_NO_COLOR} - see all core commands"
+    echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}help plugins${CHIEF_NO_COLOR} - see plugin commands"
+    echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}[tab][tab]${CHIEF_NO_COLOR} - bash completion"
   fi
 }
 
