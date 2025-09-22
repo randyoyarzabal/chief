@@ -643,10 +643,10 @@ ${CHIEF_COLOR_BLUE}Common Use Cases:${CHIEF_NO_COLOR}
 - Update email after changing providers
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME \"John Doe\" john@example.com         # Set both locally
-  $FUNCNAME -g \"John Doe\" john@example.com      # Set both globally
-  $FUNCNAME \"John Doe\"                          # Set username only (locally)
-  $FUNCNAME -g \"John Doe\"                       # Set username only (globally)
+  $FUNCNAME \"John Doe\" john@example.com        # Set both locally
+  $FUNCNAME -g \"John Doe\" john@example.com     # Set both globally
+  $FUNCNAME \"John Doe\"                         # Set username only (locally)
+  $FUNCNAME -g \"John Doe\"                      # Set username only (globally)
   $FUNCNAME -s                                   # Show current settings
   $FUNCNAME --show                               # Show current settings
 
@@ -709,36 +709,76 @@ After configuration, verify with:
     echo -e "${CHIEF_COLOR_CYAN}Current Git Configuration:${CHIEF_NO_COLOR}"
     echo ""
     
+    # Get effective values to determine which config is active
+    local effective_name
+    local effective_email
+    effective_name=$(git config user.name 2>/dev/null)
+    effective_email=$(git config user.email 2>/dev/null)
+    
     # Show local settings if in a git repository
     if git rev-parse --git-dir >/dev/null 2>&1; then
-      echo -e "${CHIEF_COLOR_BLUE}Local (Repository):${CHIEF_NO_COLOR}"
       local local_name
       local local_email
-      local_name=$(git config --local user.name 2>/dev/null || echo "${CHIEF_COLOR_YELLOW}(not set)${CHIEF_NO_COLOR}")
-      local_email=$(git config --local user.email 2>/dev/null || echo "${CHIEF_COLOR_YELLOW}(not set)${CHIEF_NO_COLOR}")
-      echo -e "  Name:  $local_name"
-      echo -e "  Email: $local_email"
+      local_name=$(git config --local user.name 2>/dev/null)
+      local_email=$(git config --local user.email 2>/dev/null)
+      
+      # Check if local config is being used
+      local local_active=false
+      if [[ -n "$local_name" && "$local_name" == "$effective_name" ]] || [[ -n "$local_email" && "$local_email" == "$effective_email" ]]; then
+        local_active=true
+      fi
+      
+      if [[ "$local_active" == true ]]; then
+        echo -e "${CHIEF_COLOR_BLUE}Local (Repository) ${CHIEF_COLOR_GREEN}← ACTIVE${CHIEF_NO_COLOR}"
+      else
+        echo -e "${CHIEF_COLOR_BLUE}Local (Repository):${CHIEF_NO_COLOR}"
+      fi
+      
+      echo -e "  Name:  ${local_name:-"${CHIEF_COLOR_YELLOW}(not set)${CHIEF_NO_COLOR}"}"
+      echo -e "  Email: ${local_email:-"${CHIEF_COLOR_YELLOW}(not set)${CHIEF_NO_COLOR}"}"
       echo ""
     fi
     
     # Show global settings
-    echo -e "${CHIEF_COLOR_BLUE}Global (User):${CHIEF_NO_COLOR}"
     local global_name
     local global_email
-    global_name=$(git config --global user.name 2>/dev/null || echo "${CHIEF_COLOR_YELLOW}(not set)${CHIEF_NO_COLOR}")
-    global_email=$(git config --global user.email 2>/dev/null || echo "${CHIEF_COLOR_YELLOW}(not set)${CHIEF_NO_COLOR}")
-    echo -e "  Name:  $global_name"
-    echo -e "  Email: $global_email"
-    echo ""
+    global_name=$(git config --global user.name 2>/dev/null)
+    global_email=$(git config --global user.email 2>/dev/null)
     
-    # Show effective settings
-    echo -e "${CHIEF_COLOR_BLUE}Effective (Current):${CHIEF_NO_COLOR}"
-    local effective_name
-    local effective_email
-    effective_name=$(git config user.name 2>/dev/null || echo "${CHIEF_COLOR_RED}(not configured)${CHIEF_NO_COLOR}")
-    effective_email=$(git config user.email 2>/dev/null || echo "${CHIEF_COLOR_RED}(not configured)${CHIEF_NO_COLOR}")
-    echo -e "  Name:  $effective_name"
-    echo -e "  Email: $effective_email"
+    # Check if global config is being used (when local is not set or not active)
+    local global_active=false
+    if git rev-parse --git-dir >/dev/null 2>&1; then
+      # In a repo: global is active if local is not set and global matches effective
+      local local_name_set
+      local local_email_set
+      local_name_set=$(git config --local user.name 2>/dev/null)
+      local_email_set=$(git config --local user.email 2>/dev/null)
+      
+      if ([[ -z "$local_name_set" ]] && [[ -n "$global_name" && "$global_name" == "$effective_name" ]]) || 
+         ([[ -z "$local_email_set" ]] && [[ -n "$global_email" && "$global_email" == "$effective_email" ]]); then
+        global_active=true
+      fi
+    else
+      # Not in a repo: global is active if it matches effective
+      if [[ -n "$global_name" && "$global_name" == "$effective_name" ]] || [[ -n "$global_email" && "$global_email" == "$effective_email" ]]; then
+        global_active=true
+      fi
+    fi
+    
+    if [[ "$global_active" == true ]]; then
+      echo -e "${CHIEF_COLOR_BLUE}Global (User) ${CHIEF_COLOR_GREEN}← ACTIVE${CHIEF_NO_COLOR}"
+    else
+      echo -e "${CHIEF_COLOR_BLUE}Global (User):${CHIEF_NO_COLOR}"
+    fi
+    
+    echo -e "  Name:  ${global_name:-"${CHIEF_COLOR_YELLOW}(not set)${CHIEF_NO_COLOR}"}"
+    echo -e "  Email: ${global_email:-"${CHIEF_COLOR_YELLOW}(not set)${CHIEF_NO_COLOR}"}"
+    
+    # Show warning if no configuration is active
+    if [[ -z "$effective_name" && -z "$effective_email" ]]; then
+      echo ""
+      echo -e "${CHIEF_COLOR_RED}Warning: No Git user configuration found!${CHIEF_NO_COLOR}"
+    fi
     
     return
   fi
@@ -1054,3 +1094,4 @@ ${CHIEF_COLOR_YELLOW}Example Prompt:${CHIEF_NO_COLOR}
   echo ""
   echo -e "${CHIEF_COLOR_BLUE}Enable with:${CHIEF_NO_COLOR} chief.config → CHIEF_CFG_GIT_PROMPT=true"
 }
+

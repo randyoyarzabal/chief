@@ -617,7 +617,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
 }
 
 # Helper function to display information for a single certificate
-function __chief_ssl__chief_ssl_show_single_cert_info() {
+function __chief_ssl_show_single_cert_info() {
   local single_cert_file="$1"
   local show_extended="${2:-false}"
   
