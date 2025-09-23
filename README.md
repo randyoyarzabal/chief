@@ -4,7 +4,11 @@
 
 > ⚠️ **Warning**: This is the development branch. Features may be unstable. For stable releases, use the [main branch](https://github.com/randyoyarzabal/chief/tree/main).
 
+<<<<<<< Updated upstream
 [![GitHub release](https://img.shields.io/badge/Download%20Release-v3.1.2-blue.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Dev Branch](https://img.shields.io/badge/Dev%20Branch-v3.1.3--dev-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev) [![Main Branch](https://img.shields.io/badge/Stable-v3.1.2-green.svg?style=social)](https://github.com/randyoyarzabal/chief) [![Documentation](https://img.shields.io/badge/📖-Documentation-blue)](https://chief.reonetlabs.us)
+=======
+[![GitHub release](https://img.shields.io/badge/Download%20Release-v3.1.3-dev-blue.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Dev Branch](https://img.shields.io/badge/Dev%20Branch-v3.1.3--dev-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev) [![Main Branch](https://img.shields.io/badge/Stable-v3.1.3-dev-green.svg?style=social)](https://github.com/randyoyarzabal/chief) [![Documentation](https://img.shields.io/badge/📖-Documentation-blue)](https://chief.reonetlabs.us)
+>>>>>>> Stashed changes
 
 Chief is a lightweight, powerful Bash library system that helps you organize your shell environment through a plugin-based architecture. Think of it as a package manager for your bash functions, aliases, and tools.
 

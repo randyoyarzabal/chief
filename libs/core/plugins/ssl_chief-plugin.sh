@@ -631,7 +631,57 @@ function __chief_ssl_show_single_cert_info() {
   echo ""
   
   echo -e "${CHIEF_COLOR_BLUE}Validity:${CHIEF_NO_COLOR}"
-  openssl x509 -in "$single_cert_file" -noout -dates
+  
+  # Get certificate dates and analyze expiry
+  local cert_dates
+  local not_before
+  local not_after
+  local current_epoch
+  local expiry_epoch
+  
+  cert_dates=$(openssl x509 -in "$single_cert_file" -noout -dates)
+  not_before=$(echo "$cert_dates" | grep "notBefore" | cut -d'=' -f2)
+  not_after=$(echo "$cert_dates" | grep "notAfter" | cut -d'=' -f2)
+  current_epoch=$(date +%s)
+  
+  # Try different date formats for compatibility
+  if command -v gdate >/dev/null 2>&1; then
+    # GNU date (available via brew on macOS)
+    expiry_epoch=$(gdate -d "$not_after" +%s 2>/dev/null)
+  else
+    # BSD date (macOS default) - try without timezone first, then with
+    expiry_epoch=$(date -j -f "%b %d %H:%M:%S %Y" "${not_after% GMT}" +%s 2>/dev/null)
+    if [[ -z "$expiry_epoch" ]]; then
+      expiry_epoch=$(date -j -f "%b %d %H:%M:%S %Y %Z" "$not_after" +%s 2>/dev/null)
+    fi
+  fi
+  
+  # Fallback if date parsing fails
+  if [[ -z "$expiry_epoch" ]]; then
+    echo "$cert_dates"
+    echo -e "${CHIEF_COLOR_YELLOW}⚠ Warning: Unable to parse expiry date for analysis${CHIEF_NO_COLOR}"
+  else
+    # Calculate days until expiry
+    local days_until_expiry=$(( (expiry_epoch - current_epoch) / 86400 ))
+    
+    # Display dates with appropriate coloring and warnings
+    echo "notBefore=$not_before"
+    
+    if [[ $days_until_expiry -lt 0 ]]; then
+      # Certificate has expired
+      echo -e "notAfter=${CHIEF_COLOR_RED}$not_after${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_RED}⚠ CRITICAL: Certificate has EXPIRED $((days_until_expiry * -1)) days ago!${CHIEF_NO_COLOR}"
+    elif [[ $days_until_expiry -le 30 ]]; then
+      # Certificate expires within 30 days (near expiry range 15-30 days)
+      echo -e "notAfter=${CHIEF_COLOR_YELLOW}$not_after${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_YELLOW}⚠ WARNING: Certificate expires in $days_until_expiry days${CHIEF_NO_COLOR}"
+    else
+      # Certificate is valid for more than 30 days
+      echo "notAfter=$not_after"
+      echo -e "${CHIEF_COLOR_GREEN}✓ Certificate is valid for $days_until_expiry more days${CHIEF_NO_COLOR}"
+    fi
+  fi
+  
   echo ""
   
   # Show extended information only if requested
