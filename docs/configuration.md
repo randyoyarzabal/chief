@@ -72,6 +72,23 @@ chief.config_set config_set_interactive false
 | `CHIEF_CFG_AUTOCHECK_UPDATES` | `false` | Check for updates on startup |
 | `CHIEF_CFG_UPDATE_BRANCH` | `"main"` | Branch to track for updates: any valid Git branch (⚠️ non-main may be unstable) |
 
+### Environment Variables
+
+These are environment variables (not configuration settings) that affect Chief's behavior:
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CHIEF_HOST` | _unset_ | Override hostname display in prompt. Useful for marking systems without changing hostname. |
+
+**Example:**
+```bash
+# Add to your ~/.bashrc or ~/.bash_profile
+export CHIEF_HOST="production-server"
+
+# Or set temporarily for current session
+CHIEF_HOST="dev-box" bash
+```
+
 ### Plugin Configuration
 
 | Configuration | Description |

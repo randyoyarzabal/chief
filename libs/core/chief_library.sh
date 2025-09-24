@@ -3030,6 +3030,9 @@ function __chief_show_configuration_help() {
   echo -e "  ${CHIEF_COLOR_GREEN}MULTILINE_PROMPT${CHIEF_NO_COLOR}     Use multi-line prompt layout (true/false)"
   echo -e "  ${CHIEF_COLOR_GREEN}SHORT_PATH${CHIEF_NO_COLOR}           Show short paths in prompt (true/false)"
   echo
+  echo -e "${CHIEF_COLOR_CYAN}Environment Variables:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}CHIEF_HOST${CHIEF_NO_COLOR}           Override hostname display in prompt (export CHIEF_HOST=\"my-server\")"
+  echo
   
   echo -e "${CHIEF_COLOR_CYAN}Plugin Management:${CHIEF_NO_COLOR}"
   echo -e "  ${CHIEF_COLOR_GREEN}PLUGINS${CHIEF_NO_COLOR}              Plugin directory path"
