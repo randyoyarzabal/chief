@@ -93,7 +93,7 @@ chief.plugin mytools
 
 ## 🔌 Available Plugins
 
-Chief comes with **8 powerful plugins** providing **56+ functions** for your daily workflow:
+Chief comes with **8 powerful plugins** providing **58+ functions** for your daily workflow:
 
 ### 🔍 **Discovery & Help**
 
@@ -106,14 +106,17 @@ Chief comes with **8 powerful plugins** providing **56+ functions** for your dai
 - `chief.vault_file-edit` - Edit encrypted files securely
 - `chief.vault_file-load` - Load encrypted environment variables
 
-### ☸️ **OpenShift/Kubernetes Plugin** (7 functions)
+### ☸️ **OpenShift/Kubernetes Plugin** (9 functions)
 
 - `chief.oc_get-all-objects` - Comprehensive resource discovery with filtering
 - `chief.oc_clean-olm` - OLM cleanup with selective targeting
+- `chief.oc_clean-replicasets` - Clean up old replica sets with safety checks
 - `chief.oc_show-stuck-resources` - Troubleshoot stuck resources with auto-fix
 - `chief.oc_delete-stuck-ns` - Force delete terminating namespaces
 - `chief.oc_approve-csrs` - Batch CSR approval with interactive mode
 - `chief.oc_login` - Enhanced login with context management
+- `chief.oc_vault-kubeadmin` - Display kubeadmin credentials from Vault
+- `chief.oc_whoami` - Show current user, API server, and console information
 
 ### 🔒 **SSL/TLS Plugin** (4 functions)
 

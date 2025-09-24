@@ -2975,7 +2975,7 @@ function __chief_show_plugin_help() {
     echo -e "  ${CHIEF_COLOR_GREEN}OpenShift Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires oc CLI)${CHIEF_NO_COLOR}"
     echo "    oc_login, oc_get-all-objects, oc_clean-olm, oc_clean-replicasets"
     echo "    oc_approve-csrs, oc_show-stuck-resources, oc_delete-stuck-ns"
-    echo "    OpenShift cluster management and maintenance"
+    echo "    oc_vault-kubeadmin, oc_whoami"
     found_plugins=true
   fi
   
