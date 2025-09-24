@@ -1271,76 +1271,31 @@ __chief_oc_force_finalize_resource() {
   fi
 }
 
-# Helper function to use extreme measures for the most stubborn resources (like MCH)
+# Helper function for general stubborn resource cleanup (simplified)
 __chief_oc_extreme_delete_resource() {
   local resource_type="$1"
   local resource_name="$2"  
   local namespace="$3"
   
-  # Method 1: Force delete with grace period 0
+  # Method 1: Force delete with grace period 0 and verify
   echo -e "      ${CHIEF_COLOR_CYAN}• Trying force delete (grace-period=0)...${CHIEF_NO_COLOR}"
-  if oc delete "$resource_type" "$resource_name" -n "$namespace" --grace-period=0 --force 2>/dev/null; then
-    echo -e "      ${CHIEF_COLOR_GREEN}✓ Force delete succeeded${CHIEF_NO_COLOR}"
+  oc delete "$resource_type" "$resource_name" -n "$namespace" --grace-period=0 --force 2>/dev/null
+  sleep 2
+  if ! oc get "$resource_type" "$resource_name" -n "$namespace" >/dev/null 2>&1; then
+    echo -e "      ${CHIEF_COLOR_GREEN}✓ Force delete succeeded - resource is gone${CHIEF_NO_COLOR}"
     return 0
   fi
+  echo -e "      ${CHIEF_COLOR_YELLOW}Force delete failed - resource still exists${CHIEF_NO_COLOR}"
   
-  # Method 2: Direct edit to remove finalizers (for resources with complex finalizer logic)
-  # Create a temporary script to automatically remove finalizers
-  local temp_script
-  temp_script=$(mktemp /tmp/remove-finalizers.XXXXXX.sh)
-  
-  cat > "$temp_script" << 'EOF'
-#!/bin/bash
-# Auto-remove finalizers script
-export EDITOR="sed -i.bak '/finalizers:/,/^[[:space:]]*[^[:space:]-]/{ /finalizers:/d; /^[[:space:]]*-/d; }'"
-EOF
-  
-  chmod +x "$temp_script"
-  
-  # Try to edit and remove finalizers automatically
-  if EDITOR="$temp_script" oc edit "$resource_type" "$resource_name" -n "$namespace" 2>/dev/null; then
-    rm -f "$temp_script"
+  # Method 2: Try JSON patch to remove all finalizers and verify
+  echo -e "      ${CHIEF_COLOR_CYAN}• Trying JSON patch to remove all finalizers...${CHIEF_NO_COLOR}"
+  oc patch "$resource_type" "$resource_name" -n "$namespace" --type='json' -p='[{"op": "remove", "path": "/metadata/finalizers"}]' 2>/dev/null
+  sleep 2
+  if ! oc get "$resource_type" "$resource_name" -n "$namespace" >/dev/null 2>&1; then
+    echo -e "      ${CHIEF_COLOR_GREEN}✓ JSON patch succeeded - resource is gone${CHIEF_NO_COLOR}"
     return 0
   fi
-  
-  rm -f "$temp_script"
-  
-  # Method 3: Try alternative resource names (MCH can be multiclusterhub or multiclusterhubs)
-  if [[ "$resource_type" == "mch" || "$resource_type" == "multiclusterhub" ]]; then
-    local alt_types=("multiclusterhubs.operator.open-cluster-management.io" "multiclusterhub" "mch")
-    
-    for alt_type in "${alt_types[@]}"; do
-      if [[ "$alt_type" != "$resource_type" ]]; then
-        if oc delete "$alt_type" "$resource_name" -n "$namespace" --grace-period=0 --force 2>/dev/null; then
-          return 0
-        fi
-      fi
-    done
-  fi
-  
-  # Method 4: Try to remove the blocking webhook configurations first  
-  if [[ "$resource_type" == *"multicluster"* ]] || [[ "$resource_type" == "mch" ]]; then
-    echo -e "      ${CHIEF_COLOR_CYAN}• Removing blocking webhook configurations...${CHIEF_NO_COLOR}"
-    # Remove problematic webhook configurations that might be blocking deletion
-    local webhook_removed=false
-    if oc delete validatingwebhookconfiguration multiclusterhub.validating-webhook.open-cluster-management.io 2>/dev/null; then
-      echo -e "      ${CHIEF_COLOR_GREEN}✓ Removed validating webhook${CHIEF_NO_COLOR}"
-      webhook_removed=true
-    fi
-    if oc delete mutatingwebhookconfiguration multiclusterhub.mutating-webhook.open-cluster-management.io 2>/dev/null; then
-      echo -e "      ${CHIEF_COLOR_GREEN}✓ Removed mutating webhook${CHIEF_NO_COLOR}"
-      webhook_removed=true
-    fi
-    
-    if [[ "$webhook_removed" == true ]]; then
-      echo -e "      ${CHIEF_COLOR_CYAN}• Trying deletion after webhook removal...${CHIEF_NO_COLOR}"
-      # Try deletion again after removing webhooks
-      if oc delete "$resource_type" "$resource_name" -n "$namespace" --ignore-not-found 2>/dev/null; then
-        echo -e "      ${CHIEF_COLOR_GREEN}✓ Deletion succeeded after webhook removal${CHIEF_NO_COLOR}"
-        return 0
-      fi
-    fi
-  fi
+  echo -e "      ${CHIEF_COLOR_YELLOW}JSON patch failed - resource still exists${CHIEF_NO_COLOR}"
   
   return 1
 }
@@ -1366,11 +1321,10 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Scans all available API resources that can be listed in a namespace
 - Displays their current state with detailed information
-- With --fix: Uses advanced four-level approach for each resource
-  • Level 1: Attempt normal deletion
-  • Level 2: Wait (configurable timeout, default 3s), then remove finalizers
-  • Level 3: If finalizers fail, use proxy + direct API (bypasses webhooks)
-  • Level 4: If proxy fails, extreme measures (force delete, remove webhooks)
+- With --fix: Uses proven three-level approach for each resource
+  • Level 1: Attempt normal deletion with timeout (configurable, default 3s)
+  • Level 2: If stuck, remove finalizers (like manual oc edit)
+  • Level 3: If finalizers fail, use proxy + direct API + force delete
 - Perfect for cleaning up namespaces that refuse to delete due to stuck resources
 - No manual intervention required - handles entire cleanup process automatically
 
@@ -1389,17 +1343,16 @@ ${CHIEF_COLOR_MAGENTA}Requirements:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   chief.oc_show-stuck-resources my-namespace              # Show all resources in my-namespace
   chief.oc_show-stuck-resources test-ns --dry-run         # Preview what would be deleted/fixed
-  chief.oc_show-stuck-resources old-project --fix         # Advanced 4-level cleanup (handles any stubborn resource)
+  chief.oc_show-stuck-resources old-project --fix         # Complete cleanup with 3-level approach
   chief.oc_show-stuck-resources cleanup-ns --fix -y       # Non-interactive cleanup
   chief.oc_show-stuck-resources stuck-ns --fix -t 1       # Fast cleanup (1 second timeout)
 
-${CHIEF_COLOR_BLUE}Advanced Four-Level Process:${CHIEF_NO_COLOR}
+${CHIEF_COLOR_BLUE}Three-Level Process:${CHIEF_NO_COLOR}
   1. Level 1: Attempt normal deletion for each resource
-  2. Level 2: Wait (default 3s), kill process, remove finalizers  
-  3. Level 3: If finalizers fail, use proxy + direct API (bypasses webhooks)
-  4. Level 4: If proxy fails, extreme measures (force delete, remove blocking webhooks)
-  5. Handles even the most stubborn resources (like MCH with missing webhook services)
-  6. Namespace ready for deletion"
+  2. Level 2: If stuck, remove finalizers (like manual oc edit)
+  3. Level 3: If finalizers fail, use proxy + force delete (extreme measures)
+  4. Each level verifies resource is actually gone (not just return codes)
+  5. Namespace ready for deletion"
 
   local namespace="$1"
   local fix_mode=false
@@ -1462,13 +1415,13 @@ ${CHIEF_COLOR_BLUE}Advanced Four-Level Process:${CHIEF_NO_COLOR}
   if [[ "$fix_mode" == true && "$auto_yes" != true && "$dry_run" != true ]]; then
     echo
     __chief_print_warn "⚠️  DANGER: --fix mode will perform COMPLETE NAMESPACE CLEANUP!"
-    __chief_print_warn "This uses an advanced four-level approach:"
+    __chief_print_warn "This uses a proven three-level approach:"
     echo
     echo -e "${CHIEF_COLOR_YELLOW}1. Delete each resource${CHIEF_NO_COLOR} (attempt normal deletion)"
     echo -e "${CHIEF_COLOR_YELLOW}2. Wait ${timeout_seconds} seconds${CHIEF_NO_COLOR} for clean deletion (like your manual timing)"
     echo -e "${CHIEF_COLOR_YELLOW}3. If stuck: Kill delete${CHIEF_NO_COLOR} (like Ctrl-C) and remove finalizers"
     echo -e "${CHIEF_COLOR_YELLOW}4. If finalizers fail: Use proxy + direct API${CHIEF_NO_COLOR} (bypasses webhooks)"
-    echo -e "${CHIEF_COLOR_YELLOW}5. If proxy fails: Extreme measures${CHIEF_NO_COLOR} (force delete, remove webhooks, etc.)"
+    echo -e "${CHIEF_COLOR_YELLOW}5. If proxy fails: Force delete + JSON patch${CHIEF_NO_COLOR} (extreme measures)"
     echo -e "${CHIEF_COLOR_YELLOW}6. Result: Complete cleanup${CHIEF_NO_COLOR} ready for namespace deletion"
     echo
     __chief_print_warn "⚠️  This can bypass important cleanup operations and cause resource leaks!"
@@ -1547,21 +1500,15 @@ ${CHIEF_COLOR_BLUE}Advanced Four-Level Process:${CHIEF_NO_COLOR}
                   echo -e "  ${CHIEF_COLOR_YELLOW}• $resource_type/$resource_name - attempting deletion...${CHIEF_NO_COLOR}"
                   
                   # Step 1: Try to delete with timeout (like user's manual process)
-                  # Use bash-native timeout (works on macOS and Linux)
                   oc delete "$resource_type" "$resource_name" -n "$namespace" --ignore-not-found 2>/dev/null &
                   local delete_pid=$!
-                  local timeout_seconds=10
                   local count=0
-                  local delete_success=false
                   
                   # Wait up to timeout_seconds for deletion to complete
                   while [[ $count -lt $timeout_seconds ]]; do
                     if ! kill -0 $delete_pid 2>/dev/null; then
-                      # Process finished
+                      # Process finished, wait for it
                       wait $delete_pid
-                      if [[ $? -eq 0 ]]; then
-                        delete_success=true
-                      fi
                       break
                     fi
                     sleep 1
@@ -1574,8 +1521,9 @@ ${CHIEF_COLOR_BLUE}Advanced Four-Level Process:${CHIEF_NO_COLOR}
                     wait $delete_pid 2>/dev/null
                   fi
                   
-                  if [[ "$delete_success" == true ]]; then
-                    echo -e "    ${CHIEF_COLOR_GREEN}✓ Deleted successfully${CHIEF_NO_COLOR}"
+                  # Check if resource is actually gone (ignore return codes)
+                  if ! oc get "$resource_type" "$resource_name" -n "$namespace" >/dev/null 2>&1; then
+                    echo -e "    ${CHIEF_COLOR_GREEN}✓ Deleted successfully - resource is gone${CHIEF_NO_COLOR}"
                   else
                     # Step 2: Delete timed out (resource is stuck), remove finalizers (like manual oc edit)
                     echo -e "    ${CHIEF_COLOR_YELLOW}⏱ Deletion timed out - removing finalizers...${CHIEF_NO_COLOR}"
@@ -1586,24 +1534,28 @@ ${CHIEF_COLOR_BLUE}Advanced Four-Level Process:${CHIEF_NO_COLOR}
                     
                     if [[ -n "$finalizers" && "$finalizers" != "[]" && "$finalizers" != "null" ]]; then
                       # Remove finalizers by patching the resource (like manual oc edit)
-                      if oc patch "$resource_type" "$resource_name" -n "$namespace" --type='merge' -p='{"metadata":{"finalizers":null}}' 2>/dev/null; then
-                        echo -e "    ${CHIEF_COLOR_GREEN}✓ Finalizers removed - resource should disappear${CHIEF_NO_COLOR}"
+                      oc patch "$resource_type" "$resource_name" -n "$namespace" --type='merge' -p='{"metadata":{"finalizers":null}}' 2>/dev/null
+                      sleep 2  # Give it time to process
+                      
+                      # Check if resource is actually gone (ignore return codes)
+                      if ! oc get "$resource_type" "$resource_name" -n "$namespace" >/dev/null 2>&1; then
+                        echo -e "    ${CHIEF_COLOR_GREEN}✓ Finalizers removed - resource is gone${CHIEF_NO_COLOR}"
                       else
-                        echo -e "    ${CHIEF_COLOR_YELLOW}✗ Finalizer patch failed - trying proxy method...${CHIEF_NO_COLOR}"
+                        echo -e "    ${CHIEF_COLOR_YELLOW}✗ Level 2 failed - resource still exists after finalizer removal${CHIEF_NO_COLOR}"
                         
                         # Third fallback: Use proxy + direct API (like chief.oc_delete-stuck-ns)
                         echo -e "    ${CHIEF_COLOR_BLUE}🔄 Level 3: Trying proxy + direct API method...${CHIEF_NO_COLOR}"
                         if __chief_oc_force_finalize_resource "$resource_type" "$resource_name" "$namespace"; then
                           echo -e "    ${CHIEF_COLOR_GREEN}✓ Level 3 succeeded - resource is gone${CHIEF_NO_COLOR}"
                         else
-                          echo -e "    ${CHIEF_COLOR_YELLOW}✗ Level 3 failed - trying Level 4 extreme measures...${CHIEF_NO_COLOR}"
+                          echo -e "    ${CHIEF_COLOR_YELLOW}✗ Level 3 failed - trying extreme measures...${CHIEF_NO_COLOR}"
                           
-                          # Fourth fallback: Extreme measures for stubborn resources like MCH
-                          echo -e "    ${CHIEF_COLOR_MAGENTA}🚀 Level 4: Deploying extreme measures...${CHIEF_NO_COLOR}"
+                          # Fourth fallback: Extreme measures for stubborn resources
+                          echo -e "    ${CHIEF_COLOR_MAGENTA}🚀 Level 3 extreme: Deploying force delete + JSON patch...${CHIEF_NO_COLOR}"
                           if __chief_oc_extreme_delete_resource "$resource_type" "$resource_name" "$namespace"; then
-                            echo -e "    ${CHIEF_COLOR_GREEN}✓ Level 4 succeeded - resource destroyed${CHIEF_NO_COLOR}"
+                            echo -e "    ${CHIEF_COLOR_GREEN}✓ Level 3 extreme succeeded - resource destroyed${CHIEF_NO_COLOR}"
                           else
-                            echo -e "    ${CHIEF_COLOR_RED}✗ All 4 levels failed - resource needs manual intervention${CHIEF_NO_COLOR}"
+                            echo -e "    ${CHIEF_COLOR_RED}✗ All methods failed - resource needs manual intervention${CHIEF_NO_COLOR}"
                           fi
                         fi
                       fi
@@ -1714,14 +1666,13 @@ ${CHIEF_COLOR_BLUE}Advanced Four-Level Process:${CHIEF_NO_COLOR}
     done
     
     echo
-    if [[ $remaining_resources -eq 0 ]]; then
-      __chief_print_success "✅ NAMESPACE IS CLEAN: No resources remaining in '$namespace'"
-      __chief_print_success "🎯 Namespace is ready for deletion: oc delete namespace $namespace"
-    else
-      __chief_print_warn "⚠️  NAMESPACE NOT FULLY CLEAN: $remaining_resources resources still remain"
-      __chief_print_warn "Some resources may need manual intervention or different cleanup approach"
-      __chief_print_info "💡 Consider running: chief.oc_delete-stuck-ns $namespace"
-    fi
+        if [[ $remaining_resources -eq 0 ]]; then
+          __chief_print_success "✅ NAMESPACE IS CLEAN: No resources remaining in '$namespace'"
+          __chief_print_success "🎯 Namespace is ready for deletion: oc delete namespace $namespace"
+        else
+          __chief_print_warn "⚠️  NAMESPACE NOT FULLY CLEAN: $remaining_resources resources still remain"
+          __chief_print_warn "Some resources may need manual intervention"
+        fi
   fi
 
   echo
