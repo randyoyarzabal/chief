@@ -213,10 +213,10 @@ show_help() {
     echo ""
     echo "This script runs the complete test suite for the Chief project."
     echo "Individual test scripts can also be run separately:"
-    echo "  ./test/syntax-tests.sh     - Bash syntax validation"
-    echo "  ./test/source-tests.sh     - Script loading validation"
-    echo "  ./test/plugin-tests.sh     - Plugin-specific tests"
-    echo "  ./test/integration-tests.sh - End-to-end functionality"
+    echo "  ./tests/syntax-tests.sh     - Bash syntax validation"
+    echo "  ./tests/source-tests.sh     - Script loading validation"
+    echo "  ./tests/plugin-tests.sh     - Plugin-specific tests"
+    echo "  ./tests/integration-tests.sh - End-to-end functionality"
 }
 
 # Parse command line arguments

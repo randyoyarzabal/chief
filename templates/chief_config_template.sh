@@ -122,6 +122,12 @@ CHIEF_CFG_MULTILINE_PROMPT=false
 # TOOLS CONFIGURATION
 ####################################
 
+# Default editor for Chief operations (editing configs, plugins, bash files, etc.)
+# Falls back to $EDITOR environment variable if not set, then vim if available, then vi
+# Examples: "vim", "nano", "emacs", "code --wait"
+# Leave commented to use system defaults ($EDITOR → vim → vi)
+#CHIEF_CFG_DEFAULT_EDITOR_PATH=""
+
 # If set to true, will use colored ls command.
 CHIEF_CFG_COLORED_LS=false
 

@@ -1423,7 +1423,7 @@ function __chief_oc_list_vault_clusters_only() {
   while IFS= read -r cluster; do
     if [[ -n "$cluster" ]]; then
       ((cluster_count++))
-      # Apply filter if specified
+      # Apply filter if specified (support glob patterns)
       if [[ -z "$filter_pattern" ]] || [[ "$cluster" == $filter_pattern ]]; then
         echo "  $cluster"
         ((filtered_count++))
@@ -1454,21 +1454,22 @@ function __chief_oc_list_vault_clusters_only() {
   return 0
 }
 
-# Helper function to list available clusters from Vault and prompt for selection
-function __chief_oc_list_vault_clusters() {
-  # Usage: __chief_oc_list_vault_clusters <auth_method> <tls_option> [filter_pattern]
+# Helper function to select cluster interactively and execute callback
+function __chief_oc_select_vault_cluster() {
+  # Usage: __chief_oc_select_vault_cluster <callback_function> [filter_pattern] [callback_arg1] [callback_arg2] ...
   # 
   # Lists available OpenShift clusters from Vault and prompts user to select one.
-  # After selection, automatically proceeds with login using the specified auth method.
+  # After selection, calls the provided callback function with the selected cluster and additional arguments.
   #
   # Arguments:
-  #   auth_method - Authentication method: "kubeconfig", "kubeadmin", or "user"
-  #   tls_option - TLS option string for oc login command
+  #   callback_function - Function to call with selected cluster (e.g., "__chief_oc_login_with_cluster")
   #   filter_pattern - Optional pattern to filter cluster names (supports wildcards)
+  #   callback_arg1, callback_arg2, ... - Additional arguments to pass to callback function
   
-  local auth_method="$1"
-  local tls_option="$2"
-  local filter_pattern="$3"
+  local callback_function="$1"
+  local filter_pattern="$2"
+  shift 2
+  local callback_args=("$@")
   
   # Check Vault prerequisites
   if ! command -v vault &>/dev/null; then
@@ -1524,7 +1525,7 @@ function __chief_oc_list_vault_clusters() {
   while IFS= read -r cluster; do
     if [[ -n "$cluster" ]]; then
       ((total_clusters++))
-      # Apply filter if specified
+      # Apply filter if specified (support glob patterns)
       if [[ -z "$filter_pattern" ]] || [[ "$cluster" == $filter_pattern ]]; then
         cluster_array+=("$cluster")
         echo -e "  ${CHIEF_COLOR_BLUE}$i)${CHIEF_NO_COLOR} $cluster"
@@ -1544,8 +1545,6 @@ function __chief_oc_list_vault_clusters() {
   fi
 
   echo
-  echo -e "${CHIEF_COLOR_YELLOW}Authentication method:${CHIEF_NO_COLOR} $auth_method"
-  [[ -n "$tls_option" ]] && echo -e "${CHIEF_COLOR_YELLOW}TLS option:${CHIEF_NO_COLOR} $tls_option"
   if [[ -n "$filter_pattern" ]]; then
     echo -e "${CHIEF_COLOR_YELLOW}Clusters shown:${CHIEF_NO_COLOR} ${#cluster_array[@]} (of $total_clusters total, filtered by '$filter_pattern')"
   fi
@@ -1572,8 +1571,8 @@ function __chief_oc_list_vault_clusters() {
           __chief_print_info "Selected cluster: $selected_cluster"
           echo
           
-          # Proceed with login using the selected cluster
-          __chief_oc_login_with_cluster "$selected_cluster" "$auth_method" "$tls_option"
+          # Call the callback function with selected cluster and additional arguments
+          "$callback_function" "$selected_cluster" "${callback_args[@]}"
           return $?
         else
           __chief_print_error "Invalid selection. Please enter a number between 1 and ${#cluster_array[@]}"
@@ -1582,6 +1581,30 @@ function __chief_oc_list_vault_clusters() {
         ;;
     esac
   done
+}
+
+# Helper function to list available clusters from Vault and prompt for selection (legacy compatibility)
+function __chief_oc_list_vault_clusters() {
+  # Usage: __chief_oc_list_vault_clusters <auth_method> <tls_option> [filter_pattern]
+  # 
+  # Lists available OpenShift clusters from Vault and prompts user to select one.
+  # After selection, automatically proceeds with login using the specified auth method.
+  #
+  # Arguments:
+  #   auth_method - Authentication method: "kubeconfig", "kubeadmin", or "user"
+  #   tls_option - TLS option string for oc login command
+  #   filter_pattern - Optional pattern to filter cluster names (supports wildcards)
+  
+  local auth_method="$1"
+  local tls_option="$2"
+  local filter_pattern="$3"
+  
+  echo -e "${CHIEF_COLOR_YELLOW}Authentication method:${CHIEF_NO_COLOR} $auth_method"
+  [[ -n "$tls_option" ]] && echo -e "${CHIEF_COLOR_YELLOW}TLS option:${CHIEF_NO_COLOR} $tls_option"
+  echo
+  
+  # Use the reusable menu function
+  __chief_oc_select_vault_cluster "__chief_oc_login_with_cluster" "$filter_pattern" "$auth_method" "$tls_option"
 }
 
 # Helper function to perform login with specified cluster (extracted from main function)
@@ -2057,6 +2080,239 @@ function __chief_oc_try_env_login() {
   __chief_print_warn "Using fallback environment variable authentication"
   __chief_print_error "No API URL available for cluster: $cluster"
   return 1
+}
+
+# Helper function to display kubeadmin credentials for a specific cluster
+function __chief_oc_display_kubeadmin_credentials() {
+  # Usage: __chief_oc_display_kubeadmin_credentials <cluster>
+  # 
+  # Displays kubeadmin password and console address for the specified cluster
+  # from Vault secrets. This is a callback function used by the interactive menu.
+  #
+  # Arguments:
+  #   cluster - Name of the cluster to display credentials for
+  
+  local cluster="$1"
+  
+  # Check Vault prerequisites
+  if ! command -v vault &>/dev/null; then
+    __chief_print_error "Vault CLI not available - cannot retrieve credentials from Vault"
+    return 1
+  fi
+
+  if [[ -z "$VAULT_ADDR" || -z "$VAULT_TOKEN" ]]; then
+    __chief_print_error "VAULT_ADDR or VAULT_TOKEN not set - cannot access Vault"
+    return 1
+  fi
+
+  if [[ -z "$CHIEF_VAULT_OC_PATH" ]]; then
+    __chief_print_error "CHIEF_VAULT_OC_PATH not set - cannot determine Vault path for OpenShift clusters"
+    return 1
+  fi
+
+  # Check if cluster secret exists
+  if ! vault kv get "${CHIEF_VAULT_OC_PATH}/${cluster}" &>/dev/null; then
+    __chief_print_error "No Vault secret found at ${CHIEF_VAULT_OC_PATH}/${cluster}"
+    return 1
+  fi
+
+  __chief_print_info "Retrieving kubeadmin credentials for cluster: $cluster"
+  echo
+  
+  # Get cluster information from Vault
+  local api_url kubeadmin_password console_url
+  api_url=$(vault kv get -field=api "${CHIEF_VAULT_OC_PATH}/${cluster}" 2>/dev/null)
+  kubeadmin_password=$(vault kv get -field=kubeadmin "${CHIEF_VAULT_OC_PATH}/${cluster}" 2>/dev/null)
+  
+  # Try to get console URL from Vault first, fallback to deriving from API URL
+  console_url=$(vault kv get -field=console "${CHIEF_VAULT_OC_PATH}/${cluster}" 2>/dev/null)
+  if [[ -z "$console_url" || "$console_url" == "null" ]]; then
+    # Derive console URL from API URL if not explicitly stored
+    if [[ -n "$api_url" ]]; then
+      console_url=$(echo "$api_url" | sed 's/api\./console-openshift-console.apps./' | sed 's/:6443//')
+    fi
+  fi
+  
+  # Validate required fields
+  if [[ -z "$api_url" ]]; then
+    __chief_print_error "API URL not found in Vault secret for cluster: $cluster"
+    return 1
+  fi
+
+  if [[ -z "$kubeadmin_password" ]]; then
+    __chief_print_error "Kubeadmin password not found in Vault secret for cluster: $cluster"
+    __chief_print_info "This cluster may not have kubeadmin credentials stored"
+    return 1
+  fi
+
+  # Check for clipboard functionality first
+  local clipboard_cmd=""
+  local clipboard_available=false
+  
+  if command -v pbcopy &>/dev/null; then
+    # macOS - pbcopy always works locally
+    clipboard_cmd="pbcopy"
+    clipboard_available=true
+  elif [[ -n "$DISPLAY" ]] && (command -v xclip &>/dev/null || command -v xsel &>/dev/null); then
+    # Linux with X11 display available (local session or X11 forwarding)
+    if command -v xclip &>/dev/null; then
+      clipboard_cmd="xclip -selection clipboard"
+      clipboard_available=true
+    elif command -v xsel &>/dev/null; then
+      clipboard_cmd="xsel --clipboard --input"
+      clipboard_available=true
+    fi
+  fi
+  
+  # Display cluster information
+  echo -e "${CHIEF_COLOR_GREEN}✓ OpenShift Cluster Kubeadmin Credentials${CHIEF_NO_COLOR}"
+  echo ""
+  echo -e "${CHIEF_COLOR_BLUE}Cluster:${CHIEF_NO_COLOR} $cluster"
+  echo -e "${CHIEF_COLOR_BLUE}API Server:${CHIEF_NO_COLOR} $api_url"
+  echo -e "${CHIEF_COLOR_BLUE}Console:${CHIEF_NO_COLOR} ${console_url:-N/A}"
+  echo ""
+  echo -e "${CHIEF_COLOR_BLUE}Username:${CHIEF_NO_COLOR} kubeadmin"
+  
+  if [[ "$clipboard_available" == true ]]; then
+    # Clipboard available: Copy password to clipboard, don't display on screen
+    echo -e "${CHIEF_COLOR_BLUE}Password:${CHIEF_NO_COLOR} [copied to clipboard]"
+    echo ""
+    echo "$kubeadmin_password" | $clipboard_cmd
+    echo -e "${CHIEF_COLOR_YELLOW}🔐 Password copied to clipboard - remember to clear after use${CHIEF_NO_COLOR}"
+  else
+    # No clipboard available: Display password on screen
+    echo -e "${CHIEF_COLOR_BLUE}Password:${CHIEF_NO_COLOR} $kubeadmin_password"
+  fi
+  
+  echo ""
+  echo -e "${CHIEF_COLOR_GREEN}Login Command:${CHIEF_NO_COLOR}"
+  if [[ "$clipboard_available" == true ]]; then
+    echo "  oc login -u kubeadmin -p '<paste-from-clipboard>' '$api_url'"
+  else
+    echo "  oc login -u kubeadmin -p '$kubeadmin_password' '$api_url'"
+  fi
+  echo ""
+  echo -e "${CHIEF_COLOR_GREEN}Or use Chief login:${CHIEF_NO_COLOR}"
+  echo "  chief.oc_login $cluster -ka"
+  
+  if [[ "$clipboard_available" == true ]]; then
+    echo ""
+    echo -e "${CHIEF_COLOR_CYAN}💡 Paste:${CHIEF_NO_COLOR} Cmd+V (macOS), Ctrl+V (Linux), Right-click (PuTTY/SSH)"
+  fi
+  
+  return 0
+}
+
+function chief.oc_vault-kubeadmin() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [cluster_name] [options]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Display kubeadmin password and console address for OpenShift clusters stored in Vault.
+Provides interactive cluster selection with filtering capability or direct cluster specification.
+
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  cluster_name    Name of the cluster to display credentials for (optional if using -l)
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -l, --list      List available clusters from Vault and prompt for selection
+  -f, --filter PATTERN  Filter clusters by pattern (supports wildcards like 'ocp*' or 'prod*')
+  -?, --help      Show this help
+
+${CHIEF_COLOR_MAGENTA}Requirements:${CHIEF_NO_COLOR}
+  ${CHIEF_COLOR_GREEN}Vault Configuration:${CHIEF_NO_COLOR} - Requires:
+     • VAULT_ADDR and VAULT_TOKEN environment variables
+     • CHIEF_VAULT_OC_PATH (e.g., 'secrets/openshift')
+     • Vault secret at: \${CHIEF_VAULT_OC_PATH}/\${cluster_name}
+       - api: OpenShift API URL
+       - kubeadmin: kubeadmin password
+       - console: Console URL (optional, derived from API if not present)
+
+${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
+- Interactive cluster selection with filtering
+- Displays kubeadmin username and password
+- Shows API server and console URLs
+- Provides ready-to-use oc login command
+- Integrates with Chief authentication system
+- Automatic clipboard integration (macOS: pbcopy, Linux: xclip/xsel with X11)
+- Security-conscious password handling with clipboard warnings
+- Cross-platform paste support (clipboard when available, display otherwise)
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  chief.oc_vault-kubeadmin -l                # List all clusters and choose one
+  chief.oc_vault-kubeadmin -l -f 'ocp*'      # List only clusters starting with 'ocp'
+  chief.oc_vault-kubeadmin hub               # Display kubeadmin credentials for 'hub' cluster
+  chief.oc_vault-kubeadmin prod-cluster      # Display kubeadmin credentials for 'prod-cluster'
+
+${CHIEF_COLOR_BLUE}Security Note:${CHIEF_NO_COLOR}
+Kubeadmin credentials provide cluster-admin privileges. Handle with care and ensure
+your terminal session is secure when displaying these credentials."
+
+  # Parse arguments and options
+  local cluster=""
+  local list_clusters=false
+  local filter_pattern=""
+
+  # Check for help first
+  if [[ "$1" == "-?" ]]; then
+    echo -e "${USAGE}"
+    return 0
+  fi
+
+  # Parse all arguments
+  while [[ $# -gt 0 ]]; do
+    case $1 in
+      -l|--list)
+        list_clusters=true
+        shift
+        ;;
+      -f|--filter)
+        if [[ -n "$2" && ! "$2" =~ ^- ]]; then
+          filter_pattern="$2"
+          shift 2
+        else
+          __chief_print_error "Filter pattern is required"
+          echo -e "${USAGE}"
+          return 1
+        fi
+        ;;
+      -\?|--help)
+        echo -e "${USAGE}"
+        return 0
+        ;;
+      -*)
+        __chief_print_error "Unknown option: $1"
+        return 1
+        ;;
+      *)
+        if [[ -z "$cluster" ]]; then
+          cluster="$1"
+        else
+          __chief_print_error "Multiple cluster names specified. Only one cluster allowed."
+          return 1
+        fi
+        shift
+        ;;
+    esac
+  done
+
+  # Handle list clusters option
+  if [[ "$list_clusters" == true ]]; then
+    if ! __chief_oc_select_vault_cluster "__chief_oc_display_kubeadmin_credentials" "$filter_pattern"; then
+      return 1
+    fi
+    return 0
+  fi
+
+  # Validate cluster name is provided for non-list mode
+  if [[ -z "$cluster" ]]; then
+    __chief_print_error "Cluster name is required (or use -l to list available clusters)"
+    echo -e "${USAGE}"
+    return 1
+  fi
+
+  # Display credentials for the specified cluster
+  __chief_oc_display_kubeadmin_credentials "$cluster"
+  return $?
 }
 
 function chief.oc_delete-stuck-ns() {
