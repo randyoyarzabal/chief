@@ -1098,49 +1098,92 @@ function __chief_load_ssh_keys() {
     SSH_ENV="$HOME/.ssh/environment"
 
     if [[ -f "${SSH_ENV}" ]]; then
-      . "${SSH_ENV}" >/dev/null
-      ps -ef | grep ${SSH_AGENT_PID} | grep ssh-agent$ >/dev/null || {
+      # Source the SSH environment file
+      . "${SSH_ENV}" >/dev/null 2>&1
+      
+      # Check if SSH_AGENT_PID is set and if the agent process is still running
+      if [[ -n "${SSH_AGENT_PID}" ]]; then
+        # More robust agent detection - check if process exists and is ssh-agent
+        if ! kill -0 "${SSH_AGENT_PID}" 2>/dev/null || ! ps -p "${SSH_AGENT_PID}" -o comm= | grep -q "ssh-agent"; then
+          __chief_print "SSH agent (PID: ${SSH_AGENT_PID}) not running, starting new agent..." "$1"
+          __chief_start_agent
+        else
+          __chief_print "Using existing SSH agent (PID: ${SSH_AGENT_PID})" "$1"
+        fi
+      else
+        __chief_print "SSH_AGENT_PID not set, starting new agent..." "$1"
         __chief_start_agent
-      }
+      fi
     else
+      __chief_print "SSH environment file not found, starting new agent..." "$1"
       __chief_start_agent
     fi
   fi
 
-  # Load all keys with .key extension (supports RSA, ed25519, etc.)
-  # Users can symlink existing keys with .key extension for selective loading
+  # Load SSH keys with custom naming conventions
+  # Priority order: .key extension, .private extension
   local key_count=0
-  for ssh_key in ${CHIEF_CFG_SSH_KEYS_PATH}/*.key; do
-    # Check if the file actually exists (avoid literal glob when no matches)
-    if [[ -f "${ssh_key}" ]]; then
-      key_count=$((key_count + 1))
-      if ${CHIEF_CFG_VERBOSE} || [[ "${1}" == '--verbose' ]]; then
-        __chief_print "Loading key: ${ssh_key}" "$1"
-        ${load} ${ssh_key}
-      else
-        ${load} ${ssh_key} &> /dev/null
+  local loaded_keys=()
+  
+  # Function to load a key and track it
+  load_key_file() {
+    local key_file="$1"
+    local key_name=$(basename "$key_file")
+    
+    # Skip if already loaded (avoid duplicates)
+    for loaded_key in "${loaded_keys[@]}"; do
+      if [[ "$loaded_key" == "$key_name" ]]; then
+        return 0
       fi
+    done
+    
+    # Attempt to load the key
+    if ${CHIEF_CFG_VERBOSE} || [[ "${2}" == '--verbose' ]]; then
+      __chief_print "Loading key: ${key_file}" "$2"
+      if ${load} "${key_file}" 2>/dev/null; then
+        loaded_keys+=("$key_name")
+        ((key_count++))
+        return 0
+      else
+        __chief_print "Failed to load key: ${key_file}" "$2"
+        return 1
+      fi
+    else
+      if ${load} "${key_file}" &> /dev/null; then
+        loaded_keys+=("$key_name")
+        ((key_count++))
+        return 0
+      else
+        return 1
+      fi
+    fi
+  }
+  
+  # 1. Load keys with .key extension (Chief's preferred naming)
+  for ssh_key in "${CHIEF_CFG_SSH_KEYS_PATH}"/*.key; do
+    if [[ -f "${ssh_key}" ]]; then
+      load_key_file "${ssh_key}" "$1"
     fi
   done
   
+  # 2. Load keys with .private extension (legacy support)
+  for ssh_key in "${CHIEF_CFG_SSH_KEYS_PATH}"/*.private; do
+    if [[ -f "${ssh_key}" ]]; then
+      load_key_file "${ssh_key}" "$1"
+    fi
+  done
+  
+  
   if [[ ${key_count} -eq 0 ]]; then
     if ${CHIEF_CFG_VERBOSE} || [[ "${1}" == '--verbose' ]]; then
-      __chief_print "No .key files found in ${CHIEF_CFG_SSH_KEYS_PATH}" "$1"
+      __chief_print "No SSH keys found in ${CHIEF_CFG_SSH_KEYS_PATH}" "$1"
+      __chief_print "Supported file patterns: *.key, *.private" "$1"
     fi
   else
     if ${CHIEF_CFG_VERBOSE} || [[ "${1}" == '--verbose' ]]; then
-      __chief_print "Loaded ${key_count} SSH key(s)" "$1"
+      __chief_print "Loaded ${key_count} SSH key(s): ${loaded_keys[*]}" "$1"
     fi
   fi
-
-  # Load key from standard location
-  # if [[ -e ~/.ssh/id_rsa ]]; then
-  #   if ${CHIEF_CFG_VERBOSE}; then
-  #     ${load} ~/.ssh/id_rsa
-  #   else
-  #     ${load} ~/.ssh/id_rsa &> /dev/null
-  #   fi
-  # fi
 }
 
 # Build Git / VirtualEnv prompt
@@ -1369,8 +1412,11 @@ function chief.ssh_load_keys() {
   local USAGE="Usage: $FUNCNAME
 
 Load SSH keys from CHIEF_CFG_SSH_KEYS_PATH defined in the Chief configuration.
-Note: All private keys must end with the suffix '.key'. Symlinks are allowed.
-This supports RSA, ed25519, and other key types. Use symlinks for selective loading.
+Supported key file patterns:
+- *.key (Chief preferred naming)
+- *.private (legacy support)
+This supports RSA, ed25519, and other key types. Symlinks are allowed for selective loading.
+Note: Standard SSH keys (id_rsa, id_ed25519, etc.) are automatically used by SSH clients and don't need to be loaded.
 "
 
   if [[ $1 == "-?" ]]; then
@@ -2827,6 +2873,7 @@ ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Reloads all Chief core libraries and plugins
 - Refreshes environment variables and functions
 - Updates configuration changes
+- Reloads SSH keys if configured
 - Provides verbose feedback during reload
 
 ${CHIEF_COLOR_BLUE}Use Cases:${CHIEF_NO_COLOR}
@@ -2857,6 +2904,13 @@ Restart your terminal session for a complete reset.
 
   echo -e "${CHIEF_COLOR_BLUE}Reloading Chief environment...${CHIEF_NO_COLOR}"
   __chief_load_library --verbose
+  
+  # Reload SSH keys if configured
+  if [[ ! -z ${CHIEF_CFG_SSH_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIEF_CFG_SSH_KEYS_PATH} && ${PLATFORM} == "Linux" ]]; then
+    echo -e "${CHIEF_COLOR_BLUE}Reloading SSH keys...${CHIEF_NO_COLOR}"
+    __chief_load_ssh_keys --verbose
+  fi
+  
   echo -e "${CHIEF_COLOR_GREEN}Chief environment reloaded successfully${CHIEF_NO_COLOR}"
 }
 

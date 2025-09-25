@@ -150,9 +150,12 @@ CHIEF_CFG_CONFIG_SET_INTERACTIVE=true
 CHIEF_CFG_CONFIG_UPDATE_BACKUP=true
 
 # Load private SSH keys into memory. 
-# Private keys are required to end in ".key" (symlinks are allowed)
+# Supported key file patterns:
+#   - *.key (Chief preferred naming: mykey.key)
+#   - *.private (legacy support: mykey.private)  
 # Supports RSA, ed25519, and other key types. Use symlinks for selective loading.
 # Chief will automatically enable (ssh-add) auto-load and auto-cleanup of ssh-agent.
+# Note: Standard SSH keys (id_rsa, id_ed25519, etc.) are automatically used by SSH clients.
 #
 # If you have a directory with your private keys, you can set the path here.
 # Setting this variable will automatically load your SSH keys, you can also run $>chief.ssh_load_keys
