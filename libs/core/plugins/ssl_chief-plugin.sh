@@ -644,10 +644,14 @@ function __chief_ssl_show_single_cert_info() {
   not_after=$(echo "$cert_dates" | grep "notAfter" | cut -d'=' -f2)
   current_epoch=$(date +%s)
   
-  # Try different date formats for compatibility
+  # Try different date formats for cross-platform compatibility
+  # First detect if we have GNU date (either via gdate or native date)
   if command -v gdate >/dev/null 2>&1; then
-    # GNU date (available via brew on macOS)
+    # GNU date (via brew on macOS)
     expiry_epoch=$(gdate -d "$not_after" +%s 2>/dev/null)
+  elif date --version 2>/dev/null | grep -q "GNU"; then
+    # GNU date (native on Linux or installed on other systems)
+    expiry_epoch=$(date -d "$not_after" +%s 2>/dev/null)
   else
     # BSD date (macOS default) - try without timezone first, then with
     expiry_epoch=$(date -j -f "%b %d %H:%M:%S %Y" "${not_after% GMT}" +%s 2>/dev/null)
@@ -1113,7 +1117,17 @@ ${CHIEF_COLOR_RED}Prerequisites:${CHIEF_NO_COLOR}
   fi
 
   local expiry_epoch
-  expiry_epoch=$(date -j -f "%b %d %H:%M:%S %Y %Z" "$cert_expiry" "+%s" 2>/dev/null || date -d "$cert_expiry" "+%s" 2>/dev/null)
+  # Cross-platform date parsing for certificate expiry
+  if command -v gdate >/dev/null 2>&1; then
+    # GNU date (via brew on macOS)
+    expiry_epoch=$(gdate -d "$cert_expiry" +%s 2>/dev/null)
+  elif date --version 2>/dev/null | grep -q "GNU"; then
+    # GNU date (native on Linux or installed on other systems)
+    expiry_epoch=$(date -d "$cert_expiry" +%s 2>/dev/null)
+  else
+    # BSD date (macOS default)
+    expiry_epoch=$(date -j -f "%b %d %H:%M:%S %Y %Z" "$cert_expiry" +%s 2>/dev/null)
+  fi
   local current_epoch
   current_epoch=$(date "+%s")
   local days_until_expiry
