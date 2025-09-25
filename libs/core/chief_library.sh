@@ -3692,11 +3692,45 @@ EOF
         __chief_print_info "  ${new_version}-dev.md → ${new_version}.md"
         
         # Transform the content: remove -dev references and update status
-        sed -e "s/${new_version}-dev/${new_version}/g" \
-            -e 's/## 🚀 What'\''s New in Development/## 🚀 What'\''s New in '"${new_version}"'/g' \
-            -e 's/**Status:** Development in progress/**Status:** Released/g' \
-            -e 's/**Target Release:** '"${new_version}"'/**Release Date:** '"${new_version}"'/g' \
-            "$dev_release_notes" > "$final_release_notes"
+        # First, ensure we have content to work with
+        if [[ ! -s "$dev_release_notes" ]]; then
+          __chief_print_warn "Development release notes file is empty: $dev_release_notes"
+          __chief_print_info "Creating basic release notes template..."
+          
+          cat > "$final_release_notes" << EOF
+# Chief ${new_version} Release Notes
+
+## 🚀 What's New in ${new_version}
+
+### 🔧 Version ${new_version} Release
+
+- Release version ${new_version}
+
+## 📋 Upgrade Notes
+
+### For Users
+
+- This is a release version
+
+---
+
+**Status:** Released  
+**Release Date:** ${new_version}  
+**Breaking Changes:** TBD  
+**New Features:** TBD
+EOF
+        else
+          # Transform the content with more flexible patterns
+          # Apply patterns in order that works with transformations
+          sed -e 's/## 🚀 What'\''s New$/## 🚀 What'\''s New in '"${new_version}"'/g' \
+              -e 's/## 🚀 What'\''s New in Development/## 🚀 What'\''s New in '"${new_version}"'/g' \
+              -e 's/### 🔧 Version '"${new_version}"'-dev Development/### 🔧 Version '"${new_version}"' Release/g' \
+              -e 's/- Ready for development work on '"${new_version}"'-dev/- Release version '"${new_version}"'/g' \
+              -e 's/\*\*Status:\*\* Development in progress/\*\*Status:\*\* Released/g' \
+              -e 's/\*\*Target Release:\*\* '"${new_version}"'/\*\*Release Date:\*\* '"${new_version}"'/g' \
+              -e "s/${new_version}-dev/${new_version}/g" \
+              "$dev_release_notes" > "$final_release_notes"
+        fi
         
         # Remove the development version file
         rm "$dev_release_notes"
