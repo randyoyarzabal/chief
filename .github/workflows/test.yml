@@ -37,7 +37,7 @@ jobs:
     # Step 3: Make test scripts executable
     - name: Make test scripts executable
       run: |
-        chmod +x test/*.sh
+        chmod +x tests/*.sh
         # Also ensure chief.sh is executable
         chmod +x chief.sh
     
@@ -45,7 +45,7 @@ jobs:
     - name: Run complete test suite
       run: |
         echo "🎯 Running Chief test suite..."
-        ./test/run-tests.sh
+        ./tests/run-tests.sh
     
     # Step 5: Upload test results (optional, for artifacts)
     - name: Upload test results
@@ -54,7 +54,7 @@ jobs:
       with:
         name: test-results-ubuntu
         path: |
-          test/
+          tests/
           *.log
         retention-days: 7
 
@@ -79,11 +79,11 @@ jobs:
     
     - name: Make test scripts executable
       run: |
-        chmod +x test/*.sh
+        chmod +x tests/*.sh
     
     # Run core tests only on cross-platform to save time
     - name: Run syntax and source tests (cross-platform)
       run: |
         echo "🧪 Running core tests on ${{ matrix.os }}..."
-        ./test/syntax-tests.sh
-        ./test/source-tests.sh
+        ./tests/syntax-tests.sh
+        ./tests/source-tests.sh

@@ -117,10 +117,24 @@ CHIEF_CFG_SHORT_PATH=false
 # in deep directory structures. The first line shows path, git info, etc., and the second
 # line shows the actual prompt symbol.
 CHIEF_CFG_MULTILINE_PROMPT=false
+
+# Override hostname display in prompt: Set this environment variable to customize the 
+# hostname shown in Chief's prompt. Useful for systems where you want to mark/identify
+# the system but don't want to or can't change the actual system hostname.
+# This is an environment variable, not a configuration setting, so export it:
+# export CHIEF_HOST="my-server"
+# Note: This affects all Chief prompts (single-line, multi-line, git-aware)
+#export CHIEF_HOST="production-server"
 ####################################
 
 # TOOLS CONFIGURATION
 ####################################
+
+# Default editor for Chief operations (editing configs, plugins, bash files, etc.)
+# Falls back to $EDITOR environment variable if not set, then vim if available, then vi
+# Examples: "vim", "nano", "emacs", "code --wait"
+# Leave commented to use system defaults ($EDITOR → vim → vi)
+#CHIEF_CFG_DEFAULT_EDITOR_PATH=""
 
 # If set to true, will use colored ls command.
 CHIEF_CFG_COLORED_LS=false

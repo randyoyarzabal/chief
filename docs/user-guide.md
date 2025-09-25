@@ -112,6 +112,9 @@ chief.config_show
 chief.config_set PROMPT true
 chief.config_set EDITOR "code"
 
+# Customize prompt hostname (environment variable)
+export CHIEF_HOST="my-server"  # Override hostname in prompt
+
 # Interactive configuration editor
 chief.config
 

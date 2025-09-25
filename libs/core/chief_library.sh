@@ -271,6 +271,36 @@ function __chief_has_vscode() {
   command -v code >/dev/null 2>&1
 }
 
+function __chief_get_default_editor() {
+  # Usage: __chief_get_default_editor
+  # 
+  # Determines the default editor to use with smart fallback logic
+  # Priority: CHIEF_CFG_DEFAULT_EDITOR_PATH → $EDITOR → vim (if available) → vi
+  # Returns: Editor command to use
+  local editor_cmd="vi"  # ultimate fallback
+  
+  # Check Chief-specific editor configuration first
+  if [[ -n "${CHIEF_CFG_DEFAULT_EDITOR_PATH}" ]]; then
+    echo "${CHIEF_CFG_DEFAULT_EDITOR_PATH}"
+    return
+  fi
+  
+  # Check system $EDITOR environment variable
+  if [[ -n "${EDITOR}" ]]; then
+    echo "${EDITOR}"
+    return
+  fi
+  
+  # Check if vim is available, prefer it over vi
+  if command -v vim >/dev/null 2>&1; then
+    echo "vim"
+    return
+  fi
+  
+  # Final fallback to vi
+  echo "vi"
+}
+
 function chief.edit-file() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <file> [options]
 
@@ -288,12 +318,12 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Automatically detects file changes using timestamps
 - Sources/reloads the file if modifications are detected  
-- Falls back to vi if preferred editor is unavailable
+- Respects CHIEF_CFG_DEFAULT_EDITOR_PATH, \$EDITOR, then falls back to vim/vi
 - Works with any text file type
 - Cross-platform compatible (Linux/macOS)
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME ~/.bashrc                    # Edit bashrc with default editor
+  $FUNCNAME ~/.bashrc                    # Edit bashrc with configured editor
   $FUNCNAME ~/.bashrc --vscode           # Edit bashrc with VSCode
   $FUNCNAME /path/to/script.sh           # Edit any shell script
   $FUNCNAME /etc/hosts                   # Edit system files (with sudo)
@@ -347,14 +377,16 @@ function __chief_edit_file() {
   local date2
   
   # Choose editor based on option and availability
-  local editor_cmd="vi"  # default editor
+  local editor_cmd
   if [[ "$editor_option" == "vscode" ]]; then
     if __chief_has_vscode; then
       editor_cmd="code --wait"
     else
-      echo -e "${CHIEF_COLOR_YELLOW}Warning: VSCode 'code' command not found. Falling back to vi editor.${CHIEF_NO_COLOR}"
-      editor_cmd="vi"
+      echo -e "${CHIEF_COLOR_YELLOW}Warning: VSCode 'code' command not found. Falling back to default editor.${CHIEF_NO_COLOR}"
+      editor_cmd="$(__chief_get_default_editor)"
     fi
+  else
+    editor_cmd="$(__chief_get_default_editor)"
   fi
   
   if [[ ${PLATFORM} == "MacOS" ]]; then
@@ -1077,13 +1109,29 @@ function __chief_load_ssh_keys() {
 
   # Load all keys with .key extension (supports RSA, ed25519, etc.)
   # Users can symlink existing keys with .key extension for selective loading
+  local key_count=0
   for ssh_key in ${CHIEF_CFG_SSH_KEYS_PATH}/*.key; do
-    if ${CHIEF_CFG_VERBOSE} || [[ "${1}" == '--verbose' ]]; then
-      ${load} ${ssh_key}
-    else
-      ${load} ${ssh_key} &> /dev/null
+    # Check if the file actually exists (avoid literal glob when no matches)
+    if [[ -f "${ssh_key}" ]]; then
+      key_count=$((key_count + 1))
+      if ${CHIEF_CFG_VERBOSE} || [[ "${1}" == '--verbose' ]]; then
+        __chief_print "Loading key: ${ssh_key}" "$1"
+        ${load} ${ssh_key}
+      else
+        ${load} ${ssh_key} &> /dev/null
+      fi
     fi
   done
+  
+  if [[ ${key_count} -eq 0 ]]; then
+    if ${CHIEF_CFG_VERBOSE} || [[ "${1}" == '--verbose' ]]; then
+      __chief_print "No .key files found in ${CHIEF_CFG_SSH_KEYS_PATH}" "$1"
+    fi
+  else
+    if ${CHIEF_CFG_VERBOSE} || [[ "${1}" == '--verbose' ]]; then
+      __chief_print "Loaded ${key_count} SSH key(s)" "$1"
+    fi
+  fi
 
   # Load key from standard location
   # if [[ -e ~/.ssh/id_rsa ]]; then
@@ -1746,7 +1794,7 @@ ${CHIEF_COLOR_GREEN}Configuration Options:${CHIEF_NO_COLOR}
 - And many more...
 
 ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
-- Opens in your preferred \$EDITOR
+- Opens in your configured editor (CHIEF_CFG_DEFAULT_EDITOR_PATH or \$EDITOR)
 - Automatically reloads configuration on save
 - Validates syntax before applying changes
 
@@ -2508,7 +2556,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME --vscode mytools   # Edit mytools_chief-plugin.sh with VSCode
 
 ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
-- Opens in your preferred editor (vi by default)
+- Opens in your configured editor (respects CHIEF_CFG_DEFAULT_EDITOR_PATH, \$EDITOR)
 - VSCode support with --code/--vscode flag
 - Automatically reloads plugin on save
 - Creates new plugin if it doesn't exist
@@ -2565,7 +2613,7 @@ ${CHIEF_COLOR_GREEN}What is .bash_profile:${CHIEF_NO_COLOR}
 - Preferred over .bashrc for login shells
 
 ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
-- Opens in your preferred \$EDITOR
+- Opens in your configured editor (CHIEF_CFG_DEFAULT_EDITOR_PATH or \$EDITOR)
 - Automatically sources file on save
 - Detects and reports syntax errors
 - Creates file if it doesn't exist
@@ -2637,7 +2685,7 @@ ${CHIEF_COLOR_GREEN}What is .bashrc:${CHIEF_NO_COLOR}
 - Sourced by terminal multiplexers and some terminals
 
 ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
-- Opens in your preferred \$EDITOR
+- Opens in your configured editor (CHIEF_CFG_DEFAULT_EDITOR_PATH or \$EDITOR)
 - Automatically sources file on save
 - Detects and reports syntax errors
 - Creates file if it doesn't exist
@@ -2711,7 +2759,7 @@ ${CHIEF_COLOR_GREEN}What is .profile:${CHIEF_NO_COLOR}
 - Most portable shell configuration file
 
 ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
-- Opens in your preferred \$EDITOR
+- Opens in your configured editor (CHIEF_CFG_DEFAULT_EDITOR_PATH or \$EDITOR)
 - Automatically sources file on save
 - Detects and reports syntax errors
 - Creates file if it doesn't exist
@@ -2927,7 +2975,7 @@ function __chief_show_plugin_help() {
     echo -e "  ${CHIEF_COLOR_GREEN}OpenShift Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires oc CLI)${CHIEF_NO_COLOR}"
     echo "    oc_login, oc_get-all-objects, oc_clean-olm, oc_clean-replicasets"
     echo "    oc_approve-csrs, oc_show-stuck-resources, oc_delete-stuck-ns"
-    echo "    OpenShift cluster management and maintenance"
+    echo "    oc_vault-kubeadmin, oc_whoami"
     found_plugins=true
   fi
   
@@ -2981,6 +3029,9 @@ function __chief_show_configuration_help() {
   echo -e "  ${CHIEF_COLOR_GREEN}GIT_PROMPT${CHIEF_NO_COLOR}           Show git status in prompt (true/false)"
   echo -e "  ${CHIEF_COLOR_GREEN}MULTILINE_PROMPT${CHIEF_NO_COLOR}     Use multi-line prompt layout (true/false)"
   echo -e "  ${CHIEF_COLOR_GREEN}SHORT_PATH${CHIEF_NO_COLOR}           Show short paths in prompt (true/false)"
+  echo
+  echo -e "${CHIEF_COLOR_CYAN}Environment Variables:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}CHIEF_HOST${CHIEF_NO_COLOR}           Override hostname display in prompt (export CHIEF_HOST=\"my-server\")"
   echo
   
   echo -e "${CHIEF_COLOR_CYAN}Plugin Management:${CHIEF_NO_COLOR}"
@@ -3490,7 +3541,7 @@ Note: This function only handles version updates. Create GitHub releases manuall
   
   # Only run tests for release workflows (next-dev skips tests since it follows a successful release)
   if ! $dry_run && ! $skip_tests && $is_release_workflow; then
-    local test_script="${CHIEF_PATH}/test/run-tests.sh"
+    local test_script="${CHIEF_PATH}/tests/run-tests.sh"
     
     if [[ -f "$test_script" ]]; then
       __chief_print_info "Running test suite (required for releases)..."
