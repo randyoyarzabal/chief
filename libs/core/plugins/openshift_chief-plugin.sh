@@ -2969,6 +2969,85 @@ https://www.redhat.com/en/blog/troubleshooting-terminating-namespaces"
   return 0
 }
 
+# Helper function to detect ACM cluster type dynamically
+__chief_detect_acm_cluster_type() {
+  local cluster_name="$1"
+  local api_url="$2"
+  local current_user="$3"
+  
+  # Initialize variables
+  local cluster_type="Standalone"
+  local hub_name=""
+  local is_acm_hub=false
+  local is_acm_spoke=false
+  
+  # Only proceed if we have authentication
+  if [[ "$current_user" == "Unknown" ]]; then
+    echo "Standalone|"
+    return 0
+  fi
+  
+  # Method 1: Check for ACM Hub - look for MCH (Multicluster Hub) operator
+  if oc get crd multiclusterhubs.operator.open-cluster-management.io &>/dev/null 2>&1; then
+    if oc get multiclusterhub -A &>/dev/null 2>&1; then
+      cluster_type="Hub"
+      is_acm_hub=true
+      echo "Hub|"
+      return 0
+    fi
+  fi
+  
+  # Method 2: Check for ACM Spoke - look for klusterlet
+  if oc get crd klusterlets.operator.open-cluster-management.io &>/dev/null 2>&1; then
+    if oc get klusterlet klusterlet &>/dev/null 2>&1; then
+      is_acm_spoke=true
+      
+      # Try to detect the hub name from various sources
+      
+      # Method 2a: From klusterlet status conditions
+      hub_name=$(oc get klusterlet klusterlet -o jsonpath='{.status.conditions[?(@.type=="HubConnectionDegraded")].message}' 2>/dev/null | grep -o 'https://api\.[^:]*' | sed 's|https://api\.||' | cut -d. -f1 | head -1 || echo "")
+      
+      # Method 2b: From klusterlet spec bootstrap kubeconfig secret name
+      if [[ -z "$hub_name" ]]; then
+        hub_name=$(oc get klusterlet klusterlet -o jsonpath='{.spec.registrationConfiguration.bootstrapKubeConfigs.hub-kubeconfig-secret}' 2>/dev/null | grep -o 'hub-[^-]*' | sed 's|hub-||' || echo "")
+      fi
+      
+      # Method 2c: From klusterlet spec external server URL
+      if [[ -z "$hub_name" ]]; then
+        hub_name=$(oc get klusterlet klusterlet -o jsonpath='{.spec.registrationConfiguration.externalServerURLs[0]}' 2>/dev/null | grep -o 'https://api\.[^:]*' | sed 's|https://api\.||' | cut -d. -f1 | head -1 || echo "")
+      fi
+      
+      # Method 2d: From managed cluster annotations
+      if [[ -z "$hub_name" ]]; then
+        hub_name=$(oc get managedcluster -o jsonpath='{.items[0].metadata.annotations.open-cluster-management\.io/managed-by}' 2>/dev/null || echo "")
+      fi
+      
+      # Method 2e: From klusterlet deployment environment variables
+      if [[ -z "$hub_name" ]]; then
+        hub_name=$(oc get deployment klusterlet -n open-cluster-management-agent -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="HUB_KUBEAPISERVER")].value}' 2>/dev/null | grep -o 'https://api\.[^:]*' | sed 's|https://api\.||' | cut -d. -f1 | head -1 || echo "")
+      fi
+      
+      # Method 2f: From cluster management addon configuration
+      if [[ -z "$hub_name" ]]; then
+        hub_name=$(oc get configmap cluster-info -n kube-public -o jsonpath='{.data.kubeconfig}' 2>/dev/null | grep -o 'server: https://api\.[^:]*' | sed 's|server: https://api\.||' | cut -d. -f1 | head -1 || echo "")
+      fi
+      
+      if [[ -n "$hub_name" ]]; then
+        cluster_type="Managed by $hub_name"
+      else
+        cluster_type="Managed"
+      fi
+      
+      echo "${cluster_type}|${hub_name}"
+      return 0
+    fi
+  fi
+  
+  # If neither ACM Hub nor Spoke detected, it's standalone
+  echo "Standalone|"
+  return 0
+}
+
 function chief.oc_status() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options]
 
@@ -2982,8 +3061,6 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -q, --quiet          Show only essential information (online/offline status)
   -t, --timeout SEC    Timeout for connectivity checks in seconds [default: 10]
   --quick              Quick mode: faster checks with reduced details (timeout: 3s)
-  --parallel           Enable parallel processing (faster but may have issues)
-  --max-concurrent N   Maximum concurrent processes for parallel mode [default: 5]
   -?, --help           Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
@@ -3027,8 +3104,6 @@ Default table format shows:
   local quiet_mode=false
   local timeout_seconds=10
   local quick_mode=false
-  local parallel_mode=true
-  local max_concurrent=5
 
   # Check for help first
   if [[ "$1" == "-?" ]]; then
@@ -3086,30 +3161,6 @@ Default table format shows:
         quick_mode=true
         timeout_seconds=3
         shift
-        ;;
-      --parallel)
-        parallel_mode=true
-        shift
-        ;;
-      --max-concurrent)
-        if [[ -n "$2" && "$2" =~ ^[0-9]+$ ]]; then
-          max_concurrent="$2"
-          shift 2
-        else
-          __chief_print_error "Max concurrent must be a positive integer"
-          echo -e "${USAGE}"
-          return 1
-        fi
-        ;;
-      --max-concurrent=*)
-        max_concurrent="${1#--max-concurrent=}"
-        if [[ "$max_concurrent" =~ ^[0-9]+$ ]]; then
-          shift
-        else
-          __chief_print_error "Max concurrent must be a positive integer"
-          echo -e "${USAGE}"
-          return 1
-        fi
         ;;
       -\?|--help)
         echo -e "${USAGE}"
@@ -3234,7 +3285,7 @@ Default table format shows:
         additional_info="Quick mode - limited details"
       else
         # Get console URL if not provided
-      if [[ -z "$console_url" || "$console_url" == "null" ]]; then
+        if [[ -z "$console_url" || "$console_url" == "null" ]]; then
         # Derive console URL from API URL (standard OpenShift pattern)
         console_url=$(echo "$api_url" | sed 's/api\./console-openshift-console.apps./' | sed 's/:6443//' || echo "N/A")
       fi
@@ -3298,56 +3349,19 @@ EOF
       
       # Check if we can authenticate (if current user is not "Unknown")
       if [[ "$current_user" != "Unknown" ]]; then
-        # SIMPLE DETECTION LOGIC - Use cluster name patterns only
+        # DYNAMIC ACM DETECTION - Use actual cluster resources
+        local acm_detection_result
+        acm_detection_result=$(__chief_detect_acm_cluster_type "$cluster_name" "$api_url" "$current_user")
+        IFS='|' read -r cluster_type hub_name <<< "$acm_detection_result"
         
-        # Initialize variables
+        # Set flags based on detected type
         local is_acm_hub=false
         local is_acm_spoke=false
-        local hub_name=""
         
-        # Use known cluster patterns (your specific setup)
-        case "$cluster_name" in
-          "ocp-sno1"|"ocp3")
-            cluster_type="Hub"
-            is_acm_hub=true
-            ;;
-          "ocp-sno2"|"ocp-sno3")
-            cluster_type="Managed by ocp3"
-            is_acm_spoke=true
-            hub_name="ocp3"
-            ;;
-          *)
-            cluster_type="Standalone"
-            ;;
-        esac
-          
-          # Method 1: From klusterlet status conditions
-          hub_name=$(oc get klusterlet klusterlet -o jsonpath='{.status.conditions[?(@.type=="HubConnectionDegraded")].message}' 2>/dev/null | grep -o 'https://api\.[^:]*' | sed 's|https://api\.||' | cut -d. -f1 | head -1 || echo "")
-          
-          # Method 2: From klusterlet spec bootstrap kubeconfig secret name
-          if [[ -z "$hub_name" ]]; then
-            hub_name=$(oc get klusterlet klusterlet -o jsonpath='{.spec.registrationConfiguration.bootstrapKubeConfigs.hub-kubeconfig-secret}' 2>/dev/null | grep -o 'hub-[^-]*' | sed 's|hub-||' || echo "")
-          fi
-          
-          # Method 3: From klusterlet spec external server URL
-          if [[ -z "$hub_name" ]]; then
-            hub_name=$(oc get klusterlet klusterlet -o jsonpath='{.spec.registrationConfiguration.externalServerURLs[0]}' 2>/dev/null | grep -o 'https://api\.[^:]*' | sed 's|https://api\.||' | cut -d. -f1 | head -1 || echo "")
-          fi
-          
-          # Method 4: From managed cluster annotations
-          if [[ -z "$hub_name" ]]; then
-            hub_name=$(oc get managedcluster -o jsonpath='{.items[0].metadata.annotations.open-cluster-management\.io/managed-by}' 2>/dev/null || echo "")
-          fi
-          
-          # Method 5: From klusterlet deployment environment variables
-          if [[ -z "$hub_name" ]]; then
-            hub_name=$(oc get deployment klusterlet -n open-cluster-management-agent -o jsonpath='{.spec.template.spec.containers[0].env[?(@.name=="HUB_KUBEAPISERVER")].value}' 2>/dev/null | grep -o 'https://api\.[^:]*' | sed 's|https://api\.||' | cut -d. -f1 | head -1 || echo "")
-          fi
-          
-          # Method 6: From cluster management addon configuration
-          if [[ -z "$hub_name" ]]; then
-            hub_name=$(oc get configmap cluster-info -n kube-public -o jsonpath='{.data.kubeconfig}' 2>/dev/null | grep -o 'server: https://api\.[^:]*' | sed 's|server: https://api\.||' | cut -d. -f1 | head -1 || echo "")
-          fi
+        if [[ "$cluster_type" == "Hub" ]]; then
+          is_acm_hub=true
+        elif [[ "$cluster_type" == "Managed"* ]]; then
+          is_acm_spoke=true
         fi
         
         # SIMPLE GitOps Detection: Check if openshift-gitops namespace exists
@@ -3386,6 +3400,7 @@ EOF
             additional_info="No GitOps operator or ACM management detected"
           fi
         fi
+      fi
       fi
     else
       # No authentication available, use basic detection
@@ -3429,271 +3444,25 @@ EOF
         fi
       done <<< "$vault_clusters"
       
-      # Process clusters in parallel or sequential based on mode
-      if [[ "$parallel_mode" == true && ${#cluster_info[@]} -gt 1 ]]; then
-        __chief_print_info "Checking ${#cluster_info[@]} clusters in parallel (max ${max_concurrent} concurrent)..."
-        
-        # Create temporary directory for parallel processing
-        local temp_dir=$(mktemp -d)
-        local -a pids=()
-        
-        # Start parallel processes with controlled concurrency for scalability
-        local current_jobs=0
-        
-        {
-          for cluster_data in "${cluster_info[@]}"; do
-            IFS='|' read -r cluster api_url console_url <<< "$cluster_data"
-            
-            # Wait if we've hit the concurrency limit
-            while [[ $current_jobs -ge $max_concurrent ]]; do
-              # Wait for any job to complete
-              for i in "${!pids[@]}"; do
-                if ! kill -0 "${pids[$i]}" 2>/dev/null; then
-                  wait "${pids[$i]}" 2>/dev/null
-                  unset pids[$i]
-                  ((current_jobs--))
-                  break
-                fi
-              done
-              sleep 0.1
-            done
-            
-              # Start new job with completely isolated environment
-              {
-                # Create a completely isolated subshell for this process
-                (
-                  # Reset all environment variables that might interfere
-                  unset KUBECONFIG
-                  unset OC_CONFIG
-                  
-                  # Use a completely isolated approach for parallel processing
-                  local cluster_name="$cluster"
-                  local api_url="$api_url"
-                  local source="Vault"
-                  local console_url="$console_url"
-                  
-                  # Test connectivity
-                  local connectivity_test
-                  local api_response
-                  local cluster_version="-"
-                  
-                  api_response=$(timeout "$timeout_seconds" curl -s -k "$api_url/version" 2> /dev/null)
-                  if [[ $? -eq 0 && -n "$api_response" ]] && echo "$api_response" | jq -e '.major' > /dev/null 2>&1; then
-                    connectivity_test="online"
-                    # Get OpenShift version from console URL
-                    local console_url_for_version
-                    console_url_for_version=$(echo "$api_url" | sed 's/api\./console-openshift-console.apps./' | sed 's/:6443//' || echo "")
-                    if [[ -n "$console_url_for_version" ]]; then
-                      local console_response
-                      console_response=$(timeout "$timeout_seconds" curl -s -k "$console_url_for_version/" 2> /dev/null)
-                      if [[ $? -eq 0 && -n "$console_response" ]]; then
-                        cluster_version=$(echo "$console_response" | grep -o '"releaseVersion":"[^"]*"' | cut -d'"' -f4 2> /dev/null || echo "-")
-                      else
-                        cluster_version=$(echo "$api_response" | jq -r '.gitVersion // "-"' 2> /dev/null || echo "-")
-                      fi
-                    else
-                      cluster_version=$(echo "$api_response" | jq -r '.gitVersion // "Unknown"' 2> /dev/null || echo "Unknown")
-                    fi
-                  else
-                    connectivity_test="offline"
-                  fi
-                  
-                  # Simple detection logic for parallel processing
-                  local gitops_status="No"
-                  local cluster_type="Unknown"
-                  local current_user="N/A"
-                  local additional_info=""
-                  
-                  if [[ "$connectivity_test" == "online" ]]; then
-                    # Get console URL if not provided
-                    if [[ -z "$console_url" || "$console_url" == "null" ]]; then
-                      console_url=$(echo "$api_url" | sed 's/api\./console-openshift-console.apps./' | sed 's/:6443//' || echo "N/A")
-                    fi
-                    
-                    # Try to authenticate with fresh context
-                    local kubeadmin_password
-                    kubeadmin_password=$(vault kv get -field=kubeadmin "${CHIEF_VAULT_OC_PATH}/${cluster_name}" 2> /dev/null)
-                    
-                    if [[ -n "$kubeadmin_password" ]]; then
-                      # Create a temporary kubeconfig for this process
-                      local temp_kubeconfig
-                      temp_kubeconfig=$(mktemp /tmp/oc-parallel-${cluster_name}.XXXXXX)
-                      
-                      # Set up temporary kubeconfig
-                      cat > "$temp_kubeconfig" << EOF
-apiVersion: v1
-kind: Config
-clusters:
-- cluster:
-    server: $api_url
-    insecure-skip-tls-verify: true
-  name: temp-cluster
-contexts:
-- context:
-    cluster: temp-cluster
-    user: temp-user
-  name: temp-context
-current-context: temp-context
-users:
-- name: temp-user
-  user: {}
-EOF
-                      
-                      export KUBECONFIG="$temp_kubeconfig"
-                      oc login --username=kubeadmin --password="$kubeadmin_password" "$api_url" --insecure-skip-tls-verify &>/dev/null
-                      if [[ $? -eq 0 ]]; then
-                        current_user=$(oc whoami 2>/dev/null || echo "Unknown")
-                      else
-                        current_user="Unknown"
-                      fi
-                      
-                      # Clean up temp kubeconfig
-                      rm -f "$temp_kubeconfig"
-                      unset KUBECONFIG
-                    fi
-                    
-                    # Simple pattern-based detection (no ACM resource checking in parallel)
-                    case "$cluster_name" in
-                      "ocp-sno1"|"ocp3")
-                        cluster_type="Hub"
-                        ;;
-                      "ocp-sno2"|"ocp-sno3")
-                        cluster_type="Managed by ocp3"
-                        ;;
-                      *)
-                        cluster_type="Standalone"
-                        ;;
-                    esac
-                    
-                    # Simple GitOps detection with completely fresh authentication
-                    if [[ "$current_user" != "Unknown" ]]; then
-                      # Re-authenticate for GitOps check to avoid interference
-                      local gitops_kubeconfig
-                      gitops_kubeconfig=$(mktemp /tmp/oc-gitops-${cluster_name}.XXXXXX)
-                      
-                      cat > "$gitops_kubeconfig" << EOF
-apiVersion: v1
-kind: Config
-clusters:
-- cluster:
-    server: $api_url
-    insecure-skip-tls-verify: true
-  name: temp-cluster
-contexts:
-- context:
-    cluster: temp-cluster
-    user: temp-user
-  name: temp-context
-current-context: temp-context
-users:
-- name: temp-user
-  user: {}
-EOF
-                      
-                      export KUBECONFIG="$gitops_kubeconfig"
-                      oc login --username=kubeadmin --password="$kubeadmin_password" "$api_url" --insecure-skip-tls-verify &>/dev/null
-                      
-                      if [[ $? -eq 0 ]]; then
-                        local gitops_check
-                        gitops_check=$(oc get namespace openshift-gitops &>/dev/null 2>&1 && echo "exists" || echo "missing")
-                        if [[ "$gitops_check" == "exists" ]]; then
-                          gitops_status="Yes"
-                        else
-                          gitops_status="No"
-                        fi
-                      else
-                        gitops_status="No"
-                      fi
-                      
-                      # Clean up
-                      rm -f "$gitops_kubeconfig"
-                      unset KUBECONFIG
-                    else
-                      gitops_status="No"
-                    fi
-                    
-                    # Set additional info
-                    if [[ "$cluster_type" == "Hub" ]]; then
-                      if [[ "$gitops_status" == "Yes" ]]; then
-                        additional_info="ACM/MCH Hub cluster with OpenShift GitOps"
-                      else
-                        additional_info="ACM/MCH Hub cluster"
-                      fi
-                    elif [[ "$cluster_type" == "Managed by "* ]]; then
-                      if [[ "$gitops_status" == "Yes" ]]; then
-                        additional_info="ACM/Spoke cluster with OpenShift GitOps"
-                      else
-                        additional_info="ACM/Spoke cluster"
-                      fi
-                    else
-                      if [[ "$gitops_status" == "Yes" ]]; then
-                        additional_info="OpenShift GitOps operator installed"
-                      else
-                        additional_info="No GitOps operator or ACM management detected"
-                      fi
-                    fi
-                  else
-                    gitops_status="-"
-                    additional_info="Authentication required for detailed status"
-                  fi
-                  
-                  # Output the result
-                  echo "$cluster_name|$source|$connectivity_test|$api_url|$console_url|$gitops_status|$cluster_type|$current_user|$cluster_version|$additional_info" > "$temp_dir/${cluster_name}.result"
-                )
-              } >/dev/null 2>&1 &
-            pids+=($!)
-            ((current_jobs++))
-          done
-          
-          # Wait for all remaining processes to complete
-          for pid in "${pids[@]}"; do
-            wait "$pid" 2>/dev/null
-          done
-        } 2>/dev/null
-        
-        # Collect results
-        for cluster_data in "${cluster_info[@]}"; do
-          IFS='|' read -r cluster api_url console_url <<< "$cluster_data"
-          if [[ -f "$temp_dir/${cluster}.result" ]]; then
-            local cluster_result
-            cluster_result=$(cat "$temp_dir/${cluster}.result")
-            # Extract status from result (3rd field)
-            local cluster_status
-            cluster_status=$(echo "$cluster_result" | cut -d'|' -f3)
-            if [[ "$cluster_status" == "online" ]]; then
-              ((online_clusters++))
-            else
-              ((offline_clusters++))
-            fi
-            # Store the result
-            cluster_results+=("$cluster_result")
-            ((total_clusters++))
-          fi
-        done
-        
-        # Cleanup
-        rm -rf "$temp_dir"
-      else
-        # Sequential processing (original behavior)
-        for cluster_data in "${cluster_info[@]}"; do
-          IFS='|' read -r cluster api_url console_url <<< "$cluster_data"
-          ((total_clusters++))
-          printf "Checking cluster: %s " "$cluster"
-          local cluster_result
-          cluster_result=$(__chief_check_cluster_status "$cluster" "$api_url" "Vault" "$console_url")
-          # Extract status from result (3rd field)
-          local cluster_status
-          cluster_status=$(echo "$cluster_result" | cut -d'|' -f3)
-          if [[ "$cluster_status" == "online" ]]; then
-            ((online_clusters++))
-          else
-            ((offline_clusters++))
-          fi
-          # Store the result
-          cluster_results+=("$cluster_result")
-          echo "✓"
-        done
-      fi
+      # Process clusters sequentially
+      for cluster_data in "${cluster_info[@]}"; do
+        IFS='|' read -r cluster api_url console_url <<< "$cluster_data"
+        ((total_clusters++))
+        printf "Checking cluster: %s " "$cluster"
+        local cluster_result
+        cluster_result=$(__chief_check_cluster_status "$cluster" "$api_url" "Vault" "$console_url")
+        # Extract status from result (3rd field)
+        local cluster_status
+        cluster_status=$(echo "$cluster_result" | cut -d'|' -f3)
+        if [[ "$cluster_status" == "online" ]]; then
+          ((online_clusters++))
+        else
+          ((offline_clusters++))
+        fi
+        # Store the result
+        cluster_results+=("$cluster_result")
+        echo "✓"
+      done
     else
       __chief_print_warn "No clusters found in Vault at path: ${CHIEF_VAULT_OC_PATH}"
     fi
@@ -3793,8 +3562,8 @@ __chief_output_status_yaml() {
 __chief_output_status_table() {
   if [[ "$quiet_mode" == true ]]; then
     # Quiet mode - minimal table
-    printf "%-15s %-10s %-10s %-10s %-10s\n" "CLUSTER" "HUB" "SPOKE" "STATUS" "GITOPS"
-    printf "%-15s %-10s %-10s %-10s %-10s\n" "-------" "---" "-----" "------" "------"
+    printf "%-18s %-10s %-10s %-10s %-10s\n" "CLUSTER" "HUB" "SPOKE" "STATUS" "GITOPS"
+    printf "%-18s %-10s %-10s %-10s %-10s\n" "--------" "---" "-----" "------" "------"
     
     for result in "${cluster_results[@]}"; do
       IFS='|' read -r name source status api_url console_url gitops_status cluster_type current_user cluster_version additional_info <<< "$result"
@@ -3842,12 +3611,12 @@ __chief_output_status_table() {
       # Convert "Unknown" to "-" for better readability
       [[ "$gitops_status" == "Unknown" ]] && gitops_status="-"
       
-      echo -e "$(printf "%-15s %-10s %-10s %s %-9s %-10s" "$name" "$hub_value" "$spoke_value" "$status_icon" "$status_text" "$gitops_status")"
+      echo -e "$(printf "%-18s %-10s %-10s %s %-9s %-10s" "$name" "$hub_value" "$spoke_value" "$status_icon" "$status_text" "$gitops_status")"
     done
   else
     # Full table
-    printf "%-15s %-10s %-10s %-10s %-10s %-10s\n" "CLUSTER" "HUB" "SPOKE" "STATUS" "GITOPS" "VERSION"
-    printf "%-15s %-10s %-10s %-10s %-10s %-10s\n" "-------" "---" "-----" "------" "------" "-------"
+    printf "%-18s %-10s %-10s %-10s %-10s %-10s\n" "CLUSTER" "HUB" "SPOKE" "STATUS" "GITOPS" "VERSION"
+    printf "%-18s %-10s %-10s %-10s %-10s %-10s\n" "--------" "---" "-----" "------" "------" "-------"
     
     for result in "${cluster_results[@]}"; do
       IFS='|' read -r name source status api_url console_url gitops_status cluster_type current_user cluster_version additional_info <<< "$result"
@@ -3896,7 +3665,7 @@ __chief_output_status_table() {
       [[ "$gitops_status" == "Unknown" ]] && gitops_status="-"
       [[ "$cluster_version" == "Unknown" ]] && cluster_version="-"
       
-      echo -e "$(printf "%-15s %-10s %-10s %s %-9s %-10s %-10s" "$name" "$hub_value" "$spoke_value" "$status_icon" "$status_text" "$gitops_status" "$cluster_version")"
+      echo -e "$(printf "%-18s %-10s %-10s %s %-9s %-10s %-10s" "$name" "$hub_value" "$spoke_value" "$status_icon" "$status_text" "$gitops_status" "$cluster_version")"
     done
     
   fi
