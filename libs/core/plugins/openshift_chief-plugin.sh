@@ -3047,7 +3047,6 @@ __chief_detect_acm_cluster_type() {
   echo "Standalone|"
   return 0
 }
-
 function chief.oc_status() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options]
 
