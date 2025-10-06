@@ -611,7 +611,7 @@ Based on techniques shared by Kyle Walker from Red Hat.
   esac
 
   if [[ "$dry_run" != true ]]; then
-    echo -e "${CHIEF_COLOR_GREEN}✅ OLM cleanup completed${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_GREEN}✓ OLM cleanup completed${CHIEF_NO_COLOR}"
     echo -e "${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR} OLM will automatically recreate deleted components"
     echo -e "${CHIEF_COLOR_BLUE}Monitor:${CHIEF_NO_COLOR} Watch 'oc get pods -n openshift-marketplace' and 'oc get pods -n openshift-operator-lifecycle-manager'"
   else
@@ -907,9 +907,9 @@ Based on techniques shared by Kyle Walker from Red Hat.
     
     echo ""
     if [[ $failed_count -eq 0 ]]; then
-      echo -e "${CHIEF_COLOR_GREEN}✅ Successfully deleted $deleted_count ReplicaSets${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_GREEN}✓ Successfully deleted $deleted_count ReplicaSets${CHIEF_NO_COLOR}"
     else
-      echo -e "${CHIEF_COLOR_YELLOW}⚠️  Deleted $deleted_count ReplicaSets, $failed_count failed${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_YELLOW}⚠  Deleted $deleted_count ReplicaSets, $failed_count failed${CHIEF_NO_COLOR}"
     fi
   fi
 }
@@ -1328,7 +1328,7 @@ ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Perfect for cleaning up namespaces that refuse to delete due to stuck resources
 - No manual intervention required - handles entire cleanup process automatically
 
-${CHIEF_COLOR_RED}⚠️  WARNING:${CHIEF_NO_COLOR}
+${CHIEF_COLOR_RED}⚠  WARNING:${CHIEF_NO_COLOR}
 Removing finalizers can bypass important cleanup operations and may lead to:
 - Resource leaks (external resources not properly cleaned up)
 - Orphaned dependencies
@@ -1414,7 +1414,7 @@ ${CHIEF_COLOR_BLUE}Three-Level Process:${CHIEF_NO_COLOR}
   # Show safety warning if fix mode is enabled (but not in dry-run)
   if [[ "$fix_mode" == true && "$auto_yes" != true && "$dry_run" != true ]]; then
     echo
-    __chief_print_warn "⚠️  DANGER: --fix mode will perform COMPLETE NAMESPACE CLEANUP!"
+    __chief_print_warn "⚠  DANGER: --fix mode will perform COMPLETE NAMESPACE CLEANUP!"
     __chief_print_warn "This uses a proven three-level approach:"
     echo
     echo -e "${CHIEF_COLOR_YELLOW}1. Delete each resource${CHIEF_NO_COLOR} (attempt normal deletion)"
@@ -1424,8 +1424,8 @@ ${CHIEF_COLOR_BLUE}Three-Level Process:${CHIEF_NO_COLOR}
     echo -e "${CHIEF_COLOR_YELLOW}5. If proxy fails: Force delete + JSON patch${CHIEF_NO_COLOR} (extreme measures)"
     echo -e "${CHIEF_COLOR_YELLOW}6. Result: Complete cleanup${CHIEF_NO_COLOR} ready for namespace deletion"
     echo
-    __chief_print_warn "⚠️  This can bypass important cleanup operations and cause resource leaks!"
-    __chief_print_warn "⚠️  All data and resources in this namespace will be permanently lost!"
+    __chief_print_warn "⚠  This can bypass important cleanup operations and cause resource leaks!"
+    __chief_print_warn "⚠  All data and resources in this namespace will be permanently lost!"
     echo
     echo -e "${CHIEF_COLOR_BLUE}Target namespace:${CHIEF_NO_COLOR} $namespace"
     echo -e "${CHIEF_COLOR_BLUE}Current cluster:${CHIEF_NO_COLOR} $(oc whoami --show-server 2>/dev/null)"
@@ -1551,7 +1551,7 @@ ${CHIEF_COLOR_BLUE}Three-Level Process:${CHIEF_NO_COLOR}
                           echo -e "    ${CHIEF_COLOR_YELLOW}✗ Level 3 failed - trying extreme measures...${CHIEF_NO_COLOR}"
                           
                           # Fourth fallback: Extreme measures for stubborn resources
-                          echo -e "    ${CHIEF_COLOR_MAGENTA}🚀 Level 3 extreme: Deploying force delete + JSON patch...${CHIEF_NO_COLOR}"
+                          echo -e "    ${CHIEF_COLOR_MAGENTA}Level 3 extreme: Deploying force delete + JSON patch...${CHIEF_NO_COLOR}"
                           if __chief_oc_extreme_delete_resource "$resource_type" "$resource_name" "$namespace"; then
                             echo -e "    ${CHIEF_COLOR_GREEN}✓ Level 3 extreme succeeded - resource destroyed${CHIEF_NO_COLOR}"
                           else
@@ -1640,13 +1640,13 @@ ${CHIEF_COLOR_BLUE}Three-Level Process:${CHIEF_NO_COLOR}
   else
     # In fix mode, resources were processed using proven manual workflow
     echo
-    __chief_print_info "✅ MANUAL WORKFLOW COMPLETED:"
+    __chief_print_info "✓ MANUAL WORKFLOW COMPLETED:"
     __chief_print_info "• Each resource: Attempted deletion first"
     __chief_print_info "• Stuck resources: Finalizers removed after timeout"
     
     # Final verification - check if namespace is actually clean
     echo
-    __chief_print_info "🔍 FINAL VERIFICATION: Checking if namespace is actually clean..."
+    __chief_print_info "FINAL VERIFICATION: Checking if namespace is actually clean..."
     
     local remaining_resources=0
     for resource_type in $api_resources; do
@@ -1660,17 +1660,17 @@ ${CHIEF_COLOR_BLUE}Three-Level Process:${CHIEF_NO_COLOR}
         
         if [[ $resource_count_for_type -gt 0 ]]; then
           ((remaining_resources += resource_count_for_type))
-          echo -e "  ${CHIEF_COLOR_YELLOW}⚠️  Still found: $resource_count_for_type $resource_type${CHIEF_NO_COLOR}"
+          echo -e "  ${CHIEF_COLOR_YELLOW}⚠  Still found: $resource_count_for_type $resource_type${CHIEF_NO_COLOR}"
         fi
       fi
     done
     
     echo
         if [[ $remaining_resources -eq 0 ]]; then
-          __chief_print_success "✅ NAMESPACE IS CLEAN: No resources remaining in '$namespace'"
-          __chief_print_success "🎯 Namespace is ready for deletion: oc delete namespace $namespace"
+          __chief_print_success "✓ NAMESPACE IS CLEAN: No resources remaining in '$namespace'"
+          __chief_print_success "Namespace is ready for deletion: oc delete namespace $namespace"
         else
-          __chief_print_warn "⚠️  NAMESPACE NOT FULLY CLEAN: $remaining_resources resources still remain"
+          __chief_print_warn "⚠  NAMESPACE NOT FULLY CLEAN: $remaining_resources resources still remain"
           __chief_print_warn "Some resources may need manual intervention"
         fi
   fi
@@ -2536,7 +2536,7 @@ function __chief_oc_display_kubeadmin_credentials() {
   
   if [[ "$clipboard_available" == true ]]; then
     echo ""
-    echo -e "${CHIEF_COLOR_CYAN}💡 Paste:${CHIEF_NO_COLOR} Cmd+V (macOS), Ctrl+V (Linux), Right-click (PuTTY/SSH)"
+    echo -e "${CHIEF_COLOR_CYAN}Paste:${CHIEF_NO_COLOR} Cmd+V (macOS), Ctrl+V (Linux), Right-click (PuTTY/SSH)"
   fi
   
   return 0
@@ -2678,7 +2678,7 @@ ${CHIEF_COLOR_GREEN}Process:${CHIEF_NO_COLOR}
 5. Uses Kubernetes API to finalize namespace deletion
 6. Cleans up proxy and temporary files
 
-${CHIEF_COLOR_RED}⚠️  CRITICAL WARNING:${CHIEF_NO_COLOR}
+${CHIEF_COLOR_RED}⚠  CRITICAL WARNING:${CHIEF_NO_COLOR}
 Removing finalizers bypasses important cleanup operations and may cause:
 - Resource leaks (external resources not properly cleaned up)
 - Orphaned dependencies in other systems
@@ -2781,7 +2781,7 @@ https://www.redhat.com/en/blog/troubleshooting-terminating-namespaces"
   # Show safety warning and get confirmation
   if [[ "$no_confirm" != true ]]; then
     echo
-    __chief_print_error "⚠️  DANGER: This will forcibly remove finalizers from namespace '$namespace'"
+    __chief_print_error "⚠  DANGER: This will forcibly remove finalizers from namespace '$namespace'"
     __chief_print_error "This can bypass important cleanup operations and cause resource leaks!"
     echo
     echo "Make sure you have:"

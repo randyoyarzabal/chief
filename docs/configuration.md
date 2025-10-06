@@ -19,7 +19,7 @@ Advanced configuration options, multi-system setup, and team collaboration workf
 
 ---
 
-## 🛠️ Configuration Management
+## Configuration Management
 
 Chief is highly customizable. Use `chief.config` to edit the config file or `chief.config_set <option> <value>` for direct command-line configuration.
 
@@ -50,7 +50,7 @@ chief.config_set config_set_interactive false
 
 ---
 
-## ⚙️ Configuration Options
+## Configuration Options
 
 ### Core Settings
 
@@ -70,7 +70,7 @@ chief.config_set config_set_interactive false
 | `CHIEF_CFG_SSH_KEYS_PATH` | _unset_ | Auto-load SSH keys from path |
 | `CHIEF_CFG_ALIAS` | _unset_ | Create short alias (e.g., `"cf"`) |
 | `CHIEF_CFG_AUTOCHECK_UPDATES` | `false` | Check for updates on startup |
-| `CHIEF_CFG_UPDATE_BRANCH` | `"main"` | Branch to track for updates: any valid Git branch (⚠️ non-main may be unstable) |
+| `CHIEF_CFG_UPDATE_BRANCH` | `"main"` | Branch to track for updates: any valid Git branch (⚠ non-main may be unstable) |
 
 ### Environment Variables
 
@@ -101,7 +101,7 @@ CHIEF_HOST="dev-box" bash
 
 ---
 
-## 🌟 Advanced Features
+## Advanced Features
 
 ### SSH Key Auto-loading
 
@@ -116,7 +116,7 @@ CHIEF_CFG_SSH_KEYS_PATH="$HOME/.ssh"
 
 ### Custom Prompt Features
 
-> **⚠️ Important:** Only enable Chief's prompt if you're **not** using Oh My Bash, Starship, or other prompt customization tools. Chief's prompt is **disabled by default** to prevent conflicts.
+> **⚠ Important:** Only enable Chief's prompt if you're **not** using Oh My Bash, Starship, or other prompt customization tools. Chief's prompt is **disabled by default** to prevent conflicts.
 
 ```bash
 # Enable git-aware prompt (only if not using other prompt tools)
@@ -143,7 +143,7 @@ CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="true"
 
 ## 🌐 Multi-System Setup
 
-### 🎯 Primary Use Case: Single User, Multiple Systems
+### Primary Use Case: Single User, Multiple Systems
 
 Chief is primarily designed as a **single-user system** that follows you across multiple environments:
 
@@ -162,7 +162,7 @@ Chief is primarily designed as a **single-user system** that follows you across 
 
 **Real-world example**: Set up Chief with remote plugins and vault that follows you across all systems.
 
-#### 🚀 One-Time Setup (any new system)
+#### One-Time Setup (any new system)
 
 ```bash
 # 1. Install Chief (one command)
@@ -184,16 +184,16 @@ chief.vault_file-load  # Team vault (.chief_shared-vault - if exists)
 chief.vault_file-load ~/.my-personal-vault     # Personal vault
 ```
 
-📖 For detailed vault setup and management, see: [Vault Configuration](configuration.html#vault-configuration)
+For detailed vault setup and management, see: [Vault Configuration](configuration.html#vault-configuration)
 
-#### 🎯 Result
+#### Result
 
-- ✅ **Same plugins everywhere**: Functions, aliases, and tools sync across laptop, server, CI/CD
-- ✅ **Encrypted secrets**: Vault files travel with your setup (team + personal)
-- ✅ **Zero reconfiguration**: New systems work identically after this setup
-- ✅ **Version controlled**: Track changes to your shell environment
+- ✓ **Same plugins everywhere**: Functions, aliases, and tools sync across laptop, server, CI/CD
+- ✓ **Encrypted secrets**: Vault files travel with your setup (team + personal)
+- ✓ **Zero reconfiguration**: New systems work identically after this setup
+- ✓ **Version controlled**: Track changes to your shell environment
 
-#### 🔍 Daily Workflow
+#### Daily Workflow
 
 ```bash
 chief.plugins_update           # Get latest team plugins
@@ -212,7 +212,7 @@ Chief is designed with teams in mind. Share your bash functions, aliases, and to
 
 > **🔑 Key Concept**: Chief automatically loads any file ending with `_chief-plugin.sh` from your configured plugin directory. The prefix before `_chief-plugin.sh` becomes the **plugin name** (e.g., `devops_chief-plugin.sh` → plugin name "devops"). This makes it perfect for both existing repositories and new team setups, with easy plugin management via `chief.plugin <name>`.
 
-### 📋 Two Setup Scenarios
+### Two Setup Scenarios
 
 Choose the approach that fits your team's situation:
 
@@ -249,13 +249,13 @@ fi
 echo "Team DevOps plugin loaded"
 
 function devops.deploy() {
-    echo "🚀 Deploying with team standards..."
+    echo "Deploying with team standards..."
     # Your existing deployment scripts/logic
     ./scripts/deploy.sh "$@"
 }
 
 function devops.logs() {
-    echo "📋 Fetching application logs..."
+    echo "Fetching application logs..."
     kubectl logs -f deployment/app --tail=100
 }
 
@@ -325,13 +325,13 @@ testing.unit
 Chief automatically discovers and loads files with specific naming:
 
 ```bash
-# ✅ These files WILL be loaded:
+# ✓ These files WILL be loaded:
 devops_chief-plugin.sh       # Plugin name: "devops"
 testing_chief-plugin.sh      # Plugin name: "testing"
 monitoring_chief-plugin.sh   # Plugin name: "monitoring"  
 k8s_chief-plugin.sh         # Plugin name: "k8s"
 
-# ❌ These files will NOT be loaded:
+# ✗ These files will NOT be loaded:
 devops.sh                   # Missing _chief-plugin.sh suffix
 testing_plugin.sh           # Missing chief- prefix  
 readme.md                   # Not a shell script
@@ -371,13 +371,13 @@ echo "Team DevOps plugin loaded"
 
 function devops.deploy() {
     local environment="${1:-staging}"
-    echo "🚀 Deploying to ${environment}..."
+    echo "Deploying to ${environment}..."
     # Team deployment logic
 }
 
 function devops.logs() {
     local service="${1:-app}"
-    echo "📋 Fetching logs for ${service}..."
+    echo "Fetching logs for ${service}..."
     kubectl logs -f "deployment/${service}" --tail=100
 }
 EOF
@@ -432,7 +432,7 @@ chief.vault_file-load ~/.my-personal-vault
 
 ---
 
-## 🎯 Configuration Examples
+## Configuration Examples
 
 ### Developer Workstation
 
@@ -469,7 +469,7 @@ chief.config_set autocheck_updates true
 
 ---
 
-## 🔧 Troubleshooting Configuration
+## Troubleshooting Configuration
 
 ### Common Configuration Issues
 
@@ -504,7 +504,7 @@ chief.reload  # Will re-clone repository
 
 ---
 
-## 🎯 Next Steps
+## Next Steps
 
 - **[Plugin Development](plugin-development.html)** - Create custom team plugins
 - **[User Guide](user-guide.html)** - Learn core Chief features

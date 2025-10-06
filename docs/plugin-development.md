@@ -19,7 +19,7 @@ Complete guide to creating custom plugins, best practices, and advanced plugin f
 
 ---
 
-## 🔧 Built-in Plugins
+## Built-in Plugins
 
 Chief comes with several comprehensive plugins ready to use:
 
@@ -199,7 +199,7 @@ alias myproject.logs='tail -f /var/log/myproject.log'
 
 ---
 
-## 🎯 Plugin Best Practices
+## Plugin Best Practices
 
 ### Naming Convention
 
@@ -210,12 +210,12 @@ alias myproject.logs='tail -f /var/log/myproject.log'
 ### Function Naming
 
 ```bash
-# ✅ Good - Namespaced with plugin name
+# ✓ Good - Namespaced with plugin name
 function myproject.deploy() { ... }
 function myproject.test() { ... }
 function myproject.status() { ... }
 
-# ❌ Avoid - Global namespace pollution
+# ✗ Avoid - Global namespace pollution
 function deploy() { ... }
 function test() { ... }
 function status() { ... }
@@ -281,7 +281,7 @@ EOF
 
 ---
 
-## 🌟 Advanced Plugin Features
+## Advanced Plugin Features
 
 ### Configuration Variables
 
@@ -404,7 +404,7 @@ function devops.deploy() {
     local environment="${1:-staging}"
     local app_name="${2:-main-app}"
     
-    echo "🚀 Deploying ${app_name} to ${environment}..."
+    echo "Deploying ${app_name} to ${environment}..."
     
     # Use team-specific deployment logic
     case "$environment" in
@@ -427,7 +427,7 @@ function devops.logs() {
     local app_name="${1:-main-app}"
     local environment="${2:-staging}"
     
-    echo "📋 Fetching logs for ${app_name} in ${environment}..."
+    echo "Fetching logs for ${app_name} in ${environment}..."
     kubectl logs -f "deployment/${app_name}" -n "${environment}"
 }
 
@@ -462,7 +462,7 @@ devops.load_secrets
 
 ---
 
-## 📋 Plugin Development Examples
+## Plugin Development Examples
 
 ### Example 1: Docker Workflow Plugin
 
@@ -658,16 +658,16 @@ function test_myproject_deploy() {
     
     # Test with valid input
     if myproject.deploy staging; then
-        echo "✅ Deploy test passed"
+        echo "✓ Deploy test passed"
     else
-        echo "❌ Deploy test failed"
+        echo "✗ Deploy test failed"
     fi
     
     # Test with invalid input
     if ! myproject.deploy invalid_env; then
-        echo "✅ Error handling test passed"
+        echo "✓ Error handling test passed"
     else
-        echo "❌ Error handling test failed"
+        echo "✗ Error handling test failed"
     fi
 }
 
@@ -677,7 +677,7 @@ test_myproject_deploy
 
 ---
 
-## 🎯 Next Steps
+## Next Steps
 
 - **[Configuration](configuration.html)** - Advanced setup and team collaboration
 - **[User Guide](user-guide.html)** - Learn core Chief features

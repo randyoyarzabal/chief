@@ -5,15 +5,15 @@ description: "Transform your terminal experience with organized bash functions, 
 permalink: /
 ---
 
-# 🚀 Chief
+# Chief
 
 **Bash Plugin Manager & Terminal Enhancement Tool**
 
-[![GitHub release](https://img.shields.io/badge/Download-Release%20v3.1.4-green.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Documentation](https://img.shields.io/badge/📖-Documentation-blue)](https://chief.reonetlabs.us)
+[![GitHub release](https://img.shields.io/badge/Download-Release%20v3.1.4-green.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Documentation](https://img.shields.io/badge/Documentation-blue)](https://chief.reonetlabs.us)
 
 Chief is a lightweight, powerful Bash library system that helps you organize your shell environment through a plugin-based architecture. Think of it as a package manager for your bash functions, aliases, and tools.
 
-## ⚡ Quick Install
+## Quick Install
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
@@ -30,11 +30,11 @@ For environments without git connectivity:
 ./tools/install.sh --local
 ```
 
-## ⚡ Quick Start: Portable Setup
+## Quick Start: Portable Setup
 
 **Real-world example**: Set up Chief with remote plugins and vault that follows you across all systems.
 
-### 🚀 One-Time Setup (any new system)
+### One-Time Setup (any new system)
 
 ```bash
 # 1. Install Chief (one command)
@@ -56,16 +56,16 @@ chief.vault_file-load  # Team vault (.chief_shared-vault - if exists)
 chief.vault_file-load ~/.my-personal-vault     # Personal vault
 ```
 
-📖 For detailed vault setup and management, see: [Vault Configuration](configuration.html#vault-configuration)
+For detailed vault setup and management, see: [Vault Configuration](configuration.html#vault-configuration)
 
-### 🎯 Result
+### Result
 
-- ✅ **Same plugins everywhere**: Functions, aliases, and tools sync across laptop, server, CI/CD
-- ✅ **Encrypted secrets**: Vault files travel with your setup (team + personal)
-- ✅ **Zero reconfiguration**: New systems work identically after this setup
-- ✅ **Version controlled**: Track changes to your shell environment
+- ✓ **Same plugins everywhere**: Functions, aliases, and tools sync across laptop, server, CI/CD
+- ✓ **Encrypted secrets**: Vault files travel with your setup (team + personal)
+- ✓ **Zero reconfiguration**: New systems work identically after this setup
+- ✓ **Version controlled**: Track changes to your shell environment
 
-## 🚀 30-Second Demo
+## 30-Second Demo
 
 ```bash
 # See what's available
@@ -84,18 +84,18 @@ chief.plugin mytools
 ## ✨ Key Features
 
 - 🔐 **Vault System** - Encrypt sensitive environment variables
-- 🛠️ **Enterprise-Ready Tools** - Built-in OpenShift, SSL/TLS, SSH, AWS, Git, and Python utilities
+- **Enterprise-Ready Tools** - Built-in OpenShift, SSL/TLS, SSH, AWS, Git, and Python utilities
 - 🌐 **Remote Plugin Sync** - Share plugins across teams via Git 
 - 🎨 **Git-Aware Prompts** - Beautiful, intelligent terminal prompts
-- 🔍 **Instant Discovery** - Find any function with `chief.whereis`
-- 🚀 **Zero Disruption** - Only affects Bash, won't interfere with existing setups
+- **Instant Discovery** - Find any function with `chief.whereis`
+- **Zero Disruption** - Only affects Bash, won't interfere with existing setups
 - 📦 **Plugin Architecture** - Organize tools into reusable, shareable plugins
 
 ## 🔌 Available Plugins
 
 Chief comes with **8 powerful plugins** providing **58+ functions** for your daily workflow:
 
-### 🔍 **Discovery & Help**
+### **Discovery & Help**
 
 - `chief.help` - Interactive help system with plugin browsing
 - `chief.whereis <function>` - Find any function across all plugins
@@ -106,7 +106,7 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.vault_file-edit` - Edit encrypted files securely
 - `chief.vault_file-load` - Load encrypted environment variables
 
-### ☸️ **OpenShift/Kubernetes Plugin** (9 functions)
+### **OpenShift/Kubernetes Plugin** (9 functions)
 
 - `chief.oc_get-all-objects` - Comprehensive resource discovery with filtering
 - `chief.oc_clean-olm` - OLM cleanup with selective targeting
@@ -132,7 +132,7 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.ssh_get-publickey` - Extract and display public keys
 - `chief.ssh_rm-host` - Clean known_hosts entries safely
 
-### 🛠️ **System Utilities Plugin** (18 functions)
+### **System Utilities Plugin** (18 functions)
 
 - `chief.etc_create-bootusb` - Create bootable USB drives safely
 - `chief.etc_folder-sync` - Professional rsync-based directory synchronization  
@@ -142,7 +142,7 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.etc_mount-share` - Network share mounting utilities
 - File comparison, IP validation, system prompts, and more...
 
-### 🔧 **Git Plugin** (16 functions)
+### **Git Plugin** (16 functions)
 
 - `chief.git_clone` - Enhanced git cloning with safety checks
 - `chief.git_commit` - Streamlined commit workflow
@@ -158,12 +158,12 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.python_stop-ve` - Deactivate environments
 - `chief.python_ve-dep` - Install dependencies from requirements.txt
 
-### ☁️ **AWS Plugin** (2 functions)
+### **AWS Plugin** (2 functions)
 
 - `chief.aws_set-role` - Switch between AWS IAM roles
 - `chief.aws_export-creds` - Export AWS credentials to environment
 
-## 🛡️ Safety First: Dry-Run Examples
+## Safety First: Dry-Run Examples
 
 Preview potentially destructive operations safely:
 
@@ -181,25 +181,25 @@ chief.etc_chmod-f -n 644 ~/scripts/
 chief.oc_clean-olm -n
 ```
 
-## 🛡️ Safe for Everyone
+## Safe for Everyone
 
 - **Zsh/Oh My Zsh Users**: Chief won't touch your existing setup
 - **Custom Prompts**: Prompt features disabled by default
 - **Easy Removal**: Clean uninstall available anytime
 
-## 📖 Complete Documentation
+## Complete Documentation
 
 Ready to dive deeper? Explore our comprehensive guides:
 
-**[🔧 Getting Started](getting-started.html)** - Installation, setup, and first steps
+**[Getting Started](getting-started.html)** - Installation, setup, and first steps
 
-**[📖 User Guide](user-guide.html)** - Core features, commands, and daily workflows  
+**[User Guide](user-guide.html)** - Core features, commands, and daily workflows  
 
-**[🛠️ Plugin Development](plugin-development.html)** - Create and share your own plugins
+**[Plugin Development](plugin-development.html)** - Create and share your own plugins
 
-**[⚙️ Configuration](configuration.html)** - Advanced setup and team collaboration
+**[Configuration](configuration.html)** - Advanced setup and team collaboration
 
-**[📋 Reference](reference.html)** - Complete command reference and troubleshooting
+**[Reference](reference.html)** - Complete command reference and troubleshooting
 
 ## 🐛 Bug Reports & Support
 

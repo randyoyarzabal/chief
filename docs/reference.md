@@ -406,10 +406,10 @@ chief.plugin team
 
 function team.standup() {
     echo "📅 Daily Standup - $(date)"
-    echo "🎯 Yesterday:"
+    echo "Yesterday:"
     git log --oneline --since="yesterday" --author="$(git config user.email)"
     echo ""
-    echo "🚀 Today's Plan:"
+    echo "Today's Plan:"
     echo "  • Check JIRA tickets"
     echo "  • Review PRs"
     echo "  • Continue feature development"
@@ -428,7 +428,7 @@ function team.pr_review() {
 }
 
 function team.deploy_status() {
-    echo "🚀 Deployment Status:"
+    echo "Deployment Status:"
     echo "Staging: $(curl -s https://staging.myapp.com/health | jq -r .status)"
     echo "Production: $(curl -s https://myapp.com/health | jq -r .status)"
 }
@@ -808,12 +808,12 @@ This project is licensed under the **MIT License** - see the [LICENSE](https://g
 
 ### License Summary
 
-- ✅ **Commercial use**
-- ✅ **Modification**
-- ✅ **Distribution**
-- ✅ **Private use**
-- ❌ **Liability**
-- ❌ **Warranty**
+- ✓ **Commercial use**
+- ✓ **Modification**
+- ✓ **Distribution**
+- ✓ **Private use**
+- ✗ **Liability**
+- ✗ **Warranty**
 
 ---
 
@@ -826,7 +826,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](https://g
 
 ### Special Thanks
 
-- Built with ❤️ for the terminal-loving community
+- Built with love for the terminal-loving community
 - Inspired by the need for clean, organized shell environments
 - Designed to enhance productivity without breaking existing setups
 

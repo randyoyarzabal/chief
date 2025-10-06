@@ -60,7 +60,7 @@ ${CHIEF_COLOR_MAGENTA}File Creation:${CHIEF_NO_COLOR}
 - Personal vaults are created in \$HOME/ if they don't exist
 - Shared vaults are created in the plugins repository root if they don't exist
 
-${CHIEF_COLOR_RED}⚠️ TEAM COLLABORATION WARNING:${CHIEF_NO_COLOR}
+${CHIEF_COLOR_RED}⚠ TEAM COLLABORATION WARNING:${CHIEF_NO_COLOR}
 - .chief_shared-vault in team repos is ${CHIEF_COLOR_RED}SHARED BY ALL TEAM MEMBERS${CHIEF_NO_COLOR}
 - Use shared vault only for team secrets (service accounts, team API keys)
 - Create personal vault for private secrets: ${CHIEF_COLOR_CYAN}$FUNCNAME ~/.my-personal-vault${CHIEF_NO_COLOR}
@@ -242,7 +242,7 @@ ${CHIEF_COLOR_MAGENTA}File Creation:${CHIEF_NO_COLOR}
 - Personal vaults are created in \$HOME/ if they don't exist
 - Shared vaults are created in the plugins repository root if they don't exist
 
-${CHIEF_COLOR_RED}⚠️ TEAM COLLABORATION WARNING:${CHIEF_NO_COLOR}
+${CHIEF_COLOR_RED}⚠ TEAM COLLABORATION WARNING:${CHIEF_NO_COLOR}
 - .chief_shared-vault in team repos is ${CHIEF_COLOR_RED}SHARED BY ALL TEAM MEMBERS${CHIEF_NO_COLOR}
 - Load personal vault separately: ${CHIEF_COLOR_CYAN}$FUNCNAME ~/.my-personal-vault${CHIEF_NO_COLOR}
 
