@@ -20,7 +20,7 @@ Complete guide to using Chief's core features, commands, and workflows.
 
 ---
 
-## 📖 Help System
+## Help System
 
 Chief provides a comprehensive, multi-layered help system to help you discover and use commands effectively.
 
@@ -84,7 +84,7 @@ Multiple ways to explore available commands:
 
 ---
 
-## 🎯 Core Features
+## Core Features
 
 ### Plugin Management
 
@@ -140,7 +140,7 @@ chief.[tab][tab]
 
 ---
 
-## 💡 Common Use Cases
+## Common Use Cases
 
 ### 1. Organize Your Functions
 
@@ -188,7 +188,7 @@ chief.config
 
 ---
 
-## 🎪 What You Get Out of the Box
+## What You Get Out of the Box
 
 ### Plugin Management
 
@@ -267,7 +267,7 @@ chief.oc_delete_stuck_ns      # Force delete stuck namespaces
 
 ---
 
-## 🔧 Advanced Plugin Features
+## Advanced Plugin Features
 
 ### SSL/TLS Certificate Management
 
@@ -424,7 +424,7 @@ vault kv put secrets/openshift/hub \
 
 ---
 
-## 📖 Command Reference
+## Command Reference
 
 ### Core Commands
 
@@ -503,7 +503,7 @@ chief.plugins_root             # Navigate to plugins directory
 
 ---
 
-## 📖 Examples & Tutorials
+## Examples & Tutorials
 
 ### Example 1: DevOps Plugin
 
@@ -582,7 +582,7 @@ chief.git_reset-hard
 **Best Practice**: Always run Git operations with `-n` first to understand what will be affected.
 ---
 
-## 🐚 Shell Compatibility
+## Shell Compatibility
 
 Chief is designed specifically for **Bash** and won't interfere with other shells:
 
@@ -610,7 +610,7 @@ Chief is designed specifically for **Bash** and won't interfere with other shell
 
 ---
 
-## 🛟 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 

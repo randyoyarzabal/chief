@@ -19,7 +19,7 @@ Complete command reference, examples, tutorials, and additional resources.
 
 ---
 
-## 📖 Complete Command Reference
+## Complete Command Reference
 
 ### Core Chief Commands
 
@@ -114,7 +114,7 @@ chief.uninstall
 
 ---
 
-## 🔧 Built-in Plugin Command Reference
+## Built-in Plugin Command Reference
 
 ### SSL/TLS Certificate Management
 
@@ -249,7 +249,7 @@ chief.oc_delete_stuck_ns <namespace> [options]
 
 ---
 
-## 📖 Installation Methods
+## Installation Methods
 
 ### Method 1: Quick Install (Recommended)
 
@@ -285,7 +285,7 @@ source ~/.chief/chief.sh --lib-only
 
 ---
 
-## 📖 Advanced Examples & Tutorials
+## Advanced Examples & Tutorials
 
 ### Example 1: DevOps Plugin
 
@@ -436,7 +436,7 @@ function team.deploy_status() {
 
 ---
 
-## 🛟 Comprehensive Troubleshooting
+## Comprehensive Troubleshooting
 
 ### Installation Issues
 
@@ -745,7 +745,7 @@ chief.reload
 
 ---
 
-## 🤖 Contributing
+## Contributing
 
 We welcome contributions! Here's how to get involved:
 
@@ -802,7 +802,7 @@ bash tests/run_tests.sh
 
 ---
 
-## 📄 License
+## License
 
 This project is licensed under the **MIT License** - see the [LICENSE](https://github.com/randyoyarzabal/chief/blob/main/LICENSE) file for details.
 
@@ -817,7 +817,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](https://g
 
 ---
 
-## 🙏 Acknowledgments
+## Acknowledgments
 
 - **Git Project** - Git completion and prompt scripts
 - **Bash Community** - Inspiration from various Bash framework projects
@@ -832,7 +832,7 @@ This project is licensed under the **MIT License** - see the [LICENSE](https://g
 
 ---
 
-## 🔗 External Resources
+## External Resources
 
 ### Official Links
 
