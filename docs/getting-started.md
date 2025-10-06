@@ -144,11 +144,11 @@ oc version --client 2>/dev/null || echo "OpenShift CLI not installed (optional)"
 
 ---
 
-## 🐛 Bug Reports & Support
+## Bug Reports & Support
 
 Found a bug or need help? We're here to help! Please create an issue on GitHub:
 
-**[📝 Report an Issue](https://github.com/randyoyarzabal/chief/issues)**
+**[Report an Issue](https://github.com/randyoyarzabal/chief/issues)**
 
 When reporting issues, please include:
 - **OS version**: Run `uname -a` to get your system details  

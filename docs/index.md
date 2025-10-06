@@ -201,11 +201,11 @@ Ready to dive deeper? Explore our comprehensive guides:
 
 **[Reference](reference.html)** - Complete command reference and troubleshooting
 
-## 🐛 Bug Reports & Support
+## Bug Reports & Support
 
 Found a bug or need help? We're here to help! Please create an issue on GitHub:
 
-**[📝 Report an Issue](https://github.com/randyoyarzabal/chief/issues)**
+**[Report an Issue](https://github.com/randyoyarzabal/chief/issues)**
 
 When reporting issues, please include:
 
@@ -217,10 +217,10 @@ When reporting issues, please include:
 
 This helps us quickly identify and fix issues!
 
-## 🤝 Contributing
+## Contributing
 
 Contributions welcome! See our [reference documentation](reference.html#contributing) for guidelines.
 
-## 📄 License
+## License
 
 MIT License - see [LICENSE](https://github.com/randyoyarzabal/chief/blob/main/LICENSE) file for details.
