@@ -22,7 +22,7 @@ description: "Installation, setup, and first steps with Chief"
 
 ---
 
-## 📦 Installation
+## Installation
 
 ### Quick Install (Recommended)
 

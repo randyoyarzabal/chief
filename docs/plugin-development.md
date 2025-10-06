@@ -364,7 +364,7 @@ function myproject.long_task() {
 
 ---
 
-## 🌐 Team Plugin Development
+## Team Plugin Development
 
 ### Plugin Repository Structure
 

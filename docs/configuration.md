@@ -81,6 +81,7 @@ These are environment variables (not configuration settings) that affect Chief's
 | `CHIEF_HOST` | _unset_ | Override hostname display in prompt. Useful for marking systems without changing hostname. |
 
 **Example:**
+
 ```bash
 # Add to your ~/.bashrc or ~/.bash_profile
 export CHIEF_HOST="production-server"
@@ -141,7 +142,7 @@ CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="true"
 
 ---
 
-## 🌐 Multi-System Setup
+## Multi-System Setup
 
 ### Primary Use Case: Single User, Multiple Systems
 
@@ -174,7 +175,7 @@ chief.config_set -y PLUGINS_PATH="${HOME}/chief_plugins"
 chief.config_set -y PLUGINS_GIT_BRANCH="main"
 chief.config_set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root, this is plugins path relative to PLUGINS_PATH
 chief.config_set -y PLUGINS_GIT_AUTOUPDATE="false"    # manual updates
-chief.config_set -y PLUGINS_TYPE="remote"             # 🔑 Enable remote sync
+chief.config_set -y PLUGINS_TYPE="remote"             # Enable remote sync
 
 # 3. (Optional) Enable multi-line prompt, useful when current working dir is deep.
 chief.config_set -y MULTILINE_PROMPT=true 
@@ -210,7 +211,7 @@ The remote plugins feature enables powerful **team collaboration**:
 
 Chief is designed with teams in mind. Share your bash functions, aliases, and tools across your entire team for consistent development environments.
 
-> **🔑 Key Concept**: Chief automatically loads any file ending with `_chief-plugin.sh` from your configured plugin directory. The prefix before `_chief-plugin.sh` becomes the **plugin name** (e.g., `devops_chief-plugin.sh` → plugin name "devops"). This makes it perfect for both existing repositories and new team setups, with easy plugin management via `chief.plugin <name>`.
+> **Key Concept**: Chief automatically loads any file ending with `_chief-plugin.sh` from your configured plugin directory. The prefix before `_chief-plugin.sh` becomes the **plugin name** (e.g., `devops_chief-plugin.sh` → plugin name "devops"). This makes it perfect for both existing repositories and new team setups, with easy plugin management via `chief.plugin <name>`.
 
 ### Two Setup Scenarios
 
@@ -284,7 +285,7 @@ function testing.unit() {
 }
 
 function testing.integration() {
-    echo "🔗 Running integration tests..."
+    echo "Running integration tests..."
     ./scripts/integration-tests.sh
 }
 
@@ -338,7 +339,7 @@ readme.md                   # Not a shell script
 utilities.bash              # Wrong file extension
 ```
 
-**🔑 Important**: The prefix before `_chief-plugin.sh` becomes the **plugin name**.
+**Important**: The prefix before `_chief-plugin.sh` becomes the **plugin name**.
 
 ---
 
@@ -407,7 +408,7 @@ devops.deploy production
 
 ---
 
-## 🔒 Vault Configuration
+## Vault Configuration
 
 ### Creating and Managing Vaults
 

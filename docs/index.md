@@ -46,7 +46,7 @@ chief.config_set -y PLUGINS_PATH="${HOME}/chief_plugins"
 chief.config_set -y PLUGINS_GIT_BRANCH="main"
 chief.config_set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root, this is plugins path relative to PLUGINS_PATH
 chief.config_set -y PLUGINS_GIT_AUTOUPDATE="false"    # manual updates
-chief.config_set -y PLUGINS_TYPE="remote"             # 🔑 Enable remote sync
+chief.config_set -y PLUGINS_TYPE="remote"             # Enable remote sync
 
 # 3. (Optional) Enable multi-line prompt, useful when current working dir is deep.
 chief.config_set -y MULTILINE_PROMPT=true 
@@ -81,17 +81,17 @@ chief.whereis git_status
 chief.plugin mytools
 ```
 
-## ✨ Key Features
+## Key Features
 
-- 🔐 **Vault System** - Encrypt sensitive environment variables
+- **Vault System** - Encrypt sensitive environment variables
 - **Enterprise-Ready Tools** - Built-in OpenShift, SSL/TLS, SSH, AWS, Git, and Python utilities
-- 🌐 **Remote Plugin Sync** - Share plugins across teams via Git 
-- 🎨 **Git-Aware Prompts** - Beautiful, intelligent terminal prompts
+- **Remote Plugin Sync** - Share plugins across teams via Git 
+- **Git-Aware Prompts** - Beautiful, intelligent terminal prompts
 - **Instant Discovery** - Find any function with `chief.whereis`
 - **Zero Disruption** - Only affects Bash, won't interfere with existing setups
-- 📦 **Plugin Architecture** - Organize tools into reusable, shareable plugins
+- **Plugin Architecture** - Organize tools into reusable, shareable plugins
 
-## 🔌 Available Plugins
+## Available Plugins
 
 Chief comes with **8 powerful plugins** providing **58+ functions** for your daily workflow:
 
@@ -101,7 +101,7 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.whereis <function>` - Find any function across all plugins
 - `chief.plugins_*` - Plugin management and discovery tools
 
-### 🔐 **Vault Plugin** (2 functions)
+### **Vault Plugin** (2 functions)
 
 - `chief.vault_file-edit` - Edit encrypted files securely
 - `chief.vault_file-load` - Load encrypted environment variables
@@ -118,7 +118,7 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.oc_vault-kubeadmin` - Display kubeadmin credentials from Vault
 - `chief.oc_whoami` - Show current user, API server, and console information
 
-### 🔒 **SSL/TLS Plugin** (4 functions)
+### **SSL/TLS Plugin** (4 functions)
 
 - `chief.ssl_create-ca` - Create certificate authorities with minimal setup
 - `chief.ssl_create-tls-cert` - Generate TLS certificates signed by your CA
@@ -126,7 +126,7 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.ssl_view-cert` - Analyze certificates with multiple display options
 - `chief.ssl_get-cert` - Download certificates from remote servers
 
-### 🔑 **SSH Plugin** (3 functions)
+### **SSH Plugin** (3 functions)
 
 - `chief.ssh_create-keypair` - Generate SSH key pairs with best practices
 - `chief.ssh_get-publickey` - Extract and display public keys
@@ -151,7 +151,7 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.git_config-user` - Quick user configuration setup
 - Complete workflow support: tagging, amending, credential caching, URL management
 
-### 🐍 **Python Plugin** (4 functions)
+### **Python Plugin** (4 functions)
 
 - `chief.python_create-ve` - Virtual environment creation and setup
 - `chief.python_start-ve` - Activate virtual environments
