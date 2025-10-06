@@ -3561,8 +3561,8 @@ __chief_output_status_yaml() {
 __chief_output_status_table() {
   if [[ "$quiet_mode" == true ]]; then
     # Quiet mode - minimal table
-    printf "%-18s %-10s %-10s %-10s %-10s\n" "CLUSTER" "HUB" "SPOKE" "STATUS" "GITOPS"
-    printf "%-18s %-10s %-10s %-10s %-10s\n" "--------" "---" "-----" "------" "------"
+    printf "%-18s %-10s %-18s %-10s %-10s\n" "CLUSTER" "HUB" "SPOKE" "STATUS" "GITOPS"
+    printf "%-18s %-10s %-18s %-10s %-10s\n" "--------" "---" "------------------" "------" "------"
     
     for result in "${cluster_results[@]}"; do
       IFS='|' read -r name source status api_url console_url gitops_status cluster_type current_user cluster_version additional_info <<< "$result"
@@ -3610,12 +3610,12 @@ __chief_output_status_table() {
       # Convert "Unknown" to "-" for better readability
       [[ "$gitops_status" == "Unknown" ]] && gitops_status="-"
       
-      echo -e "$(printf "%-18s %-10s %-10s %s %-9s %-10s" "$name" "$hub_value" "$spoke_value" "$status_icon" "$status_text" "$gitops_status")"
+      echo -e "$(printf "%-18s %-10s %-18s %s %-9s %-10s" "$name" "$hub_value" "$spoke_value" "$status_icon" "$status_text" "$gitops_status")"
     done
   else
     # Full table
-    printf "%-18s %-10s %-10s %-10s %-10s %-10s\n" "CLUSTER" "HUB" "SPOKE" "STATUS" "GITOPS" "VERSION"
-    printf "%-18s %-10s %-10s %-10s %-10s %-10s\n" "--------" "---" "-----" "------" "------" "-------"
+    printf "%-18s %-10s %-18s %-10s %-10s %-10s\n" "CLUSTER" "HUB" "SPOKE" "STATUS" "GITOPS" "VERSION"
+    printf "%-18s %-10s %-18s %-10s %-10s %-10s\n" "--------" "---" "------------------" "------" "------" "-------"
     
     for result in "${cluster_results[@]}"; do
       IFS='|' read -r name source status api_url console_url gitops_status cluster_type current_user cluster_version additional_info <<< "$result"
@@ -3664,7 +3664,7 @@ __chief_output_status_table() {
       [[ "$gitops_status" == "Unknown" ]] && gitops_status="-"
       [[ "$cluster_version" == "Unknown" ]] && cluster_version="-"
       
-      echo -e "$(printf "%-18s %-10s %-10s %s %-9s %-10s %-10s" "$name" "$hub_value" "$spoke_value" "$status_icon" "$status_text" "$gitops_status" "$cluster_version")"
+      echo -e "$(printf "%-18s %-10s %-18s %s %-9s %-10s %-10s" "$name" "$hub_value" "$spoke_value" "$status_icon" "$status_text" "$gitops_status" "$cluster_version")"
     done
     
   fi
