@@ -24,7 +24,7 @@ if [[ -f "$VERSION_FILE" ]]; then
 else
   # Fallback constants if VERSION file doesn't exist (e.g., standalone install script)
   export CHIEF_GIT_REPO="https://github.com/randyoyarzabal/chief.git"
-  export CHIEF_INSTALL_GIT_BRANCH="dev"
+  export CHIEF_INSTALL_GIT_BRANCH="main"
 fi
 
 # Default settings
