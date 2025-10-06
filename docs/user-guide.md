@@ -20,11 +20,11 @@ Complete guide to using Chief's core features, commands, and workflows.
 
 ---
 
-## 📖 Help System
+## Help System
 
 Chief provides a comprehensive, multi-layered help system to help you discover and use commands effectively.
 
-### 🎯 `chief.help` - Comprehensive Help
+### `chief.help` - Comprehensive Help
 
 The main help system with categorized, searchable documentation:
 
@@ -45,7 +45,7 @@ chief.help --search <term>    # Search for commands containing term
 - **Status information** - Current Chief status, plugin count, configuration
 - **Quick reference mode** - Compact view for experienced users
 
-### 💡 `chief.hints` - Quick Tips
+### `chief.hints` - Quick Tips
 
 Compact workflow tips and essential command reference:
 
@@ -61,7 +61,7 @@ chief.hints --banner          # Show tips with Chief banner
 - New user onboarding
 - Plugin status at-a-glance
 
-### 🔍 Command-Specific Help
+### Command-Specific Help
 
 Every Chief command has detailed help documentation:
 
@@ -71,7 +71,7 @@ chief.plugin -?               # Detailed usage and examples
 chief.whereis -?              # Function-specific documentation
 ```
 
-### 🚀 Discovery Methods
+### Discovery Methods
 
 Multiple ways to explore available commands:
 
@@ -84,7 +84,7 @@ Multiple ways to explore available commands:
 
 ---
 
-## 🎯 Core Features
+## Core Features
 
 ### Plugin Management
 
@@ -140,7 +140,7 @@ chief.[tab][tab]
 
 ---
 
-## 💡 Common Use Cases
+## Common Use Cases
 
 ### 1. Organize Your Functions
 
@@ -188,7 +188,7 @@ chief.config
 
 ---
 
-## 🎪 What You Get Out of the Box
+## What You Get Out of the Box
 
 ### Plugin Management
 
@@ -267,7 +267,7 @@ chief.oc_delete_stuck_ns      # Force delete stuck namespaces
 
 ---
 
-## 🔧 Advanced Plugin Features
+## Advanced Plugin Features
 
 ### SSL/TLS Certificate Management
 
@@ -355,7 +355,7 @@ chief.etc_create_bootusb -n ubuntu.iso 2       # Dry-run: SAFE preview
 chief.etc_create_bootusb -k installer.iso 3    # Keep temp files
 ```
 
-**⚠️ Safety First**: Always use `-n` flag first to preview what will happen before creating bootable media, as this operation completely erases the target drive.
+**⚠ Safety First**: Always use `-n` flag first to preview what will happen before creating bootable media, as this operation completely erases the target drive.
 
 #### Network and Collaboration Tools
 
@@ -424,7 +424,7 @@ vault kv put secrets/openshift/hub \
 
 ---
 
-## 📖 Command Reference
+## Command Reference
 
 ### Core Commands
 
@@ -503,7 +503,7 @@ chief.plugins_root             # Navigate to plugins directory
 
 ---
 
-## 📖 Examples & Tutorials
+## Examples & Tutorials
 
 ### Example 1: DevOps Plugin
 
@@ -573,7 +573,7 @@ chief.git_reset-hard -n
 #   - README.md
 # Staged files that would be reset:
 #   - package.json
-# ⚠️ WARNING: This would permanently discard the above changes!
+# ⚠ WARNING: This would permanently discard the above changes!
 
 # Only run without -n after reviewing the changes
 chief.git_reset-hard
@@ -582,7 +582,7 @@ chief.git_reset-hard
 **Best Practice**: Always run Git operations with `-n` first to understand what will be affected.
 ---
 
-## 🐚 Shell Compatibility
+## Shell Compatibility
 
 Chief is designed specifically for **Bash** and won't interfere with other shells:
 
@@ -610,7 +610,7 @@ Chief is designed specifically for **Bash** and won't interfere with other shell
 
 ---
 
-## 🛟 Troubleshooting
+## Troubleshooting
 
 ### Common Issues
 
@@ -707,7 +707,7 @@ source ~/.bash_profile
 
 ---
 
-## 🎯 Next Steps
+## Next Steps
 
 - **[Plugin Development](plugin-development.html)** - Create custom plugins
 - **[Configuration](configuration.html)** - Advanced setup and team sharing

@@ -12,17 +12,17 @@ description: "Installation, setup, and first steps with Chief"
 
 ## Table of Contents
 
-- [📦 Installation](#-installation)
-- [📋 Requirements](#-requirements)
-- [⚡ Quick Start Tutorial](#-quick-start-tutorial)
-- [🎯 Next Steps](#-next-steps)
-- [⬆️ Upgrading Chief](#️-upgrading-chief)
-- [🗑️ Uninstalling Chief](#️-uninstalling-chief)
-- [🛟 Installation Troubleshooting](#-installation-troubleshooting)
+- [Installation](#installation)
+- [Requirements](#requirements)
+- [Quick Start Tutorial](#quick-start-tutorial)
+- [Next Steps](#next-steps)
+- [Upgrading Chief](#upgrading-chief)
+- [Uninstalling Chief](#uninstalling-chief)
+- [Installation Troubleshooting](#installation-troubleshooting)
 
 ---
 
-## 📦 Installation
+## Installation
 
 ### Quick Install (Recommended)
 
@@ -65,10 +65,10 @@ cd chief
 
 **Benefits of disconnected installation:**
 
-- ✅ **No internet required** during installation
-- ✅ **Complete transparency** - all files visible before installation
-- ✅ **Security compliant** - suitable for restricted environments
-- ✅ **Manual update control** - updates require explicit file replacement
+- ✓ **No internet required** during installation
+- ✓ **Complete transparency** - all files visible before installation
+- ✓ **Security compliant** - suitable for restricted environments
+- ✓ **Manual update control** - updates require explicit file replacement
 
 > **Note:** The `--branch` option is ignored with `--local` installations since files come from the local directory, not Git.
 
@@ -80,7 +80,7 @@ cd chief
 
 ---
 
-## 📋 Requirements
+## Requirements
 
 ### System Requirements
 
@@ -127,28 +127,28 @@ oc version --client 2>/dev/null || echo "OpenShift CLI not installed (optional)"
 
 ---
 
-## 🛡️ Safety First
+## Safety First
 
 ### Safe for Everyone
 
-- **🚀 Zero Disruption** - Only affects Bash, won't interfere with existing setups
-- **🛡️ Safe for Zsh Users** - Chief only affects your Bash shell environment
-- **💡 Custom Prompts Safe** - Prompt customizations are disabled by default
+- **Zero Disruption** - Only affects Bash, won't interfere with existing setups
+- **Safe for Zsh Users** - Chief only affects your Bash shell environment
+- **Custom Prompts Safe** - Prompt customizations are disabled by default
 - **🔄 Easy Removal** - Clean uninstall available anytime
 
 ### Compatibility Notes
 
-> **🛡️ Safe for Zsh Users:** Chief only affects your Bash shell environment. If you're currently using Zsh, Oh My Zsh, or any other shell, Chief won't interfere with your existing setup. It only activates when you explicitly run `bash` or switch to a Bash session.
+> **Safe for Zsh Users:** Chief only affects your Bash shell environment. If you're currently using Zsh, Oh My Zsh, or any other shell, Chief won't interfere with your existing setup. It only activates when you explicitly run `bash` or switch to a Bash session.
 
-> **💡 Using Oh My Bash or Custom Prompts?** Chief's prompt customizations are **disabled by default** (`CHIEF_CFG_PROMPT=false`). If you have Oh My Bash, Starship, or other prompt tools, keep this setting disabled to avoid conflicts.
+> **Using Oh My Bash or Custom Prompts?** Chief's prompt customizations are **disabled by default** (`CHIEF_CFG_PROMPT=false`). If you have Oh My Bash, Starship, or other prompt tools, keep this setting disabled to avoid conflicts.
 
 ---
 
-## 🐛 Bug Reports & Support
+## Bug Reports & Support
 
 Found a bug or need help? We're here to help! Please create an issue on GitHub:
 
-**[📝 Report an Issue](https://github.com/randyoyarzabal/chief/issues)**
+**[Report an Issue](https://github.com/randyoyarzabal/chief/issues)**
 
 When reporting issues, please include:
 - **OS version**: Run `uname -a` to get your system details  
@@ -161,7 +161,7 @@ This helps us quickly identify and fix issues!
 
 ---
 
-## ⚡ Quick Start Tutorial
+## Quick Start Tutorial
 
 ### 1. Verify Installation
 
@@ -240,7 +240,7 @@ chief.reload
 
 ---
 
-## 🎯 Next Steps
+## Next Steps
 
 ### Essential Configuration
 
@@ -265,7 +265,7 @@ chief.config_set SHORT_PATH false
 
 ---
 
-## ⬆️ Upgrading Chief
+## Upgrading Chief
 
 ### Automatic Update (Recommended)
 
@@ -290,7 +290,7 @@ Chief supports tracking any valid Git branch for updates:
 # Track stable releases (default)
 chief.config_set update_branch main
 
-# Track development features (⚠️ use with caution)  
+# Track development features (⚠ use with caution)  
 chief.config_set update_branch dev
 
 # Update to your configured branch
@@ -299,15 +299,15 @@ chief.update
 
 **What `chief.config_update` does:**
 
-- ✅ **Adds new features** - Automatically adds new configuration options
-- ✅ **Handles renames** - Seamlessly migrates renamed variables
-- ✅ **Preserves customizations** - Keeps all your existing settings
-- ✅ **Creates backup** - Makes timestamped backup before changes
-- ✅ **Validates syntax** - Ensures new config is valid before applying
+- ✓ **Adds new features** - Automatically adds new configuration options
+- ✓ **Handles renames** - Seamlessly migrates renamed variables
+- ✓ **Preserves customizations** - Keeps all your existing settings
+- ✓ **Creates backup** - Makes timestamped backup before changes
+- ✓ **Validates syntax** - Ensures new config is valid before applying
 
 ---
 
-## 🗑️ Uninstalling Chief
+## Uninstalling Chief
 
 ### Quick Uninstall
 
@@ -321,13 +321,13 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 
 ### What Happens During Uninstall
 
-- ✅ **Installation directory** (`~/.chief`) is completely removed
-- ✅ **Configuration file** is backed up as `~/.chief_config.sh.backup` then removed
-- ✅ **Shell configuration** (`~/.bash_profile`) is cleaned up automatically
-- ✅ **Environment variables** are removed from shell
-- ✅ **Custom plugins directory** remains untouched (if different from `~/.chief`)
+- ✓ **Installation directory** (`~/.chief`) is completely removed
+- ✓ **Configuration file** is backed up as `~/.chief_config.sh.backup` then removed
+- ✓ **Shell configuration** (`~/.bash_profile`) is cleaned up automatically
+- ✓ **Environment variables** are removed from shell
+- ✓ **Custom plugins directory** remains untouched (if different from `~/.chief`)
 
-> **🛡️ Safe Uninstall**: Your personal plugins, shell customizations outside Chief, and other configurations remain completely untouched.
+> **Safe Uninstall**: Your personal plugins, shell customizations outside Chief, and other configurations remain completely untouched.
 
 ---
 

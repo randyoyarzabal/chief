@@ -68,7 +68,7 @@ fi
 __chief_load_library
 
 # Load RSA/SSH keys if directory is defined
-if [[ ! -z ${CHIEF_CFG_SSH_KEYS_PATH} && ${PLATFORM} == "MacOS" ]] || [[ ! -z ${CHIEF_CFG_SSH_KEYS_PATH} && ${PLATFORM} == "Linux" ]]; then
+if [[ ! -z ${CHIEF_CFG_SSH_KEYS_PATH} ]] && ([[ ${PLATFORM} == "MacOS" ]] || [[ $(uname) == "Linux" ]]); then
   chief.etc_spinner "Loading SSH keys..." "__chief_load_ssh_keys" tmp_out
   echo -e "${tmp_out}"
 fi
