@@ -136,6 +136,12 @@ CHIEF_CFG_MULTILINE_PROMPT=false
 # Leave commented to use system defaults ($EDITOR → vim → vi)
 #CHIEF_CFG_DEFAULT_EDITOR_PATH=""
 
+# Editor used when you pass --code or --vscode (e.g. chief.plugin mytools --code).
+# If unset, Chief tries: cursor --wait, then code --wait. Set this to force one:
+#   Cursor:  CHIEF_CFG_EDITOR_GUI_CMD="cursor --wait"
+#   VSCode:  CHIEF_CFG_EDITOR_GUI_CMD="code --wait"
+#CHIEF_CFG_EDITOR_GUI_CMD=""
+
 # If set to true, will use colored ls command.
 CHIEF_CFG_COLORED_LS=false
 

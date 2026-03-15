@@ -265,10 +265,29 @@ function __chief_this_file() {
 # Edit a file and reload into memory if changed.
 function __chief_has_vscode() {
   # Usage: __chief_has_vscode
-  # 
+  #
   # Check if VSCode CLI 'code' binary is available
   # Returns: 0 if available, 1 if not available
   command -v code >/dev/null 2>&1
+}
+
+# Resolve GUI editor command for --code/--vscode flag.
+# Priority: CHIEF_CFG_EDITOR_GUI_CMD → cursor --wait → code --wait
+# Returns: command string (e.g. "cursor --wait") or empty if none available
+function __chief_get_gui_editor() {
+  if [[ -n "${CHIEF_CFG_EDITOR_GUI_CMD}" ]]; then
+    echo "${CHIEF_CFG_EDITOR_GUI_CMD}"
+    return
+  fi
+  if command -v cursor >/dev/null 2>&1; then
+    echo "cursor --wait"
+    return
+  fi
+  if command -v code >/dev/null 2>&1; then
+    echo "code --wait"
+    return
+  fi
+  echo ""
 }
 
 function __chief_get_default_editor() {
@@ -312,7 +331,7 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   file           Path to the file to edit (required)
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
-  --vscode, -v   Use VSCode editor (requires 'code' command)
+  --vscode, -v   Use GUI editor (Cursor if available, else VSCode 'code'; config: CHIEF_CFG_EDITOR_GUI_CMD)
   -?, --help     Show this help message
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
@@ -324,7 +343,7 @@ ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME ~/.bashrc                    # Edit bashrc with configured editor
-  $FUNCNAME ~/.bashrc --vscode           # Edit bashrc with VSCode
+  $FUNCNAME ~/.bashrc --vscode           # Edit bashrc with Cursor/VSCode
   $FUNCNAME /path/to/script.sh           # Edit any shell script
   $FUNCNAME /etc/hosts                   # Edit system files (with sudo)
 
@@ -379,10 +398,9 @@ function __chief_edit_file() {
   # Choose editor based on option and availability
   local editor_cmd
   if [[ "$editor_option" == "vscode" ]]; then
-    if __chief_has_vscode; then
-      editor_cmd="code --wait"
-    else
-      echo -e "${CHIEF_COLOR_YELLOW}Warning: VSCode 'code' command not found. Falling back to default editor.${CHIEF_NO_COLOR}"
+    editor_cmd="$(__chief_get_gui_editor)"
+    if [[ -z "$editor_cmd" ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}Warning: No GUI editor found (tried CHIEF_CFG_EDITOR_GUI_CMD, cursor, code). Falling back to default editor.${CHIEF_NO_COLOR}"
       editor_cmd="$(__chief_get_default_editor)"
     fi
   else
@@ -775,28 +793,77 @@ __chief_get_plugins() {
 
 # Edit a plugin file and reload into memory if changed.
 #   Note, will only succeed if plug-in is enabled in settings.
-# Usage: __chief_edit_plugin <plug-in name>
+# Usage: __chief_edit_plugin <plug-in name> [editor_option] [existing_file_path]
 function __chief_edit_plugin() {
-  # Usage: __chief_edit_plugin <plugin_name> [editor_option]
+  # Usage: __chief_edit_plugin <plugin_name> [editor_option] [existing_file_path]
   # Arguments:
   #   plugin_name - Name of the plugin to edit
   #   editor_option - Optional: 'vscode' to use VSCode, otherwise uses default editor
+  #   existing_file_path - Optional: path to existing script; creates symlink in plugins dir instead of new file
   local plugin_name
   local plugin_file
   local editor_option=${2}
+  local existing_file="${3}"
+
+  # Normal case: plugin name is first argument
+  plugin_name=$(__chief_lower "${1}")
+
+  # If first arg looks like an absolute path and no third arg, treat as existing file and derive plugin name (handles old parsing)
+  if [[ -z "$existing_file" && "$1" == /* ]]; then
+    if [[ -f "$1" ]]; then
+      existing_file="$1"
+      plugin_name=$(__chief_lower "$(basename "$1" .sh)")
+      plugin_name=${plugin_name%_chief-plugin}
+    fi
+  fi
 
   # Check if plugins are enabled.
   if [[ -z ${CHIEF_CFG_PLUGINS_PATH} ]]; then
     echo "Chief plugins are not enabled."
     return
   fi
-
-  plugin_name=$(__chief_lower ${1})
   # Use same logic as __chief_load_plugins for consistency
   if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" && -n ${CHIEF_CFG_PLUGINS_GIT_PATH} ]]; then
     plugin_file="${CHIEF_CFG_PLUGINS_PATH}/${CHIEF_CFG_PLUGINS_GIT_PATH}/${plugin_name}${CHIEF_PLUGIN_SUFFIX}"
   else
     plugin_file="${CHIEF_CFG_PLUGINS_PATH}/${plugin_name}${CHIEF_PLUGIN_SUFFIX}"
+  fi
+
+  # Symlink mode: third parameter is path to existing file → create symlink in plugins dir
+  if [[ -n "$existing_file" ]]; then
+    local existing_abs
+    if command -v realpath >/dev/null 2>&1; then
+      existing_abs="$(realpath "$existing_file" 2>/dev/null)" || existing_abs=""
+    fi
+    if [[ -z "$existing_abs" ]]; then
+      # Portable fallback: resolve to absolute path
+      if [[ -d "$(dirname "$existing_file")" ]]; then
+        existing_abs="$(cd "$(dirname "$existing_file")" && pwd)/$(basename "$existing_file")"
+      else
+        existing_abs="$existing_file"
+      fi
+    fi
+    if [[ ! -f "$existing_abs" ]]; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Target file does not exist: $existing_file"
+      return 1
+    fi
+    if [[ -f "$plugin_file" && ! -L "$plugin_file" ]]; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Plugin file already exists as a regular file: $plugin_file"
+      echo -e "${CHIEF_COLOR_YELLOW}Remove or rename it first to create a symlink.${CHIEF_NO_COLOR}"
+      return 1
+    fi
+    if ! mkdir -p "$(dirname "$plugin_file")"; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unable to create plugin directory."
+      return 1
+    fi
+    if ln -sf "$existing_abs" "$plugin_file"; then
+      echo -e "${CHIEF_COLOR_GREEN}Symlink created:${CHIEF_NO_COLOR} ${plugin_file} → ${existing_abs}"
+      echo -e "${CHIEF_COLOR_BLUE}Plugin will load on next Chief reload. Edit with:${CHIEF_NO_COLOR} chief.plugin $plugin_name"
+    else
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Failed to create symlink: $plugin_file"
+      return 1
+    fi
+    return
   fi
 
   # Check if the plugin file exists, if not, prompt to create it.
@@ -2662,16 +2729,17 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
 }
 
 function chief.plugin() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [OPTIONS] [plugin_name]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [OPTIONS] [plugin_name] [existing_file_path]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Edit a Chief plugin file with automatic reload on changes.
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
-  plugin_name  Name of plugin to edit (without _chief-plugin.sh suffix)
+  plugin_name         Name of plugin to edit (without _chief-plugin.sh suffix)
+  existing_file_path  Optional: path to existing script; creates symlink in plugins dir
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
-  --code, --vscode  Use VSCode editor (requires 'code' command)
+  --code, --vscode  Use GUI editor (Cursor if available, else VSCode; set CHIEF_CFG_EDITOR_GUI_CMD to override)
   -?, --help      Show this help
 
 ${CHIEF_COLOR_GREEN}Available Plugins:${CHIEF_NO_COLOR}
@@ -2685,20 +2753,23 @@ ${CHIEF_COLOR_MAGENTA}Plugin Naming Convention:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME                    # Edit default plugin
   $FUNCNAME mytools            # Edit mytools_chief-plugin.sh
-  $FUNCNAME --code aws         # Edit aws_chief-plugin.sh with VSCode
-  $FUNCNAME --vscode mytools   # Edit mytools_chief-plugin.sh with VSCode
+  $FUNCNAME pl /path/to/pl.sh  # Symlink existing script as pl_chief-plugin.sh
+  $FUNCNAME --code aws         # Edit aws_chief-plugin.sh with Cursor/VSCode
+  $FUNCNAME --vscode mytools   # Edit mytools_chief-plugin.sh with Cursor/VSCode
 
 ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
 - Opens in your configured editor (respects CHIEF_CFG_DEFAULT_EDITOR_PATH, \$EDITOR)
-- VSCode support with --code/--vscode flag
+- Cursor/VSCode support with --code/--vscode flag (Cursor preferred if in PATH)
 - Automatically reloads plugin on save
 - Creates new plugin if it doesn't exist
+- Symlink mode: pass existing script path to link it into plugins dir (Chief loads it as usual)
 "
 
   # Parse arguments
   local use_vscode=""
   local plugin_name=""
-  
+  local existing_path=""
+
   while [[ $# -gt 0 ]]; do
     case $1 in
       -\?|--help)
@@ -2717,6 +2788,10 @@ ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
       *)
         plugin_name="$1"
         shift
+        if [[ $# -gt 0 && $1 != -* ]]; then
+          existing_path="$1"
+          shift
+        fi
         ;;
     esac
   done
@@ -2726,7 +2801,7 @@ ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
     plugin_name="default"
   fi
 
-  __chief_edit_plugin "$plugin_name" "$use_vscode"
+  __chief_edit_plugin "$plugin_name" "$use_vscode" "$existing_path"
 }
 
 function chief.bash_profile() {
@@ -4007,8 +4082,8 @@ EOF
     local readme_content_correct=true
     if [[ "$(basename "$file")" == "README.md" ]]; then
       if [[ "${positional_args[0]}" == "next-dev" ]]; then
-        # For next-dev, README should have dev content structure
-        if ! grep -q "# 🚀 Chief (Development Version)" "$file" 2>/dev/null; then
+        # For next-dev, README should have dev content structure (accept # Chief or # 🚀 Chief)
+        if ! grep -qE "# (🚀 )?Chief \(Development Version\)" "$file" 2>/dev/null; then
           readme_content_correct=false
         elif ! grep -q "Warning.*development branch" "$file" 2>/dev/null; then
           readme_content_correct=false
@@ -4198,40 +4273,45 @@ EOF
         
       elif [[ "${positional_args[0]}" == "next-dev" ]]; then
         # NEXT-DEV: Add dev-specific content to README
-        # 1. Add "(Development Version)" to title
-        if ! sed -i.tmp5 "s/# 🚀 Chief$/# 🚀 Chief (Development Version)/g" "$file" 2>/dev/null; then
-          success=false
+        # 1. Add "(Development Version)" to title (accept "# Chief" or "# 🚀 Chief")
+        if grep -q "^# Chief$" "$file" 2>/dev/null; then
+          sed -i.tmp5 "s/^# Chief$/# Chief (Development Version)/g" "$file" 2>/dev/null || success=false
+        elif grep -q "^# 🚀 Chief$" "$file" 2>/dev/null; then
+          sed -i.tmp5 "s/# 🚀 Chief$/# 🚀 Chief (Development Version)/g" "$file" 2>/dev/null || success=false
         fi
-        
+
         # 2. Add warning box after title (only if it doesn't exist)
         if $success; then
-          # Check if warning box already exists
           if ! grep -q "Warning.*development branch" "$file" 2>/dev/null; then
-            # Insert warning after the title and description
-            if ! sed -i.tmp6 '/^\*\*Bash Plugin Manager & Terminal Enhancement Tool\*\*$/a\\n> ⚠️ **Warning**: This is the development branch. Features may be unstable. For stable releases, use the [main branch](https://github.com/randyoyarzabal/chief/tree/main).' "$file" 2>/dev/null; then
+            local warning_line="> ⚠️ **Warning**: This is the development branch. Features may be unstable. For stable releases, use the [main branch](https://github.com/randyoyarzabal/chief/tree/main)."
+            if ! WARNING_LINE="$warning_line" perl -i.tmp6 -pe 'if (/^\*\*Bash Plugin Manager & Terminal Enhancement Tool\*\*$/) { $_ .= "\n\n" . $ENV{WARNING_LINE} . "\n" }' "$file" 2>/dev/null; then
               success=false
             fi
           fi
         fi
-        
-        # 3. Expand installation section
+
+        # 3. Expand installation section (accept "## Quick Install" or "## ⚡ Quick Install")
         if $success; then
-          # Update install section title
-          if ! sed -i.tmp7 's/## ⚡ Quick Install$/## ⚡ Quick Install (Development Version)/g' "$file" 2>/dev/null; then
-            success=false
+          if grep -q '^## ⚡ Quick Install$' "$file" 2>/dev/null; then
+            sed -i.tmp7 's/## ⚡ Quick Install$/## ⚡ Quick Install (Development Version)/g' "$file" 2>/dev/null || success=false
+          elif grep -q '^## Quick Install$' "$file" 2>/dev/null; then
+            sed -i.tmp7 's/## Quick Install$/## Quick Install (Development Version)/g' "$file" 2>/dev/null || success=false
           fi
-          
-          # Replace simple install with dev install section
-          if $success; then
-            # This is complex, so use perl for multi-line replacement
-            perl -i -pe 'BEGIN{undef $/;} s/```bash\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install\.sh\)"\n```/```bash\n# Install development version (may be unstable)\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/dev\/tools\/install\.sh\)"\n```\n\n**For stable release**, use:\n```bash\n# Install stable version from main branch\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install\.sh\)"\n```/smg' "$file" 2>/dev/null || success=false
+        fi
+
+        # 4. Replace install block with dev-first version (optional; skip if already in dev format)
+        if $success && grep -q "Install stable version" "$file" 2>/dev/null && grep -q "refs/heads/main/tools/install" "$file" 2>/dev/null; then
+          if perl -i.tmp_install -pe 'BEGIN{undef $/;} s/(```bash\n)(# Install stable version\n)?(bash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install\.sh\)"\n```)/$1# Install development version (may be unstable)\nbash -c "$(curl -fsSL https:\/\/raw.githubusercontent.com\/randyoyarzabal\/chief\/refs\/heads\/dev\/tools\/install.sh)"\n```\n\n**For stable release**, use:\n```bash\n# Install stable version from main branch\nbash -c "$(curl -fsSL https:\/\/raw.githubusercontent.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install.sh)"\n```/smg' "$file" 2>/dev/null; then
+            rm -f "${file}.tmp_install" 2>/dev/null
+          else
+            rm -f "${file}.tmp_install" 2>/dev/null
           fi
         fi
       fi
     fi
     
     if $success; then
-      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp5" "${file}.tmp6" "${file}.tmp7" "${file}.tmp_dev" "${file}.tmp_stable" 2>/dev/null
+      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp5" "${file}.tmp6" "${file}.tmp7" "${file}.tmp_dev" "${file}.tmp_stable" "${file}.tmp_install" 2>/dev/null
       if [[ "$(basename "$file")" == "README.md" ]]; then
         __chief_print_success "$(basename "$file"): Updated $current_version → $new_version (including badges and content structure)"
       else
@@ -4246,7 +4326,7 @@ EOF
           mv "$backup_file" "$file" 2>/dev/null
         fi
       fi
-      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp5" "${file}.tmp6" "${file}.tmp7" "${file}.tmp_dev" "${file}.tmp_stable" 2>/dev/null
+      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp5" "${file}.tmp6" "${file}.tmp7" "${file}.tmp_dev" "${file}.tmp_stable" "${file}.tmp_install" 2>/dev/null
       __chief_print_error "$(basename "$file"): Failed to update"
       return 1
     fi
