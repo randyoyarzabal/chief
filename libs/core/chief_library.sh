@@ -748,15 +748,11 @@ function __chief_load_plugins() {
   fi
 }
 
+# Returns user plugins only (from CHIEF_CFG_PLUGINS_PATH). See __chief_get_core_plugins for built-in.
 __chief_get_plugins() {
   # Usage: __chief_get_plugins
-  # 
-  # Developer usage: Generates a list of plugins as a string separated by '|'
-  # - Used internally to display the list of plugins in the banner, hints, and chief.plugin help text
-  # - Accounts for new plugins that are created once the terminal is already started
   #
-  # Returns:
-  #   A string of plugin names separated by '|'
+  # Returns: A string of user plugin names separated by '|'
   local plugin_file
   local plugin_name
   local dir_path
@@ -789,6 +785,34 @@ __chief_get_plugins() {
     plugin_list_str=$(echo ${plugin_list_str#?}) # Trim first character
   fi
   echo "${plugin_list_str}" # Return the plugin list string
+}
+
+# Returns core (built-in) plugin names from Chief's libs/core/plugins. These are part of Chief, not user plugins.
+__chief_get_core_plugins() {
+  # Usage: __chief_get_core_plugins
+  #
+  # Returns: A string of core plugin names separated by '|'
+  local plugin_file
+  local plugin_name
+  local plugin_list_str
+  local dir_path="${CHIEF_PLUGINS_CORE}"
+
+  local plugins=()
+  local sorted_plugins=()
+
+  if [[ -d ${dir_path} ]]; then
+    for plugin in "${dir_path}/"*"${CHIEF_PLUGIN_SUFFIX}"; do
+      [[ -f ${plugin} ]] && plugins+=("${plugin}")
+    done
+    sorted_plugins=($(printf '%s\n' "${plugins[@]}"|sort))
+    for plugin in "${sorted_plugins[@]}"; do
+      plugin_file=${plugin##*/}
+      plugin_name=${plugin_file%%_*}
+      plugin_list_str="$plugin_list_str|$plugin_name"
+    done
+    plugin_list_str=$(echo ${plugin_list_str#?})
+  fi
+  echo "${plugin_list_str}"
 }
 
 # Edit a plugin file and reload into memory if changed.
@@ -979,9 +1003,9 @@ function __chief.hints_text() {
     else
       echo -e "${CHIEF_COLOR_GREEN}${cmd_prefix}[tab]${CHIEF_NO_COLOR} for available commands. | ${CHIEF_COLOR_GREEN}${cmd_prefix}update${CHIEF_NO_COLOR} to update Chief.${CHIEF_NO_COLOR}"
     fi
-    local plugin_list=$(__chief_get_plugins)
-    if [[ ${plugin_list} != "" ]]; then
-      echo -e "${CHIEF_COLOR_GREEN}Plugins loaded: ${CHIEF_COLOR_CYAN}${plugin_list}${CHIEF_NO_COLOR}"
+    local user_plugin_list=$(__chief_get_plugins)
+    if [[ ${user_plugin_list} != "" ]]; then
+      echo -e "${CHIEF_COLOR_GREEN}User plugins: ${CHIEF_COLOR_CYAN}${user_plugin_list}${CHIEF_NO_COLOR}"
     fi
     # Show branch tracking status (only if not already shown in banner)
     if $show_tracking; then
@@ -2742,7 +2766,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   --code, --vscode  Use GUI editor (Cursor if available, else VSCode; set CHIEF_CFG_EDITOR_GUI_CMD to override)
   -?, --help      Show this help
 
-${CHIEF_COLOR_GREEN}Available Plugins:${CHIEF_NO_COLOR}
+${CHIEF_COLOR_GREEN}User plugins:${CHIEF_NO_COLOR} ${CHIEF_COLOR_BLUE}(editable; core built-in plugins: cf.help plugins)${CHIEF_NO_COLOR}
 $(__chief_get_plugins)
 
 ${CHIEF_COLOR_MAGENTA}Plugin Naming Convention:${CHIEF_NO_COLOR}
@@ -2754,7 +2778,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME                    # Edit default plugin
   $FUNCNAME mytools            # Edit mytools_chief-plugin.sh
   $FUNCNAME pl /path/to/pl.sh  # Symlink existing script as pl_chief-plugin.sh
-  $FUNCNAME --code aws         # Edit aws_chief-plugin.sh with Cursor/VSCode
+  $FUNCNAME --code default     # Edit default_chief-plugin.sh with Cursor/VSCode
   $FUNCNAME --vscode mytools   # Edit mytools_chief-plugin.sh with Cursor/VSCode
 
 ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
@@ -3079,16 +3103,22 @@ Restart your terminal session for a complete reset.
 # Show Chief statistics and status
 function __chief_show_chief_stats() {
   local total_functions=$(compgen -A function | grep "^chief\." | wc -l | tr -d ' ')
-  local loaded_plugins=$(__chief_get_plugins)
-  local plugin_count=0
-  
-  if [[ -n "$loaded_plugins" ]]; then
-    plugin_count=$(echo "$loaded_plugins" | tr ',' '\n' | wc -l | tr -d ' ')
+  local core_plugins=$(__chief_get_core_plugins)
+  local user_plugins=$(__chief_get_plugins)
+  local core_count=0
+  local user_count=0
+
+  if [[ -n "$core_plugins" ]]; then
+    core_count=$(echo "$core_plugins" | tr '|' '\n' | wc -l | tr -d ' ')
   fi
-  
+  if [[ -n "$user_plugins" ]]; then
+    user_count=$(echo "$user_plugins" | tr '|' '\n' | wc -l | tr -d ' ')
+  fi
+
   echo -e "${CHIEF_COLOR_BLUE}Chief Status:${CHIEF_NO_COLOR}"
   echo -e "• Functions available: ${CHIEF_COLOR_CYAN}$total_functions${CHIEF_NO_COLOR}"
-  echo -e "• Plugins loaded: ${CHIEF_COLOR_CYAN}$plugin_count${CHIEF_NO_COLOR} ($loaded_plugins)"
+  echo -e "• Core (built-in): ${CHIEF_COLOR_CYAN}$core_count${CHIEF_NO_COLOR} ($core_plugins)"
+  echo -e "• User plugins: ${CHIEF_COLOR_CYAN}$user_count${CHIEF_NO_COLOR} ($user_plugins)"
   echo -e "• Configuration: ${CHIEF_COLOR_CYAN}$CHIEF_CONFIG${CHIEF_NO_COLOR}"
 }
 
@@ -3129,21 +3159,31 @@ function __chief_show_plugin_help() {
   echo -e "${CHIEF_COLOR_YELLOW}Plugin Management:${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR} All commands below should be prefixed with ${CHIEF_COLOR_GREEN}${cmd_prefix}${CHIEF_NO_COLOR}"
   echo
-  echo -e "${CHIEF_COLOR_CYAN}Plugin Commands:${CHIEF_NO_COLOR}"
-  echo -e "  ${CHIEF_COLOR_GREEN}plugins${CHIEF_NO_COLOR}              Navigate to plugins directory"
-  echo -e "  ${CHIEF_COLOR_GREEN}plugin${CHIEF_NO_COLOR}               Edit default plugin"
-  echo -e "  ${CHIEF_COLOR_GREEN}plugin <name>${CHIEF_NO_COLOR}        Create/edit named plugin"
-  echo -e "  ${CHIEF_COLOR_GREEN}plugin -?${CHIEF_NO_COLOR}            List all plugins"
+  echo -e "${CHIEF_COLOR_MAGENTA}Core vs User plugins:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}Core (built-in)${CHIEF_NO_COLOR}  — Part of Chief; loaded from \$CHIEF_PATH/libs/core/plugins. Not editable via ${cmd_prefix}plugin."
+  echo -e "  ${CHIEF_COLOR_GREEN}User plugins${CHIEF_NO_COLOR}     — Your plugins from CHIEF_CFG_PLUGINS_PATH; editable via ${cmd_prefix}plugin."
   echo
-  
-  local loaded_plugins=$(__chief_get_plugins)
-  if [[ -n "$loaded_plugins" ]]; then
-    echo -e "${CHIEF_COLOR_CYAN}Currently Loaded Plugins:${CHIEF_NO_COLOR}"
-    echo -e "  ${CHIEF_COLOR_CYAN}$loaded_plugins${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_CYAN}Plugin Commands:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugins${CHIEF_NO_COLOR}              Navigate to plugins directory (user plugins only)"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin${CHIEF_NO_COLOR}               Edit default plugin"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin <name>${CHIEF_NO_COLOR}        Create/edit named user plugin"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin -?${CHIEF_NO_COLOR}            List user plugins"
+  echo
+
+  local core_plugins=$(__chief_get_core_plugins)
+  local user_plugins=$(__chief_get_plugins)
+  if [[ -n "$core_plugins" ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}Core (built-in):${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_CYAN}$core_plugins${CHIEF_NO_COLOR}"
     echo
   fi
-  
-  echo -e "${CHIEF_COLOR_CYAN}Available Plugin Functions:${CHIEF_NO_COLOR}"
+  if [[ -n "$user_plugins" ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}User plugins (loaded):${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_CYAN}$user_plugins${CHIEF_NO_COLOR}"
+    echo
+  fi
+
+  echo -e "${CHIEF_COLOR_CYAN}Core plugin functions:${CHIEF_NO_COLOR} ${CHIEF_COLOR_BLUE}(from built-in plugins above)${CHIEF_NO_COLOR}"
   
   # Check for each plugin category and show organized functions
   local found_plugins=false
@@ -3205,16 +3245,16 @@ function __chief_show_plugin_help() {
   fi
   
   if [[ "$found_plugins" == false ]]; then
-    echo -e "  ${CHIEF_COLOR_YELLOW}No plugin functions loaded yet${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_YELLOW}No core plugin functions loaded yet${CHIEF_NO_COLOR}"
     echo
-    echo -e "${CHIEF_COLOR_BLUE}To get started:${CHIEF_NO_COLOR}"
-    echo -e "  • Run ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin -?${CHIEF_NO_COLOR} to see available plugins"
-    echo -e "  • Create your first plugin: ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin mytools${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_BLUE}User plugins:${CHIEF_NO_COLOR}"
+    echo -e "  • Run ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin -?${CHIEF_NO_COLOR} to see your user plugins"
+    echo -e "  • Create your first user plugin: ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin mytools${CHIEF_NO_COLOR}"
   fi
-  
+
   echo
-  echo -e "${CHIEF_COLOR_BLUE}Plugin Development:${CHIEF_NO_COLOR}"
-  echo -e "• Plugin location: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS_PATH:-~/.chief_plugins}${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_BLUE}User plugin development:${CHIEF_NO_COLOR}"
+  echo -e "• User plugin location: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS_PATH:-~/.chief_plugins}${CHIEF_NO_COLOR}"
   echo -e "• Template: ${CHIEF_COLOR_CYAN}${CHIEF_DEFAULT_PLUGIN_TEMPLATE}${CHIEF_NO_COLOR}"
   echo -e "• Edit config: ${CHIEF_COLOR_GREEN}${cmd_prefix}config${CHIEF_NO_COLOR} to set CHIEF_CFG_PLUGINS_PATH"
 }
@@ -3316,49 +3356,22 @@ function __chief_show_compact_reference() {
   echo "  plugin [name], plugins_root (navigate), plugin -? (list)"
   echo
   
-  # Show loaded plugin categories
-  local loaded_plugins=$(__chief_get_plugins)
-  if [[ -n "$loaded_plugins" ]]; then
-    echo -e "${CHIEF_COLOR_CYAN}Loaded Plugins:${CHIEF_NO_COLOR}"
-    
-    # Check for common plugin types and show them organized
-    local plugin_categories=()
-    
-    if compgen -A function | grep -q "^chief\.git\."; then
-      plugin_categories+=("git (git.branch, git.commit, git.clone, git.legend)")
-    fi
-    
-    if compgen -A function | grep -q "^chief\.vault"; then
-      plugin_categories+=("vault (vault.file-edit, vault.file-load) *requires ansible-vault")
-    fi
-    
-    if compgen -A function | grep -q "^chief\.ssh"; then
-      plugin_categories+=("ssh (ssh.create_keypair, ssh.get_publickey)")
-    fi
-    
-    if compgen -A function | grep -q "^chief\.python"; then
-      plugin_categories+=("python (python.create_ve, python.start_ve, python.stop_ve)")
-    fi
-    
-    if compgen -A function | grep -q "^chief\.oc\."; then
-      plugin_categories+=("oc (oc.login, oc.clusters) *requires OpenShift CLI")
-    fi
-    
-    if compgen -A function | grep -q "^chief\.etc"; then
-      plugin_categories+=("etc (etc.folder_sync, etc.ask_yes_or_no, etc.spinner, etc.prompt)")
-    fi
-    
-    if [[ ${#plugin_categories[@]} -gt 0 ]]; then
-      for category in "${plugin_categories[@]}"; do
-        echo "  $category"
-      done
-    else
-      echo "  $loaded_plugins"
-    fi
+  # Show core (built-in) and user plugin lists
+  local core_list=$(__chief_get_core_plugins)
+  local user_list=$(__chief_get_plugins)
+  if [[ -n "$core_list" ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}Core (built-in):${CHIEF_NO_COLOR}"
+    echo "  $core_list"
     echo
-  else
+  fi
+  if [[ -n "$user_list" ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}User plugins:${CHIEF_NO_COLOR}"
+    echo "  $user_list"
+    echo
+  fi
+  if [[ -z "$core_list" && -z "$user_list" ]]; then
     echo -e "${CHIEF_COLOR_CYAN}Plugins:${CHIEF_NO_COLOR}"
-    echo "  No plugins loaded yet - try '${cmd_prefix}plugin -?' to see available"
+    echo "  No user plugins loaded - try '${cmd_prefix}plugin -?' to see/create user plugins; core: ${cmd_prefix}help plugins"
     echo
   fi
   
