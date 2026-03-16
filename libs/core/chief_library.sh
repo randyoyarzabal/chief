@@ -1105,7 +1105,13 @@ function __chief.hints_text() {
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Plugin Management:${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin [name]${CHIEF_NO_COLOR} to create/edit plugins | ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR} to list"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin status${CHIEF_NO_COLOR} to see enabled/disabled plugins"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugins_root${CHIEF_NO_COLOR} to navigate to plugins directory"
+    local _core_dis="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}")"
+    local _user_dis="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"
+    if [[ -n "$_core_dis" ]] || [[ -n "$_user_dis" ]]; then
+      echo -e "- ${CHIEF_COLOR_YELLOW}Disabled:${CHIEF_NO_COLOR} core: ${CHIEF_COLOR_YELLOW}${_core_dis:-<none>}${CHIEF_NO_COLOR}; user: ${CHIEF_COLOR_YELLOW}${_user_dis:-<none>}${CHIEF_NO_COLOR}"
+    fi
     echo ""
     if [[ ${1} != '--verbose' ]]; then
       echo -e "${CHIEF_COLOR_CYAN}** Run ${CHIEF_COLOR_GREEN}chief.config_set hints=false${CHIEF_COLOR_CYAN} to disable these hints. **${CHIEF_NO_COLOR}"
@@ -1218,6 +1224,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
       echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}help config${CHIEF_NO_COLOR}    - Configuration options"
       echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}help --compact${CHIEF_NO_COLOR} - Quick reference"
       echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}hints${CHIEF_NO_COLOR}          - Quick tips and workflow"
+      echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}status${CHIEF_NO_COLOR}         - Banner + stats (incl. disabled plugins)"
       echo
       echo -e "${CHIEF_COLOR_CYAN}Quick start: ${CHIEF_COLOR_GREEN}${cmd_prefix}[tab][tab]${CHIEF_NO_COLOR} to see all commands"
       echo
@@ -1238,6 +1245,12 @@ function __chief.info() {
   echo -e "${CHIEF_COLOR_CYAN}${CHIEF_REPO}${CHIEF_NO_COLOR}"
 }
 
+# Show Chief status (banner + stats including enabled/disabled plugins)
+function chief.status() {
+  __chief.banner
+  echo
+  __chief_show_chief_stats
+}
 
 function __chief_load_ssh_keys() {
   __chief_print "Loading SSH keys from: ${CHIEF_CFG_SSH_KEYS_PATH}..." "$1"
@@ -3261,6 +3274,7 @@ function __chief_show_chief_stats() {
   local user_plugins=$(__chief_get_plugins)
   local core_count=0
   local user_count=0
+  local core_disabled user_disabled
 
   if [[ -n "$core_plugins" ]]; then
     core_count=$(echo "$core_plugins" | tr '|' '\n' | wc -l | tr -d ' ')
@@ -3269,10 +3283,16 @@ function __chief_show_chief_stats() {
     user_count=$(echo "$user_plugins" | tr '|' '\n' | wc -l | tr -d ' ')
   fi
 
+  core_disabled="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}")"
+  user_disabled="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"
+
   echo -e "${CHIEF_COLOR_BLUE}Chief Status:${CHIEF_NO_COLOR}"
   echo -e "• Functions available: ${CHIEF_COLOR_CYAN}$total_functions${CHIEF_NO_COLOR}"
   echo -e "• Core (built-in): ${CHIEF_COLOR_CYAN}$core_count${CHIEF_NO_COLOR} ($core_plugins)"
   echo -e "• User plugins: ${CHIEF_COLOR_CYAN}$user_count${CHIEF_NO_COLOR} ($user_plugins)"
+  if [[ -n "$core_disabled" ]] || [[ -n "$user_disabled" ]]; then
+    echo -e "• Disabled plugins: ${CHIEF_COLOR_YELLOW}core: ${core_disabled:-<none>}; user: ${user_disabled:-<none>}${CHIEF_NO_COLOR} ${CHIEF_COLOR_CYAN}(chief.plugin status)${CHIEF_NO_COLOR}"
+  fi
   echo -e "• Configuration: ${CHIEF_COLOR_CYAN}$CHIEF_CONFIG${CHIEF_NO_COLOR}"
 }
 
@@ -3298,9 +3318,10 @@ function __chief_show_core_commands() {
   echo -e "${CHIEF_COLOR_CYAN}Plugin Management:${CHIEF_NO_COLOR}"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}plugins-root${CHIEF_NO_COLOR}   Navigate to plugins directory"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin${CHIEF_NO_COLOR}        Create/edit plugins"
-  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin -?${CHIEF_NO_COLOR}     List available plugins"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin -?${CHIEF_NO_COLOR}     List available plugins | ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin status${CHIEF_NO_COLOR} enabled/disabled"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Utilities:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}status${CHIEF_NO_COLOR}        Show Chief status (banner + stats, including disabled plugins)"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}whereis${CHIEF_NO_COLOR}       Find aliases, functions, and variables"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}hints${CHIEF_NO_COLOR}         Show quick tips and workflow"
   echo
@@ -3329,6 +3350,9 @@ function __chief_show_plugin_help() {
 
   local core_plugins=$(__chief_get_core_plugins)
   local user_plugins=$(__chief_get_plugins)
+  local core_disabled user_disabled
+  core_disabled="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}")"
+  user_disabled="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"
   if [[ -n "$core_plugins" ]]; then
     echo -e "${CHIEF_COLOR_CYAN}Core (built-in):${CHIEF_NO_COLOR}"
     echo -e "  ${CHIEF_COLOR_CYAN}$core_plugins${CHIEF_NO_COLOR}"
@@ -3337,6 +3361,12 @@ function __chief_show_plugin_help() {
   if [[ -n "$user_plugins" ]]; then
     echo -e "${CHIEF_COLOR_CYAN}User plugins (loaded):${CHIEF_NO_COLOR}"
     echo -e "  ${CHIEF_COLOR_CYAN}$user_plugins${CHIEF_NO_COLOR}"
+    echo
+  fi
+  if [[ -n "$core_disabled" ]] || [[ -n "$user_disabled" ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Disabled plugins (skipped on load):${CHIEF_NO_COLOR}"
+    echo -e "  Core: ${CHIEF_COLOR_YELLOW}${core_disabled:-<none>}${CHIEF_NO_COLOR}  |  User: ${CHIEF_COLOR_YELLOW}${user_disabled:-<none>}${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_CYAN}chief.plugin status${CHIEF_NO_COLOR} for full list | ${CHIEF_COLOR_GREEN}chief.plugin enable [core.]<name>${CHIEF_NO_COLOR} to re-enable"
     echo
   fi
 
@@ -3504,18 +3534,21 @@ function __chief_show_compact_reference() {
   echo -e "${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR} All commands below should be prefixed with ${CHIEF_COLOR_GREEN}${cmd_prefix}${CHIEF_NO_COLOR}"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Core Commands:${CHIEF_NO_COLOR}"
-  echo "  config, config_set, reload, update, uninstall, whereis, hints, help"
+  echo "  config, config_set, reload, update, uninstall, status, whereis, hints, help"
   echo
   echo -e "${CHIEF_COLOR_CYAN}File Editors:${CHIEF_NO_COLOR}"
   echo "  edit-file, bash_profile, bashrc, profile"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Plugin Management:${CHIEF_NO_COLOR}"
-  echo "  plugin [name], plugins_root (navigate), plugin -? (list)"
+  echo "  plugin [name], plugins_root (navigate), plugin -? (list), plugin status (enabled/disabled)"
   echo
-  
+
   # Show core (built-in) and user plugin lists
   local core_list=$(__chief_get_core_plugins)
   local user_list=$(__chief_get_plugins)
+  local core_disabled_compact user_disabled_compact
+  core_disabled_compact="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}")"
+  user_disabled_compact="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"
   if [[ -n "$core_list" ]]; then
     echo -e "${CHIEF_COLOR_CYAN}Core (built-in):${CHIEF_NO_COLOR}"
     echo "  $core_list"
@@ -3524,6 +3557,10 @@ function __chief_show_compact_reference() {
   if [[ -n "$user_list" ]]; then
     echo -e "${CHIEF_COLOR_CYAN}User plugins:${CHIEF_NO_COLOR}"
     echo "  $user_list"
+    echo
+  fi
+  if [[ -n "$core_disabled_compact" ]] || [[ -n "$user_disabled_compact" ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Disabled (skipped):${CHIEF_NO_COLOR} core: ${core_disabled_compact:-<none>}; user: ${user_disabled_compact:-<none>}"
     echo
   fi
   if [[ -z "$core_list" && -z "$user_list" ]]; then
