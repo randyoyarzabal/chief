@@ -95,6 +95,11 @@ CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="false"
 # You can define your own starting template for plugins, otherwise 
 # the default template will be used: "${CHIEF_PATH}/templates/chief_plugin_template.sh"
 CHIEF_CFG_PLUGIN_TEMPLATE="${CHIEF_PATH}/templates/chief_plugin_template.sh"
+
+# Space-separated list of plugins to skip loading. Managed via: chief.plugin enable|disable [core.]<name>
+# Empty (default) = all plugins enabled. Core: built-in names (e.g. aws git ssl). User: your plugin names (e.g. bc lab).
+CHIEF_CFG_PLUGINS_DISABLED_CORE=""
+CHIEF_CFG_PLUGINS_DISABLED_USER=""
 ####################################
 
 # PROMPT CONFIGURATION
@@ -150,7 +155,7 @@ CHIEF_CFG_COLORED_LS=false
 # Individual commands can still use --yes to skip prompts regardless of this setting.
 CHIEF_CFG_CONFIG_SET_INTERACTIVE=true
 
-# If set to true, chief.config_update will create timestamped backups when making changes.
+# If set to true, chief.config-update will create timestamped backups when making changes.
 # Set to false to skip backup creation (useful for automation where you handle backups externally).
 # Only creates backups when actual changes are made to configuration file.
 CHIEF_CFG_CONFIG_UPDATE_BACKUP=true

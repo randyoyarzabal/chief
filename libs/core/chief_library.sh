@@ -171,7 +171,7 @@ function __chief_print() {
   # Options:
   #   --verbose - Force printing regardless of CHIEF_CFG_VERBOSE setting  
   if ${CHIEF_CFG_VERBOSE} || [[ "${2}" == '--verbose' ]]; then
-    echo "${1}"
+    echo -e "${1}"
   fi
 }
 
@@ -677,14 +677,72 @@ CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}"
   __chief_load_plugins 'user' "$1"
 }
 
+# Returns 0 if the given plugin is disabled (should not load), 1 if enabled.
+# Usage: __chief_plugin_disabled <module> <plugin_name>
+#   module: 'core' or 'user'
+#   plugin_name: e.g. 'git', 'bc'
+function __chief_plugin_disabled() {
+  local module="$1"
+  local name="$2"
+  local list=""
+  if [[ "$module" == 'core' ]]; then
+    list="${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}"
+  elif [[ "$module" == 'user' ]]; then
+    list="${CHIEF_CFG_PLUGINS_DISABLED_USER:-}"
+  else
+    return 1
+  fi
+  [[ -z "$name" ]] && return 1
+  # Normalize: space-separated, lowercase compare
+  local n=$(echo "$name" | tr '[:upper:]' '[:lower:]')
+  local normalized_list=" $(echo "$list" | tr '[:upper:]' '[:lower:]') "
+  [[ "$normalized_list" == *" $n "* ]] && return 0
+  return 1
+}
+
+# Update disabled-plugins list in config: add or remove a name. Persists and reloads.
+# Usage: __chief_plugin_enable_disable <module> <plugin_name> <enable|disable>
+function __chief_plugin_enable_disable() {
+  local module="$1"
+  local name="$2"
+  local action="$3"
+  local config_key list current new_value
+  name=$(echo "$name" | tr '[:upper:]' '[:lower:]')
+  if [[ "$module" == 'core' ]]; then
+    config_key="plugins_disabled_core"
+    current="${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}"
+  elif [[ "$module" == 'user' ]]; then
+    config_key="plugins_disabled_user"
+    current="${CHIEF_CFG_PLUGINS_DISABLED_USER:-}"
+  else
+    echo -e "${CHIEF_COLOR_RED}Error: module must be 'core' or 'user'${CHIEF_NO_COLOR}" >&2
+    return 1
+  fi
+  if [[ "$action" == "disable" ]]; then
+    if __chief_plugin_disabled "$module" "$name"; then
+      echo -e "${CHIEF_COLOR_YELLOW}Plugin ${CHIEF_COLOR_CYAN}${name}${CHIEF_NO_COLOR} is already disabled."
+      return 0
+    fi
+    new_value="$(echo "$current $name" | tr ' ' '\n' | sort -u | grep -v '^$' | tr '\n' ' ' | xargs)"
+  else
+    if ! __chief_plugin_disabled "$module" "$name"; then
+      echo -e "${CHIEF_COLOR_YELLOW}Plugin ${CHIEF_COLOR_CYAN}${name}${CHIEF_NO_COLOR} is already enabled."
+      return 0
+    fi
+    new_value=$(echo "$current" | tr ' ' '\n' | grep -v "^$" | grep -v "^${name}$" | tr '\n' ' ')
+    new_value="$(echo "$new_value" | xargs)"
+  fi
+  chief.config-set --yes "$config_key" "$new_value"
+}
+
 # Source the library/plugin module passed.
 function __chief_load_plugins() {
-  # Usage: __chief_load_plugins <plug-in module> (user/core) 
-  # 
+  # Usage: __chief_load_plugins <plug-in module> (user/core)
+  #
   # Developer usage: Loads plugins from the user or core directory
   # - Checks if the plugin module is valid
   # - Sets the directory path based on the module
-  # - Loads plugins from the directory
+  # - Loads plugins from the directory (respects CHIEF_CFG_PLUGINS_DISABLED_*)
   #
   # Arguments:
   #   module - The plugin module to load (user/core)
@@ -737,9 +795,13 @@ function __chief_load_plugins() {
         plugin_file=${plugin##*/}
         plugin_name=${plugin_file%%_*}
 
+        if __chief_plugin_disabled "$1" "$plugin_name"; then
+          __chief_print "   plugin: ${CHIEF_COLOR_YELLOW}${plugin_name}${CHIEF_NO_COLOR} skipped (disabled)." "$2"
+          continue
+        fi
         if [[ -f ${plugin} ]]; then
           __chief_load_file "${plugin}" # Apply alias and source the plugin
-          __chief_print "   plugin: ${plugin_name} loaded." "$2"
+          __chief_print "   plugin: ${CHIEF_COLOR_GREEN}${plugin_name}${CHIEF_NO_COLOR} loaded." "$2"
         fi
       done
     else
@@ -776,10 +838,11 @@ __chief_get_plugins() {
     # Sort the plugins alphabetically
     sorted_plugins=($(printf '%s\n' "${plugins[@]}"|sort))
 
-    # Loop through sorted plugins and print them
+    # Loop through sorted plugins and print them (only enabled)
     for plugin in "${sorted_plugins[@]}"; do
       plugin_file=${plugin##*/}
       plugin_name=${plugin_file%%_*}
+      __chief_plugin_disabled 'user' "$plugin_name" && continue
       plugin_list_str="$plugin_list_str|$plugin_name" # Append plugin name
     done
     plugin_list_str=$(echo ${plugin_list_str#?}) # Trim first character
@@ -787,7 +850,7 @@ __chief_get_plugins() {
   echo "${plugin_list_str}" # Return the plugin list string
 }
 
-# Returns core (built-in) plugin names from Chief's libs/core/plugins. These are part of Chief, not user plugins.
+# Returns core (built-in) plugin names from Chief's libs/core/plugins. Only enabled (not disabled) plugins.
 __chief_get_core_plugins() {
   # Usage: __chief_get_core_plugins
   #
@@ -808,6 +871,7 @@ __chief_get_core_plugins() {
     for plugin in "${sorted_plugins[@]}"; do
       plugin_file=${plugin##*/}
       plugin_name=${plugin_file%%_*}
+      __chief_plugin_disabled 'core' "$plugin_name" && continue
       plugin_list_str="$plugin_list_str|$plugin_name"
     done
     plugin_list_str=$(echo ${plugin_list_str#?})
@@ -1021,7 +1085,7 @@ function __chief.hints_text() {
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Essential Commands:${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit configuration file | ${CHIEF_COLOR_GREEN}chief.config_set <option> <value>${CHIEF_NO_COLOR} to set config directly
-    - ${CHIEF_COLOR_GREEN}chief.config_update${CHIEF_NO_COLOR} to update config with new template options"
+    - ${CHIEF_COLOR_GREEN}chief.config-update${CHIEF_NO_COLOR} to update config with new template options"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.help${CHIEF_NO_COLOR} for comprehensive help | ${CHIEF_COLOR_GREEN}chief.help --compact${CHIEF_NO_COLOR} for quick reference"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.whereis <name>${CHIEF_NO_COLOR} to find any function/alias location"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.vault_*${CHIEF_NO_COLOR} to encrypt/decrypt secrets (requires ansible-vault)"
@@ -1847,12 +1911,21 @@ You can also manually update by running git pull in the Chief directory.
         cd - > /dev/null 2>&1
         return 1
       }
-      
+      local template_changed=false
+      git diff --name-only ORIG_HEAD HEAD 2>/dev/null | grep -q 'templates/chief_config_template.sh' && template_changed=true
+
       # Reload Chief to reflect the branch change and updates
       echo -e "${CHIEF_COLOR_BLUE}Reloading Chief to reflect branch change and updates...${CHIEF_NO_COLOR}"
       chief.reload
       cd - > /dev/null 2>&1
       echo -e "${CHIEF_COLOR_GREEN}Updated Chief to [${CHIEF_VERSION}] from ${TARGET_BRANCH} branch.${CHIEF_NO_COLOR}"
+      if $template_changed; then
+        echo ""
+        echo -e "${CHIEF_COLOR_CYAN}Config template changed. Run ${CHIEF_COLOR_GREEN}chief.config-update${CHIEF_COLOR_CYAN} to add new options to your config.${CHIEF_NO_COLOR}"
+        if chief.etc_ask-yes-or-no "Run chief.config-update now?"; then
+          chief.config-update
+        fi
+      fi
       return 0
     else
       echo -e "${CHIEF_COLOR_YELLOW}Branch switch cancelled. Continuing with update check on current branch.${CHIEF_NO_COLOR}"
@@ -1947,10 +2020,19 @@ You can also manually update by running git pull in the Chief directory.
         echo -e "${CHIEF_COLOR_RED}Error: Failed to pull updates from ${TARGET_BRANCH} branch${CHIEF_NO_COLOR}"
         return 1
       }
-      
+      local template_changed=false
+      git diff --name-only ORIG_HEAD HEAD 2>/dev/null | grep -q 'templates/chief_config_template.sh' && template_changed=true
+
       chief.reload
       cd - > /dev/null 2>&1
       echo -e "${CHIEF_COLOR_GREEN}Updated Chief to [${CHIEF_VERSION}] from ${TARGET_BRANCH} branch.${CHIEF_NO_COLOR}"
+      if $template_changed; then
+        echo ""
+        echo -e "${CHIEF_COLOR_CYAN}Config template changed. Run ${CHIEF_COLOR_GREEN}chief.config-update${CHIEF_COLOR_CYAN} to add new options to your config.${CHIEF_NO_COLOR}"
+        if chief.etc_ask-yes-or-no "Run chief.config-update now?"; then
+          chief.config-update
+        fi
+      fi
     else
       echo -e "${CHIEF_COLOR_YELLOW}Update skipped.${CHIEF_NO_COLOR}"
     fi
@@ -2076,6 +2158,8 @@ ${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
   PLUGINS_PATH              Local plugin directory (also remote repo clone location)
   PLUGINS_GIT_PATH          [Remote only] Relative path within repo (empty = repo root)
   PLUGINS_GIT_AUTOUPDATE    Auto-update remote plugins (true/false)
+  PLUGINS_DISABLED_CORE     Space-separated list of core plugins to skip (e.g. \"ssl vault\");
+  PLUGINS_DISABLED_USER     Space-separated list of user plugins to skip (e.g. \"lab workmac\");
   PROMPT                    Enable/disable Chief prompt (true/false)
   COLORED_PROMPT            Enable colored prompts (true/false)
   GIT_PROMPT                Show git status in prompt (true/false)
@@ -2754,9 +2838,13 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
 
 function chief.plugin() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [OPTIONS] [plugin_name] [existing_file_path]
+       $FUNCNAME enable [core.]<name>   Enable a plugin (load on next reload)
+       $FUNCNAME disable [core.]<name> Disable a plugin (skip loading)
+       $FUNCNAME status                Show enabled/disabled for core and user plugins
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Edit a Chief plugin file with automatic reload on changes.
+Enable/disable core or user plugins so they are skipped when Chief loads.
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   plugin_name         Name of plugin to edit (without _chief-plugin.sh suffix)
@@ -2776,10 +2864,12 @@ ${CHIEF_COLOR_MAGENTA}Plugin Naming Convention:${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME                    # Edit default plugin
+  $FUNCNAME enable bc          # Enable user plugin bc
+  $FUNCNAME disable core.ssl   # Disable core plugin ssl
+  $FUNCNAME status             # List enabled/disabled plugins
   $FUNCNAME mytools            # Edit mytools_chief-plugin.sh
   $FUNCNAME pl /path/to/pl.sh  # Symlink existing script as pl_chief-plugin.sh
   $FUNCNAME --code default     # Edit default_chief-plugin.sh with Cursor/VSCode
-  $FUNCNAME --vscode mytools   # Edit mytools_chief-plugin.sh with Cursor/VSCode
 
 ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
 - Opens in your configured editor (respects CHIEF_CFG_DEFAULT_EDITOR_PATH, \$EDITOR)
@@ -2789,7 +2879,64 @@ ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
 - Symlink mode: pass existing script path to link it into plugins dir (Chief loads it as usual)
 "
 
-  # Parse arguments
+  # --- Enable/disable/status subcommands (no options before the subcommand) ---
+  if [[ $# -gt 0 ]]; then
+    local subcmd=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+    case "$subcmd" in
+      enable)
+        shift
+        if [[ -z "$1" ]]; then
+          echo -e "${CHIEF_COLOR_RED}Error: ${CHIEF_NO_COLOR}chief.plugin enable requires a plugin name (e.g. bc or core.ssl)"
+          return 1
+        fi
+        local name="$1"
+        local module="user"
+        if [[ "$name" == core.* ]]; then
+          module="core"
+          name="${name#core.}"
+        fi
+        __chief_plugin_enable_disable "$module" "$name" "enable"
+        return
+        ;;
+      disable)
+        shift
+        if [[ -z "$1" ]]; then
+          echo -e "${CHIEF_COLOR_RED}Error: ${CHIEF_NO_COLOR}chief.plugin disable requires a plugin name (e.g. bc or core.ssl)"
+          return 1
+        fi
+        local name="$1"
+        local module="user"
+        if [[ "$name" == core.* ]]; then
+          module="core"
+          name="${name#core.}"
+        fi
+        __chief_plugin_enable_disable "$module" "$name" "disable"
+        return
+        ;;
+      status|list)
+        shift
+        echo -e "${CHIEF_COLOR_CYAN}Plugin status (enabled/disabled):${CHIEF_NO_COLOR}"
+        echo
+        local core_all core_disabled core_enabled user_all user_disabled user_enabled
+        core_all=$(__chief_get_core_plugins)
+        user_all=$(__chief_get_plugins)
+        core_disabled="${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}"
+        user_disabled="${CHIEF_CFG_PLUGINS_DISABLED_USER:-}"
+        echo -e "${CHIEF_COLOR_GREEN}Core (built-in):${CHIEF_NO_COLOR}"
+        echo -e "  Enabled:  ${CHIEF_COLOR_CYAN}${core_all:-<none>}${CHIEF_NO_COLOR}"
+        echo -e "  Disabled: ${CHIEF_COLOR_YELLOW}${core_disabled:-<none>}${CHIEF_NO_COLOR}"
+        echo
+        echo -e "${CHIEF_COLOR_GREEN}User plugins:${CHIEF_NO_COLOR}"
+        echo -e "  Enabled:  ${CHIEF_COLOR_CYAN}${user_all:-<none>}${CHIEF_NO_COLOR}"
+        echo -e "  Disabled: ${CHIEF_COLOR_YELLOW}${user_disabled:-<none>}${CHIEF_NO_COLOR}"
+        echo
+        echo -e "${CHIEF_COLOR_BLUE}Use ${CHIEF_NO_COLOR}chief.plugin enable|disable <name>${CHIEF_COLOR_BLUE} or ${CHIEF_NO_COLOR}core.<name>${CHIEF_COLOR_BLUE} (e.g. bc, core.ssl). Config updated; Chief reloads.${CHIEF_NO_COLOR}"
+        return
+        ;;
+    esac
+  fi
+
+  # Parse arguments for edit flow
   local use_vscode=""
   local plugin_name=""
   local existing_path=""
@@ -3167,6 +3314,9 @@ function __chief_show_plugin_help() {
   echo -e "  ${CHIEF_COLOR_GREEN}plugins${CHIEF_NO_COLOR}              Navigate to plugins directory (user plugins only)"
   echo -e "  ${CHIEF_COLOR_GREEN}plugin${CHIEF_NO_COLOR}               Edit default plugin"
   echo -e "  ${CHIEF_COLOR_GREEN}plugin <name>${CHIEF_NO_COLOR}        Create/edit named user plugin"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin enable [core.]<name>${CHIEF_NO_COLOR}   Enable a plugin (load on reload)"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin disable [core.]<name>${CHIEF_NO_COLOR}  Disable a plugin (skip loading)"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin status${CHIEF_NO_COLOR}         Show enabled/disabled plugins"
   echo -e "  ${CHIEF_COLOR_GREEN}plugin -?${CHIEF_NO_COLOR}            List user plugins"
   echo
 
@@ -3328,7 +3478,7 @@ function __chief_show_configuration_help() {
   echo -e "• Edit config file: ${CHIEF_COLOR_GREEN}${cmd_prefix}config${CHIEF_NO_COLOR}"
   echo -e "• Set config directly: ${CHIEF_COLOR_GREEN}${cmd_prefix}config_set <option> <value>${CHIEF_NO_COLOR}"
   echo -e "• List all config vars: ${CHIEF_COLOR_GREEN}${cmd_prefix}config_set --list${CHIEF_NO_COLOR}"
-  echo -e "• Update config with latest options: ${CHIEF_COLOR_GREEN}${cmd_prefix}config_update${CHIEF_NO_COLOR}"
+  echo -e "• Update config with latest options: ${CHIEF_COLOR_GREEN}${cmd_prefix}config-update${CHIEF_NO_COLOR}"
   echo -e "• View current config: ${CHIEF_COLOR_GREEN}cat $CHIEF_CONFIG${CHIEF_NO_COLOR}"
   echo -e "• Reload after changes: ${CHIEF_COLOR_GREEN}${cmd_prefix}reload${CHIEF_NO_COLOR}"
   echo -e "• Test prompt: ${CHIEF_COLOR_GREEN}${cmd_prefix}git.legend${CHIEF_NO_COLOR} (if git prompt enabled)"
