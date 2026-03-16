@@ -686,6 +686,13 @@ function __chief_plugin_normalize_disabled_list() {
   echo "$1" | tr ',' ' ' | xargs
 }
 
+# Format plugin list for display: pipe- or space-separated -> comma-space separated (consistent everywhere).
+function __chief_format_plugin_list() {
+  local list="$1"
+  [[ -z "$list" ]] && echo "" && return
+  echo "$list" | tr '|' ' ' | xargs | sed 's/ /, /g'
+}
+
 function __chief_plugin_disabled() {
   local module="$1"
   local name="$2"
@@ -1107,10 +1114,13 @@ function __chief.hints_text() {
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin [name]${CHIEF_NO_COLOR} to create/edit plugins | ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR} to list"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin status${CHIEF_NO_COLOR} to see enabled/disabled plugins"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugins_root${CHIEF_NO_COLOR} to navigate to plugins directory"
-    local _core_dis="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}")"
-    local _user_dis="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"
+    local _core_dis _user_dis _c_fmt _u_fmt
+    _core_dis="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}")"
+    _user_dis="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"
     if [[ -n "$_core_dis" ]] || [[ -n "$_user_dis" ]]; then
-      echo -e "- ${CHIEF_COLOR_YELLOW}Disabled:${CHIEF_NO_COLOR} core: ${CHIEF_COLOR_YELLOW}${_core_dis:-<none>}${CHIEF_NO_COLOR}; user: ${CHIEF_COLOR_YELLOW}${_user_dis:-<none>}${CHIEF_NO_COLOR}"
+      _c_fmt="$(__chief_format_plugin_list "${_core_dis:-}")"
+      _u_fmt="$(__chief_format_plugin_list "${_user_dis:-}")"
+      echo -e "- ${CHIEF_COLOR_YELLOW}Disabled:${CHIEF_NO_COLOR} ${CHIEF_COLOR_CYAN}core:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}${_c_fmt:-<none>}${CHIEF_NO_COLOR}; ${CHIEF_COLOR_CYAN}user:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}${_u_fmt:-<none>}${CHIEF_NO_COLOR}"
     fi
     echo ""
     if [[ ${1} != '--verbose' ]]; then
@@ -2858,8 +2868,10 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
 
 function chief.plugin() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [OPTIONS] [plugin_name] [existing_file_path]
-       $FUNCNAME enable [core.]<name>   Enable a plugin (load on next reload)
-       $FUNCNAME disable [core.]<name> Disable a plugin (skip loading)
+       $FUNCNAME enable <name>         Enable a user plugin (e.g. bc, lab)
+       $FUNCNAME enable core.<name>    Enable a core plugin (e.g. core.ssl)
+       $FUNCNAME disable <name>        Disable a user plugin (e.g. bc, lab)
+       $FUNCNAME disable core.<name>   Disable a core plugin (e.g. core.ssl)
        $FUNCNAME status                Show enabled/disabled for core and user plugins
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -2935,20 +2947,22 @@ ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
         ;;
       status|list)
         shift
-        echo -e "${CHIEF_COLOR_CYAN}Plugin status (enabled/disabled):${CHIEF_NO_COLOR}"
-        echo
-        local core_all core_disabled core_enabled user_all user_disabled user_enabled
+        local core_all core_disabled user_all user_disabled c_fmt cdis_fmt u_fmt udis_fmt
         core_all=$(__chief_get_core_plugins)
         user_all=$(__chief_get_plugins)
         core_disabled="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}")"
         user_disabled="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"
+        c_fmt="$(__chief_format_plugin_list "${core_all:-}")"
+        cdis_fmt="$(__chief_format_plugin_list "${core_disabled:-}")"
+        u_fmt="$(__chief_format_plugin_list "${user_all:-}")"
+        udis_fmt="$(__chief_format_plugin_list "${user_disabled:-}")"
         echo -e "${CHIEF_COLOR_GREEN}Core (built-in):${CHIEF_NO_COLOR}"
-        echo -e "  Enabled:  ${CHIEF_COLOR_CYAN}${core_all:-<none>}${CHIEF_NO_COLOR}"
-        echo -e "  Disabled: ${CHIEF_COLOR_YELLOW}${core_disabled:-<none>}${CHIEF_NO_COLOR}"
+        echo -e "  Enabled:  ${CHIEF_COLOR_CYAN}${c_fmt:-<none>}${CHIEF_NO_COLOR}"
+        echo -e "  Disabled: ${CHIEF_COLOR_YELLOW}${cdis_fmt:-<none>}${CHIEF_NO_COLOR}"
         echo
         echo -e "${CHIEF_COLOR_GREEN}User plugins:${CHIEF_NO_COLOR}"
-        echo -e "  Enabled:  ${CHIEF_COLOR_CYAN}${user_all:-<none>}${CHIEF_NO_COLOR}"
-        echo -e "  Disabled: ${CHIEF_COLOR_YELLOW}${user_disabled:-<none>}${CHIEF_NO_COLOR}"
+        echo -e "  Enabled:  ${CHIEF_COLOR_CYAN}${u_fmt:-<none>}${CHIEF_NO_COLOR}"
+        echo -e "  Disabled: ${CHIEF_COLOR_YELLOW}${udis_fmt:-<none>}${CHIEF_NO_COLOR}"
         echo
         echo -e "${CHIEF_COLOR_BLUE}Use ${CHIEF_NO_COLOR}chief.plugin enable|disable <name>${CHIEF_COLOR_BLUE} or ${CHIEF_NO_COLOR}core.<name>${CHIEF_COLOR_BLUE} (e.g. bc, core.ssl). Config updated; Chief reloads.${CHIEF_NO_COLOR}"
         return
@@ -3288,10 +3302,13 @@ function __chief_show_chief_stats() {
 
   echo -e "${CHIEF_COLOR_BLUE}Chief Status:${CHIEF_NO_COLOR}"
   echo -e "• Functions available: ${CHIEF_COLOR_CYAN}$total_functions${CHIEF_NO_COLOR}"
-  echo -e "• Core (built-in): ${CHIEF_COLOR_CYAN}$core_count${CHIEF_NO_COLOR} ($core_plugins)"
-  echo -e "• User plugins: ${CHIEF_COLOR_CYAN}$user_count${CHIEF_NO_COLOR} ($user_plugins)"
+  echo -e "• Core (built-in): ${CHIEF_COLOR_CYAN}$core_count${CHIEF_NO_COLOR} ($(__chief_format_plugin_list "$core_plugins"))"
+  echo -e "• User plugins: ${CHIEF_COLOR_CYAN}$user_count${CHIEF_NO_COLOR} ($(__chief_format_plugin_list "$user_plugins"))"
   if [[ -n "$core_disabled" ]] || [[ -n "$user_disabled" ]]; then
-    echo -e "• Disabled plugins: ${CHIEF_COLOR_YELLOW}core: ${core_disabled:-<none>}; user: ${user_disabled:-<none>}${CHIEF_NO_COLOR} ${CHIEF_COLOR_CYAN}(chief.plugin status)${CHIEF_NO_COLOR}"
+    local cdis_fmt udis_fmt
+    cdis_fmt="$(__chief_format_plugin_list "${core_disabled:-}")"
+    udis_fmt="$(__chief_format_plugin_list "${user_disabled:-}")"
+    echo -e "• Disabled plugins: ${CHIEF_COLOR_CYAN}core:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}${cdis_fmt:-<none>}${CHIEF_NO_COLOR}; ${CHIEF_COLOR_CYAN}user:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}${udis_fmt:-<none>}${CHIEF_NO_COLOR} ${CHIEF_COLOR_CYAN}(chief.plugin status)${CHIEF_NO_COLOR}"
   fi
   echo -e "• Configuration: ${CHIEF_COLOR_CYAN}$CHIEF_CONFIG${CHIEF_NO_COLOR}"
 }
@@ -3355,17 +3372,20 @@ function __chief_show_plugin_help() {
   user_disabled="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"
   if [[ -n "$core_plugins" ]]; then
     echo -e "${CHIEF_COLOR_CYAN}Core (built-in):${CHIEF_NO_COLOR}"
-    echo -e "  ${CHIEF_COLOR_CYAN}$core_plugins${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_CYAN}$(__chief_format_plugin_list "$core_plugins")${CHIEF_NO_COLOR}"
     echo
   fi
   if [[ -n "$user_plugins" ]]; then
     echo -e "${CHIEF_COLOR_CYAN}User plugins (loaded):${CHIEF_NO_COLOR}"
-    echo -e "  ${CHIEF_COLOR_CYAN}$user_plugins${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_CYAN}$(__chief_format_plugin_list "$user_plugins")${CHIEF_NO_COLOR}"
     echo
   fi
   if [[ -n "$core_disabled" ]] || [[ -n "$user_disabled" ]]; then
+    local cdis_fmt udis_fmt
+    cdis_fmt="$(__chief_format_plugin_list "${core_disabled:-}")"
+    udis_fmt="$(__chief_format_plugin_list "${user_disabled:-}")"
     echo -e "${CHIEF_COLOR_YELLOW}Disabled plugins (skipped on load):${CHIEF_NO_COLOR}"
-    echo -e "  Core: ${CHIEF_COLOR_YELLOW}${core_disabled:-<none>}${CHIEF_NO_COLOR}  |  User: ${CHIEF_COLOR_YELLOW}${user_disabled:-<none>}${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_CYAN}Core:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}${cdis_fmt:-<none>}${CHIEF_NO_COLOR}  |  ${CHIEF_COLOR_CYAN}User:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}${udis_fmt:-<none>}${CHIEF_NO_COLOR}"
     echo -e "  ${CHIEF_COLOR_CYAN}chief.plugin status${CHIEF_NO_COLOR} for full list | ${CHIEF_COLOR_GREEN}chief.plugin enable [core.]<name>${CHIEF_NO_COLOR} to re-enable"
     echo
   fi
@@ -3551,16 +3571,19 @@ function __chief_show_compact_reference() {
   user_disabled_compact="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"
   if [[ -n "$core_list" ]]; then
     echo -e "${CHIEF_COLOR_CYAN}Core (built-in):${CHIEF_NO_COLOR}"
-    echo "  $core_list"
+    echo "  $(__chief_format_plugin_list "$core_list")"
     echo
   fi
   if [[ -n "$user_list" ]]; then
     echo -e "${CHIEF_COLOR_CYAN}User plugins:${CHIEF_NO_COLOR}"
-    echo "  $user_list"
+    echo "  $(__chief_format_plugin_list "$user_list")"
     echo
   fi
   if [[ -n "$core_disabled_compact" ]] || [[ -n "$user_disabled_compact" ]]; then
-    echo -e "${CHIEF_COLOR_YELLOW}Disabled (skipped):${CHIEF_NO_COLOR} core: ${core_disabled_compact:-<none>}; user: ${user_disabled_compact:-<none>}"
+    local cdis_fmt udis_fmt
+    cdis_fmt="$(__chief_format_plugin_list "${core_disabled_compact:-}")"
+    udis_fmt="$(__chief_format_plugin_list "${user_disabled_compact:-}")"
+    echo -e "${CHIEF_COLOR_YELLOW}Disabled (skipped):${CHIEF_NO_COLOR} ${CHIEF_COLOR_CYAN}core:${CHIEF_NO_COLOR} ${cdis_fmt:-<none>}; ${CHIEF_COLOR_CYAN}user:${CHIEF_NO_COLOR} ${udis_fmt:-<none>}"
     echo
   fi
   if [[ -z "$core_list" && -z "$user_list" ]]; then
