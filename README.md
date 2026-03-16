@@ -101,6 +101,7 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.help` - Interactive help system with plugin browsing
 - `chief.whereis <function>` - Find any function across all plugins
 - `chief.plugins_*` - Plugin management and discovery tools
+- `chief.plugin enable|disable [core.]<name>` - Enable or disable core/user plugins; `chief.plugin status` shows state
 
 ### Vault Plugin (2 functions)
 

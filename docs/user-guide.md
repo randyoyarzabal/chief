@@ -95,6 +95,12 @@ chief.plugin mytools
 # List all plugins
 chief.plugin -?
 
+# Enable or disable plugins (core = built-in, user = your plugins)
+chief.plugin disable core.ssl     # Disable core SSL plugin
+chief.plugin enable core.ssl      # Re-enable it
+chief.plugin disable bc          # Disable user plugin "bc"
+chief.plugin status              # Show enabled/disabled state
+
 # Find where a function is defined
 chief.whereis my_function
 
@@ -491,6 +497,12 @@ chief.reload
 # Create/edit plugins
 chief.plugin mytools          # Create or edit 'mytools' plugin
 chief.plugin list             # List all available plugins
+
+# Enable/disable plugins (config is updated; use chief.reload to apply)
+chief.plugin disable core.ssl # Disable built-in SSL plugin
+chief.plugin enable core.ssl  # Re-enable built-in SSL plugin
+chief.plugin disable bc       # Disable user plugin "bc"
+chief.plugin status           # Show which plugins are enabled vs disabled
 
 # Plugin discovery
 chief.whereis function_name   # Find where function is defined

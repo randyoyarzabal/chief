@@ -96,8 +96,8 @@ CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="false"
 # the default template will be used: "${CHIEF_PATH}/templates/chief_plugin_template.sh"
 CHIEF_CFG_PLUGIN_TEMPLATE="${CHIEF_PATH}/templates/chief_plugin_template.sh"
 
-# Space-separated list of plugins to skip loading. Managed via: chief.plugin enable|disable [core.]<name>
-# Empty (default) = all plugins enabled. Core: built-in names (e.g. aws git ssl). User: your plugin names (e.g. bc lab).
+# Comma- or space-separated list of plugins to skip loading. Managed via: chief.plugin enable|disable [core.]<name>
+# Empty (default) = all plugins enabled. Core: built-in names (e.g. aws,git,ssl or aws git ssl). User: your plugin names (e.g. bc,lab or bc lab).
 CHIEF_CFG_PLUGINS_DISABLED_CORE=""
 CHIEF_CFG_PLUGINS_DISABLED_USER=""
 ####################################

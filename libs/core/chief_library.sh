@@ -681,6 +681,11 @@ CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}"
 # Usage: __chief_plugin_disabled <module> <plugin_name>
 #   module: 'core' or 'user'
 #   plugin_name: e.g. 'git', 'bc'
+# Normalize disabled list: accept comma- or space-separated; output space-separated.
+function __chief_plugin_normalize_disabled_list() {
+  echo "$1" | tr ',' ' ' | xargs
+}
+
 function __chief_plugin_disabled() {
   local module="$1"
   local name="$2"
@@ -692,6 +697,7 @@ function __chief_plugin_disabled() {
   else
     return 1
   fi
+  list="$(__chief_plugin_normalize_disabled_list "$list")"
   [[ -z "$name" ]] && return 1
   # Normalize: space-separated, lowercase compare
   local n=$(echo "$name" | tr '[:upper:]' '[:lower:]')
@@ -718,6 +724,7 @@ function __chief_plugin_enable_disable() {
     echo -e "${CHIEF_COLOR_RED}Error: module must be 'core' or 'user'${CHIEF_NO_COLOR}" >&2
     return 1
   fi
+  current="$(__chief_plugin_normalize_disabled_list "$current")"
   if [[ "$action" == "disable" ]]; then
     if __chief_plugin_disabled "$module" "$name"; then
       echo -e "${CHIEF_COLOR_YELLOW}Plugin ${CHIEF_COLOR_CYAN}${name}${CHIEF_NO_COLOR} is already disabled."
@@ -2920,8 +2927,8 @@ ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
         local core_all core_disabled core_enabled user_all user_disabled user_enabled
         core_all=$(__chief_get_core_plugins)
         user_all=$(__chief_get_plugins)
-        core_disabled="${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}"
-        user_disabled="${CHIEF_CFG_PLUGINS_DISABLED_USER:-}"
+        core_disabled="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}")"
+        user_disabled="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"
         echo -e "${CHIEF_COLOR_GREEN}Core (built-in):${CHIEF_NO_COLOR}"
         echo -e "  Enabled:  ${CHIEF_COLOR_CYAN}${core_all:-<none>}${CHIEF_NO_COLOR}"
         echo -e "  Disabled: ${CHIEF_COLOR_YELLOW}${core_disabled:-<none>}${CHIEF_NO_COLOR}"

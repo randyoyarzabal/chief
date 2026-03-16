@@ -99,6 +99,29 @@ CHIEF_HOST="dev-box" bash
 | `CHIEF_CFG_PLUGINS_PATH` | Local plugin directory (also remote repo clone location) |
 | `CHIEF_CFG_PLUGINS_GIT_PATH` | [Remote only] Relative path within repo containing plugins (empty = repo root) |
 | `CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE` | Auto-update plugins on startup (with local changes protection) |
+| `CHIEF_CFG_PLUGINS_DISABLED_CORE` | Comma- or space-separated list of **core** plugin names to skip loading (e.g. `aws,git,ssl` or `aws git ssl`). Empty = all core plugins enabled. |
+| `CHIEF_CFG_PLUGINS_DISABLED_USER` | Comma- or space-separated list of **user** plugin names to skip loading (e.g. `bc,lab` or `bc lab`). Empty = all user plugins enabled. |
+
+### Enabling and disabling plugins
+
+You can disable specific **core** (built-in) or **user** plugins so they are not loaded at startup. Disabled plugins are skipped on load; you can re-enable them anytime.
+
+**From the command line (updates config and reloads Chief):**
+
+```bash
+chief.plugin disable ssl          # Disable user plugin "ssl" (if you have one)
+chief.plugin disable core.ssl     # Disable core plugin "ssl"
+chief.plugin enable core.ssl      # Re-enable core plugin "ssl"
+chief.plugin status               # Show which plugins are enabled/disabled
+```
+
+**In configuration:** set `CHIEF_CFG_PLUGINS_DISABLED_CORE` and/or `CHIEF_CFG_PLUGINS_DISABLED_USER` in your config file. Both accept comma- or space-separated names. Core plugin names are the built-in ones (e.g. `aws`, `git`, `ssl`); user plugin names are the prefixes of your `*_chief-plugin.sh` files (e.g. `bc`, `lab`).
+
+```bash
+# In chief.config or via chief.config_set:
+CHIEF_CFG_PLUGINS_DISABLED_CORE="aws,ssl"    # Skip core aws and ssl
+CHIEF_CFG_PLUGINS_DISABLED_USER="lab"       # Skip user plugin "lab"
+```
 
 ---
 

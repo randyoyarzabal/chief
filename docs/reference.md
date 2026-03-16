@@ -87,6 +87,12 @@ chief.reload
 chief.plugin mytools          # Create or edit 'mytools' plugin
 chief.plugin list             # List all available plugins
 
+# Enable/disable plugins (updates config; chief.reload to apply)
+chief.plugin disable core.ssl # Disable core (built-in) plugin
+chief.plugin enable core.ssl  # Re-enable core plugin
+chief.plugin disable bc      # Disable user plugin "bc"
+chief.plugin status          # Show enabled/disabled state
+
 # Plugin discovery
 chief.whereis function_name   # Find where function is defined
 chief.help plugins            # Show plugin-provided commands
