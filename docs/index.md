@@ -142,8 +142,9 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.etc_mount-share` - Network share mounting utilities
 - File comparison, IP validation, system prompts, and more...
 
-### **Git Plugin** (16 functions)
+### **Git Plugin** (17 functions)
 
+- `chief.git_init` - Initially commit current directory to a repository
 - `chief.git_clone` - Enhanced git cloning with safety checks
 - `chief.git_commit` - Streamlined commit workflow
 - `chief.git_reset_*` - Safe reset operations with dry-run support
