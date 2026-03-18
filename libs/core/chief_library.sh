@@ -4406,6 +4406,13 @@ EOF
       success=false
     fi
     
+    # Normalize shields.io badge URLs: -dev in version must be --dev so label-message-color parses correctly (avoids 404 on dev branch)
+    if $success && grep -q "img\.shields\.io/badge/" "$file" 2>/dev/null && [[ "$new_version" == *"-dev" ]]; then
+      if ! sed -i.tmp_badge '/img\.shields\.io\/badge\//s/\(v[0-9]\+\.[0-9]\+\.[0-9]\+\)-dev/\1--dev/g' "$file" 2>/dev/null; then
+        success=false
+      fi
+    fi
+    
     # Update badge URL-encoded versions - improved to handle -dev suffix variations
     if $success; then
       # Try exact replacement first
