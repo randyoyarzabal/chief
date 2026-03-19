@@ -240,9 +240,14 @@ chief.config_set MULTILINE_PROMPT true
 git.branch_clean              # Clean merged branches
 git.uncommitted               # Find uncommitted changes
 
-# Vault utilities (vault_chief-plugin.sh) 
-chief.secrets_file-edit         # Create/edit encrypted secrets file
+# Secrets plugin (encrypted file): create/edit and load into shell
+chief.secrets_file-edit         # Create/edit encrypted secrets file (Ansible Vault or GPG)
 chief.secrets_file-load         # Load secrets into shell
+
+# Vault plugin (HashiCorp Vault): read/write/list KV secrets
+chief.vault_read-secret         # Read secret from HashiCorp Vault KV
+chief.vault_write-secret        # Write secret to HashiCorp Vault KV
+chief.vault_list-secrets        # List keys or paths in Vault KV
 
 # SSH utilities (ssh_chief-plugin.sh)
 ssh.key_add                   # Add SSH keys to agent

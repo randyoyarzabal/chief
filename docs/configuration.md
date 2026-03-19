@@ -433,7 +433,12 @@ devops.deploy production
 
 ## Secrets and Vault Configuration
 
-### Creating and Managing Secrets Files
+Chief provides two separate mechanisms:
+
+- **Secrets plugin** – Encrypted Bash secrets file (env vars, functions) that you edit and load into your shell. Backends: Ansible Vault or GPG.
+- **Vault plugin** – HashiCorp Vault KV: read, write, and list secrets via the Vault CLI. Requires `vault`, `VAULT_ADDR`, and `VAULT_TOKEN` (or `VAULT_TOKEN_FILE`).
+
+### Secrets plugin: creating and loading encrypted files
 
 ```bash
 # Create team secrets file (encrypted; backend: gpg or ansible)
@@ -447,10 +452,27 @@ chief.secrets_file-load .chief_shared-secrets
 chief.secrets_file-load ~/.my-personal-secrets
 ```
 
-- **Backends**: Ansible Vault (`ansible-vault`) or GPG (symmetric AES256). Use `--backend=gpg` or `--backend=ansible` when creating; set `CHIEF_SECRETS_PASSWORD_FILE` for GPG auto-decrypt.
-- **Team secrets**: `CHIEF_CFG_PLUGINS_PATH/.chief_shared-secrets` (shared). Legacy name `.chief_shared-vault` is still supported but deprecated.
+- **Backends**: Ansible Vault (`ansible-vault`) or GPG (symmetric AES256). Use `--backend=gpg` or `--backend=ansible` when creating; backend is auto-detected when editing or loading.
+- **Password (optional)**: To avoid prompts, set a password file. Ansible: `ANSIBLE_VAULT_PASSWORD_FILE`. GPG: `CHIEF_SECRETS_PASSWORD_FILE`. Otherwise you are prompted.
+- **Team secrets**: `CHIEF_CFG_PLUGINS_PATH/.chief_shared-secrets` (shared). Legacy name `.chief_shared-vault` is deprecated.
 - **Personal secrets**: `~/.chief_user-secrets` (or legacy `~/.chief_user-vault`).
-- **HashiCorp Vault**: Use `chief.vault_read-secret` and `chief.vault_write-secret` with `VAULT_ADDR` and `VAULT_TOKEN`.
+
+### Vault plugin: HashiCorp Vault KV
+
+```bash
+# Read a secret (or one key)
+chief.vault_read-secret secret/data/myapp
+chief.vault_read-secret secret/data/myapp password
+
+# Write a secret
+chief.vault_write-secret secret/data/myapp api_key=xxx user=admin
+
+# List keys in a secret or paths in a folder
+chief.vault_list-secrets secret/myapp
+chief.vault_list-secrets secret/
+```
+
+- **Requirements**: `vault` CLI, `VAULT_ADDR`, `VAULT_TOKEN` (or `VAULT_TOKEN_FILE`). Use `chief.vault_read-secret -?`, `chief.vault_write-secret -?`, `chief.vault_list-secrets -?` for full help.
 
 ---
 

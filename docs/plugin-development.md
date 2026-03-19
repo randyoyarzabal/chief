@@ -146,10 +146,15 @@ chief.ssh_test_connection  # Test SSH connections
 chief.aws_profile_switch   # Switch AWS profiles
 chief.aws_s3_sync         # S3 synchronization
 
-# Vault operations
-chief.secrets_file-edit         # Create/edit encrypted secrets file
+# Secrets plugin (encrypted file)
+chief.secrets_file-edit         # Create/edit encrypted secrets file (Ansible Vault or GPG)
 chief.secrets_file-edit --load  # Create/edit and auto-load secrets
 chief.secrets_file-load         # Load secrets into environment
+
+# Vault plugin (HashiCorp Vault KV)
+chief.vault_read-secret         # Read secret from Vault
+chief.vault_write-secret        # Write secret to Vault
+chief.vault_list-secrets        # List keys or paths in Vault
 ```
 
 ---

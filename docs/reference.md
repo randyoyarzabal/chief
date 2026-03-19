@@ -122,6 +122,39 @@ chief.uninstall
 
 ## Built-in Plugin Command Reference
 
+### Secrets Plugin (encrypted file)
+
+Encrypted Bash secrets file (env vars, functions). Backends: Ansible Vault or GPG. Use `chief.secrets_file-edit -?` and `chief.secrets_file-load -?` for full help.
+
+```bash
+# Edit or create encrypted secrets file
+chief.secrets_file-edit [secrets-file] [--load] [--backend=gpg|ansible]
+  Arguments:
+    [secrets-file]  Optional path (default: $CHIEF_SECRETS_FILE)
+    --load          Load (source) secrets after editing
+    --backend=...   For new files only: gpg or ansible
+
+# Load secrets into current shell
+chief.secrets_file-load [secrets-file]
+```
+
+Optional password files (avoid prompts): Ansible Vault → `ANSIBLE_VAULT_PASSWORD_FILE`; GPG → `CHIEF_SECRETS_PASSWORD_FILE`.
+
+### Vault Plugin (HashiCorp Vault KV)
+
+Read, write, and list secrets in HashiCorp Vault KV. Requires `vault` CLI, `VAULT_ADDR`, `VAULT_TOKEN` (or `VAULT_TOKEN_FILE`). Use `chief.vault_read-secret -?`, etc., for full help.
+
+```bash
+# Read secret (full JSON or one key)
+chief.vault_read-secret <path> [key] [-n|--no-newline]
+
+# Write key=value pairs to a path
+chief.vault_write-secret <path> <key>=<value> [key2=value2 ...] [-format=json]
+
+# List keys in a secret or paths in a folder
+chief.vault_list-secrets <path> [-format=table|json|yaml]
+```
+
 ### SSL/TLS Certificate Management
 
 ```bash
@@ -498,19 +531,26 @@ bash -n ~/.chief_config.sh
 chief.config_show
 ```
 
-#### Q: Vault functions not working
+#### Q: Secrets file or Vault functions not working
+
+**Secrets plugin** (encrypted file with `chief.secrets_file-edit` / `chief.secrets_file-load`):
 
 ```bash
-# Check if ansible is installed (optional dependency)
+# Ansible backend: check ansible-vault
 ansible-vault --version
 
-# Install if needed:
-# macOS: brew install ansible
-# Linux: pip3 install ansible-core
-# Windows: pip install ansible-core
+# Install if needed: macOS: brew install ansible; Linux: pip3 install ansible-core
 
 # Check secrets file permissions
 ls -la ~/.chief_*secrets ~/.chief_*vault 2>/dev/null || true
+```
+
+**Vault plugin** (HashiCorp Vault with `chief.vault_read-secret` / `chief.vault_write-secret`):
+
+```bash
+# Check Vault CLI and auth
+vault version
+echo "VAULT_ADDR=$VAULT_ADDR" "VAULT_TOKEN set=$([ -n \"$VAULT_TOKEN\" ] && echo yes || echo no)"
 ```
 
 #### Q: OpenShift functions not working

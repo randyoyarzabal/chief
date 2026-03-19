@@ -108,10 +108,11 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.secrets_file-edit` - Edit encrypted secrets file (Ansible Vault or GPG)
 - `chief.secrets_file-load` - Load encrypted environment variables into shell
 
-### Vault Plugin (HashiCorp) (2 functions)
+### Vault Plugin (HashiCorp) (3 functions)
 
 - `chief.vault_read-secret` - Read secret from HashiCorp Vault KV
 - `chief.vault_write-secret` - Write secret to HashiCorp Vault KV
+- `chief.vault_list-secrets` - List keys or paths in HashiCorp Vault KV
 
 ### OpenShift/Kubernetes Plugin (9 functions)
 
