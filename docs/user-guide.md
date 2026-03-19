@@ -241,8 +241,8 @@ git.branch_clean              # Clean merged branches
 git.uncommitted               # Find uncommitted changes
 
 # Vault utilities (vault_chief-plugin.sh) 
-chief.vault_file-edit         # Create/edit encrypted files
-chief.vault_file-load         # Load secrets
+chief.secrets_file-edit         # Create/edit encrypted secrets file
+chief.secrets_file-load         # Load secrets into shell
 
 # SSH utilities (ssh_chief-plugin.sh)
 ssh.key_add                   # Add SSH keys to agent

@@ -659,18 +659,28 @@ CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}"
       echo -e "${CHIEF_COLOR_YELLOW}Warning: Remote plugins are not set to auto-update (CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false). Run ${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW} to update.${CHIEF_NO_COLOR}"
     fi
   fi
-  # Check for team vault file in plugins repository
-  local vault_path
+  # Check for team secrets file in plugins repository (new name first, then legacy)
+  local secrets_path dir_base
   if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" && -n ${CHIEF_CFG_PLUGINS_GIT_PATH} ]]; then
-    vault_path="${CHIEF_CFG_PLUGINS_PATH}/${CHIEF_CFG_PLUGINS_GIT_PATH}/.chief_shared-vault"
+    dir_base="${CHIEF_CFG_PLUGINS_PATH}/${CHIEF_CFG_PLUGINS_GIT_PATH}"
   else
-    vault_path="${CHIEF_CFG_PLUGINS_PATH}/.chief_shared-vault"
+    dir_base="${CHIEF_CFG_PLUGINS_PATH}"
   fi
-  
-  if [[ -f "$vault_path" ]]; then
-    export CHIEF_SECRETS_FILE="$vault_path"
-    __chief_print "Found vault file: $vault_path" "$1"
-    __chief_print "Use 'chief.vault_file-load' to load portable secrets" "$1"
+  if [[ -f "${dir_base}/.chief_shared-secrets" ]]; then
+    secrets_path="${dir_base}/.chief_shared-secrets"
+  elif [[ -f "${dir_base}/.chief_shared-vault" ]]; then
+    secrets_path="${dir_base}/.chief_shared-vault"
+    if [[ -z "${CHIEF_SECRETS_WARNED_LEGACY_DISCOVERY:-}" ]]; then
+      export CHIEF_SECRETS_WARNED_LEGACY_DISCOVERY=1
+      __chief_print "${CHIEF_COLOR_YELLOW}Deprecation:${CHIEF_NO_COLOR} .chief_shared-vault is deprecated; rename to .chief_shared-secrets." "$1"
+    fi
+  else
+    secrets_path=""
+  fi
+  if [[ -n "$secrets_path" ]]; then
+    export CHIEF_SECRETS_FILE="$secrets_path"
+    __chief_print "Found secrets file: $secrets_path" "$1"
+    __chief_print "Use 'chief.secrets_file-load' to load portable secrets" "$1"
   fi
 
   # Load plugins from the remote repository.
@@ -1102,7 +1112,7 @@ function __chief.hints_text() {
     - ${CHIEF_COLOR_GREEN}chief.config-update${CHIEF_NO_COLOR} to update config with new template options"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.help${CHIEF_NO_COLOR} for comprehensive help | ${CHIEF_COLOR_GREEN}chief.help --compact${CHIEF_NO_COLOR} for quick reference"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.whereis <name>${CHIEF_NO_COLOR} to find any function/alias location"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.vault_*${CHIEF_NO_COLOR} to encrypt/decrypt secrets (requires ansible-vault)"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.secrets_*${CHIEF_NO_COLOR} to encrypt/decrypt secrets file (ansible-vault or gpg) | ${CHIEF_COLOR_GREEN}chief.vault_*${CHIEF_NO_COLOR} for HashiCorp Vault read/write"
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Quick Customization:${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set prompt true${CHIEF_NO_COLOR} for git-aware prompt | ${CHIEF_COLOR_GREEN}chief.git_legend${CHIEF_NO_COLOR} for colors"
@@ -2188,7 +2198,7 @@ ${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
   PLUGINS_PATH              Local plugin directory (also remote repo clone location)
   PLUGINS_GIT_PATH          [Remote only] Relative path within repo (empty = repo root)
   PLUGINS_GIT_AUTOUPDATE    Auto-update remote plugins (true/false)
-  PLUGINS_DISABLED_CORE     Space-separated list of core plugins to skip (e.g. \"ssl vault\");
+  PLUGINS_DISABLED_CORE     Space-separated list of core plugins to skip (e.g. \"ssl secrets vault\");
   PLUGINS_DISABLED_USER     Space-separated list of user plugins to skip (e.g. \"lab workmac\");
   PROMPT                    Enable/disable Chief prompt (true/false)
   COLORED_PROMPT            Enable colored prompts (true/false)
@@ -3410,9 +3420,14 @@ function __chief_show_plugin_help() {
     found_plugins=true
   fi
   
+  if compgen -A function | grep -q "^chief\.secrets_"; then
+    echo -e "  ${CHIEF_COLOR_GREEN}Secrets Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(ansible-vault or gpg)${CHIEF_NO_COLOR}"
+    echo "    secrets_file-edit, secrets_file-load"
+    found_plugins=true
+  fi
   if compgen -A function | grep -q "^chief\.vault_"; then
-    echo -e "  ${CHIEF_COLOR_GREEN}Vault Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires ansible-vault)${CHIEF_NO_COLOR}"
-    echo "    vault_file-edit, vault_file-load"
+    echo -e "  ${CHIEF_COLOR_GREEN}Vault Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(HashiCorp Vault CLI)${CHIEF_NO_COLOR}"
+    echo "    vault_read-secret, vault_write-secret, vault_list-secrets"
     found_plugins=true
   fi
   

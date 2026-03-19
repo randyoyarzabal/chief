@@ -509,8 +509,8 @@ ansible-vault --version
 # Linux: pip3 install ansible-core
 # Windows: pip install ansible-core
 
-# Check vault file permissions
-ls -la ~/.chief_vault*
+# Check secrets file permissions
+ls -la ~/.chief_*secrets ~/.chief_*vault 2>/dev/null || true
 ```
 
 #### Q: OpenShift functions not working

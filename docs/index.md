@@ -52,16 +52,16 @@ chief.config_set -y PLUGINS_TYPE="remote"             # Enable remote sync
 chief.config_set -y MULTILINE_PROMPT=true 
 
 # 4. (Optional) Load your encrypted secrets (if exists)
-chief.vault_file-load  # Team vault (.chief_shared-vault - if exists)
-chief.vault_file-load ~/.my-personal-vault     # Personal vault
+chief.secrets_file-load  # Team secrets (.chief_shared-secrets - if exists)
+chief.secrets_file-load ~/.my-personal-secrets     # Personal secrets
 ```
 
-For detailed vault setup and management, see: [Vault Configuration](configuration.html#vault-configuration)
+For detailed secrets and vault setup, see: [Secrets and Vault Configuration](configuration.html#secrets-and-vault-configuration)
 
 ### Result
 
 - ✓ **Same plugins everywhere**: Functions, aliases, and tools sync across laptop, server, CI/CD
-- ✓ **Encrypted secrets**: Vault files travel with your setup (team + personal)
+- ✓ **Encrypted secrets**: Secrets files travel with your setup (team + personal)
 - ✓ **Zero reconfiguration**: New systems work identically after this setup
 - ✓ **Version controlled**: Track changes to your shell environment
 
@@ -101,10 +101,15 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.whereis <function>` - Find any function across all plugins
 - `chief.plugins_*` - Plugin management and discovery tools
 
-### **Vault Plugin** (2 functions)
+### **Secrets Plugin** (2 functions)
 
-- `chief.vault_file-edit` - Edit encrypted files securely
-- `chief.vault_file-load` - Load encrypted environment variables
+- `chief.secrets_file-edit` - Edit encrypted secrets file (Ansible Vault or GPG)
+- `chief.secrets_file-load` - Load encrypted environment variables into shell
+
+### **Vault Plugin (HashiCorp)** (2 functions)
+
+- `chief.vault_read-secret` - Read secret from HashiCorp Vault KV
+- `chief.vault_write-secret` - Write secret to HashiCorp Vault KV
 
 ### **OpenShift/Kubernetes Plugin** (9 functions)
 

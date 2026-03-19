@@ -177,9 +177,9 @@ Chief is primarily designed as a **single-user system** that follows you across 
 
 ```bash
 # Your personal setup works the same everywhere:
-# Laptop:     chief.vault_file-load → access your secrets
-# Server:     chief.vault_file-load → same secrets, same functions  
-# CI/CD:      chief.vault_file-load → consistent automation
+# Laptop:     chief.secrets_file-load → access your secrets
+# Server:     chief.secrets_file-load → same secrets, same functions  
+# CI/CD:      chief.secrets_file-load → consistent automation
 ```
 
 ### Portable Setup Configuration
@@ -204,16 +204,16 @@ chief.config_set -y PLUGINS_TYPE="remote"             # Enable remote sync
 chief.config_set -y MULTILINE_PROMPT=true 
 
 # 4. (Optional) Load your encrypted secrets (if exists)
-chief.vault_file-load  # Team vault (.chief_shared-vault - if exists)
-chief.vault_file-load ~/.my-personal-vault     # Personal vault
+chief.secrets_file-load  # Team secrets (.chief_shared-secrets - if exists)
+chief.secrets_file-load ~/.my-personal-secrets     # Personal secrets
 ```
 
-For detailed vault setup and management, see: [Vault Configuration](configuration.html#vault-configuration)
+For detailed secrets and vault setup, see: [Secrets and Vault Configuration](configuration.html#secrets-and-vault-configuration)
 
 #### Result
 
 - ✓ **Same plugins everywhere**: Functions, aliases, and tools sync across laptop, server, CI/CD
-- ✓ **Encrypted secrets**: Vault files travel with your setup (team + personal)
+- ✓ **Encrypted secrets**: Secrets files travel with your setup (team + personal)
 - ✓ **Zero reconfiguration**: New systems work identically after this setup
 - ✓ **Version controlled**: Track changes to your shell environment
 
@@ -221,7 +221,7 @@ For detailed vault setup and management, see: [Vault Configuration](configuratio
 
 ```bash
 chief.plugins_update           # Get latest team plugins
-chief.vault_file-load          # Load secrets when needed
+chief.secrets_file-load          # Load secrets when needed
 chief.plugin mytools           # Edit/create plugins
 chief.whereis my_function      # Find any function instantly
 ```
@@ -406,13 +406,13 @@ function devops.logs() {
 }
 EOF
 
-# Add team secrets (encrypted vault)
-chief.vault_file-edit .chief_shared-vault
+# Add team secrets (encrypted)
+chief.secrets_file-edit .chief_shared-secrets
 # Add shared environment variables, API keys, etc.
 
 # Commit and push
 git add .
-git commit -m "Initial team plugins and vault"
+git commit -m "Initial team plugins and secrets"
 git push -u origin main
 ```
 
@@ -431,28 +431,26 @@ devops.deploy production
 
 ---
 
-## Vault Configuration
+## Secrets and Vault Configuration
 
-### Creating and Managing Vaults
+### Creating and Managing Secrets Files
 
 ```bash
-# Create team vault (encrypted)
-chief.vault_file-edit .chief_shared-vault
+# Create team secrets file (encrypted; backend: gpg or ansible)
+chief.secrets_file-edit .chief_shared-secrets
 
-# Create personal vault
-chief.vault_file-edit ~/.my-personal-vault
+# Create personal secrets file
+chief.secrets_file-edit ~/.my-personal-secrets
 
-# Load vaults
-chief.vault_file-load .chief_shared-vault
-chief.vault_file-load ~/.my-personal-vault
+# Load secrets into shell (decrypt and source)
+chief.secrets_file-load .chief_shared-secrets
+chief.secrets_file-load ~/.my-personal-secrets
 ```
 
-### Team Vault Best Practices
-
-- **Team vault**: `CHIEF_CFG_PLUGINS_PATH/.chief_shared-vault` (shared secrets)
-- **Personal vault**: `~/.my-personal-vault` (personal secrets)
-- **Auto-loading**: Team vault loads automatically when in plugins directory
-- **Security**: All vault files are encrypted with ansible-vault
+- **Backends**: Ansible Vault (`ansible-vault`) or GPG (symmetric AES256). Use `--backend=gpg` or `--backend=ansible` when creating; set `CHIEF_SECRETS_PASSWORD_FILE` for GPG auto-decrypt.
+- **Team secrets**: `CHIEF_CFG_PLUGINS_PATH/.chief_shared-secrets` (shared). Legacy name `.chief_shared-vault` is still supported but deprecated.
+- **Personal secrets**: `~/.chief_user-secrets` (or legacy `~/.chief_user-vault`).
+- **HashiCorp Vault**: Use `chief.vault_read-secret` and `chief.vault_write-secret` with `VAULT_ADDR` and `VAULT_TOKEN`.
 
 ---
 

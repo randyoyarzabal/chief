@@ -90,7 +90,7 @@ cd chief
 
 ### Optional Dependencies
 
-- **Ansible Core 2.9+** - Required only for Vault-related functions (`chief.vault.*`)
+- **Ansible Core 2.9+** or **GPG** - Required only for Secrets plugin encrypted file backend (`chief.secrets_file-*`). HashiCorp Vault plugin (`chief.vault_*`) requires the `vault` CLI.
   - `ansible-vault` command must be in PATH
   - Used for encrypting/decrypting secrets in Chief configurations
   - If not installed, vault functions will show helpful error messages

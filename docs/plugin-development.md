@@ -31,7 +31,8 @@ Chief comes with several comprehensive plugins ready to use:
 | **Git** | `chief.git_*` | Enhanced git operations, branch management |
 | **SSH** | `chief.ssh_*` | SSH key management, connection helpers |
 | **AWS** | `chief.aws_*` | AWS credential management, S3 operations |
-| **Vault** | `chief.vault_*` | Ansible-vault secret management |
+| **Secrets** | `chief.secrets_*` | Encrypted secrets file (Ansible Vault or GPG) |
+| **Vault** | `chief.vault_*` | HashiCorp Vault read/write |
 | **Python** | `chief.python_*` | Python environment and tool helpers |
 
 ### SSL/TLS Certificate Management Plugin
@@ -146,9 +147,9 @@ chief.aws_profile_switch   # Switch AWS profiles
 chief.aws_s3_sync         # S3 synchronization
 
 # Vault operations
-chief.vault_file-edit         # Create/edit encrypted vault
-chief.vault_file-edit --load  # Create/edit and auto-load vault
-chief.vault_file-load         # Load vault into environment
+chief.secrets_file-edit         # Create/edit encrypted secrets file
+chief.secrets_file-edit --load  # Create/edit and auto-load secrets
+chief.secrets_file-load         # Load secrets into environment
 ```
 
 ---
@@ -446,13 +447,13 @@ Include encrypted team secrets:
 
 ```bash
 function devops.load_secrets() {
-    local vault_file="${CHIEF_CFG_PLUGINS_PATH}/.chief_shared-vault"
+    local secrets_file="${CHIEF_CFG_PLUGINS_PATH}/.chief_shared-secrets"
     
-    if [[ -f "$vault_file" ]]; then
+    if [[ -f "$secrets_file" ]]; then
         echo "Loading team secrets..."
-        chief.vault_file-load "$vault_file"
+        chief.secrets_file-load "$secrets_file"
     else
-        echo "Team vault not found: $vault_file"
+        echo "Team secrets file not found: $secrets_file"
     fi
 }
 
