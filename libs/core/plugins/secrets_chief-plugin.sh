@@ -62,12 +62,10 @@ function __chief_secrets_detect_backend() {
     echo "gpg"
     return
   fi
-  # Binary GPG: try decrypt with passphrase file if set (no prompt)
-  if [[ -f "$f" ]] && [[ -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" ]] && [[ -f "$CHIEF_SECRETS_PASSWORD_FILE" ]]; then
-    if gpg --batch --passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE" --decrypt "$f" >/dev/null 2>&1; then
-      echo "gpg"
-      return
-    fi
+  # Binary GPG: gpg --list-packets recognizes encrypted data without password
+  if [[ -f "$f" ]] && gpg --list-packets "$f" >/dev/null 2>&1; then
+    echo "gpg"
+    return
   fi
   echo ""
 }
@@ -98,8 +96,11 @@ Edit/create a Bash shell secrets file (env vars, functions, etc.) encrypted with
 Content is decrypted → edited → re-encrypted. Load means decrypt → source into current shell.
 
 ${CHIEF_COLOR_GREEN}Backends:${CHIEF_NO_COLOR}
-- ansible-vault (ansible-core 2.9+); password: ANSIBLE_VAULT_PASSWORD_FILE or prompt
-- gpg (symmetric AES256); password: CHIEF_SECRETS_PASSWORD_FILE or prompt
+- ansible-vault (ansible-core 2.9+), gpg (symmetric AES256). Backend chosen when creating; auto-detected when editing.
+
+${CHIEF_COLOR_GREEN}Password (optional file):${CHIEF_NO_COLOR}
+- Ansible Vault: ANSIBLE_VAULT_PASSWORD_FILE or prompt
+- GPG:           CHIEF_SECRETS_PASSWORD_FILE or prompt
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   [secrets-file]  Optional path (default: \$CHIEF_SECRETS_FILE)
@@ -183,9 +184,9 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
       tmpf="$(mktemp)"
       cat "$secrets_file" > "$tmpf"
       if [[ -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" ]] && [[ -f "$CHIEF_SECRETS_PASSWORD_FILE" ]]; then
-        gpg --batch --yes --passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE" --symmetric --cipher-algo AES256 -o "$secrets_file" "$tmpf" || return 1
+        gpg --batch --yes --armor --passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE" --symmetric --cipher-algo AES256 -o "$secrets_file" "$tmpf" || return 1
       else
-        gpg --yes --symmetric --cipher-algo AES256 -o "$secrets_file" "$tmpf" || return 1
+        gpg --yes --armor --symmetric --cipher-algo AES256 -o "$secrets_file" "$tmpf" || return 1
       fi
       rm -f "$tmpf"
     fi
@@ -211,18 +212,41 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     fi
     ansible-vault edit "$secrets_file" || return 1
   else
-    local tmpf
+    local tmpf editor gpg_pass
     tmpf="$(mktemp)"
+    editor="${EDITOR:-vi}"
     if [[ -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" ]] && [[ -f "$CHIEF_SECRETS_PASSWORD_FILE" ]]; then
-      gpg --batch --passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE" --decrypt "$secrets_file" > "$tmpf" 2>/dev/null || { rm -f "$tmpf"; echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} GPG decrypt failed (wrong password or file)."; return 1; }
+      gpg --batch --passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE" --decrypt "$secrets_file" > "$tmpf" 2>/dev/null || {
+        rm -f "$tmpf"
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} GPG decrypt failed (wrong password or file)." >&2
+        return 1
+      }
     else
-      gpg --decrypt -o "$tmpf" "$secrets_file" 2>/dev/null || { rm -f "$tmpf"; return 1; }
+      echo -e "${CHIEF_COLOR_CYAN}GPG password:${CHIEF_NO_COLOR}" >&2
+      read -rs gpg_pass </dev/tty 2>/dev/null || read -rs gpg_pass
+      echo >&2
+      gpg --batch --passphrase-fd 0 --decrypt "$secrets_file" > "$tmpf" 2>/dev/null <<< "$gpg_pass" || {
+        unset gpg_pass
+        rm -f "$tmpf"
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} GPG decrypt failed (wrong password or file)." >&2
+        return 1
+      }
     fi
-    $editor "$tmpf"
+    "$editor" "$tmpf"
     if [[ -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" ]] && [[ -f "$CHIEF_SECRETS_PASSWORD_FILE" ]]; then
-      gpg --batch --yes --passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE" --symmetric --cipher-algo AES256 -o "$secrets_file" "$tmpf" || { rm -f "$tmpf"; return 1; }
+      gpg --batch --yes --armor --passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE" --symmetric --cipher-algo AES256 -o "$secrets_file" "$tmpf" 2>/dev/null || {
+        rm -f "$tmpf"
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} GPG encrypt failed." >&2
+        return 1
+      }
     else
-      gpg --yes --symmetric --cipher-algo AES256 -o "$secrets_file" "$tmpf" || { rm -f "$tmpf"; return 1; }
+      gpg --batch --yes --armor --passphrase-fd 0 --symmetric --cipher-algo AES256 -o "$secrets_file" "$tmpf" 2>/dev/null <<< "$gpg_pass" || {
+        unset gpg_pass
+        rm -f "$tmpf"
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} GPG encrypt failed." >&2
+        return 1
+      }
+      unset gpg_pass
     fi
     rm -f "$tmpf"
   fi
@@ -245,6 +269,10 @@ function chief.secrets_file-load() {
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Load (decrypt and source) an encrypted Bash secrets file into the current shell.
 Backend is auto-detected from the file (Ansible Vault or GPG); you never specify it for load.
+
+${CHIEF_COLOR_GREEN}Password (optional file):${CHIEF_NO_COLOR}
+- Ansible Vault: ANSIBLE_VAULT_PASSWORD_FILE or prompt
+- GPG:           CHIEF_SECRETS_PASSWORD_FILE or prompt
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   [secrets-file]  Optional path (default: \$CHIEF_SECRETS_FILE)
@@ -288,14 +316,22 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
       return 1
     fi
   else
-    local dec
+    local dec gpg_pass
     if [[ -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" ]] && [[ -f "$CHIEF_SECRETS_PASSWORD_FILE" ]]; then
       dec="$(gpg --batch --passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE" --decrypt "$secrets_file" 2>/dev/null)" || {
         echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} GPG decrypt failed. Check password or file."
         return 1
       }
     else
-      dec="$(gpg --decrypt "$secrets_file" 2>/dev/null)" || { echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} GPG decrypt failed."; return 1; }
+      echo -e "${CHIEF_COLOR_CYAN}GPG password:${CHIEF_NO_COLOR}" >&2
+      read -rs gpg_pass </dev/tty 2>/dev/null || read -rs gpg_pass
+      echo >&2
+      dec="$(gpg --batch --passphrase-fd 0 --decrypt "$secrets_file" 2>/dev/null <<< "$gpg_pass")" || {
+        unset gpg_pass
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} GPG decrypt failed." >&2
+        return 1
+      }
+      unset gpg_pass
     fi
     if source <(printf '%s' "$dec"); then
       echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file loaded (gpg)."
