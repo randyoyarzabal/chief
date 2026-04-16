@@ -50,6 +50,8 @@ fi
 # Load the Chief configuration file and core library.
 CHIEF_GIT_TOOLS="${CHIEF_PATH}/libs/extras/git"
 CHIEF_LIBRARY="${CHIEF_PATH}/libs/core/chief_library.sh"
+# Clear optional config keys before sourcing so commented/removed lines take effect (no stale env).
+unset CHIEF_CFG_ALIAS
 source ${CHIEF_CONFIG}
 source ${CHIEF_LIBRARY}
 

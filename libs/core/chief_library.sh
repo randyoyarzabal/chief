@@ -133,13 +133,15 @@ function __chief_load_library() {
   # Options:
   #   --verbose - Display detailed loading information
   
+  # Optional keys: unset before re-sourcing config so removed/commented assignments do not stick.
+  unset CHIEF_CFG_ALIAS
   __chief_load_file ${CHIEF_CONFIG}
 
   __chief_load_file ${CHIEF_LIBRARY} 
 
   # Set a default alias if none defined.
   if [[ -n ${CHIEF_CFG_ALIAS} ]]; then
-    __chief_print "Chief is aliased as ${CHIEF_CFG_ALIAS}."
+    __chief_framework_print "aliased as ${CHIEF_CFG_ALIAS}." "$1"
   fi
 
   __chief_load_plugins 'core' "$1"
@@ -152,10 +154,12 @@ function __chief_load_library() {
   if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]]; then
     __chief_load_remote_plugins "$1"
   elif [[ ${CHIEF_CFG_PLUGINS_TYPE} == "local" ]]; then
+    __chief_discover_shared_secrets_file
     __chief_load_plugins 'user' "$1"
   fi
 
-  __chief_print "Chief BASH library/environment (re)loaded." "$1"
+  __chief_print_shared_secrets_summary "$1"
+  __chief_framework_print "library reloaded." "$1"
 }
 
 function __chief_print() {
@@ -423,7 +427,7 @@ function __chief_edit_file() {
       __chief_load_file ${file}
     else
       if [[ $3 == 'reload' ]]; then
-        __chief_load_library --verbose  
+        __chief_load_library --verbose
       fi
     fi
 
@@ -522,6 +526,41 @@ __chief_backup_local_plugins() {
   # Directory exists but is empty, safe to remove
   rmdir "$plugins_path" 2>/dev/null || true
   return 0
+}
+
+# Discover portable team secrets under the configured plugins directory (sets CHIEF_SECRETS_FILE; no output).
+function __chief_discover_shared_secrets_file() {
+  local dir_base secrets_path
+  if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" && -n ${CHIEF_CFG_PLUGINS_GIT_PATH:-} ]]; then
+    dir_base="${CHIEF_CFG_PLUGINS_PATH}/${CHIEF_CFG_PLUGINS_GIT_PATH}"
+  else
+    dir_base="${CHIEF_CFG_PLUGINS_PATH:-}"
+  fi
+  secrets_path=""
+  if [[ -n "$dir_base" && -f "${dir_base}/.chief_shared-secrets" ]]; then
+    secrets_path="${dir_base}/.chief_shared-secrets"
+  elif [[ -n "$dir_base" && -f "${dir_base}/.chief_shared-vault" ]]; then
+    secrets_path="${dir_base}/.chief_shared-vault"
+  fi
+  if [[ -n "$secrets_path" ]]; then
+    export CHIEF_SECRETS_FILE="$secrets_path"
+  else
+    unset CHIEF_SECRETS_FILE
+  fi
+}
+
+# End of load: one-line hint if a portable secrets file exists (still requires secrets_file-load).
+function __chief_print_shared_secrets_summary() {
+  local verbose_flag="$1"
+  [[ -n "${CHIEF_SECRETS_FILE:-}" && -f "${CHIEF_SECRETS_FILE}" ]] || return 0
+  local prefix base_msg legacy_note=""
+  prefix="$(__chief_get_command_prefix)"
+  base_msg="The core ${CHIEF_COLOR_CYAN}secrets${CHIEF_NO_COLOR} plugin auto-detected a shared vault file under your plugins tree (not applied to this shell yet). Run ${CHIEF_COLOR_CYAN}${prefix}secrets_file-load${CHIEF_NO_COLOR} to load; see ${CHIEF_COLOR_CYAN}${prefix}help${CHIEF_NO_COLOR} for details."
+  if [[ "${CHIEF_SECRETS_FILE##*/}" == ".chief_shared-vault" ]] && [[ -z "${CHIEF_SECRETS_WARNED_LEGACY_DISCOVERY:-}" ]]; then
+    export CHIEF_SECRETS_WARNED_LEGACY_DISCOVERY=1
+    legacy_note="${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} rename .chief_shared-vault → .chief_shared-secrets when you can. "
+  fi
+  __chief_framework_print "${legacy_note}${base_msg}" "$verbose_flag"
 }
 
 __chief_load_remote_plugins() {
@@ -659,29 +698,7 @@ CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}"
       echo -e "${CHIEF_COLOR_YELLOW}Warning: Remote plugins are not set to auto-update (CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false). Run ${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW} to update.${CHIEF_NO_COLOR}"
     fi
   fi
-  # Check for team secrets file in plugins repository (new name first, then legacy)
-  local secrets_path dir_base
-  if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" && -n ${CHIEF_CFG_PLUGINS_GIT_PATH} ]]; then
-    dir_base="${CHIEF_CFG_PLUGINS_PATH}/${CHIEF_CFG_PLUGINS_GIT_PATH}"
-  else
-    dir_base="${CHIEF_CFG_PLUGINS_PATH}"
-  fi
-  if [[ -f "${dir_base}/.chief_shared-secrets" ]]; then
-    secrets_path="${dir_base}/.chief_shared-secrets"
-  elif [[ -f "${dir_base}/.chief_shared-vault" ]]; then
-    secrets_path="${dir_base}/.chief_shared-vault"
-    if [[ -z "${CHIEF_SECRETS_WARNED_LEGACY_DISCOVERY:-}" ]]; then
-      export CHIEF_SECRETS_WARNED_LEGACY_DISCOVERY=1
-      __chief_print "${CHIEF_COLOR_YELLOW}Deprecation:${CHIEF_NO_COLOR} .chief_shared-vault is deprecated; rename to .chief_shared-secrets." "$1"
-    fi
-  else
-    secrets_path=""
-  fi
-  if [[ -n "$secrets_path" ]]; then
-    export CHIEF_SECRETS_FILE="$secrets_path"
-    __chief_print "Found secrets file: $secrets_path" "$1"
-    __chief_print "Use 'chief.secrets_file-load' to load portable secrets" "$1"
-  fi
+  __chief_discover_shared_secrets_file
 
   # Load plugins from the remote repository.
   __chief_load_plugins 'user' "$1"
@@ -773,12 +790,12 @@ function __chief_load_plugins() {
   #
   # Options:
   #   --verbose - Display detailed loading information
-  __chief_print "Loading Chief ${1}-plugins..." "$2"
-
   local plugin_file
   local plugin_name
   local dir_path
   local load_flag
+  local loaded_list=""
+  local disabled_list=""
 
   load_flag=false # Default to false, unless plugin switch is defined.
   if [[ $1 == 'core' ]]; then
@@ -796,14 +813,14 @@ function __chief_load_plugins() {
       load_flag=true
     fi
   else
-    __chief_print "   plugins: ${1} is not a valid plug-in module." "$2"
+    __chief_framework_print "plugins: ${1} is not a valid plug-in module." "$2"
     return 1
   fi
 
   local plugins=() # Array to hold plugin names
   local sorted_plugins=() # Array to hold sorted plugin names
   if ! ${load_flag}; then
-    __chief_print "   plugins: ${1} not enabled." "$2"
+    __chief_framework_print "plugins: ${1} not enabled." "$2"
   else
     # Check for existence of plugin folder requested
     if [[ -d ${dir_path} ]]; then
@@ -814,22 +831,37 @@ function __chief_load_plugins() {
       # Sort the plugins alphabetically
       sorted_plugins=($(printf '%s\n' "${plugins[@]}"|sort))
 
-      # Loop through sorted plugins and print them
       for plugin in "${sorted_plugins[@]}"; do
         plugin_file=${plugin##*/}
         plugin_name=${plugin_file%%_*}
 
         if __chief_plugin_disabled "$1" "$plugin_name"; then
-          __chief_print "   plugin: ${CHIEF_COLOR_YELLOW}${plugin_name}${CHIEF_NO_COLOR} skipped (disabled)." "$2"
+          [[ -n ${disabled_list} ]] && disabled_list+=", "
+          disabled_list+="${CHIEF_COLOR_YELLOW}${plugin_name}${CHIEF_NO_COLOR}"
           continue
         fi
         if [[ -f ${plugin} ]]; then
+          [[ -n ${loaded_list} ]] && loaded_list+=", "
+          loaded_list+="${CHIEF_COLOR_GREEN}${plugin_name}${CHIEF_NO_COLOR}"
           __chief_load_file "${plugin}" # Apply alias and source the plugin
-          __chief_print "   plugin: ${CHIEF_COLOR_GREEN}${plugin_name}${CHIEF_NO_COLOR} loaded." "$2"
         fi
       done
+
+      # One summary line: loaded names + disabled (plugin stdout may appear above this line)
+      local summary_line=""
+      if [[ -n ${loaded_list} ]]; then
+        summary_line+="${loaded_list}"
+      fi
+      if [[ -n ${disabled_list} ]]; then
+        [[ -n ${summary_line} ]] && summary_line+=" · "
+        summary_line+="off: ${disabled_list}"
+      fi
+      if [[ -z ${summary_line} ]]; then
+        summary_line="${CHIEF_COLOR_YELLOW}(no plugins)${CHIEF_NO_COLOR}"
+      fi
+      __chief_framework_print "${1}: ${summary_line}" "$2"
     else
-      __chief_print "   $1 plugins directory does not exist." "$2"
+      __chief_framework_print "$1 plugins directory does not exist." "$2"
     fi
   fi
 }
@@ -1517,6 +1549,15 @@ export CHIEF_COLOR_ORANGE='\033[0;33m'
 export CHIEF_COLOR_YELLOW='\033[1;33m'
 export CHIEF_TEXT_BLINK='\033[5m'
 export CHIEF_NO_COLOR='\033[0m' # Reset color/style
+
+# Gutter for framework status during load (lines without this prefix may be plugin output). Word "Chief" is reserved for rare bookends (e.g. chief.reload).
+export CHIEF_FRAMEWORK_MSG_PREFIX="${CHIEF_COLOR_CYAN}│${CHIEF_NO_COLOR} "
+
+function __chief_framework_print() {
+  if ${CHIEF_CFG_VERBOSE} || [[ "${2}" == '--verbose' ]]; then
+    echo -e "${CHIEF_FRAMEWORK_MSG_PREFIX}${1}"
+  fi
+}
 
 # PLATFORM-SPECIFIC SYMBOLS
 ########################################################################
@@ -3279,16 +3320,16 @@ Restart your terminal session for a complete reset.
     return
   fi
 
-  echo -e "${CHIEF_COLOR_BLUE}Reloading Chief environment...${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_CYAN}Chief${CHIEF_NO_COLOR} — ${CHIEF_COLOR_BLUE}reloading…${CHIEF_NO_COLOR}"
   __chief_load_library --verbose
   
   # Reload SSH keys if configured
   if [[ ! -z ${CHIEF_CFG_SSH_KEYS_PATH} ]] && ([[ ${PLATFORM} == "MacOS" ]] || [[ $(uname) == "Linux" ]]); then
-    echo -e "${CHIEF_COLOR_BLUE}Reloading SSH keys...${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_FRAMEWORK_MSG_PREFIX}${CHIEF_COLOR_BLUE}reloading SSH keys…${CHIEF_NO_COLOR}"
     __chief_load_ssh_keys --verbose
   fi
   
-  echo -e "${CHIEF_COLOR_GREEN}Chief environment reloaded successfully${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_CYAN}Chief${CHIEF_NO_COLOR} — ${CHIEF_COLOR_GREEN}ready.${CHIEF_NO_COLOR}"
 }
 
 # Show Chief statistics and status
