@@ -5,8 +5,20 @@
 # Configure items to suit. For all variables:
 #   Set values to un-quoted 'true', to enable Or 'false', to disable OR Comment (prefix with #) to disable.
 
+# BANNER
+####################################
+
 # If set to true, will display a banner at start-up.
 CHIEF_CFG_BANNER=true
+
+# Per-line visibility for banner header items. These only take effect when
+# CHIEF_CFG_BANNER=true. Setting either to false hides just that status line's
+# right-side text while keeping the ASCII art unchanged.
+#
+# CHIEF_CFG_BANNER_SHOW_PLUGINS:  show the "plugins: ..." line (local / git [auto-update ...])
+# CHIEF_CFG_BANNER_SHOW_TRACKING: show the "tracking: ..." line (branch + channel)
+CHIEF_CFG_BANNER_SHOW_PLUGINS=true
+CHIEF_CFG_BANNER_SHOW_TRACKING=true
 
 # If set to true, will display output when plugins and SSH keys are loaded at start-up.
 CHIEF_CFG_VERBOSE=false

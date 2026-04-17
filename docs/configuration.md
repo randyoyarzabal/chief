@@ -57,6 +57,8 @@ chief.config_set config_set_interactive false
 | Configuration | Default | Description |
 |---------------|---------|-------------|
 | `CHIEF_CFG_BANNER` | `true` | Show startup banner |
+| `CHIEF_CFG_BANNER_SHOW_PLUGINS` | `true` | Show the `plugins:` line in the banner (requires `CHIEF_CFG_BANNER=true`) |
+| `CHIEF_CFG_BANNER_SHOW_TRACKING` | `true` | Show the `tracking:` line in the banner (requires `CHIEF_CFG_BANNER=true`) |
 | `CHIEF_CFG_HINTS` | `true` | Display helpful tips on startup |
 | `CHIEF_CFG_PROMPT` | `false` | Use Chief's custom prompt (keep disabled if using Oh My Bash/Starship) |
 | `CHIEF_CFG_COLORED_PROMPT` | `true` | Colorize the prompt |

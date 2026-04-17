@@ -151,46 +151,224 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 }
 
+# Internal: format a byte count as a human-readable string.
+function __chief_git_human_size() {
+  awk -v s="$1" 'BEGIN{
+    if (s >= 1073741824)      printf "%.2f GB", s/1073741824
+    else if (s >= 1048576)    printf "%.2f MB", s/1048576
+    else if (s >= 1024)       printf "%.2f KB", s/1024
+    else                      printf "%d B",   s
+  }'
+}
+
+# Internal: return on-disk size (in bytes) of a file, portably between macOS and Linux.
+function __chief_git_file_size() {
+  local file="$1"
+  if [[ "$OSTYPE" == "darwin"* || "$OSTYPE" == "freebsd"* ]]; then
+    stat -f%z -- "$file" 2>/dev/null
+  else
+    stat -c%s -- "$file" 2>/dev/null
+  fi
+}
+
+# Internal: scan staged files for sizes exceeding the warning threshold and prompt
+# the user to either commit anyway, unstage + add to .gitignore, or abort.
+# Returns 0 to continue with the commit, non-zero to abort.
+function __chief_git_check_large_files() {
+  local threshold_mb="${CHIEF_CFG_GIT_COMMIT_WARN_MB:-50}"
+  # Guard against bad config values.
+  if ! [[ "$threshold_mb" =~ ^[0-9]+$ ]] || (( threshold_mb <= 0 )); then
+    threshold_mb=50
+  fi
+  local threshold_bytes=$(( threshold_mb * 1024 * 1024 ))
+
+  # Only inspect newly added or modified staged files (ignore deletions/renames).
+  local staged
+  staged=$(git diff --cached --name-only --diff-filter=AM 2>/dev/null)
+  [[ -z "$staged" ]] && return 0
+
+  local large_paths=() large_sizes=()
+  local file size
+  while IFS= read -r file; do
+    [[ -z "$file" ]] && continue
+    [[ ! -f "$file" ]] && continue
+    size=$(__chief_git_file_size "$file")
+    [[ -z "$size" ]] && continue
+    if (( size > threshold_bytes )); then
+      large_paths+=("$file")
+      large_sizes+=("$size")
+    fi
+  done <<< "$staged"
+
+  (( ${#large_paths[@]} == 0 )) && return 0
+
+  local i human
+  echo
+  echo -e "${CHIEF_COLOR_YELLOW}⚠  Warning:${CHIEF_NO_COLOR} ${CHIEF_COLOR_RED}${#large_paths[@]} large file(s) staged${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(> ${threshold_mb} MB):${CHIEF_NO_COLOR}"
+  for (( i=0; i<${#large_paths[@]}; i++ )); do
+    human=$(__chief_git_human_size "${large_sizes[$i]}")
+    echo -e "  ${CHIEF_COLOR_RED}●${CHIEF_NO_COLOR} ${large_paths[$i]} ${CHIEF_COLOR_YELLOW}(${human})${CHIEF_NO_COLOR}"
+  done
+  echo
+  echo -e "${CHIEF_COLOR_MAGENTA}Note:${CHIEF_NO_COLOR} GitHub recommends files < 50 MB; pushes over 100 MB are rejected."
+  echo
+
+  # In non-interactive shells we cannot prompt — fail safe and abort.
+  if [[ ! -t 0 ]]; then
+    echo -e "${CHIEF_COLOR_RED}Non-interactive shell detected; aborting commit.${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_BLUE}Tip:${CHIEF_NO_COLOR} Re-run with ${CHIEF_COLOR_CYAN}-f${CHIEF_NO_COLOR} to skip this check, or with ${CHIEF_COLOR_CYAN}CHIEF_CFG_GIT_COMMIT_WARN_MB=0${CHIEF_NO_COLOR} to disable."
+    return 1
+  fi
+
+  echo -e "${CHIEF_COLOR_CYAN}Options:${CHIEF_NO_COLOR}"
+  echo -e "  [${CHIEF_COLOR_GREEN}c${CHIEF_NO_COLOR}] Commit these files anyway"
+  echo -e "  [${CHIEF_COLOR_YELLOW}i${CHIEF_NO_COLOR}] Unstage and add to .gitignore, then continue"
+  echo -e "  [${CHIEF_COLOR_RED}a${CHIEF_NO_COLOR}] Abort commit"
+
+  local choice
+  while true; do
+    read -rp "$(echo -e "${CHIEF_COLOR_CYAN}Choice [c/i/a]:${CHIEF_NO_COLOR} ")" choice
+    case "$(echo "${choice}" | tr '[:upper:]' '[:lower:]')" in
+      c|commit)
+        echo -e "${CHIEF_COLOR_YELLOW}Proceeding with large file(s) in commit.${CHIEF_NO_COLOR}"
+        return 0
+        ;;
+      i|ignore)
+        __chief_git_ignore_large_files "${large_paths[@]}" || return 1
+        return 0
+        ;;
+      a|abort|"")
+        echo -e "${CHIEF_COLOR_RED}Commit aborted.${CHIEF_NO_COLOR}"
+        return 1
+        ;;
+      *)
+        echo -e "${CHIEF_COLOR_RED}Invalid choice:${CHIEF_NO_COLOR} '$choice' — enter c, i, or a."
+        ;;
+    esac
+  done
+}
+
+# Internal: unstage the given files and append them to .gitignore. If a file was
+# previously tracked (present in HEAD), `git rm --cached` removes it from the
+# index so the ignore takes effect on future commits.
+function __chief_git_ignore_large_files() {
+  local gitignore=".gitignore"
+  [[ ! -f "$gitignore" ]] && : > "$gitignore"
+  # Ensure the file ends with a newline before appending.
+  if [[ -s "$gitignore" ]]; then
+    local last_byte
+    last_byte=$(tail -c 1 "$gitignore" 2>/dev/null)
+    [[ "$last_byte" != $'\n' ]] && printf '\n' >> "$gitignore"
+  fi
+  printf '# Added by chief.git_commit on %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" >> "$gitignore"
+
+  local file
+  for file in "$@"; do
+    # Check whether the file already exists in HEAD (i.e. was previously
+    # committed). If so, we must use 'git rm --cached' to stop tracking it;
+    # otherwise a simple unstage is enough.
+    if git cat-file -e "HEAD:$file" 2>/dev/null; then
+      echo -e "${CHIEF_COLOR_YELLOW}Untracking previously tracked file:${CHIEF_NO_COLOR} $file"
+      git rm --cached --quiet -- "$file" &>/dev/null || {
+        echo -e "${CHIEF_COLOR_RED}Failed to untrack:${CHIEF_NO_COLOR} $file"
+        return 1
+      }
+    else
+      git restore --staged -- "$file" &>/dev/null \
+        || git reset --quiet HEAD -- "$file" &>/dev/null \
+        || {
+          echo -e "${CHIEF_COLOR_RED}Failed to unstage:${CHIEF_NO_COLOR} $file"
+          return 1
+        }
+    fi
+    printf '%s\n' "$file" >> "$gitignore"
+    echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Ignored: $file"
+  done
+
+  git add -- "$gitignore"
+  echo -e "${CHIEF_COLOR_GREEN}.gitignore updated and staged.${CHIEF_NO_COLOR}"
+  return 0
+}
+
 function chief.git_commit() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [commit_message]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options] [commit_message]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Stage all changes, commit with message, and push to remote repository.
+Before committing, scans staged files and warns if any exceed a size threshold,
+offering to either commit anyway, unstage and add them to .gitignore, or abort.
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   commit_message  Optional descriptive message for the commit
                   (default: \"Auto-commit: \$(date)\")
 
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -f, --force     Skip the large-file size check
+  -?, --help      Show this help
+
+${CHIEF_COLOR_BLUE}Environment:${CHIEF_NO_COLOR}
+  CHIEF_CFG_GIT_COMMIT_WARN_MB   Threshold in MB for large-file warning (default: 50)
+
 ${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
 1. git pull (pull latest changes from remote)
 2. git add . (stage all modified files)
-3. git commit -a -m \"<message>\" (commit changes with message)
-4. git push (push to remote repository)
+3. Large-file safety check (unless -f/--force)
+4. git commit -a -m \"<message>\" (commit changes with message)
+5. git push (push to remote repository)
 
 ${CHIEF_COLOR_MAGENTA}Safety Features:${CHIEF_NO_COLOR}
 - Pulls before committing to avoid conflicts
 - Shows current remote URL for verification
 - Uses timestamped default message if none provided
+- Warns on large files (> ${CHIEF_CFG_GIT_COMMIT_WARN_MB:-50} MB) with interactive
+  commit / gitignore / abort options
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME                                # Uses default timestamp message
   $FUNCNAME \"Fix user authentication bug\"  # Custom message
-  $FUNCNAME \"Add new feature: dashboard\"   # Custom message
+  $FUNCNAME -f \"Ship release assets\"       # Skip large-file check
 "
 
-  if [[ $1 == "-?" || $1 == "--help" ]]; then
-    echo -e "${USAGE}"
-    return
-  fi
+  # Argument parsing: collect options and the optional message (last non-option).
+  local force=false
+  local commit_message=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -\?|--help)
+        echo -e "${USAGE}"
+        return
+        ;;
+      -f|--force)
+        force=true
+        shift
+        ;;
+      --)
+        shift
+        commit_message="${1:-$commit_message}"
+        break
+        ;;
+      *)
+        commit_message="$1"
+        shift
+        ;;
+    esac
+  done
 
   # Use provided message or generate default with timestamp
-  local commit_message="${1:-Auto-commit: $(date '+%Y-%m-%d %H:%M:%S')}"
+  commit_message="${commit_message:-Auto-commit: $(date '+%Y-%m-%d %H:%M:%S')}"
 
   echo -e "${CHIEF_COLOR_BLUE}Repository:${CHIEF_NO_COLOR} $(git config --get remote.origin.url)"
   echo -e "${CHIEF_COLOR_BLUE}Pulling latest changes...${CHIEF_NO_COLOR}"
   git pull
   echo -e "${CHIEF_COLOR_BLUE}Staging all changes...${CHIEF_NO_COLOR}"
   git add .
+
+  if ! $force; then
+    if ! __chief_git_check_large_files; then
+      return 1
+    fi
+  fi
+
   echo -e "${CHIEF_COLOR_BLUE}Committing with message:${CHIEF_NO_COLOR} $commit_message"
   git commit -a -m "$commit_message"
   echo -e "${CHIEF_COLOR_BLUE}Pushing to remote...${CHIEF_NO_COLOR}"

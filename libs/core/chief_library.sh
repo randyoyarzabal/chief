@@ -1065,7 +1065,14 @@ function __chief.banner {
     alias_status=""
   fi
 
-  if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]]; then
+  # Per-line visibility: hide the right-side label while preserving the ASCII art.
+  # Any value other than an explicit "false" is treated as enabled (default: shown).
+  local show_plugins="${CHIEF_CFG_BANNER_SHOW_PLUGINS:-true}"
+  local show_tracking="${CHIEF_CFG_BANNER_SHOW_TRACKING:-true}"
+
+  if [[ "${show_plugins}" == "false" ]]; then
+    git_status=""
+  elif [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]]; then
     if $CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE; then
       git_status="plugins: ${CHIEF_COLOR_CYAN}git [auto-update ${CHIEF_COLOR_GREEN}enabled]"
     else
@@ -1076,7 +1083,9 @@ function __chief.banner {
   fi
 
   # Show connection status and branch tracking
-  if __chief_is_disconnected_mode; then
+  if [[ "${show_tracking}" == "false" ]]; then
+    branch_status=""
+  elif __chief_is_disconnected_mode; then
     branch_status="mode: ${CHIEF_COLOR_RED}disconnected ${CHIEF_COLOR_YELLOW}(no git)${CHIEF_NO_COLOR}"
   else
     local update_branch="${CHIEF_CFG_UPDATE_BRANCH:-main}"
@@ -2173,6 +2182,8 @@ Edit Chief's configuration file with automatic reload on changes.
 
 ${CHIEF_COLOR_GREEN}Configuration Options:${CHIEF_NO_COLOR}
 - CHIEF_CFG_BANNER: Show startup banner
+- CHIEF_CFG_BANNER_SHOW_PLUGINS: Show 'plugins:' line in banner (requires BANNER=true)
+- CHIEF_CFG_BANNER_SHOW_TRACKING: Show 'tracking:' line in banner (requires BANNER=true)
 - CHIEF_CFG_PROMPT: Use Chief's custom prompt
 - CHIEF_CFG_GIT_PROMPT: Git-aware prompt features
 - CHIEF_CFG_MULTILINE_PROMPT: Enable multiline prompt
@@ -2227,6 +2238,8 @@ ${CHIEF_COLOR_GREEN}Input Formats:${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
   BANNER                    Show/hide startup banner (true/false)
+  BANNER_SHOW_PLUGINS       Show/hide 'plugins:' line in banner (true/false; banner must be on)
+  BANNER_SHOW_TRACKING      Show/hide 'tracking:' line in banner (true/false; banner must be on)
   HINTS                     Show/hide startup hints (true/false)
   VERBOSE                   Enable verbose output (true/false)
   AUTOCHECK_UPDATES         Auto-check for updates (true/false)
@@ -3535,8 +3548,10 @@ function __chief_show_configuration_help() {
   echo
   
   echo -e "${CHIEF_COLOR_CYAN}Display & Interface:${CHIEF_NO_COLOR}"
-  echo -e "  ${CHIEF_COLOR_GREEN}BANNER${CHIEF_NO_COLOR}               Show/hide startup banner (true/false)"
-  echo -e "  ${CHIEF_COLOR_GREEN}HINTS${CHIEF_NO_COLOR}                Show/hide startup hints (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}BANNER${CHIEF_NO_COLOR}                 Show/hide startup banner (true/false)"
+  echo -e "    ${CHIEF_COLOR_GREEN}BANNER_SHOW_PLUGINS${CHIEF_NO_COLOR}  Show 'plugins:' line in banner (true/false; banner must be on)"
+  echo -e "    ${CHIEF_COLOR_GREEN}BANNER_SHOW_TRACKING${CHIEF_NO_COLOR} Show 'tracking:' line in banner (true/false; banner must be on)"
+  echo -e "  ${CHIEF_COLOR_GREEN}HINTS${CHIEF_NO_COLOR}                  Show/hide startup hints (true/false)"
   echo -e "  ${CHIEF_COLOR_GREEN}VERBOSE${CHIEF_NO_COLOR}              Enable verbose output (true/false)"
   echo -e "  ${CHIEF_COLOR_GREEN}COLORED_LS${CHIEF_NO_COLOR}           Enable colored ls output (true/false)"
   echo -e "  ${CHIEF_COLOR_GREEN}CONFIG_SET_INTERACTIVE${CHIEF_NO_COLOR} Enable confirmation prompts for config_set (true/false)"
