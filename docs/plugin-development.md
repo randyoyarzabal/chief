@@ -171,6 +171,20 @@ chief.plugin myproject
 # Opens the file in your configured editor
 ```
 
+### Symlink mode: reuse a script as a plugin
+
+If you already have a shell script in a repository (for example under `scripts/`) and want Chief to load it without renaming it, install a plugin symlink:
+
+```bash
+chief.plugin teamtools ./scripts/team_tools.sh
+```
+
+Chief writes `teamtools_chief-plugin.sh` in your configured plugins directory pointing at that script.
+
+**Feature — portable links for teams:** When the script path is under the **same directory tree** as the plugin file (typical when both live in one git checkout, including a cloned remote-plugins directory), the symlink target is **relative** (for example `../scripts/team_tools.sh`). That survives `git push` / `git clone` on other machines. If the script is only reachable by an absolute path outside that tree, Chief uses an absolute symlink target and warns you—it is fine for a personal machine but should not be committed for a shared remote-plugins repo.
+
+After changing or recreating links, commit the `*_chief-plugin.sh` symlink as usual. On Windows, ensure your Git client can create/checkout symlinks if you rely on this workflow.
+
 ### Plugin Template
 
 When you create a new plugin, Chief provides this template:

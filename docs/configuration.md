@@ -238,6 +238,20 @@ Chief is designed with teams in mind. Share your bash functions, aliases, and to
 
 > **Key Concept**: Chief automatically loads any file ending with `_chief-plugin.sh` from your configured plugin directory. The prefix before `_chief-plugin.sh` becomes the **plugin name** (e.g., `devops_chief-plugin.sh` → plugin name "devops"). This makes it perfect for both existing repositories and new team setups, with easy plugin management via `chief.plugin <name>`.
 
+#### Symlink mode: `chief.plugin <name> <existing-file>`
+
+You can point a plugin at an existing script instead of duplicating it:
+
+```bash
+chief.plugin mytools /path/to/your/shared_script.sh
+```
+
+Chief creates `mytools_chief-plugin.sh` in the plugins directory as a symlink to that file.
+
+For **remote or shared repositories**, symlink targets must not be machine-specific. When the existing file lives under the **same directory tree** as the plugin symlink (both paths inside the same clone), Chief creates a **relative** symlink so `git clone` on another laptop or server still resolves the link. If the file is outside that tree (for example only under your home directory), Chief falls back to an **absolute** path and warns you—those links break for teammates unless they share the same layout. Prefer keeping linked scripts inside the repo, or add a real `*_chief-plugin.sh` file in the repo.
+
+Use `chief.plugin -?` for full help, including enable/disable and editor options.
+
 ### Two Setup Scenarios
 
 Choose the approach that fits your team's situation:

@@ -102,6 +102,16 @@ chief.plugins_update          # Update remote plugins (if configured)
 chief.plugins_root             # Navigate to plugins directory
 ```
 
+#### `chief.plugin` symlink mode (portable plugin links)
+
+When you pass a second argument, Chief creates `<name>_chief-plugin.sh` in your plugins directory as a **symlink** to that file so the script loads like any other plugin (`chief.plugin myalias ~/scripts/foo.sh`).
+
+**Portable links (git / remote plugin repos):** If the existing script lives under the **same directory tree** as the plugin symlink (for example both inside your team repo or cloned plugins checkout), Chief writes a **relative** symlink target (for example `../scripts/team_helpers.sh`). That path is the same on every machine after `git clone`, so remote plugins and shared dotfiles work across hosts.
+
+**Not portable:** If the script is outside that tree (or on another volume), Chief uses an **absolute** target and prints a warning. For shared setups, keep the real script inside the repo or use a real `*_chief-plugin.sh` file instead of linking to `~/…`.
+
+Ensure Git records symlinks as symlinks (`core.symlinks` is typically true on Unix). On Windows, symlink support depends on Git/settings.
+
 ### System Management
 
 ```bash

@@ -996,7 +996,9 @@ function __chief_edit_plugin() {
   # Arguments:
   #   plugin_name - Name of the plugin to edit
   #   editor_option - Optional: 'vscode' to use VSCode, otherwise uses default editor
-  #   existing_file_path - Optional: path to existing script; creates symlink in plugins dir instead of new file
+  #   existing_file_path - Optional: path to existing script; creates a symlink at the plugin path
+  #     instead of a new file. Prefers a relative symlink target when the script is under the same
+  #     directory tree as the plugin dir (portable for git). Otherwise uses an absolute target.
   local plugin_name
   local plugin_file
   local editor_option=${2}
@@ -1026,7 +1028,7 @@ function __chief_edit_plugin() {
     plugin_file="${CHIEF_CFG_PLUGINS_PATH}/${plugin_name}${CHIEF_PLUGIN_SUFFIX}"
   fi
 
-  # Symlink mode: third parameter is path to existing file → create symlink in plugins dir
+  # Symlink mode: third parameter is path to existing file → symlink at plugin path (relative target when portable)
   if [[ -n "$existing_file" ]]; then
     local existing_abs
     if command -v realpath >/dev/null 2>&1; then
@@ -3007,7 +3009,12 @@ Enable/disable core or user plugins so they are skipped when Chief loads.
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   plugin_name         Name of plugin to edit (without _chief-plugin.sh suffix)
-  existing_file_path  Optional: path to existing script; creates symlink in plugins dir
+  existing_file_path  Optional: path to an existing script; Chief creates <name>_chief-plugin.sh
+                      as a symlink to that file (same as manual ln -s into the plugins dir).
+                      Symlink targets are relative when the script lives under the same directory
+                      tree as the plugin file (portable for git / remote plugin repos). If no
+                      relative path exists (e.g. target outside the tree or another volume),
+                      Chief uses an absolute target and warns that committing it is not portable.
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   --code, --vscode  Use GUI editor (Cursor if available, else VSCode; set CHIEF_CFG_EDITOR_GUI_CMD to override)
@@ -3027,16 +3034,18 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME disable core.ssl   # Disable core plugin ssl
   $FUNCNAME status             # List enabled/disabled plugins
   $FUNCNAME mytools            # Edit mytools_chief-plugin.sh
-  $FUNCNAME pl /path/to/pl.sh  # Symlink existing script as pl_chief-plugin.sh
+  $FUNCNAME pl /path/to/pl.sh  # Symlink existing script as pl_chief-plugin.sh (relative if portable)
   $FUNCNAME --code default     # Edit default_chief-plugin.sh with Cursor/VSCode
 
 ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
 - Opens in your configured editor (respects CHIEF_CFG_DEFAULT_EDITOR_PATH, \$EDITOR)
 - Cursor/VSCode support with --code/--vscode flag (Cursor preferred if in PATH)
 - Automatically reloads plugin on save
-- Creates new plugin if it doesn't exist
-- Symlink mode: pass existing script path to link it into plugins dir (Chief loads it as usual)
-  When the target shares a path prefix with the plugin directory, a relative symlink is used so git clones work on other machines.
+- Creates new plugin from template if the plugin file does not exist yet
+- Symlink mode (two arguments): installs a plugin symlink so Chief loads your existing script.
+  For team or dotfiles repos, keep the script inside the same checkout as the plugins path so the
+  symlink target is stored as a relative path (works after clone on another machine). Targets
+  outside that tree use an absolute path; Chief warns that those links are host-specific.
 "
 
   # --- Enable/disable/status subcommands (no options before the subcommand) ---

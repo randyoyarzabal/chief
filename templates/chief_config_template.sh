@@ -103,6 +103,11 @@ CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="false"
 # For example, if you have a script named "lab.sh" in the directory,
 # you can create a symlink to it in the directory as "lab_chief-plugin.sh"
 # Or rename it to "lab_chief-plugin.sh" and it will be loaded as a plug-in.
+#
+# Command: chief.plugin <plugin name> <path-to-existing-script>
+# creates that symlink for you. When the script is under the same directory tree as this
+# plugins directory, Chief uses a relative symlink target so git clones work on other machines
+# (team / remote plugin repos). Otherwise the target is absolute; see chief.plugin -?
 
 # You can define your own starting template for plugins, otherwise 
 # the default template will be used: "${CHIEF_PATH}/templates/chief_plugin_template.sh"

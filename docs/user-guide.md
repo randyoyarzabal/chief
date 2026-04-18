@@ -518,6 +518,10 @@ chief.plugins_update          # Update remote plugins (if configured)
 chief.plugins_root             # Navigate to plugins directory
 ```
 
+#### `chief.plugin` symlink mode
+
+`chief.plugin <name> <path-to-script>` creates `<name>_chief-plugin.sh` as a symlink. When the script is under the same directory tree as the plugin directory, Chief uses a **relative** symlink so clones work on other machines (team plugins repo, dotfiles). If the script is outside that tree, Chief uses an absolute path and warns that it is not ideal to commit. See the reference manual for details.
+
 ---
 
 ## Examples & Tutorials
