@@ -935,6 +935,59 @@ __chief_get_core_plugins() {
   echo "${plugin_list_str}"
 }
 
+# True if absolute $2 is $1 or inside $1 (path prefix with boundary).
+__chief_path_is_under_or_equal() {
+  local base="$1"
+  local path="$2"
+  base="${base%/}"
+  path="${path%/}"
+  [[ "$path" == "$base" ]] && return 0
+  [[ "$path" == "${base}/"* ]]
+}
+
+# Echo a relative path from directory $1 to existing path $2 (for ln -sf targets in repos).
+# Returns 0 on success; 1 if paths are unrelated (e.g. different volume roots — caller uses absolute).
+__chief_relpath_from_dir_to_path() {
+  local from_dir="$1"
+  local to_path="$2"
+  local from_abs to_abs to_dir to_base
+  [[ -d "$from_dir" ]] || return 1
+  from_abs="$(cd "$from_dir" && pwd)" || return 1
+  to_dir="$(dirname "$to_path")"
+  to_base="$(basename "$to_path")"
+  [[ -e "$to_path" ]] || return 1
+  to_abs="$(cd "$to_dir" && pwd)/$to_base" || return 1
+  from_abs="${from_abs%/}"
+  to_abs="${to_abs%/}"
+
+  if __chief_path_is_under_or_equal "$from_abs" "$to_abs"; then
+    if [[ "$to_abs" == "$from_abs" ]]; then
+      echo "."
+    else
+      echo "${to_abs#"${from_abs}/"}"
+    fi
+    return 0
+  fi
+
+  local up=""
+  while ! __chief_path_is_under_or_equal "$from_abs" "$to_abs"; do
+    local parent
+    parent="$(dirname "$from_abs")"
+    if [[ "$parent" == "$from_abs" ]]; then
+      return 1
+    fi
+    from_abs="$parent"
+    up="../${up}"
+  done
+
+  if [[ "$to_abs" == "$from_abs" ]]; then
+    printf '%s\n' "$up"
+    return 0
+  fi
+  printf '%s%s\n' "$up" "${to_abs#"${from_abs}/"}"
+  return 0
+}
+
 # Edit a plugin file and reload into memory if changed.
 #   Note, will only succeed if plug-in is enabled in settings.
 # Usage: __chief_edit_plugin <plug-in name> [editor_option] [existing_file_path]
@@ -1000,8 +1053,18 @@ function __chief_edit_plugin() {
       echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unable to create plugin directory."
       return 1
     fi
-    if ln -sf "$existing_abs" "$plugin_file"; then
-      echo -e "${CHIEF_COLOR_GREEN}Symlink created:${CHIEF_NO_COLOR} ${plugin_file} → ${existing_abs}"
+    local link_target="$existing_abs"
+    local link_dir
+    link_dir="$(dirname "$plugin_file")"
+    local rel_target=""
+    if rel_target="$(__chief_relpath_from_dir_to_path "$link_dir" "$existing_abs")"; then
+      link_target="$rel_target"
+      echo -e "${CHIEF_COLOR_BLUE}Using relative symlink (portable for git / other machines).${CHIEF_NO_COLOR}"
+    else
+      echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} Could not derive a relative path; using absolute target (not portable if committed to a repo)."
+    fi
+    if ln -sf "$link_target" "$plugin_file"; then
+      echo -e "${CHIEF_COLOR_GREEN}Symlink created:${CHIEF_NO_COLOR} ${plugin_file} → ${link_target}"
       echo -e "${CHIEF_COLOR_BLUE}Plugin will load on next Chief reload. Edit with:${CHIEF_NO_COLOR} chief.plugin $plugin_name"
     else
       echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Failed to create symlink: $plugin_file"
@@ -2973,6 +3036,7 @@ ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
 - Automatically reloads plugin on save
 - Creates new plugin if it doesn't exist
 - Symlink mode: pass existing script path to link it into plugins dir (Chief loads it as usual)
+  When the target shares a path prefix with the plugin directory, a relative symlink is used so git clones work on other machines.
 "
 
   # --- Enable/disable/status subcommands (no options before the subcommand) ---
