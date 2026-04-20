@@ -59,13 +59,27 @@ else
   CHIEF_WEBSITE="https://chief.reonetlabs.us"
 fi
 
-# Colors
-RED='\033[0;31m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+# Colors: ANSI only when stdout is a capable TTY (same policy as chief_library.sh).
+__chief_tools_stdout_color_ok() {
+  [[ -z "${NO_COLOR:-}" ]] || return 1
+  [[ -n "${CHIEF_FORCE_COLOR:-}" ]] && return 0
+  [[ -t 1 && -n "${TERM:-}" && "${TERM}" != dumb ]]
+}
+if __chief_tools_stdout_color_ok; then
+  RED='\033[0;31m'
+  BLUE='\033[0;34m'
+  CYAN='\033[0;36m'
+  GREEN='\033[0;32m'
+  YELLOW='\033[1;33m'
+  NC='\033[0m'
+else
+  RED=''
+  BLUE=''
+  CYAN=''
+  GREEN=''
+  YELLOW=''
+  NC=''
+fi
 
 confirm() {
   read -p "$1 ([y]es or [N]o): " -r

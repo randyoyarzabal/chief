@@ -78,21 +78,35 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Validate argument combinations
-if $LOCAL_INSTALL && $BRANCH_SPECIFIED; then
-  echo -e "\033[1;33mWARNING: --branch option is ignored when using --local installation.\033[0m"
-  echo -e "\033[0;36mLocal installations use the files present in the current directory,\033[0m"
-  echo -e "\033[0;36mnot a specific git branch. This is intended for disconnected environments.\033[0m"
-  echo ""
+# Colors: ANSI only when stdout is a capable TTY (same policy as chief_library.sh).
+__chief_tools_stdout_color_ok() {
+  [[ -z "${NO_COLOR:-}" ]] || return 1
+  [[ -n "${CHIEF_FORCE_COLOR:-}" ]] && return 0
+  [[ -t 1 && -n "${TERM:-}" && "${TERM}" != dumb ]]
+}
+if __chief_tools_stdout_color_ok; then
+  RED='\033[0;31m'
+  BLUE='\033[0;34m'
+  CYAN='\033[0;36m'
+  GREEN='\033[0;32m'
+  YELLOW='\033[1;33m'
+  NC='\033[0m'
+else
+  RED=''
+  BLUE=''
+  CYAN=''
+  GREEN=''
+  YELLOW=''
+  NC=''
 fi
 
-# Colors
-RED='\033[0;31m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+# Validate argument combinations
+if $LOCAL_INSTALL && $BRANCH_SPECIFIED; then
+  echo -e "${YELLOW}WARNING: --branch option is ignored when using --local installation.${NC}"
+  echo -e "${CYAN}Local installations use the files present in the current directory,${NC}"
+  echo -e "${CYAN}not a specific git branch. This is intended for disconnected environments.${NC}"
+  echo ""
+fi
 
 # Configuration lines to add to .bash_profile
 CONFIG_LINES=(

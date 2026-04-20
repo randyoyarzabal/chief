@@ -1512,13 +1512,24 @@ function __chief_build_git_prompt() {
   # Usage: PROMPT_COMMAND='__chief_build_git_prompt'
   # Needed because PROMPT_COMMAND doesn't 'echo -e' and this also fixes the nasty
   # wrapping bug when the prompt is colorized and a VE is activated.
-  # Note: Using \[ \] sequences for non-printing characters in prompts
-  local P_BLUE='\[\033[0;34m\]'
-  local P_CYAN='\[\033[0;36m\]'
-  local P_GREEN='\[\033[0;32m\]'
-  local P_MAGENTA='\[\033[0;35m\]'
-  local P_YELLOW='\[\033[1;33m\]'
-  local P_NO_COLOR='\[\033[0m\]'
+  # Note: Using \[ \] sequences for non-printing characters in prompts;
+  # colors follow the same TTY / TERM / NO_COLOR rules as CHIEF_COLOR_*.
+  local P_BLUE P_CYAN P_GREEN P_MAGENTA P_YELLOW P_NO_COLOR
+  if ${CHIEF_CFG_COLORED_PROMPT}; then
+    P_BLUE="\[${CHIEF_COLOR_BLUE}\]"
+    P_CYAN="\[${CHIEF_COLOR_CYAN}\]"
+    P_GREEN="\[${CHIEF_COLOR_GREEN}\]"
+    P_MAGENTA="\[${CHIEF_COLOR_MAGENTA}\]"
+    P_YELLOW="\[${CHIEF_COLOR_YELLOW}\]"
+    P_NO_COLOR="\[${CHIEF_NO_COLOR}\]"
+  else
+    P_BLUE=''
+    P_CYAN=''
+    P_GREEN=''
+    P_MAGENTA=''
+    P_YELLOW=''
+    P_NO_COLOR=''
+  fi
 
   local ve_name=''
   if [[ ! -z ${VIRTUAL_ENV} ]]; then
@@ -1599,6 +1610,10 @@ function __chief_check_for_updates (){
 # TEXT COLOR VARIABLES
 ########################################################################
 
+# ANSI SGR colors (no tput): emit only when stdout is a color-capable TTY.
+# Honors NO_COLOR (https://no-color.org/). Set CHIEF_FORCE_COLOR to a non-empty
+# value to enable sequences when stdout is not a TTY (e.g. scripted demos).
+
 # Color guide from Stack Overflow
 # https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
 
@@ -1614,15 +1629,33 @@ function __chief_check_for_updates (){
 #Cyan         0;36     Light Cyan    1;36
 #Light Gray   0;37     White         1;37
 
-export CHIEF_COLOR_RED='\033[0;31m'
-export CHIEF_COLOR_BLUE='\033[0;34m'
-export CHIEF_COLOR_CYAN='\033[0;36m'
-export CHIEF_COLOR_GREEN='\033[0;32m'
-export CHIEF_COLOR_MAGENTA='\033[0;35m'
-export CHIEF_COLOR_ORANGE='\033[0;33m'
-export CHIEF_COLOR_YELLOW='\033[1;33m'
-export CHIEF_TEXT_BLINK='\033[5m'
-export CHIEF_NO_COLOR='\033[0m' # Reset color/style
+__chief_stdout_color_ok() {
+  [[ -z "${NO_COLOR:-}" ]] || return 1
+  [[ -n "${CHIEF_FORCE_COLOR:-}" ]] && return 0
+  [[ -t 1 && -n "${TERM:-}" && "${TERM}" != dumb ]]
+}
+
+if __chief_stdout_color_ok; then
+  export CHIEF_COLOR_RED='\033[0;31m'
+  export CHIEF_COLOR_BLUE='\033[0;34m'
+  export CHIEF_COLOR_CYAN='\033[0;36m'
+  export CHIEF_COLOR_GREEN='\033[0;32m'
+  export CHIEF_COLOR_MAGENTA='\033[0;35m'
+  export CHIEF_COLOR_ORANGE='\033[0;33m'
+  export CHIEF_COLOR_YELLOW='\033[1;33m'
+  export CHIEF_TEXT_BLINK='\033[5m'
+  export CHIEF_NO_COLOR='\033[0m'
+else
+  export CHIEF_COLOR_RED=''
+  export CHIEF_COLOR_BLUE=''
+  export CHIEF_COLOR_CYAN=''
+  export CHIEF_COLOR_GREEN=''
+  export CHIEF_COLOR_MAGENTA=''
+  export CHIEF_COLOR_ORANGE=''
+  export CHIEF_COLOR_YELLOW=''
+  export CHIEF_TEXT_BLINK=''
+  export CHIEF_NO_COLOR=''
+fi
 
 # Gutter for framework status during load (lines without this prefix may be plugin output). Word "Chief" is reserved for rare bookends (e.g. chief.reload).
 export CHIEF_FRAMEWORK_MSG_PREFIX="${CHIEF_COLOR_CYAN}│${CHIEF_NO_COLOR} "
