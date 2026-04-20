@@ -313,7 +313,7 @@ ${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
 1. git pull (pull latest changes from remote)
 2. git add . (stage all modified files)
 3. Large-file safety check (unless -f/--force)
-4. git commit -a -m \"<message>\" (commit changes with message)
+4. git commit -a -m \"<message>\" (skipped if there is nothing to commit after pull)
 5. git push (push to remote repository)
 
 ${CHIEF_COLOR_MAGENTA}Safety Features:${CHIEF_NO_COLOR}
@@ -372,17 +372,31 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     fi
   fi
 
-  echo -e "${CHIEF_COLOR_BLUE}Committing with message:${CHIEF_NO_COLOR} $commit_message"
-  if ! git commit -a -m "$commit_message"; then
-    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git commit failed (nothing to commit, or pre-commit hook rejected the commit)."
-    return 1
+  local did_commit=false
+  if git diff --cached --quiet; then
+    echo -e "${CHIEF_COLOR_YELLOW}Nothing to commit:${CHIEF_NO_COLOR} index matches HEAD (often after pull already included your changes). Skipping commit."
+  else
+    echo -e "${CHIEF_COLOR_BLUE}Committing with message:${CHIEF_NO_COLOR} $commit_message"
+    if ! git commit -a -m "$commit_message"; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git commit failed (pre-commit hook rejected the commit, or another git error)."
+      return 1
+    fi
+    did_commit=true
   fi
   echo -e "${CHIEF_COLOR_BLUE}Pushing to remote...${CHIEF_NO_COLOR}"
   if ! git push; then
-    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git push failed. The commit exists locally; fix remote access (e.g. correct SSH key for this repo) and run ${CHIEF_COLOR_CYAN}git push${CHIEF_NO_COLOR}."
+    if $did_commit; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git push failed. The commit exists locally; fix remote access (e.g. correct SSH key for this repo) and run ${CHIEF_COLOR_CYAN}git push${CHIEF_NO_COLOR}."
+    else
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git push failed. Fix remote access (e.g. correct SSH key for this repo) and run ${CHIEF_COLOR_CYAN}git push${CHIEF_NO_COLOR}."
+    fi
     return 1
   fi
-  echo -e "${CHIEF_COLOR_GREEN}Commit and push completed${CHIEF_NO_COLOR}"
+  if $did_commit; then
+    echo -e "${CHIEF_COLOR_GREEN}Commit and push completed.${CHIEF_NO_COLOR}"
+  else
+    echo -e "${CHIEF_COLOR_GREEN}Nothing to commit; branch is in sync with remote.${CHIEF_NO_COLOR}"
+  fi
 }
 
 function chief.git_tag() {
