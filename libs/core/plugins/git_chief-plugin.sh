@@ -359,7 +359,10 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
 
   echo -e "${CHIEF_COLOR_BLUE}Repository:${CHIEF_NO_COLOR} $(git config --get remote.origin.url)"
   echo -e "${CHIEF_COLOR_BLUE}Pulling latest changes...${CHIEF_NO_COLOR}"
-  git pull
+  if ! git pull; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git pull failed."
+    return 1
+  fi
   echo -e "${CHIEF_COLOR_BLUE}Staging all changes...${CHIEF_NO_COLOR}"
   git add .
 
@@ -370,9 +373,15 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 
   echo -e "${CHIEF_COLOR_BLUE}Committing with message:${CHIEF_NO_COLOR} $commit_message"
-  git commit -a -m "$commit_message"
+  if ! git commit -a -m "$commit_message"; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git commit failed (nothing to commit, or pre-commit hook rejected the commit)."
+    return 1
+  fi
   echo -e "${CHIEF_COLOR_BLUE}Pushing to remote...${CHIEF_NO_COLOR}"
-  git push
+  if ! git push; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git push failed. The commit exists locally; fix remote access (e.g. correct SSH key for this repo) and run ${CHIEF_COLOR_CYAN}git push${CHIEF_NO_COLOR}."
+    return 1
+  fi
   echo -e "${CHIEF_COLOR_GREEN}Commit and push completed${CHIEF_NO_COLOR}"
 }
 
@@ -413,9 +422,15 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   
   echo -e "${CHIEF_COLOR_BLUE}Creating annotated tag:${CHIEF_NO_COLOR} $1"
   echo -e "${CHIEF_COLOR_BLUE}Tag message:${CHIEF_NO_COLOR} $commit_msg"
-  git tag -a "$1" -m "$commit_msg"
+  if ! git tag -a "$1" -m "$commit_msg"; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git tag failed."
+    return 1
+  fi
   echo -e "${CHIEF_COLOR_BLUE}Pushing tag to remote...${CHIEF_NO_COLOR}"
-  git push origin "$1"
+  if ! git push origin "$1"; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git push failed. Tag may exist only locally."
+    return 1
+  fi
   echo -e "${CHIEF_COLOR_GREEN}Tag created and pushed successfully${CHIEF_NO_COLOR}"
 }
 
@@ -450,9 +465,15 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 
   echo -e "${CHIEF_COLOR_BLUE}Creating new branch:${CHIEF_NO_COLOR} $1"
-  git checkout -b "$1"
+  if ! git checkout -b "$1"; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git checkout -b failed."
+    return 1
+  fi
   echo -e "${CHIEF_COLOR_BLUE}Setting up remote tracking...${CHIEF_NO_COLOR}"
-  git push -u origin "$1"
+  if ! git push -u origin "$1"; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git push failed. Branch exists locally only."
+    return 1
+  fi
   echo -e "${CHIEF_COLOR_GREEN}Branch created and tracking set up${CHIEF_NO_COLOR}"
 }
 
@@ -621,16 +642,22 @@ ${CHIEF_COLOR_RED}Safety Notes:${CHIEF_NO_COLOR}
   if [[ -n "$remote_commit" ]] && git merge-base --is-ancestor "$local_commit" "origin/${current_branch}" 2>/dev/null; then
     # Commit was already pushed, use force-with-lease
     echo -e "${CHIEF_COLOR_BLUE}Commit was previously pushed, using force-with-lease...${CHIEF_NO_COLOR}"
-    git push --force-with-lease
+    if ! git push --force-with-lease; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git push --force-with-lease failed."
+      return 1
+    fi
   else
     # This is a new commit or remote doesn't exist, use regular push
     echo -e "${CHIEF_COLOR_BLUE}Pushing amended commit...${CHIEF_NO_COLOR}"
     if ! git push 2>/dev/null; then
       echo -e "${CHIEF_COLOR_YELLOW}Regular push failed, trying force-with-lease...${CHIEF_NO_COLOR}"
-      git push --force-with-lease
+      if ! git push --force-with-lease; then
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git push failed."
+        return 1
+      fi
     fi
   fi
-  
+
   echo -e "${CHIEF_COLOR_GREEN}Commit amended and pushed successfully${CHIEF_NO_COLOR}"
 }
 
