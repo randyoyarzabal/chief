@@ -310,14 +310,14 @@ ${CHIEF_COLOR_BLUE}Environment:${CHIEF_NO_COLOR}
   CHIEF_CFG_GIT_COMMIT_WARN_MB   Threshold in MB for large-file warning (default: 50)
 
 ${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
-1. git pull (pull latest changes from remote)
+1. git pull (best-effort; on failure, skip and continue with commit/push)
 2. git add . (stage all modified files)
 3. Large-file safety check (unless -f/--force)
 4. git commit -a -m \"<message>\" (skipped if there is nothing to commit after pull)
 5. git push (push to remote repository)
 
 ${CHIEF_COLOR_MAGENTA}Safety Features:${CHIEF_NO_COLOR}
-- Pulls before committing to avoid conflicts
+- Tries to pull before committing; if pull fails (conflicts, unmerged files, etc.), continues anyway
 - Shows current remote URL for verification
 - Uses timestamped default message if none provided
 - Warns on large files (> ${CHIEF_CFG_GIT_COMMIT_WARN_MB:-50} MB) with interactive
@@ -360,8 +360,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   echo -e "${CHIEF_COLOR_BLUE}Repository:${CHIEF_NO_COLOR} $(git config --get remote.origin.url)"
   echo -e "${CHIEF_COLOR_BLUE}Pulling latest changes...${CHIEF_NO_COLOR}"
   if ! git pull; then
-    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git pull failed."
-    return 1
+    echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} git pull failed (e.g. merge conflicts or unmerged files). Skipping pull; continuing with commit and push."
   fi
   echo -e "${CHIEF_COLOR_BLUE}Staging all changes...${CHIEF_NO_COLOR}"
   git add .
