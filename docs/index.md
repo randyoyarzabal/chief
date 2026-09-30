@@ -228,6 +228,12 @@ This helps us quickly identify and fix issues!
 
 Contributions welcome! See our [reference documentation](reference.html#contributing) for guidelines.
 
+## Acknowledgments
+
+Chief is designed, written, and maintained by [Randy E. Oyarzabal](https://github.com/randyoyarzabal).
+
+**AI-assisted development.** Portions of this project were developed and maintained with the help of AI coding assistants, specifically [Cursor](https://cursor.com) and [Claude](https://claude.com) (Anthropic), for tasks such as refactoring, test authoring, bug-fixing, and documentation. All AI-generated changes are reviewed, tested, and approved by the maintainer before release. Where an AI tool contributed to a commit, it is credited with a `Co-authored-by` trailer.
+
 ## License
 
 MIT License - see [LICENSE](https://github.com/randyoyarzabal/chief/blob/main/LICENSE) file for details.

@@ -67,32 +67,39 @@ test_bash_syntax() {
     fi
 }
 
-# Test ShellCheck if available (informational only)
+# ShellCheck at "error" severity is a real gate: errors fail the test.
+# Warnings and style suggestions are shown only in verbose mode and never fail.
+# SC1090/SC1091: dynamic/unfollowed source paths are expected in this project.
+# --shell=bash: everything here is bash; vendored libs/extras files are sourced and have no shebang.
+SHELLCHECK_EXCLUDES="SC1090,SC1091"
+SHELLCHECK_OPTS_COMMON=(--shell=bash -e "$SHELLCHECK_EXCLUDES")
+
 test_shellcheck() {
     local file="$1"
     local relative_path="${file#$PROJECT_ROOT/}"
-    
+
     if ! command -v shellcheck >/dev/null 2>&1; then
-        return 0  # Skip if shellcheck not available
+        return 0  # Skipped entirely when shellcheck is not installed
     fi
-    
+
+    ((TOTAL_TESTS++))
+
     if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
         log_info "Running ShellCheck: $relative_path"
     fi
-    
-    # Run shellcheck with reasonable exclusions for this project
-    # Note: This is informational only and doesn't affect test results
-    if shellcheck -e SC1090,SC1091,SC2034,SC2154 "$file" >/dev/null 2>&1; then
+
+    if shellcheck -S error "${SHELLCHECK_OPTS_COMMON[@]}" "$file" >/dev/null 2>&1; then
+        log_success "ShellCheck OK: $relative_path"
         if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
-            echo -e "${GREEN}  ShellCheck: No issues found${NC}"
+            # Informational: show warnings/style hints without failing
+            shellcheck -S warning --shell=bash -e "$SHELLCHECK_EXCLUDES,SC2034,SC2154" "$file" 2>&1 | head -10 | sed 's/^/    /'
         fi
         return 0
     else
-        # echo -e "${YELLOW}  ShellCheck: Found style suggestions (informational only)${NC}"
-        if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
-            shellcheck -e SC1090,SC1091,SC2034,SC2154 "$file" 2>&1 | head -5 | sed 's/^/    /'
-        fi
-        return 0  # Don't fail on shellcheck warnings
+        log_error "ShellCheck FAILED: $relative_path"
+        echo -e "${RED}Error details:${NC}"
+        shellcheck -S error "${SHELLCHECK_OPTS_COMMON[@]}" "$file" 2>&1 | head -20 | sed 's/^/  /'
+        return 1
     fi
 }
 
@@ -125,6 +132,11 @@ find_bash_scripts() {
     while IFS= read -r -d '' file; do
         scripts+=("$file")
     done < <(find "$PROJECT_ROOT/libs/extras/git" -name "*.sh" -type f -print0 2>/dev/null || true)
+
+    # The test suite itself
+    while IFS= read -r -d '' file; do
+        scripts+=("$file")
+    done < <(find "$PROJECT_ROOT/tests" -name "*.sh" -type f -print0 2>/dev/null || true)
     
     printf '%s\n' "${scripts[@]}"
 }
@@ -156,14 +168,15 @@ main() {
     # Test each script
     local failed_files=()
     
+    if ! command -v shellcheck >/dev/null 2>&1; then
+        log_warning "shellcheck not installed; static analysis skipped (bash -n only)"
+    fi
+
     for script in "${scripts[@]}"; do
         if ! test_bash_syntax "$script"; then
             failed_files+=("$script")
-        fi
-        
-        # Also run shellcheck if available (informational only)
-        if command -v shellcheck >/dev/null 2>&1; then
-            test_shellcheck "$script"
+        elif ! test_shellcheck "$script"; then
+            failed_files+=("$script")
         fi
     done
     
@@ -183,7 +196,7 @@ main() {
         echo -e "${GREEN}🎉 ALL SYNTAX TESTS PASSED!${NC}"
         return 0
     else
-        echo -e "${RED}❌ Syntax errors found in ${#failed_files[@]} file(s):${NC}"
+        echo -e "${RED}❌ Syntax or ShellCheck errors found in ${#failed_files[@]} file(s):${NC}"
         for file in "${failed_files[@]}"; do
             echo -e "${RED}  - ${file#$PROJECT_ROOT/}${NC}"
         done
@@ -205,7 +218,8 @@ show_help() {
     echo "  CHIEF_TEST_VERBOSE  Enable verbose output (same as -v)"
     echo ""
     echo "This script validates bash syntax for all bash scripts in the Chief project."
-    echo "It uses 'bash -n' for syntax checking and optionally ShellCheck for static analysis."
+    echo "It uses 'bash -n' for syntax checking and, when installed, ShellCheck at"
+    echo "error severity as a hard gate (warnings are shown only with -v and never fail)."
 }
 
 # Parse command line arguments

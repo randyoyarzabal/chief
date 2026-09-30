@@ -78,7 +78,12 @@ chief.config_update --dry-run
 
 # Reload Chief after changes
 chief.reload
+
+# Show banner and stats (functions, core/user plugins, enabled/disabled)
+chief.status
 ```
+
+**Terminal colors:** Chief emits ANSI colors only when stdout is a capable TTY, so piped output and CI logs stay plain. Set `NO_COLOR=1` to disable colors, or `CHIEF_FORCE_COLOR=1` to force them.
 
 ### Plugin Management
 

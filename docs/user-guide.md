@@ -106,6 +106,9 @@ chief.whereis my_function
 
 # Reload all plugins after changes
 chief.reload
+
+# Show banner and stats (function count, core/user plugins, enabled/disabled)
+chief.status
 ```
 
 ### Configuration Management

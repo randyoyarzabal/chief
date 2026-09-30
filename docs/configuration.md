@@ -81,6 +81,8 @@ These are environment variables (not configuration settings) that affect Chief's
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `CHIEF_HOST` | _unset_ | Override hostname display in prompt. Useful for marking systems without changing hostname. |
+| `NO_COLOR` | _unset_ | When set, disables all ANSI colors in Chief output (core, plugins, install/uninstall scripts). |
+| `CHIEF_FORCE_COLOR` | _unset_ | When set, forces ANSI colors even when stdout is not a TTY (e.g. piped output or CI logs). By default colors are emitted only on a capable TTY. |
 
 **Example:**
 

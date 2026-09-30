@@ -2,7 +2,7 @@
 
 **Bash Plugin Manager & Terminal Enhancement Tool**
 
-[![GitHub release](https://img.shields.io/badge/Download%20Release-v3.2.0--dev-blue.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Dev Branch](https://img.shields.io/badge/Dev%20Branch-v3.2.0--dev-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev) [![Main Branch](https://img.shields.io/badge/Stable-v3.2.0--dev-green.svg?style=social)](https://github.com/randyoyarzabal/chief) [![Documentation](https://img.shields.io/badge/Documentation-blue)](https://chief.reonetlabs.us)
+[![GitHub release](https://img.shields.io/badge/Download%20Release-v3.1.4-blue.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Dev Branch](https://img.shields.io/badge/Dev%20Branch-v3.2.0--dev-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev) [![Main Branch](https://img.shields.io/badge/Stable-v3.1.4-green.svg?style=social)](https://github.com/randyoyarzabal/chief) [![Documentation](https://img.shields.io/badge/Documentation-blue)](https://chief.reonetlabs.us)
 
 Chief is a lightweight, powerful Bash library system that helps you organize your shell environment through a plugin-based architecture. Think of it as a package manager for your bash functions, aliases, and tools.
 
@@ -154,7 +154,7 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 
 - `chief.git_init` - Initially commit current directory to a repository
 - `chief.git_clone` - Enhanced git cloning with safety checks
-- `chief.git_commit` - Streamlined commit workflow
+- `chief.git_commit` - Streamlined pull, commit, and push workflow (large-file warning; pull failures warn and continue)
 - `chief.git_reset_*` - Safe reset operations with dry-run support
 - `chief.git_branch` - Advanced branch management
 - `chief.git_config-user` - Quick user configuration setup
@@ -206,6 +206,12 @@ This helps us quickly identify and fix issues!
 ## Contributing
 
 Contributions welcome! See our [documentation](https://chief.reonetlabs.us/reference#contributing) for guidelines.
+
+## Acknowledgments
+
+Chief is designed, written, and maintained by [Randy E. Oyarzabal](https://github.com/randyoyarzabal).
+
+**AI-assisted development.** Portions of this project were developed and maintained with the help of AI coding assistants, specifically [Cursor](https://cursor.com) and [Claude](https://claude.com) (Anthropic). AI assistance was used for tasks such as refactoring, test authoring, bug-fixing, and documentation. All AI-generated changes are reviewed, tested, and approved by the maintainer before release, and the maintainer remains responsible for the code. Where an AI tool contributed to a commit, it is credited with a `Co-authored-by` trailer in the commit message.
 
 ## License
 

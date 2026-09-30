@@ -4472,7 +4472,9 @@ EOF
     local has_badges=false
     local badge_needs_update=false
     
-    if grep -q "$new_version" "$file" 2>/dev/null; then
+    # Up to date only if the new version is present AND the old one is gone.
+    # A plain substring check is not enough: "v3.2.0" matches inside "v3.2.0-dev".
+    if grep -qF "$new_version" "$file" 2>/dev/null && ! grep -qF "$current_version" "$file" 2>/dev/null; then
       has_new_version=true
     fi
     
@@ -4516,41 +4518,24 @@ EOF
     fi
     
     if $dry_run; then
-      local changes=""
-      if grep -q "$current_version" "$file" 2>/dev/null; then
-        changes="version"
+      # Describe what the real run would touch in this file
+      local changes=()
+      if grep -v "img\.shields\.io/badge/" "$file" 2>/dev/null | grep -qF "$current_version"; then
+        changes+=("version")
       fi
-      if grep -q "$badge_current" "$file" 2>/dev/null; then
-        if [[ -n "$changes" ]]; then
-          changes="$changes + badges"
-        else
-          changes="badges"
-        fi
+      if grep -q "img\.shields\.io/badge/" "$file" 2>/dev/null; then
+        changes+=("badges")
       fi
-      
-      # Check for dev badge changes
-      if [[ -n "$dev_badge_current" && -n "$dev_badge_new" ]]; then
-        if [[ "$dev_badge_current" == *".*"* ]]; then
-          # Pattern matching - check if file has any dev badge
-          if grep -q "Dev%20Branch-.*" "$file" 2>/dev/null; then
-            if [[ -n "$changes" ]]; then
-              changes="$changes + dev badges"
-            else
-              changes="dev badges"
-            fi
-          fi
-        else
-          # Exact match
-          if grep -q "$dev_badge_current" "$file" 2>/dev/null; then
-            if [[ -n "$changes" ]]; then
-              changes="$changes + dev badges"
-            else
-              changes="dev badges"
-            fi
-          fi
-        fi
+      if [[ "$(basename "$file")" == "README.md" ]]; then
+        changes+=("content structure")
       fi
-      __chief_print_info "$(basename "$file"): Would update $changes ($current_version → $new_version)"
+      if [[ ${#changes[@]} -eq 0 ]]; then
+        __chief_print_info "$(basename "$file"): No version or badge references found; nothing to change"
+        continue
+      fi
+      local changes_str
+      changes_str="$(IFS='|'; echo "${changes[*]}")"
+      __chief_print_info "$(basename "$file"): Would update ${changes_str//|/ + } ($current_version → $new_version)"
       continue
     fi
     
@@ -4562,81 +4547,53 @@ EOF
     # Perform replacements (both regular version and badge URLs)
     local success=true
     
-    # Handle stable badge first (before general version replacement)
-    if [[ "$(basename "$file")" == "README.md" ]]; then
-      if [[ "${positional_args[0]}" == "next-dev" ]]; then
-        # For next-dev: stable badge should show the current stable version (remove -dev from current)
-        local stable_version="${current_version%-dev}"  # Get stable version from current version
-        if ! sed -i.tmp_stable "s|Stable-[^-]*-green|Stable-${stable_version}-green|g" "$file" 2>/dev/null; then
-          success=false
-        fi
-      elif [[ "${positional_args[0]}" == "release" ]]; then
-        # For release: stable badge should show new release version
-        if ! sed -i.tmp_stable "s|Stable-[^-]*\(-dev\)\?-green|Stable-${new_version}-green|g" "$file" 2>/dev/null; then
-          success=false
-        fi
+    # Badge versions. Each badge has a fixed meaning regardless of branch:
+    #   Download Release / Stable  -> latest *released* (stable) version, never "-dev"
+    #   Dev Branch                 -> in-progress development version, always "-dev"
+    # shields.io encodes a literal "-" inside the message as "--".
+    local stable_version="" dev_version=""
+    if [[ "${positional_args[0]}" == "release" ]]; then
+      stable_version="${new_version}"
+      if [[ "$current_version" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)-dev$ ]]; then
+        dev_version="v${BASH_REMATCH[1]}.$((BASH_REMATCH[2] + 1)).0-dev"
       fi
+    elif [[ "${positional_args[0]}" == "next-dev" ]]; then
+      stable_version="${current_version%-dev}"
+      dev_version="${new_version}"
+    else
+      stable_version="${new_version%-dev}"
+      [[ "$new_version" == *-dev ]] && dev_version="${new_version}"
     fi
-    
-    # Update regular version references
-    if $success && ! sed -i.tmp1 "s/${current_version}/${new_version}/g" "$file" 2>/dev/null; then
+    local stable_enc="${stable_version//-/--}"
+    local dev_enc="${dev_version//-/--}"
+    # Matches a badge version token such as v3.1.4 or v3.2.0--dev (portable BRE, BSD + GNU sed)
+    local ver_re='v[0-9][0-9.]*\(--dev\)\{0,1\}'
+    local current_version_re="${current_version//./\\.}"
+
+    # Update regular version references everywhere EXCEPT shields.io badge lines,
+    # so a global replace can never turn a stable badge into a dev badge.
+    if ! sed -i.tmp1 "/img\.shields\.io\/badge\//!s/${current_version_re}/${new_version}/g" "$file" 2>/dev/null; then
       success=false
     fi
-    
-    # Normalize shields.io badge URLs: -dev in version must be --dev so label-message-color parses correctly (avoids 404 on dev branch)
-    if $success && grep -q "img\.shields\.io/badge/" "$file" 2>/dev/null && [[ "$new_version" == *"-dev" ]]; then
-      if ! sed -i.tmp_badge '/img\.shields\.io\/badge\//s/\(v[0-9]\+\.[0-9]\+\.[0-9]\+\)-dev/\1--dev/g' "$file" 2>/dev/null; then
+
+    # Rewrite each badge explicitly from its intended meaning
+    if $success && grep -q "img\.shields\.io/badge/" "$file" 2>/dev/null; then
+      if ! sed -i.tmp2 \
+        -e "s|Download%20Release-${ver_re}-|Download%20Release-${stable_enc}-|g" \
+        -e "s|Download-Release%20${ver_re}-|Download-Release%20${stable_enc}-|g" \
+        -e "s|Stable-${ver_re}-|Stable-${stable_enc}-|g" \
+        "$file" 2>/dev/null; then
         success=false
       fi
-    fi
-    
-    # Update badge URL-encoded versions - improved to handle -dev suffix variations
-    if $success; then
-      # Try exact replacement first
-      if ! sed -i.tmp2 "s/${badge_current}/${badge_new}/g" "$file" 2>/dev/null; then
-        # If that fails, try a more flexible pattern-based replacement
-        if [[ "${positional_args[0]}" == "next-dev" ]]; then
-          # For next-dev, try pattern matching for old format
-          if ! sed -i.tmp2 "s|Download%20Release-[^-]*\(--dev\)\?|${badge_new}|g" "$file" 2>/dev/null; then
+
+      if $success && [[ -n "$dev_enc" ]]; then
+        if grep -q "Dev%20Branch-" "$file" 2>/dev/null; then
+          if ! sed -i.tmp_dev "s|Dev%20Branch-${ver_re}-|Dev%20Branch-${dev_enc}-|g" "$file" 2>/dev/null; then
             success=false
           fi
-        elif [[ "${positional_args[0]}" == "release" ]]; then
-          # For release, try pattern matching for old format
-          if ! sed -i.tmp2 "s|Download%20Release-[^-]*\(--dev\)\?|${badge_new}|g" "$file" 2>/dev/null; then
-            success=false
-          fi
-        else
-          success=false
-        fi
-      fi
-    fi
-    
-    # Update dev badge if we have dev badge changes
-    if $success && [[ -n "$dev_badge_current" && -n "$dev_badge_new" ]]; then
-      # Check if dev badge exists in file
-      local dev_badge_exists=false
-      if grep -q "Dev%20Branch-" "$file" 2>/dev/null; then
-        dev_badge_exists=true
-      fi
-      
-      if $dev_badge_exists; then
-        # Update existing dev badge
-        if [[ "$dev_badge_current" == *".*"* ]]; then
-          # Use regex replacement for pattern matching - prevent --dev accumulation
-          if ! sed -i.tmp_dev "s|Dev%20Branch-[^-]*\(--dev\)*|${dev_badge_new}|g" "$file" 2>/dev/null; then
-            success=false
-          fi
-        else
-          # Use exact string replacement
-          if ! sed -i.tmp_dev "s/${dev_badge_current}/${dev_badge_new}/g" "$file" 2>/dev/null; then
-            success=false
-          fi
-        fi
-      else
-        # Add dev badge if it doesn't exist (for next-dev workflow in README.md)
-        if [[ "${positional_args[0]}" == "next-dev" && "$(basename "$file")" == "README.md" ]]; then
-          # Insert dev badge after the release badge - fixed pattern for shields.io format
-          if ! sed -i.tmp_dev "s|\(Download%20Release-[^-]*\(--dev\)\?[^]]*\)]\([^)]*\))\(.*\)Documentation|\1]\3) [![Dev Branch](https://img.shields.io/badge/${dev_badge_new}-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev)\4Documentation|g" "$file" 2>/dev/null; then
+        elif [[ "$(basename "$file")" == "README.md" ]]; then
+          # README has no Dev Branch badge yet: insert one right after the Download Release badge
+          if ! sed -i.tmp_dev "s|\(\[!\[[^]]*\](https://img\.shields\.io/badge/Download%20Release-[^)]*)\]([^)]*)\)|\1 [![Dev Branch](https://img.shields.io/badge/Dev%20Branch-${dev_enc}-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev)|" "$file" 2>/dev/null; then
             success=false
           fi
         fi

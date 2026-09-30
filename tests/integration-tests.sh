@@ -197,166 +197,6 @@ test_core_files() {
     fi
 }
 
-# Test git repository health
-test_git_repository() {
-    TOTAL_TESTS=$((TOTAL_TESTS + 1))
-    
-    if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
-        log_info "Testing git repository"
-    fi
-    
-    if ! command -v git >/dev/null 2>&1; then
-        log_warning "Git not available, skipping repository test"
-        return 0
-    fi
-    
-    cd "$PROJECT_ROOT"
-    
-    # Check if we're in a git repository
-    if ! git rev-parse --git-dir >/dev/null 2>&1; then
-        log_warning "Not in a git repository, skipping git tests"
-        return 0
-    fi
-    
-    # Check for common git issues
-    local issues=()
-    
-    # Check if there are any untracked important files
-    local untracked_important=()
-    while IFS= read -r file; do
-        if [[ "$file" == "chief.sh" ]] || [[ "$file" == "libs/"* ]] || [[ "$file" == "tools/"* ]]; then
-            untracked_important+=("$file")
-        fi
-    done < <(git ls-files --others --exclude-standard 2>/dev/null || true)
-    
-    if [[ ${#untracked_important[@]} -gt 0 ]]; then
-        issues+=("untracked important files: ${untracked_important[*]}")
-    fi
-    
-    if [[ ${#issues[@]} -eq 0 ]]; then
-        log_success "Git repository OK"
-        return 0
-    else
-        log_warning "Git repository issues: ${issues[*]}"
-        return 0  # Don't fail on git warnings
-    fi
-}
-
-# Test README and documentation
-test_documentation() {
-    TOTAL_TESTS=$((TOTAL_TESTS + 1))
-    
-    if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
-        log_info "Testing documentation"
-    fi
-    
-    local doc_files=(
-        "$PROJECT_ROOT/README.md"
-        "$PROJECT_ROOT/docs/index.md"
-    )
-    
-    local found_docs=0
-    for doc in "${doc_files[@]}"; do
-        if [[ -f "$doc" ]]; then
-            found_docs=$((found_docs + 1))
-        fi
-    done
-    
-    if [[ $found_docs -gt 0 ]]; then
-        log_success "Documentation OK ($found_docs file(s) found)"
-        return 0
-    else
-        log_warning "No documentation files found"
-        return 0  # Don't fail on missing docs
-    fi
-}
-
-# Test a simulated chief.sh lib-only loading with full environment
-test_full_environment() {
-    TOTAL_TESTS=$((TOTAL_TESTS + 1))
-    
-    if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
-        log_info "Testing full environment simulation"
-    fi
-    
-    # Create a complete test environment
-    local test_script="$TEMP_DIR/test_full_env.sh"
-    
-    cat > "$test_script" << 'EOF'
-#!/usr/bin/env bash
-set -e
-
-project_root="$1"
-
-# Set up complete Chief environment
-export CHIEF_PATH="$project_root"
-export CHIEF_CONFIG="$project_root/templates/chief_config_template.sh"
-
-# Test that we can source the config template
-if ! source "$CHIEF_CONFIG" >/dev/null 2>&1; then
-    echo "Failed to source config template"
-    exit 1
-fi
-
-# Override problematic config settings for testing
-export CHIEF_CFG_BANNER=false
-export CHIEF_CFG_VERBOSE=false
-export CHIEF_CFG_HINTS=false
-export CHIEF_CFG_AUTOCHECK_UPDATES=false
-export CHIEF_CFG_COLORED_LS=false
-
-# Test that we can source chief.sh in lib-only mode
-if ! source "$CHIEF_PATH/chief.sh" --lib-only >/dev/null 2>&1; then
-    echo "Failed to source chief.sh in lib-only mode"
-    exit 1
-fi
-
-echo "Full environment test successful"
-exit 0
-EOF
-    
-    chmod +x "$test_script"
-    
-    # Run the test with timeout using background process and kill
-    local test_pid
-    local timeout_seconds=30
-    
-    # Start the test in background
-    bash "$test_script" "$PROJECT_ROOT" 2>/dev/null &
-    test_pid=$!
-    
-    # Wait for completion or timeout
-    local count=0
-    while [[ $count -lt $timeout_seconds ]]; do
-        if ! kill -0 "$test_pid" 2>/dev/null; then
-            # Process has completed
-            wait "$test_pid"
-            local exit_code=$?
-            if [[ $exit_code -eq 0 ]]; then
-                log_success "Full environment simulation OK"
-                return 0
-            else
-                log_error "Full environment simulation FAILED (exit code: $exit_code)"
-                return 1
-            fi
-        fi
-        sleep 1
-        count=$((count + 1))
-    done
-    
-    # Timeout reached - kill the process
-    if kill -0 "$test_pid" 2>/dev/null; then
-        kill -TERM "$test_pid" 2>/dev/null || true
-        sleep 2
-        kill -KILL "$test_pid" 2>/dev/null || true
-        wait "$test_pid" 2>/dev/null || true
-    fi
-    
-    log_error "Full environment simulation TIMED OUT after ${timeout_seconds} seconds"
-    echo -e "${RED}This suggests a hang during plugin loading or configuration${NC}"
-    return 1
-}
-
 # Main execution
 main() {
     echo -e "${CYAN}========================================${NC}"
@@ -371,14 +211,12 @@ main() {
     echo ""
     
     # Run integration tests
+    # (chief.sh --lib-only loading is covered by source-tests.sh; not repeated here)
     test_directory_structure
     test_core_files
     test_version_file
     test_install_script
     test_uninstall_script
-    test_git_repository
-    test_documentation
-    test_full_environment
     
     echo ""
     echo -e "${CYAN}========================================${NC}"
@@ -417,10 +255,7 @@ show_help() {
     echo "  - Directory structure"
     echo "  - Core file presence"
     echo "  - VERSION file validity"
-    echo "  - Installation script functionality"
-    echo "  - Git repository health"
-    echo "  - Documentation presence"
-    echo "  - Full environment simulation"
+    echo "  - Installation and uninstall script help"
 }
 
 # Parse command line arguments
