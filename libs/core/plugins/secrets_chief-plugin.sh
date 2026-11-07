@@ -70,6 +70,68 @@ function __chief_secrets_detect_backend() {
   echo ""
 }
 
+# Fail early (before any password prompt) when the gpg binary is missing, with an install hint.
+# Without this, "command not found" was swallowed and reported as a wrong password.
+function __chief_secrets_require_gpg() {
+  command -v gpg >/dev/null 2>&1 && return 0
+  local hint="Install GnuPG (the 'gpg' command)."
+  case "$(uname -s)" in
+    Darwin) hint="Install it with: brew install gnupg" ;;
+    Linux)
+      if command -v apt-get >/dev/null 2>&1; then
+        hint="Install it with: sudo apt-get install gnupg"
+      elif command -v dnf >/dev/null 2>&1; then
+        hint="Install it with: sudo dnf install gnupg2"
+      elif command -v yum >/dev/null 2>&1; then
+        hint="Install it with: sudo yum install gnupg2"
+      elif command -v apk >/dev/null 2>&1; then
+        hint="Install it with: sudo apk add gnupg"
+      elif command -v pacman >/dev/null 2>&1; then
+        hint="Install it with: sudo pacman -S gnupg"
+      fi
+      ;;
+  esac
+  echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} This is a GPG-encrypted secrets file but 'gpg' was not found in PATH." >&2
+  echo -e "${CHIEF_COLOR_YELLOW}${hint}${CHIEF_NO_COLOR}" >&2
+  return 1
+}
+
+# Report why a gpg operation failed, using gpg's own stderr (file path in $1, action in $2).
+# Only blames the password when gpg actually says so; otherwise shows gpg's message.
+function __chief_secrets_gpg_report() {
+  local errf="$1" action="${2:-decrypt}" msg
+  msg="$(grep -v '^[[:space:]]*$' "$errf" 2>/dev/null | tail -n 3)"
+  if [[ "$msg" == *"bad session key"* || "$msg" == *"decryption failed"* || "$msg" == *"Bad passphrase"* || "$msg" == *"bad passphrase"* ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} GPG $action failed: wrong password." >&2
+  else
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} GPG $action failed (not necessarily the password)." >&2
+    if [[ -n "$msg" ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}gpg said:${CHIEF_NO_COLOR}" >&2
+      printf '  %s\n' "$msg" >&2
+    else
+      echo -e "${CHIEF_COLOR_YELLOW}gpg produced no error output; check the file and your gpg setup (gpg --version).${CHIEF_NO_COLOR}" >&2
+    fi
+  fi
+}
+
+# Report why an ansible-vault operation failed, using ansible's own stderr (file path in $1, action in $2).
+function __chief_secrets_ansible_report() {
+  local errf="$1" action="${2:-decrypt}" msg
+  msg="$(grep -v '^[[:space:]]*$' "$errf" 2>/dev/null | tail -n 3)"
+  if [[ "$msg" == *"Decryption failed"* || "$msg" == *"Incorrect vault password"* || "$msg" == *"HMAC verification failed"* ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} ansible-vault $action failed: wrong vault password." >&2
+  elif [[ "$msg" == *"no vault secrets"* || "$msg" == *"Vault password"*"not found"* ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} ansible-vault $action failed: no vault password was provided." >&2
+    echo -e "${CHIEF_COLOR_YELLOW}Set ANSIBLE_VAULT_PASSWORD_FILE or run in an interactive terminal to be prompted.${CHIEF_NO_COLOR}" >&2
+  else
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} ansible-vault $action failed (not necessarily the password)." >&2
+    if [[ -n "$msg" ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}ansible-vault said:${CHIEF_NO_COLOR}" >&2
+      printf '  %s\n' "$msg" >&2
+    fi
+  fi
+}
+
 # Show deprecation warning for legacy file name (once per session).
 function __chief_secrets_warn_legacy_file() {
   local base="$1"
@@ -210,45 +272,53 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
       echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} ansible-vault required. Install ansible-core."
       return 1
     fi
-    ansible-vault edit "$secrets_file" || return 1
+    ansible-vault edit "$secrets_file" || {
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} ansible-vault edit failed (see ansible-vault output above): $secrets_file" >&2
+      return 1
+    }
   else
-    local tmpf editor gpg_pass
+    __chief_secrets_require_gpg || return 1
+    local tmpf errf editor gpg_pass
     tmpf="$(mktemp)"
+    errf="$(mktemp)"
     editor="${EDITOR:-vi}"
     if [[ -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" ]] && [[ -f "$CHIEF_SECRETS_PASSWORD_FILE" ]]; then
-      gpg --batch --passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE" --decrypt "$secrets_file" > "$tmpf" 2>/dev/null || {
-        rm -f "$tmpf"
-        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} GPG decrypt failed (wrong password or file)." >&2
+      gpg --batch --passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE" --decrypt "$secrets_file" > "$tmpf" 2>"$errf" || {
+        __chief_secrets_gpg_report "$errf" decrypt
+        rm -f "$tmpf" "$errf"
         return 1
       }
     else
       echo -e "${CHIEF_COLOR_CYAN}GPG password:${CHIEF_NO_COLOR}" >&2
       read -rs gpg_pass </dev/tty 2>/dev/null || read -rs gpg_pass
       echo >&2
-      gpg --batch --passphrase-fd 0 --decrypt "$secrets_file" > "$tmpf" 2>/dev/null <<< "$gpg_pass" || {
+      gpg --batch --passphrase-fd 0 --decrypt "$secrets_file" > "$tmpf" 2>"$errf" <<< "$gpg_pass" || {
         unset gpg_pass
-        rm -f "$tmpf"
-        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} GPG decrypt failed (wrong password or file)." >&2
+        __chief_secrets_gpg_report "$errf" decrypt
+        rm -f "$tmpf" "$errf"
         return 1
       }
     fi
+    rm -f "$errf"
     "$editor" "$tmpf"
     if [[ -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" ]] && [[ -f "$CHIEF_SECRETS_PASSWORD_FILE" ]]; then
-      gpg --batch --yes --armor --passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE" --symmetric --cipher-algo AES256 -o "$secrets_file" "$tmpf" 2>/dev/null || {
-        rm -f "$tmpf"
-        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} GPG encrypt failed." >&2
+      errf="$(mktemp)"
+      gpg --batch --yes --armor --passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE" --symmetric --cipher-algo AES256 -o "$secrets_file" "$tmpf" 2>"$errf" || {
+        __chief_secrets_gpg_report "$errf" encrypt
+        rm -f "$tmpf" "$errf"
         return 1
       }
     else
-      gpg --batch --yes --armor --passphrase-fd 0 --symmetric --cipher-algo AES256 -o "$secrets_file" "$tmpf" 2>/dev/null <<< "$gpg_pass" || {
+      errf="$(mktemp)"
+      gpg --batch --yes --armor --passphrase-fd 0 --symmetric --cipher-algo AES256 -o "$secrets_file" "$tmpf" 2>"$errf" <<< "$gpg_pass" || {
         unset gpg_pass
-        rm -f "$tmpf"
-        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} GPG encrypt failed." >&2
+        __chief_secrets_gpg_report "$errf" encrypt
+        rm -f "$tmpf" "$errf"
         return 1
       }
       unset gpg_pass
     fi
-    rm -f "$tmpf"
+    rm -f "$tmpf" "$errf"
   fi
 
   if $no_load; then
@@ -309,30 +379,44 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
       echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} ansible-vault required. Install ansible-core."
       return 1
     fi
-    if source <(ansible-vault view "$secrets_file" 2>/dev/null); then
+    # Decrypt first (keeping stderr) so a decrypt failure is not confused with a syntax error in the content.
+    local adec aerrf
+    aerrf="$(mktemp)"
+    adec="$(ansible-vault view "$secrets_file" 2>"$aerrf")" || {
+      __chief_secrets_ansible_report "$aerrf" decrypt
+      rm -f "$aerrf"
+      return 1
+    }
+    rm -f "$aerrf"
+    if source <(printf '%s\n' "$adec"); then
       echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file loaded (ansible-vault)."
     else
-      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Failed to load (password or syntax). Try: ansible-vault view $secrets_file | bash -n"
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Sourcing decrypted content failed (syntax error). Check with: ansible-vault view $secrets_file | bash -n"
       return 1
     fi
   else
-    local dec gpg_pass
+    __chief_secrets_require_gpg || return 1
+    local dec gpg_pass errf
+    errf="$(mktemp)"
     if [[ -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" ]] && [[ -f "$CHIEF_SECRETS_PASSWORD_FILE" ]]; then
-      dec="$(gpg --batch --passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE" --decrypt "$secrets_file" 2>/dev/null)" || {
-        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} GPG decrypt failed. Check password or file."
+      dec="$(gpg --batch --passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE" --decrypt "$secrets_file" 2>"$errf")" || {
+        __chief_secrets_gpg_report "$errf" decrypt
+        rm -f "$errf"
         return 1
       }
     else
       echo -e "${CHIEF_COLOR_CYAN}GPG password:${CHIEF_NO_COLOR}" >&2
       read -rs gpg_pass </dev/tty 2>/dev/null || read -rs gpg_pass
       echo >&2
-      dec="$(gpg --batch --passphrase-fd 0 --decrypt "$secrets_file" 2>/dev/null <<< "$gpg_pass")" || {
+      dec="$(gpg --batch --passphrase-fd 0 --decrypt "$secrets_file" 2>"$errf" <<< "$gpg_pass")" || {
         unset gpg_pass
-        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} GPG decrypt failed." >&2
+        __chief_secrets_gpg_report "$errf" decrypt
+        rm -f "$errf"
         return 1
       }
       unset gpg_pass
     fi
+    rm -f "$errf"
     if source <(printf '%s' "$dec"); then
       echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file loaded (gpg)."
     else
