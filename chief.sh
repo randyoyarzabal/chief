@@ -66,6 +66,9 @@ if [[ $1 == "--lib-only" ]]; then
   return 0
 fi
 
+# Warn (once, before plugins load) if running on Bash < 4, e.g. the macOS system bash.
+__chief_check_bash_version
+
 # Load core libraries (including plugins) for full interactive mode
 __chief_load_library
 

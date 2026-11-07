@@ -109,6 +109,32 @@ cd chief
 | Ansible Core | 2.9 | Latest | Optional - vault functions only |
 | OpenShift CLI (oc) | 4.0 | Latest | Optional - OpenShift functions only |
 
+### macOS: install a newer Bash
+
+macOS ships **Bash 3.2** (`/bin/bash`), which is too old for Chief. Symptoms are errors such as
+`declare: -A: invalid option` and `declare: -g: invalid option` when your terminal starts, and some
+plugins not working. Chief now prints a warning with these steps at start-up when it detects Bash older than 4.0.
+
+```bash
+# 1. Install a current Bash (Apple Silicon: /opt/homebrew/bin/bash, Intel: /usr/local/bin/bash)
+brew install bash
+
+# 2. Make your terminal use it. Either set the terminal app's command / shell to:
+/opt/homebrew/bin/bash -l
+
+#    ...or add this to the TOP of ~/.bash_profile so any terminal switches over automatically:
+if [[ $- == *i* ]] && (( BASH_VERSINFO[0] < 4 )) && [[ -x /opt/homebrew/bin/bash ]]; then
+  exec /opt/homebrew/bin/bash -l
+fi
+
+# 3. Open a new terminal and confirm
+bash --version        # should report 4.x or 5.x
+echo $BASH_VERSION
+```
+
+Changing your login shell with `chsh -s /opt/homebrew/bin/bash` also works, but requires adding that path to `/etc/shells` first.
+To silence the start-up warning: `chief.config_set -y BASH_WARN=false`.
+
 ### Check Your Environment
 
 ```bash

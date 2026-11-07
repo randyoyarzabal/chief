@@ -162,6 +162,43 @@ function __chief_load_library() {
   __chief_framework_print "library reloaded." "$1"
 }
 
+function __chief_check_bash_version() {
+  # Usage: __chief_check_bash_version
+  #
+  # Developer usage: Warns (never blocks) when Chief is loaded by a Bash older than 4.0.
+  # - macOS ships Bash 3.2, which lacks 'declare -A' / 'declare -g' used by Chief and many plugins.
+  #   Without this warning the only symptom is cryptic "declare: -A: invalid option" errors.
+  # - Prints to stderr. Disable with CHIEF_CFG_BASH_WARN=false.
+  # - Test hook: CHIEF_TEST_BASH_VERSINFO_MAJOR overrides the detected major version.
+  local major="${CHIEF_TEST_BASH_VERSINFO_MAJOR:-${BASH_VERSINFO[0]:-0}}"
+  (( major >= 4 )) && return 0
+  [[ "${CHIEF_CFG_BASH_WARN:-true}" == "false" ]] && return 0
+
+  local brew_bash="" cand
+  for cand in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+    [[ -x "$cand" ]] && { brew_bash="$cand"; break; }
+  done
+
+  echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} Chief needs Bash 4.0+, but this shell is Bash ${BASH_VERSION:-unknown} (${BASH:-bash})." >&2
+  echo -e "Some Chief plugins and commands will fail (e.g. ${CHIEF_COLOR_RED}declare: -A: invalid option${CHIEF_NO_COLOR})." >&2
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    echo -e "macOS ships Bash 3.2. To fix:" >&2
+    if [[ -z "$brew_bash" ]]; then
+      echo -e "  1. Install a current Bash:  ${CHIEF_COLOR_CYAN}brew install bash${CHIEF_NO_COLOR}" >&2
+      brew_bash="/opt/homebrew/bin/bash"
+    else
+      echo -e "  1. A newer Bash is already installed at ${CHIEF_COLOR_CYAN}${brew_bash}${CHIEF_NO_COLOR}." >&2
+    fi
+    echo -e "  2. Make your terminal use it. Either set the terminal's command / shell to" >&2
+    echo -e "     ${CHIEF_COLOR_CYAN}${brew_bash} -l${CHIEF_NO_COLOR}, or put this at the top of ~/.bash_profile:" >&2
+    echo -e "       ${CHIEF_COLOR_GREEN}if [[ \$- == *i* ]] && (( BASH_VERSINFO[0] < 4 )) && [[ -x ${brew_bash} ]]; then exec ${brew_bash} -l; fi${CHIEF_NO_COLOR}" >&2
+  else
+    echo -e "Upgrade Bash with your package manager (for example: apt-get install bash, dnf install bash)." >&2
+  fi
+  echo -e "Silence this warning with: ${CHIEF_COLOR_CYAN}chief.config_set -y BASH_WARN=false${CHIEF_NO_COLOR}" >&2
+  return 0
+}
+
 function __chief_print() {
   # Usage: __chief_print <string> [--verbose]
   # 
@@ -2282,6 +2319,7 @@ ${CHIEF_COLOR_GREEN}Configuration Options:${CHIEF_NO_COLOR}
 - CHIEF_CFG_BANNER: Show startup banner
 - CHIEF_CFG_BANNER_SHOW_PLUGINS: Show 'plugins:' line in banner (requires BANNER=true)
 - CHIEF_CFG_BANNER_SHOW_TRACKING: Show 'tracking:' line in banner (requires BANNER=true)
+- CHIEF_CFG_BASH_WARN: Warn at start-up when running on Bash older than 4.0 (default true)
 - CHIEF_CFG_PROMPT: Use Chief's custom prompt
 - CHIEF_CFG_GIT_PROMPT: Git-aware prompt features
 - CHIEF_CFG_MULTILINE_PROMPT: Enable multiline prompt
@@ -2338,6 +2376,7 @@ ${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
   BANNER                    Show/hide startup banner (true/false)
   BANNER_SHOW_PLUGINS       Show/hide 'plugins:' line in banner (true/false; banner must be on)
   BANNER_SHOW_TRACKING      Show/hide 'tracking:' line in banner (true/false; banner must be on)
+  BASH_WARN                 Warn at start-up if Bash is older than 4.0 (true/false)
   HINTS                     Show/hide startup hints (true/false)
   VERBOSE                   Enable verbose output (true/false)
   AUTOCHECK_UPDATES         Auto-check for updates (true/false)
@@ -3657,6 +3696,7 @@ function __chief_show_configuration_help() {
   echo -e "  ${CHIEF_COLOR_GREEN}BANNER${CHIEF_NO_COLOR}                 Show/hide startup banner (true/false)"
   echo -e "    ${CHIEF_COLOR_GREEN}BANNER_SHOW_PLUGINS${CHIEF_NO_COLOR}  Show 'plugins:' line in banner (true/false; banner must be on)"
   echo -e "    ${CHIEF_COLOR_GREEN}BANNER_SHOW_TRACKING${CHIEF_NO_COLOR} Show 'tracking:' line in banner (true/false; banner must be on)"
+  echo -e "  ${CHIEF_COLOR_GREEN}BASH_WARN${CHIEF_NO_COLOR}              Warn at start-up if Bash is older than 4.0 (true/false)"
   echo -e "  ${CHIEF_COLOR_GREEN}HINTS${CHIEF_NO_COLOR}                  Show/hide startup hints (true/false)"
   echo -e "  ${CHIEF_COLOR_GREEN}VERBOSE${CHIEF_NO_COLOR}              Enable verbose output (true/false)"
   echo -e "  ${CHIEF_COLOR_GREEN}COLORED_LS${CHIEF_NO_COLOR}           Enable colored ls output (true/false)"

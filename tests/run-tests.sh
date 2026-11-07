@@ -194,6 +194,19 @@ main() {
         echo ""
     fi
     
+    # 6. Bash version warning tests
+    if [[ -f "$TEST_DIR/bash-version-tests.sh" ]]; then
+        log_info "Running bash version warning tests..."
+        TOTAL_TESTS=$((TOTAL_TESTS + 1))
+        if "$TEST_DIR/bash-version-tests.sh"; then
+            log_success "Bash version warning tests"
+        else
+            log_error "Bash version warning tests"
+            suite_failures=$((suite_failures + 1))
+        fi
+        echo ""
+    fi
+
     # Print final summary
     print_summary
 }
@@ -218,6 +231,7 @@ show_help() {
     echo "  ./tests/plugin-tests.sh     - Plugin-specific tests"
     echo "  ./tests/integration-tests.sh - End-to-end functionality"
     echo "  ./tests/bump-tests.sh       - __chief.bump release/next-dev on a scratch copy"
+    echo "  ./tests/bash-version-tests.sh - Bash < 4 start-up warning"
 }
 
 # Parse command line arguments

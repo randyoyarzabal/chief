@@ -100,6 +100,36 @@ else
   NC=''
 fi
 
+# Chief itself needs Bash 4.0+ (associative arrays, declare -g). This installer runs fine on 3.2,
+# but the shell you load Chief in must be newer. Warn only; never block the install.
+__chief_install_bash_notice() {
+  local cand brew_bash=""
+  for cand in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+    [[ -x "$cand" ]] && { brew_bash="$cand"; break; }
+  done
+  local current_major="${BASH_VERSINFO[0]:-0}"
+  local newer_ok=false
+  if [[ -n "$brew_bash" ]] && "$brew_bash" -c '(( BASH_VERSINFO[0] >= 4 ))' 2>/dev/null; then
+    newer_ok=true
+  fi
+  (( current_major >= 4 )) && return 0
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    echo -e "${YELLOW}NOTE: Chief needs Bash 4.0+, but this shell is Bash ${BASH_VERSION} (the macOS system bash).${NC}"
+    if $newer_ok; then
+      echo -e "${CYAN}A newer Bash is installed at ${brew_bash}. Make your terminal use it (set the terminal's${NC}"
+      echo -e "${CYAN}command to '${brew_bash} -l'), otherwise Chief plugins will fail with 'declare: -A: invalid option'.${NC}"
+    else
+      echo -e "${CYAN}Install a current Bash first:  brew install bash${NC}"
+      echo -e "${CYAN}Then make your terminal use it (set the terminal's command to '/opt/homebrew/bin/bash -l').${NC}"
+    fi
+    echo -e "${CYAN}Chief will also print these steps at start-up until it is running under Bash 4+.${NC}"
+  else
+    echo -e "${YELLOW}NOTE: Chief needs Bash 4.0+, but this shell is Bash ${BASH_VERSION}. Upgrade Bash with your package manager.${NC}"
+  fi
+  echo ""
+}
+__chief_install_bash_notice
+
 # Validate argument combinations
 if $LOCAL_INSTALL && $BRANCH_SPECIFIED; then
   echo -e "${YELLOW}WARNING: --branch option is ignored when using --local installation.${NC}"

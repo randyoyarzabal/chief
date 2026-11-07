@@ -511,8 +511,8 @@ chief.help
 # Check bash version - Chief requires Bash 4.0+
 bash --version
 
-# If using older bash (like macOS default), upgrade:
-# macOS: brew install bash
+# If using older bash (like macOS default), upgrade (also fixes "declare: -A: invalid option"):
+# macOS: brew install bash   (then set your terminal's command to /opt/homebrew/bin/bash -l)
 # Linux: Update your package manager
 
 # Ensure you're running bash

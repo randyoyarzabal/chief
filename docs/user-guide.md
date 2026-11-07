@@ -645,7 +645,7 @@ Chief is designed specifically for **Bash** and won't interfere with other shell
 source ~/.bash_profile
 ```
 
-#### Q: "Bad substitution" or "Syntax error" messages
+#### Q: "Bad substitution", "Syntax error", or "declare: -A: invalid option" messages
 
 ```bash
 # Check bash version - Chief requires Bash 4.0+
@@ -655,6 +655,11 @@ bash --version
 # macOS: brew install bash
 # Linux: Update your package manager
 ```
+
+On macOS the terminal usually still starts `/bin/bash` (3.2) after installing a newer one. Set your terminal's
+command to `/opt/homebrew/bin/bash -l`, or add a re-exec snippet to the top of `~/.bash_profile`. Full steps:
+[macOS: install a newer Bash](getting-started.md#macos-install-a-newer-bash). Chief prints these steps at start-up when it
+detects Bash older than 4.0 (disable with `CHIEF_CFG_BASH_WARN=false`).
 
 #### Q: Vault functions not working
 

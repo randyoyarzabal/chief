@@ -20,6 +20,11 @@ CHIEF_CFG_BANNER=true
 CHIEF_CFG_BANNER_SHOW_PLUGINS=true
 CHIEF_CFG_BANNER_SHOW_TRACKING=true
 
+# If set to true, will warn at start-up when Chief is loaded by Bash older than 4.0
+# (e.g. the macOS system bash, 3.2) and show how to install/use a newer one.
+# Set to false to silence the warning.
+CHIEF_CFG_BASH_WARN=true
+
 # If set to true, will display output when plugins and SSH keys are loaded at start-up.
 CHIEF_CFG_VERBOSE=false
 
