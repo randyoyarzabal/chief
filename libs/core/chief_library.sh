@@ -983,17 +983,19 @@ __chief_path_is_under_or_equal() {
 }
 
 # Echo a relative path from directory $1 to existing path $2 (for ln -sf targets in repos).
+# Both sides are resolved to physical paths (symlinked directories followed), because the kernel
+# resolves a relative symlink target from the link's physical directory, not its logical path.
 # Returns 0 on success; 1 if paths are unrelated (e.g. different volume roots — caller uses absolute).
 __chief_relpath_from_dir_to_path() {
   local from_dir="$1"
   local to_path="$2"
   local from_abs to_abs to_dir to_base
   [[ -d "$from_dir" ]] || return 1
-  from_abs="$(cd "$from_dir" && pwd)" || return 1
+  from_abs="$(cd "$from_dir" && pwd -P)" || return 1
   to_dir="$(dirname "$to_path")"
   to_base="$(basename "$to_path")"
   [[ -e "$to_path" ]] || return 1
-  to_abs="$(cd "$to_dir" && pwd)/$to_base" || return 1
+  to_abs="$(cd "$to_dir" && pwd -P)/$to_base" || return 1
   from_abs="${from_abs%/}"
   to_abs="${to_abs%/}"
 
@@ -1074,7 +1076,7 @@ function __chief_edit_plugin() {
     if [[ -z "$existing_abs" ]]; then
       # Portable fallback: resolve to absolute path
       if [[ -d "$(dirname "$existing_file")" ]]; then
-        existing_abs="$(cd "$(dirname "$existing_file")" && pwd)/$(basename "$existing_file")"
+        existing_abs="$(cd "$(dirname "$existing_file")" && pwd -P)/$(basename "$existing_file")"
       else
         existing_abs="$existing_file"
       fi
@@ -1096,13 +1098,29 @@ function __chief_edit_plugin() {
     local link_dir
     link_dir="$(dirname "$plugin_file")"
     local rel_target=""
-    if rel_target="$(__chief_relpath_from_dir_to_path "$link_dir" "$existing_abs")"; then
+    local plugins_root_abs=""
+    plugins_root_abs="$(cd "${CHIEF_CFG_PLUGINS_PATH}" 2>/dev/null && pwd -P)" || plugins_root_abs=""
+    # Relative target only when the script lives inside the plugins tree (portable for git clones).
+    # Anything outside it would need ../../.. hops that depend on this machine's layout, so use absolute.
+    if [[ -n "$plugins_root_abs" ]] && __chief_path_is_under_or_equal "$plugins_root_abs" "$existing_abs" \
+      && rel_target="$(__chief_relpath_from_dir_to_path "$link_dir" "$existing_abs")"; then
       link_target="$rel_target"
       echo -e "${CHIEF_COLOR_BLUE}Using relative symlink (portable for git / other machines).${CHIEF_NO_COLOR}"
     else
-      echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} Could not derive a relative path; using absolute target (not portable if committed to a repo)."
+      echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} Target is outside the plugins directory; using absolute symlink (not portable if committed to a repo)."
     fi
     if ln -sf "$link_target" "$plugin_file"; then
+      # Safety net: never leave a dangling link. If a relative target doesn't resolve, fall back to absolute.
+      if [[ ! -e "$plugin_file" && "$link_target" != "$existing_abs" ]]; then
+        echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} Relative target did not resolve; using absolute target instead."
+        link_target="$existing_abs"
+        ln -sf "$link_target" "$plugin_file"
+      fi
+      if [[ ! -e "$plugin_file" ]]; then
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Symlink does not resolve: ${plugin_file} → ${link_target}"
+        rm -f "$plugin_file"
+        return 1
+      fi
       echo -e "${CHIEF_COLOR_GREEN}Symlink created:${CHIEF_NO_COLOR} ${plugin_file} → ${link_target}"
       echo -e "${CHIEF_COLOR_BLUE}Plugin will load on next Chief reload. Edit with:${CHIEF_NO_COLOR} chief.plugin $plugin_name"
     else
