@@ -3955,7 +3955,7 @@ ${CHIEF_COLOR_BLUE}Output Features:${CHIEF_NO_COLOR}
     if [[ -d "$dir" ]]; then
       while IFS= read -r -d '' file; do
         search_files+=("$file")
-      done < <(find "$dir" -name "*.sh" -o -name "*.bash" -type f -print0 2>/dev/null)
+      done < <(find -L "$dir" \( -name "*.sh" -o -name "*.bash" \) -type f -print0 2>/dev/null)
     fi
   done
   
@@ -3968,7 +3968,7 @@ ${CHIEF_COLOR_BLUE}Output Features:${CHIEF_NO_COLOR}
   if [[ -d "${CHIEF_PATH}/libs/core/plugins" ]]; then
     while IFS= read -r -d '' file; do
       search_files+=("$file")
-    done < <(find "${CHIEF_PATH}/libs/core/plugins" -name "*.sh" -type f -print0 2>/dev/null)
+    done < <(find -L "${CHIEF_PATH}/libs/core/plugins" -name "*.sh" -type f -print0 2>/dev/null)
   fi
   
   # User plugins
@@ -3980,11 +3980,13 @@ ${CHIEF_COLOR_BLUE}Output Features:${CHIEF_NO_COLOR}
     configured_plugin_dir=${CHIEF_CFG_PLUGINS_PATH}
   fi
   
+  # find -L: follow symlinks, so plugins linked in with `chief.plugin <name> <file>` (and
+  # plugin dirs that are themselves symlinks) are searched; -type f then tests the link target.
   for plugin_dir in "${configured_plugin_dir}" ~/.chief_plugins ~/.local/share/chief/plugins; do
     if [[ -n "$plugin_dir" && -d "$plugin_dir" ]]; then
       while IFS= read -r -d '' file; do
         search_files+=("$file")
-      done < <(find "$plugin_dir" -name "*.sh" -type f -print0 2>/dev/null)
+      done < <(find -L "$plugin_dir" -name "*.sh" -type f -print0 2>/dev/null)
     fi
   done
 
@@ -3997,8 +3999,8 @@ ${CHIEF_COLOR_BLUE}Output Features:${CHIEF_NO_COLOR}
     if [[ -f "$file" && -r "$file" ]]; then
       local matches
       # Search for: export VAR=, VAR=, function VAR(), VAR(), alias VAR=
-      matches=$(grep -n -E "(^|[[:space:]])(export[[:space:]]+${name}[=[:space:]]|${name}[[:space:]]*=|function[[:space:]]+${name}[[:space:]]*\\(|${name}[[:space:]]*\\(|alias[[:space:]]+${name}[=[:space:]])" "$file" 2>/dev/null)
-      
+      matches=$(grep -n -E "(^|[[:space:]])(export[[:space:]]+${name}[=[:space:]]|${name}[[:space:]]*=|function[[:space:]]+${name}[[:space:]]*\\(|${name}[[:space:]]*\\(|alias[[:space:]]+${name}[=[:space:]])" "$file" 2>/dev/null | grep -v -E '^[0-9]+:[[:space:]]*#')
+
       if [[ -n "$matches" ]]; then
         echo -e "${CHIEF_COLOR_GREEN}Found in:${CHIEF_NO_COLOR} $file"
         while IFS=: read -r line_num line_content; do
