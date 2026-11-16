@@ -101,20 +101,24 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.help` - Interactive help system with plugin browsing
 - `chief.whereis <function>` - Find any function across all plugins
 - `chief.plugins_*` - Plugin management and discovery tools
-- `chief.plugin enable|disable [core.]<name>` - Enable or disable core/user plugins; `chief.plugin status` shows state
+- `chief.plugin enable|disable [core.|contrib.]<name>` - Enable or disable core, contrib or user plugins; `chief.plugin status` shows state
 
 ### Secrets Plugin (2 functions)
 
 - `chief.secrets_file-edit` - Edit encrypted secrets file (Ansible Vault or GPG)
 - `chief.secrets_file-load` - Load encrypted environment variables into shell
 
-### Vault Plugin (HashiCorp) (3 functions)
+### Vault Plugin (HashiCorp) (3 functions) — opt-in
+
+Off by default; enable with `chief.plugin enable core.vault`.
 
 - `chief.vault_read-secret` - Read secret from HashiCorp Vault KV
 - `chief.vault_write-secret` - Write secret to HashiCorp Vault KV
 - `chief.vault_list-secrets` - List keys or paths in HashiCorp Vault KV
 
-### OpenShift/Kubernetes Plugin (9 functions)
+### OpenShift/Kubernetes Plugin (9 functions) — opt-in
+
+Off by default; enable with `chief.plugin enable core.openshift`.
 
 - `chief.oc_get-all-objects` - Comprehensive resource discovery with filtering
 - `chief.oc_clean-olm` - OLM cleanup with selective targeting
@@ -160,6 +164,14 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.git_config-user` - Quick user configuration setup
 - Complete workflow support: tagging, amending, credential caching, URL management
 
+### Chainguard Plugin `cg` (contrib, off by default)
+
+Enable with `chief.plugin enable contrib.cg`. Chief ships only the wrapper: it sources your local copy of the Chainguard customer-success helper functions (set the path with `chief.config-set cg_helper_functions "<path>"`) and exposes them as `cg.*` commands, each with `-?`/`--help`:
+
+- `cg.help` - List the cg commands
+- `cg.setup_customer_org`, `cg.create_customer_yaml`, `cg.get_customer_id`, `cg.cli`, `cg.console`, `cg.tag_history`, and more
+- `cg.reload` - Re-source the helper functions after pulling updates
+
 ### Python Plugin (4 functions)
 
 - `chief.python_create-ve` - Virtual environment creation and setup
@@ -167,7 +179,9 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.python_stop-ve` - Deactivate environments
 - `chief.python_ve-dep` - Install dependencies from requirements.txt
 
-### AWS Plugin (2 functions)
+### AWS Plugin (2 functions) — opt-in
+
+Off by default; enable with `chief.plugin enable core.aws`.
 
 - `chief.aws_set-role` - Switch between AWS IAM roles
 - `chief.aws_export-creds` - Export AWS credentials to environment

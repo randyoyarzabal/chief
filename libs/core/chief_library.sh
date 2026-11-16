@@ -39,6 +39,16 @@
 source "${CHIEF_PATH}/VERSION"
 CHIEF_PLUGINS_CORE="${CHIEF_PATH}/libs/core/plugins"
 CHIEF_PLUGIN_SUFFIX="_chief-plugin.sh"
+# Opt-in core plugins: shipped with Chief but OFF by default because they need tools or
+# accounts most users don't have. They load only after `chief.plugin enable core.<name>`
+# (persisted in CHIEF_CFG_PLUGINS_ENABLED_CORE). Space-separated plugin names.
+# Configs from before opt-in existed (no CHIEF_CFG_PLUGINS_ENABLED_CORE line) keep them on;
+# see __chief_plugins_optin_enabled.
+CHIEF_PLUGINS_CORE_OPTIN="aws openshift vault"
+# Contrib plugins: optional plugins shipped with Chief for specific teams or workflows.
+# Chief scans this directory on every load, but every contrib plugin is OFF until
+# `chief.plugin enable contrib.<name>` (persisted in CHIEF_CFG_PLUGINS_ENABLED_CONTRIB).
+CHIEF_PLUGINS_CONTRIB="${CHIEF_PATH}/libs/contrib/plugins"
 CHIEF_DEFAULT_PLUGINS_TYPE="local" 
 CHIEF_DEFAULT_PLUGINS_GIT_BRANCH="main"
 CHIEF_DEFAULT_PLUGINS="${HOME}/chief_plugins"
@@ -145,6 +155,7 @@ function __chief_load_library() {
   fi
 
   __chief_load_plugins 'core' "$1"
+  __chief_load_plugins 'contrib' "$1"
 
   if [[ -z ${CHIEF_CFG_PLUGINS_TYPE} ]]; then
     # If not set, default to local plugins.
@@ -757,10 +768,48 @@ function __chief_format_plugin_list() {
   echo "$list" | tr '|' ' ' | xargs | sed 's/ /, /g'
 }
 
+# Returns 0 if <name> is in <list> (comma- or space-separated, case-insensitive).
+# Usage: __chief_plugin_in_list <name> <list>
+function __chief_plugin_in_list() {
+  local n list
+  n=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+  list="$(__chief_plugin_normalize_disabled_list "$2")"
+  list=" $(echo "$list" | tr '[:upper:]' '[:lower:]') "
+  [[ -n "$n" && "$list" == *" $n "* ]]
+}
+
+# Returns 0 if the given core plugin is opt-in (shipped OFF by default).
+# Usage: __chief_plugin_is_optin <plugin_name>
+function __chief_plugin_is_optin() {
+  __chief_plugin_in_list "$1" "${CHIEF_PLUGINS_CORE_OPTIN:-}"
+}
+
+# Prints the effective list of enabled opt-in core plugins (space-separated).
+# If CHIEF_CFG_PLUGINS_ENABLED_CORE is not defined at all, the config predates opt-in
+# plugins: every opt-in plugin that isn't explicitly disabled stays on, so upgrading
+# never removes commands a user already had. New configs (from the template) define it.
+function __chief_plugins_optin_enabled() {
+  if [[ -n "${CHIEF_CFG_PLUGINS_ENABLED_CORE+set}" ]]; then
+    __chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_ENABLED_CORE}"
+    return
+  fi
+  local n out=""
+  for n in ${CHIEF_PLUGINS_CORE_OPTIN}; do
+    __chief_plugin_in_list "$n" "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}" || out+=" $n"
+  done
+  echo "${out# }"
+}
+
 function __chief_plugin_disabled() {
   local module="$1"
   local name="$2"
   local list=""
+  [[ -z "$name" ]] && return 1
+  if [[ "$module" == 'contrib' ]]; then
+    # Contrib plugins are all opt-in: off unless listed in CHIEF_CFG_PLUGINS_ENABLED_CONTRIB.
+    __chief_plugin_in_list "$name" "${CHIEF_CFG_PLUGINS_ENABLED_CONTRIB:-}" && return 1
+    return 0
+  fi
   if [[ "$module" == 'core' ]]; then
     list="${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}"
   elif [[ "$module" == 'user' ]]; then
@@ -768,12 +817,13 @@ function __chief_plugin_disabled() {
   else
     return 1
   fi
-  list="$(__chief_plugin_normalize_disabled_list "$list")"
-  [[ -z "$name" ]] && return 1
-  # Normalize: space-separated, lowercase compare
-  local n=$(echo "$name" | tr '[:upper:]' '[:lower:]')
-  local normalized_list=" $(echo "$list" | tr '[:upper:]' '[:lower:]') "
-  [[ "$normalized_list" == *" $n "* ]] && return 0
+  # Explicitly disabled always wins.
+  __chief_plugin_in_list "$name" "$list" && return 0
+  # Opt-in core plugins are off unless explicitly enabled.
+  if [[ "$module" == 'core' ]] && __chief_plugin_is_optin "$name"; then
+    __chief_plugin_in_list "$name" "$(__chief_plugins_optin_enabled)" && return 1
+    return 0
+  fi
   return 1
 }
 
@@ -785,6 +835,61 @@ function __chief_plugin_enable_disable() {
   local action="$3"
   local config_key list current new_value
   name=$(echo "$name" | tr '[:upper:]' '[:lower:]')
+
+  # Contrib plugins are tracked in an ENABLED list (they're all off by default).
+  if [[ "$module" == 'contrib' ]]; then
+    if [[ ! -f "${CHIEF_PLUGINS_CONTRIB}/${name}${CHIEF_PLUGIN_SUFFIX}" ]]; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} no contrib plugin named ${CHIEF_COLOR_CYAN}${name}${CHIEF_NO_COLOR} (available: $(__chief_format_plugin_list "$(__chief_get_contrib_plugins all)"))" >&2
+      return 1
+    fi
+    current="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_ENABLED_CONTRIB:-}")"
+    if [[ "$action" == "enable" ]]; then
+      if ! __chief_plugin_disabled contrib "$name"; then
+        echo -e "${CHIEF_COLOR_YELLOW}Plugin ${CHIEF_COLOR_CYAN}${name}${CHIEF_NO_COLOR} is already enabled."
+        return 0
+      fi
+      new_value="$(echo "$current $name" | tr ' ' '\n' | sort -u | grep -v '^$' | tr '\n' ' ' | xargs)"
+    else
+      if __chief_plugin_disabled contrib "$name"; then
+        echo -e "${CHIEF_COLOR_YELLOW}Plugin ${CHIEF_COLOR_CYAN}${name}${CHIEF_NO_COLOR} is already disabled."
+        return 0
+      fi
+      new_value=$(echo "$current" | tr ' ' '\n' | grep -v "^$" | grep -v "^${name}$" | tr '\n' ' ')
+      new_value="$(echo "$new_value" | xargs)"
+    fi
+    chief.config-set --yes plugins_enabled_contrib "$new_value"
+    return
+  fi
+
+  # Opt-in core plugins are tracked in an ENABLED list (they're off by default).
+  # Enable adds the name (and clears any explicit disable); disable removes it.
+  if [[ "$module" == 'core' ]] && __chief_plugin_is_optin "$name"; then
+    # Seed from the effective list so a pre-opt-in config keeps its other opt-in plugins on.
+    current="$(__chief_plugins_optin_enabled)"
+    if [[ "$action" == "enable" ]]; then
+      if ! __chief_plugin_disabled core "$name"; then
+        echo -e "${CHIEF_COLOR_YELLOW}Plugin ${CHIEF_COLOR_CYAN}${name}${CHIEF_NO_COLOR} is already enabled."
+        return 0
+      fi
+      if __chief_plugin_in_list "$name" "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}"; then
+        new_value=$(echo "$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}")" | tr ' ' '\n' | grep -v "^$" | grep -v "^${name}$" | tr '\n' ' ')
+        chief.config-set --yes plugins_disabled_core "$(echo "$new_value" | xargs)" || return 1
+      fi
+      if ! __chief_plugin_in_list "$name" "$current"; then
+        new_value="$(echo "$current $name" | tr ' ' '\n' | sort -u | grep -v '^$' | tr '\n' ' ' | xargs)"
+        chief.config-set --yes plugins_enabled_core "$new_value"
+      fi
+    else
+      if __chief_plugin_disabled core "$name"; then
+        echo -e "${CHIEF_COLOR_YELLOW}Plugin ${CHIEF_COLOR_CYAN}${name}${CHIEF_NO_COLOR} is already disabled."
+        return 0
+      fi
+      new_value=$(echo "$current" | tr ' ' '\n' | grep -v "^$" | grep -v "^${name}$" | tr '\n' ' ')
+      chief.config-set --yes plugins_enabled_core "$(echo "$new_value" | xargs)"
+    fi
+    return
+  fi
+
   if [[ "$module" == 'core' ]]; then
     config_key="plugins_disabled_core"
     current="${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}"
@@ -792,7 +897,7 @@ function __chief_plugin_enable_disable() {
     config_key="plugins_disabled_user"
     current="${CHIEF_CFG_PLUGINS_DISABLED_USER:-}"
   else
-    echo -e "${CHIEF_COLOR_RED}Error: module must be 'core' or 'user'${CHIEF_NO_COLOR}" >&2
+    echo -e "${CHIEF_COLOR_RED}Error: module must be 'core', 'contrib' or 'user'${CHIEF_NO_COLOR}" >&2
     return 1
   fi
   current="$(__chief_plugin_normalize_disabled_list "$current")"
@@ -837,6 +942,10 @@ function __chief_load_plugins() {
   load_flag=false # Default to false, unless plugin switch is defined.
   if [[ $1 == 'core' ]]; then
     dir_path=${CHIEF_PLUGINS_CORE}
+    load_flag=true
+  elif [[ $1 == 'contrib' ]]; then
+    # Always scanned; each contrib plugin is off unless enabled (see __chief_plugin_disabled).
+    dir_path=${CHIEF_PLUGINS_CONTRIB}
     load_flag=true
   elif [[ $1 == 'user' ]]; then
     # For local plugins, use CHIEF_CFG_PLUGINS_PATH directly
@@ -970,6 +1079,45 @@ __chief_get_core_plugins() {
     plugin_list_str=$(echo ${plugin_list_str#?})
   fi
   echo "${plugin_list_str}"
+}
+
+# Returns contrib plugin names from libs/contrib/plugins, '|'-separated.
+# Usage: __chief_get_contrib_plugins [enabled|disabled|all]   (default: enabled)
+__chief_get_contrib_plugins() {
+  local want="${1:-enabled}" plugin plugin_file plugin_name out=""
+  [[ -d ${CHIEF_PLUGINS_CONTRIB} ]] || return 0
+  for plugin in "${CHIEF_PLUGINS_CONTRIB}/"*"${CHIEF_PLUGIN_SUFFIX}"; do
+    [[ -f ${plugin} ]] || continue
+    plugin_file=${plugin##*/}
+    plugin_name=${plugin_file%%_*}
+    if [[ $want == all ]]; then
+      out+="|${plugin_name}"
+    elif __chief_plugin_disabled 'contrib' "$plugin_name"; then
+      [[ $want == disabled ]] && out+="|${plugin_name}"
+    else
+      [[ $want == enabled ]] && out+="|${plugin_name}"
+    fi
+  done
+  echo "${out#|}"
+}
+
+# Returns core plugin names that are OFF (explicitly disabled, or opt-in and not enabled).
+# Opt-in plugins are suffixed with " (opt-in)". Output is space-separated.
+__chief_get_core_plugins_disabled() {
+  local plugin plugin_file plugin_name out=""
+  [[ -d ${CHIEF_PLUGINS_CORE} ]] || return 0
+  for plugin in "${CHIEF_PLUGINS_CORE}/"*"${CHIEF_PLUGIN_SUFFIX}"; do
+    [[ -f ${plugin} ]] || continue
+    plugin_file=${plugin##*/}
+    plugin_name=${plugin_file%%_*}
+    __chief_plugin_disabled 'core' "$plugin_name" || continue
+    if __chief_plugin_is_optin "$plugin_name"; then
+      out+=" ${plugin_name}(opt-in)"
+    else
+      out+=" ${plugin_name}"
+    fi
+  done
+  echo "${out# }"
 }
 
 # True if absolute $2 is $1 or inside $1 (path prefix with boundary).
@@ -2409,6 +2557,9 @@ ${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
   PLUGINS_GIT_AUTOUPDATE    Auto-update remote plugins (true/false)
   PLUGINS_DISABLED_CORE     Space-separated list of core plugins to skip (e.g. \"ssl secrets vault\");
   PLUGINS_DISABLED_USER     Space-separated list of user plugins to skip (e.g. \"lab workmac\");
+  PLUGINS_ENABLED_CORE      Space-separated list of opt-in core plugins to load (aws, openshift, vault); use chief.plugin enable core.<name>
+  PLUGINS_ENABLED_CONTRIB   Space-separated list of contrib plugins to load (e.g. \"cg\"); use chief.plugin enable contrib.<name>
+  CG_HELPER_FUNCTIONS       [cg contrib plugin] Path to .helper_functions.sh in your local customer-success clone
   PROMPT                    Enable/disable Chief prompt (true/false)
   COLORED_PROMPT            Enable colored prompts (true/false)
   GIT_PROMPT                Show git status in prompt (true/false)
@@ -2956,6 +3107,13 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
         user_value="${user_vars[$var_name]}"
       fi
       
+      # Upgrade from a config that predates opt-in core plugins: keep the opt-in plugins
+      # it was loading (all not explicitly disabled) instead of the template's empty default.
+      if [[ -z "$user_value" && "$var_name" == "CHIEF_CFG_PLUGINS_ENABLED_CORE" ]]; then
+        user_value="\"$(__chief_plugins_optin_enabled)\""
+        echo "# Set on upgrade to the opt-in plugins this config was already loading"
+      fi
+
       # Use template default if no user value
       if [[ -z "$user_value" ]]; then
         user_value="$var_value"
@@ -3091,6 +3249,8 @@ function chief.plugin() {
        $FUNCNAME enable core.<name>    Enable a core plugin (e.g. core.ssl)
        $FUNCNAME disable <name>        Disable a user plugin (e.g. bc, lab)
        $FUNCNAME disable core.<name>   Disable a core plugin (e.g. core.ssl)
+       $FUNCNAME enable contrib.<name> Enable a contrib plugin (off by default; e.g. contrib.cg)
+       $FUNCNAME disable contrib.<name> Disable a contrib plugin
        $FUNCNAME status                Show enabled/disabled for core and user plugins
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -3153,6 +3313,9 @@ ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
         if [[ "$name" == core.* ]]; then
           module="core"
           name="${name#core.}"
+        elif [[ "$name" == contrib.* ]]; then
+          module="contrib"
+          name="${name#contrib.}"
         fi
         __chief_plugin_enable_disable "$module" "$name" "enable"
         return
@@ -3168,6 +3331,9 @@ ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
         if [[ "$name" == core.* ]]; then
           module="core"
           name="${name#core.}"
+        elif [[ "$name" == contrib.* ]]; then
+          module="contrib"
+          name="${name#contrib.}"
         fi
         __chief_plugin_enable_disable "$module" "$name" "disable"
         return
@@ -3177,7 +3343,7 @@ ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
         local core_all core_disabled user_all user_disabled c_fmt cdis_fmt u_fmt udis_fmt
         core_all=$(__chief_get_core_plugins)
         user_all=$(__chief_get_plugins)
-        core_disabled="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}")"
+        core_disabled="$(__chief_get_core_plugins_disabled)"
         user_disabled="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"
         c_fmt="$(__chief_format_plugin_list "${core_all:-}")"
         cdis_fmt="$(__chief_format_plugin_list "${core_disabled:-}")"
@@ -3187,11 +3353,18 @@ ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
         echo -e "  Enabled:  ${CHIEF_COLOR_CYAN}${c_fmt:-<none>}${CHIEF_NO_COLOR}"
         echo -e "  Disabled: ${CHIEF_COLOR_YELLOW}${cdis_fmt:-<none>}${CHIEF_NO_COLOR}"
         echo
+        local k_fmt kdis_fmt
+        k_fmt="$(__chief_format_plugin_list "$(__chief_get_contrib_plugins enabled)")"
+        kdis_fmt="$(__chief_format_plugin_list "$(__chief_get_contrib_plugins disabled)")"
+        echo -e "${CHIEF_COLOR_GREEN}Contrib (shipped, off by default):${CHIEF_NO_COLOR}"
+        echo -e "  Enabled:  ${CHIEF_COLOR_CYAN}${k_fmt:-<none>}${CHIEF_NO_COLOR}"
+        echo -e "  Disabled: ${CHIEF_COLOR_YELLOW}${kdis_fmt:-<none>}${CHIEF_NO_COLOR}"
+        echo
         echo -e "${CHIEF_COLOR_GREEN}User plugins:${CHIEF_NO_COLOR}"
         echo -e "  Enabled:  ${CHIEF_COLOR_CYAN}${u_fmt:-<none>}${CHIEF_NO_COLOR}"
         echo -e "  Disabled: ${CHIEF_COLOR_YELLOW}${udis_fmt:-<none>}${CHIEF_NO_COLOR}"
         echo
-        echo -e "${CHIEF_COLOR_BLUE}Use ${CHIEF_NO_COLOR}chief.plugin enable|disable <name>${CHIEF_COLOR_BLUE} or ${CHIEF_NO_COLOR}core.<name>${CHIEF_COLOR_BLUE} (e.g. bc, core.ssl). Config updated; Chief reloads.${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_COLOR_BLUE}Use ${CHIEF_NO_COLOR}chief.plugin enable|disable <name>${CHIEF_COLOR_BLUE} or ${CHIEF_NO_COLOR}core.<name>${CHIEF_COLOR_BLUE} (e.g. bc, core.ssl, contrib.cg). Config updated; Chief reloads.${CHIEF_NO_COLOR}"
         return
         ;;
     esac
@@ -3524,12 +3697,19 @@ function __chief_show_chief_stats() {
     user_count=$(echo "$user_plugins" | tr '|' '\n' | wc -l | tr -d ' ')
   fi
 
-  core_disabled="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}")"
+  core_disabled="$(__chief_get_core_plugins_disabled)"
   user_disabled="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"
+  local contrib_on contrib_off
+  contrib_on="$(__chief_get_contrib_plugins enabled)"
+  contrib_off="$(__chief_get_contrib_plugins disabled)"
 
   echo -e "${CHIEF_COLOR_BLUE}Chief Status:${CHIEF_NO_COLOR}"
   echo -e "• Functions available: ${CHIEF_COLOR_CYAN}$total_functions${CHIEF_NO_COLOR}"
   echo -e "• Core (built-in): ${CHIEF_COLOR_CYAN}$core_count${CHIEF_NO_COLOR} ($(__chief_format_plugin_list "$core_plugins"))"
+  local kon_fmt koff_fmt
+  kon_fmt="$(__chief_format_plugin_list "$contrib_on")"
+  koff_fmt="$(__chief_format_plugin_list "$contrib_off")"
+  echo -e "• Contrib: ${CHIEF_COLOR_CYAN}on:${CHIEF_NO_COLOR} ${kon_fmt:-<none>}; ${CHIEF_COLOR_CYAN}off:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}${koff_fmt:-<none>}${CHIEF_NO_COLOR}"
   echo -e "• User plugins: ${CHIEF_COLOR_CYAN}$user_count${CHIEF_NO_COLOR} ($(__chief_format_plugin_list "$user_plugins"))"
   if [[ -n "$core_disabled" ]] || [[ -n "$user_disabled" ]]; then
     local cdis_fmt udis_fmt
@@ -3580,26 +3760,33 @@ function __chief_show_plugin_help() {
   echo
   echo -e "${CHIEF_COLOR_MAGENTA}Core vs User plugins:${CHIEF_NO_COLOR}"
   echo -e "  ${CHIEF_COLOR_GREEN}Core (built-in)${CHIEF_NO_COLOR}  — Part of Chief; loaded from \$CHIEF_PATH/libs/core/plugins. Not editable via ${cmd_prefix}plugin."
+  echo -e "  ${CHIEF_COLOR_GREEN}Contrib${CHIEF_NO_COLOR}          — Shipped with Chief in \$CHIEF_PATH/libs/contrib/plugins; off until ${cmd_prefix}plugin enable contrib.<name>."
   echo -e "  ${CHIEF_COLOR_GREEN}User plugins${CHIEF_NO_COLOR}     — Your plugins from CHIEF_CFG_PLUGINS_PATH; editable via ${cmd_prefix}plugin."
   echo
   echo -e "${CHIEF_COLOR_CYAN}Plugin Commands:${CHIEF_NO_COLOR}"
   echo -e "  ${CHIEF_COLOR_GREEN}plugins${CHIEF_NO_COLOR}              Navigate to plugins directory (user plugins only)"
   echo -e "  ${CHIEF_COLOR_GREEN}plugin${CHIEF_NO_COLOR}               Edit default plugin"
   echo -e "  ${CHIEF_COLOR_GREEN}plugin <name>${CHIEF_NO_COLOR}        Create/edit named user plugin"
-  echo -e "  ${CHIEF_COLOR_GREEN}plugin enable [core.]<name>${CHIEF_NO_COLOR}   Enable a plugin (load on reload)"
-  echo -e "  ${CHIEF_COLOR_GREEN}plugin disable [core.]<name>${CHIEF_NO_COLOR}  Disable a plugin (skip loading)"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin enable [core.|contrib.]<name>${CHIEF_NO_COLOR}   Enable a plugin (load on reload)"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin disable [core.|contrib.]<name>${CHIEF_NO_COLOR}  Disable a plugin (skip loading)"
   echo -e "  ${CHIEF_COLOR_GREEN}plugin status${CHIEF_NO_COLOR}         Show enabled/disabled plugins"
   echo -e "  ${CHIEF_COLOR_GREEN}plugin -?${CHIEF_NO_COLOR}            List user plugins"
   echo
 
   local core_plugins=$(__chief_get_core_plugins)
   local user_plugins=$(__chief_get_plugins)
-  local core_disabled user_disabled
-  core_disabled="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}")"
+  local core_disabled user_disabled contrib_on
+  core_disabled="$(__chief_get_core_plugins_disabled)"
   user_disabled="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"
+  contrib_on="$(__chief_get_contrib_plugins enabled)"
   if [[ -n "$core_plugins" ]]; then
     echo -e "${CHIEF_COLOR_CYAN}Core (built-in):${CHIEF_NO_COLOR}"
     echo -e "  ${CHIEF_COLOR_CYAN}$(__chief_format_plugin_list "$core_plugins")${CHIEF_NO_COLOR}"
+    echo
+  fi
+  if [[ -n "$contrib_on" ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}Contrib (enabled):${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_CYAN}$(__chief_format_plugin_list "$contrib_on")${CHIEF_NO_COLOR}"
     echo
   fi
   if [[ -n "$user_plugins" ]]; then
@@ -3802,11 +3989,17 @@ function __chief_show_compact_reference() {
   local core_list=$(__chief_get_core_plugins)
   local user_list=$(__chief_get_plugins)
   local core_disabled_compact user_disabled_compact
-  core_disabled_compact="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}")"
+  core_disabled_compact="$(__chief_get_core_plugins_disabled)"
   user_disabled_compact="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"
   if [[ -n "$core_list" ]]; then
     echo -e "${CHIEF_COLOR_CYAN}Core (built-in):${CHIEF_NO_COLOR}"
     echo "  $(__chief_format_plugin_list "$core_list")"
+    echo
+  fi
+  local contrib_list=$(__chief_get_contrib_plugins enabled)
+  if [[ -n "$contrib_list" ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}Contrib (enabled):${CHIEF_NO_COLOR}"
+    echo "  $(__chief_format_plugin_list "$contrib_list")"
     echo
   fi
   if [[ -n "$user_list" ]]; then

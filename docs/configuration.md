@@ -105,6 +105,9 @@ CHIEF_HOST="dev-box" bash
 | `CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE` | Auto-update plugins on startup (with local changes protection) |
 | `CHIEF_CFG_PLUGINS_DISABLED_CORE` | Comma- or space-separated list of **core** plugin names to skip loading (e.g. `aws,git,ssl` or `aws git ssl`). Empty = all core plugins enabled. |
 | `CHIEF_CFG_PLUGINS_DISABLED_USER` | Comma- or space-separated list of **user** plugin names to skip loading (e.g. `bc,lab` or `bc lab`). Empty = all user plugins enabled. |
+| `CHIEF_CFG_PLUGINS_ENABLED_CORE` | Comma- or space-separated list of **opt-in** core plugins to load (`aws`, `openshift`, `vault`). Opt-in plugins are off unless listed here. Managed by `chief.plugin enable\|disable core.<name>`. |
+| `CHIEF_CFG_PLUGINS_ENABLED_CONTRIB` | Comma- or space-separated list of **contrib** plugins to load (e.g. `cg`). Contrib plugins are off unless listed here. Managed by `chief.plugin enable\|disable contrib.<name>`. |
+| `CHIEF_CFG_CG_HELPER_FUNCTIONS` | [`cg` contrib plugin] Path to `.helper_functions.sh` in your local clone of the customer-success repo. No default; set it with `chief.config-set cg_helper_functions "<path>"`. |
 
 ### Enabling and disabling plugins
 
@@ -126,6 +129,40 @@ chief.plugin status               # Show which plugins are enabled/disabled
 CHIEF_CFG_PLUGINS_DISABLED_CORE="aws,ssl"    # Skip core aws and ssl
 CHIEF_CFG_PLUGINS_DISABLED_USER="lab"       # Skip user plugin "lab"
 ```
+
+### Opt-in core plugins
+
+Some core plugins ship with Chief but are **off by default**, because they need tools or accounts most users don't have. They use the same commands as any other plugin:
+
+```bash
+chief.plugin enable core.openshift   # Turn on an opt-in plugin (adds it to CHIEF_CFG_PLUGINS_ENABLED_CORE)
+chief.plugin disable core.openshift  # Turn it off again
+chief.plugin status                  # Opt-in plugins that are off show as "<name>(opt-in)" under Disabled
+```
+
+An opt-in plugin loads only when it's in `CHIEF_CFG_PLUGINS_ENABLED_CORE` and **not** in `CHIEF_CFG_PLUGINS_DISABLED_CORE` (an explicit disable always wins; `enable` clears it).
+
+| Plugin | Needs |
+|--------|-------|
+| `aws` | AWS credentials, `python3` |
+| `openshift` | `oc` and a cluster login, `jq` |
+| `vault` | HashiCorp `vault` CLI and a Vault server |
+
+**Upgrading:** a config from before opt-in plugins existed has no `CHIEF_CFG_PLUGINS_ENABLED_CORE` line. For it, every opt-in plugin that isn't in `CHIEF_CFG_PLUGINS_DISABLED_CORE` keeps loading, so nothing disappears after `chief.update`. `chief.config-update` then writes those plugins into `CHIEF_CFG_PLUGINS_ENABLED_CORE` when it adds the setting. New installs start with all opt-in plugins off.
+
+### Contrib plugins
+
+Chief also ships optional plugins for specific teams or workflows in `libs/contrib/plugins/`. Chief scans that directory on every load, but **every contrib plugin is off by default**, so it has no effect until you turn it on:
+
+```bash
+chief.plugin enable contrib.cg    # Turn on (adds it to CHIEF_CFG_PLUGINS_ENABLED_CONTRIB)
+chief.plugin disable contrib.cg   # Turn off again
+chief.plugin status               # Contrib plugins are listed in their own section
+```
+
+| Plugin | What it does |
+|--------|--------------|
+| `cg` | Exposes the Chainguard customer-success helper functions as `cg.*` commands (each with `-?`/`--help`; list them with `cg.help`). Chief ships only the wrapper: it sources your local copy of the helper functions from `CHIEF_CFG_CG_HELPER_FUNCTIONS`. No location is assumed; set it once with `chief.config-set cg_helper_functions "/path/to/customer-success/scripts/.helper_functions.sh"`. |
 
 ---
 

@@ -27,7 +27,7 @@ fi
 
 # Note this library requires python3
 
-AWS_CREDS_SCRIPT="$CHIEF_PATH/libs/plugins/python/aws_creds.py"
+AWS_CREDS_SCRIPT="${CHIEF_PLUGINS_CORE:-$CHIEF_PATH/libs/core/plugins}/python/aws_creds.py"
 
 function chief.aws_set-role() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <role> <region>

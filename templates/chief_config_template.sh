@@ -119,9 +119,25 @@ CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="false"
 CHIEF_CFG_PLUGIN_TEMPLATE="${CHIEF_PATH}/templates/chief_plugin_template.sh"
 
 # Comma- or space-separated list of plugins to skip loading. Managed via: chief.plugin enable|disable [core.]<name>
-# Empty (default) = all plugins enabled. Core: built-in names (e.g. aws,git,ssl or aws git ssl). User: your plugin names (e.g. bc,lab or bc lab).
+# Empty (default) = nothing skipped (opt-in core plugins still need enabling; see below). Core: built-in names (e.g. aws,git,ssl or aws git ssl). User: your plugin names (e.g. bc,lab or bc lab).
 CHIEF_CFG_PLUGINS_DISABLED_CORE=""
 CHIEF_CFG_PLUGINS_DISABLED_USER=""
+
+# Opt-in core plugins are shipped with Chief but OFF by default because they need tools or
+# accounts most users don't have (currently: aws, openshift, vault).
+# Turn one on with: chief.plugin enable core.<name>   (off again: chief.plugin disable core.<name>)
+CHIEF_CFG_PLUGINS_ENABLED_CORE=""
+
+# Contrib plugins are shipped with Chief (libs/contrib/plugins) for specific teams or workflows.
+# Chief scans them on every load, but each is OFF until enabled (currently: cg).
+# Turn one on with: chief.plugin enable contrib.<name>   (off again: chief.plugin disable contrib.<name>)
+CHIEF_CFG_PLUGINS_ENABLED_CONTRIB=""
+
+# [cg contrib plugin] Path to your local copy of the Chainguard customer-success helper
+# functions. The cg plugin sources it and exposes its functions as cg.* (see: cg.help).
+# No default: set it to wherever your clone lives, e.g.
+#   chief.config-set cg_helper_functions "/path/to/customer-success/scripts/.helper_functions.sh"
+CHIEF_CFG_CG_HELPER_FUNCTIONS=""
 ####################################
 
 # PROMPT CONFIGURATION
