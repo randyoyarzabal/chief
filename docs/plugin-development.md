@@ -87,8 +87,8 @@ chief.etc_mount_share //server/shared /mnt/shared john # Mount SMB share
 chief.etc_create_cipher ~/.cipher_key  # Generate encryption key
 
 # Network and Collaboration Tools
-chief.etc_shared-term_create dev-session    # Create shared terminal
-chief.etc_shared-term_connect dev-session   # Connect to shared terminal
+chief.etc_shared-term-create dev-session    # Create shared terminal
+chief.etc_shared-term-connect dev-session   # Connect to shared terminal
 chief.etc_at_run "now + 10 minutes" "backup.sh" # Schedule commands
 
 # Interactive Utilities
@@ -139,7 +139,7 @@ chief.git_branch_cleanup    # Remove merged branches
 chief.git_commit_stats     # Show commit statistics
 
 # SSH management
-chief.ssh_load_keys        # Load SSH keys
+chief.ssh_load-keys        # Load SSH keys
 chief.ssh_test_connection  # Test SSH connections
 
 # AWS helpers  
@@ -653,7 +653,7 @@ chief.config-set PLUGINS_GIT_REPO "git@github.com:yourteam/bash-plugins.git"
 chief.config-set PLUGINS_PATH "$HOME/team_plugins"
 
 # Update plugins from remote repository
-chief.plugins_update
+chief.plugins-update
 ```
 
 ---

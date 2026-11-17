@@ -261,7 +261,7 @@ For detailed secrets and vault setup, see: [Secrets and Vault Configuration](con
 #### Daily Workflow
 
 ```bash
-chief.plugins_update           # Get latest team plugins
+chief.plugins-update           # Get latest team plugins
 chief.secrets_file-load          # Load secrets when needed
 chief.plugin mytools           # Edit/create plugins
 chief.whereis my_function      # Find any function instantly
@@ -594,7 +594,7 @@ cd "$CHIEF_CFG_PLUGINS_PATH"
 git status
 
 # Force update plugins
-chief.plugins_update --force
+chief.plugins-update --force
 
 # Reset plugin repository
 rm -rf "$CHIEF_CFG_PLUGINS_PATH"

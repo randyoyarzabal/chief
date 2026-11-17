@@ -378,8 +378,8 @@ chief.etc_create_bootusb -k installer.iso 3    # Keep temp files
 chief.etc_mount_share //server/shared /mnt/shared john
 
 # Create shared terminal sessions
-chief.etc_shared-term_create dev-session
-chief.etc_shared-term_connect dev-session
+chief.etc_shared-term-create dev-session
+chief.etc_shared-term-connect dev-session
 
 # Schedule commands to run later
 chief.etc_at_run "now + 10 minutes" "echo 'Reminder!'"
@@ -517,7 +517,7 @@ chief.whereis function_name   # Find where function is defined
 chief.help plugins            # Show plugin-provided commands
 
 # Plugin management
-chief.plugins_update          # Update remote plugins (if configured)
+chief.plugins-update          # Update remote plugins (if configured)
 chief.plugins_root             # Navigate to plugins directory
 ```
 

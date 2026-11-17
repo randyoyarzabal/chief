@@ -671,7 +671,7 @@ __chief_load_remote_plugins() {
   # If the git path isn't set Or path doesn't exist Or it is empty.
   elif [[ -z ${CHIEF_CFG_PLUGINS_PATH} ]] || [[ ! -d ${CHIEF_CFG_PLUGINS_PATH} ]] || [[ -z "$(ls -A ${CHIEF_CFG_PLUGINS_PATH})" ]]; then
     if chief.etc_ask-yes-or-no "Your Chief plugins directory is empty/doesn't exist, do you want to run the update now?
-You can run 'chief.plugins_update' anytime or set CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=true"; then
+You can run 'chief.plugins-update' anytime or set CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=true"; then
       good_to_load=true
     fi  
   fi
@@ -743,7 +743,7 @@ CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}"
     # Check if plugins directory is empty.
     # Only show warning when verbose is enabled and hints are disabled
     if [[ $(__chief_get_plugins) == "" ]] && ! ${CHIEF_CFG_HINTS} && ${CHIEF_CFG_VERBOSE}; then
-      echo -e "${CHIEF_COLOR_YELLOW}Warning: Remote plugins are not set to auto-update (CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false). Run ${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW} to update.${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_YELLOW}Warning: Remote plugins are not set to auto-update (CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false). Run ${CHIEF_COLOR_CYAN}chief.plugins-update${CHIEF_COLOR_YELLOW} to update.${CHIEF_NO_COLOR}"
     fi
   fi
   __chief_discover_shared_secrets_file
@@ -1396,7 +1396,7 @@ function __chief.hints_text() {
     # If plugins are not set to auto-update, display a message.
     if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]] && ! ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE}; then   
       echo -e "${CHIEF_COLOR_GREEN}${cmd_prefix}[tab]${CHIEF_NO_COLOR} for available commands."
-      echo -e "${CHIEF_COLOR_GREEN}${cmd_prefix}plugins_update${CHIEF_NO_COLOR} to update/load plugins. | ${CHIEF_COLOR_GREEN}${cmd_prefix}update${CHIEF_NO_COLOR} to update Chief."
+      echo -e "${CHIEF_COLOR_GREEN}${cmd_prefix}plugins-update${CHIEF_NO_COLOR} to update/load plugins. | ${CHIEF_COLOR_GREEN}${cmd_prefix}update${CHIEF_NO_COLOR} to update Chief."
     else
       echo -e "${CHIEF_COLOR_GREEN}${cmd_prefix}[tab]${CHIEF_NO_COLOR} for available commands. | ${CHIEF_COLOR_GREEN}${cmd_prefix}update${CHIEF_NO_COLOR} to update Chief.${CHIEF_NO_COLOR}"
     fi
@@ -1974,7 +1974,7 @@ Change directory (cd) into the Chief utility root installation directory."
   echo -e "${CHIEF_COLOR_GREEN}Changed directory to CHIEF_PATH=${CHIEF_PATH}.${CHIEF_NO_COLOR}"
 }
 
-function chief.ssh_load_keys() {
+function chief.ssh_load-keys() {
   local USAGE="Usage: $FUNCNAME
 
 Load SSH keys from CHIEF_CFG_SSH_KEYS_PATH defined in the Chief configuration.
@@ -2062,12 +2062,12 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     echo "• Try: eval \$(ssh-agent) && ssh-add"
     echo "• Or reload Chief: chief.reload"
     if [[ -n "${CHIEF_CFG_SSH_KEYS_PATH}" ]]; then
-      echo "• Or load Chief keys: chief.ssh_load_keys"
+      echo "• Or load Chief keys: chief.ssh_load-keys"
     fi
   fi
 }
 
-function chief.plugins_update() {
+function chief.plugins-update() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--force]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -3843,7 +3843,7 @@ function __chief_show_plugin_help() {
   
   if compgen -A function | grep -q "^chief\.ssh_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}SSH Plugin:${CHIEF_NO_COLOR}"
-    echo "    ssh_create-keypair, ssh_get-publickey, ssh_rm-host, ssh_load_keys"
+    echo "    ssh_create-keypair, ssh_get-publickey, ssh_rm-host, ssh_load-keys"
     found_plugins=true
   fi
   
@@ -3865,7 +3865,7 @@ function __chief_show_plugin_help() {
     echo -e "  ${CHIEF_COLOR_GREEN}Utilities Plugin:${CHIEF_NO_COLOR}"
     echo "    etc_ask-yes-or-no, etc_spinner, etc_prompt, etc_mount-share"
     echo "    etc_isvalid-ip, etc_broadcast, etc_at-run, etc_folder-diff"
-    echo "    etc_shared-term_create, etc_shared-term_connect, etc_chmod-f, etc_chmod-d"
+    echo "    etc_shared-term-create, etc_shared-term-connect, etc_chmod-f, etc_chmod-d"
     echo "    etc_create-bootusb, etc_copy-dotfiles, etc_create-cipher, type-writer"
     found_plugins=true
   fi

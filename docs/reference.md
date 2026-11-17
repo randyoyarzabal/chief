@@ -103,7 +103,7 @@ chief.whereis function_name   # Find where function is defined
 chief.help plugins            # Show plugin-provided commands
 
 # Plugin management
-chief.plugins_update          # Update remote plugins (if configured)
+chief.plugins-update          # Update remote plugins (if configured)
 chief.plugins_root             # Navigate to plugins directory
 ```
 
@@ -257,8 +257,8 @@ chief.etc_at_run <time> <command>
 chief.etc_broadcast <message>
 
 # Terminal Collaboration
-chief.etc_shared-term_create <session_name>
-chief.etc_shared-term_connect <session_name>
+chief.etc_shared-term-create <session_name>
+chief.etc_shared-term-connect <session_name>
 
 # Utilities
 chief.etc_create_cipher [file_path] [--force]
@@ -610,7 +610,7 @@ git status
 git remote -v
 
 # Force update
-chief.plugins_update --force
+chief.plugins-update --force
 
 # Reset repository
 rm -rf "$CHIEF_CFG_PLUGINS_PATH"

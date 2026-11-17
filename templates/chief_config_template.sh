@@ -86,7 +86,7 @@ CHIEF_CFG_PLUGINS_GIT_PATH=""
 # Load/update remote plugins when Chief starts.
 # If this is set to true, it will clone/update the remote repository when Chief starts.
 # If set to false, you will need to manually update the plugins with the command:
-# $> chief.plugins_update
+# $> chief.plugins-update
 CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="false"
 
 # Plugins are loaded in alphabetical order, so you can control the order of loading by naming them accordingly.
@@ -207,7 +207,7 @@ CHIEF_CFG_CONFIG_UPDATE_BACKUP=true
 # Note: Standard SSH keys (id_rsa, id_ed25519, etc.) are automatically used by SSH clients.
 #
 # If you have a directory with your private keys, you can set the path here.
-# Setting this variable will automatically load your SSH keys, you can also run $>chief.ssh_load_keys
+# Setting this variable will automatically load your SSH keys, you can also run $>chief.ssh_load-keys
 # to manually load them. 
 # If you do not set or comment this variable, it will not load any keys.
 #CHIEF_CFG_SSH_KEYS_PATH="$HOME/.ssh"
