@@ -188,7 +188,7 @@ CHIEF_CFG_MULTILINE_PROMPT=false
 # If set to true, will use colored ls command.
 CHIEF_CFG_COLORED_LS=false
 
-# If set to true, chief.config_set will prompt for confirmation before modifying config file.
+# If set to true, chief.config-set will prompt for confirmation before modifying config file.
 # Set to false for non-interactive operation by default (useful for automation/scripts).
 # Individual commands can still use --yes to skip prompts regardless of this setting.
 CHIEF_CFG_CONFIG_SET_INTERACTIVE=true

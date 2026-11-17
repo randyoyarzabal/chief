@@ -21,9 +21,9 @@ Advanced configuration options, multi-system setup, and team collaboration workf
 
 ## Configuration Management
 
-Chief is highly customizable. Use `chief.config` to edit the config file or `chief.config_set <option> <value>` for direct command-line configuration.
+Chief is highly customizable. Use `chief.config` to edit the config file or `chief.config-set <option> <value>` for direct command-line configuration.
 
-**Interactive Behavior:** By default, `chief.config_set` prompts for confirmation before modifying your configuration file. Use `--yes` (or `-y`) to skip prompts for scripting.
+**Interactive Behavior:** By default, `chief.config-set` prompts for confirmation before modifying your configuration file. Use `--yes` (or `-y`) to skip prompts for scripting.
 
 ### Basic Configuration Commands
 
@@ -32,20 +32,20 @@ Chief is highly customizable. Use `chief.config` to edit the config file or `chi
 chief.config
 
 # Set configuration variables directly (use option name without CHIEF_CFG_ prefix)
-chief.config_set banner false         # Sets CHIEF_CFG_BANNER=false (prompts for confirmation)
-chief.config_set banner=false         # Same as above using key=value syntax
-chief.config_set --yes prompt true    # Sets CHIEF_CFG_PROMPT=true (no prompt)  
-chief.config_set colored_ls=true      # Sets CHIEF_CFG_COLORED_LS=true (prompts for confirmation)
+chief.config-set banner false         # Sets CHIEF_CFG_BANNER=false (prompts for confirmation)
+chief.config-set banner=false         # Same as above using key=value syntax
+chief.config-set --yes prompt true    # Sets CHIEF_CFG_PROMPT=true (no prompt)  
+chief.config-set colored_ls=true      # Sets CHIEF_CFG_COLORED_LS=true (prompts for confirmation)
 
 # List all configuration variables and current values  
-chief.config_set --list
+chief.config-set --list
 
 # Update configuration with new template options (perfect for upgrades)
 chief.config_update                   # Add missing options, handle renames, preserve customizations
 chief.config_update --dry-run         # Preview changes without applying them
 
 # Disable interactive prompts globally
-chief.config_set config_set_interactive false
+chief.config-set config_set_interactive false
 ```
 
 ---
@@ -66,7 +66,7 @@ chief.config_set config_set_interactive false
 | `CHIEF_CFG_MULTILINE_PROMPT` | `false` | Enable multiline prompt display |
 | `CHIEF_CFG_SHORT_PATH` | `false` | Show only current directory name in prompt |
 | `CHIEF_CFG_COLORED_LS` | `false` | Colorize ls command output |
-| `CHIEF_CFG_CONFIG_SET_INTERACTIVE` | `true` | Prompt for confirmation in `chief.config_set` |
+| `CHIEF_CFG_CONFIG_SET_INTERACTIVE` | `true` | Prompt for confirmation in `chief.config-set` |
 | `CHIEF_CFG_CONFIG_UPDATE_BACKUP` | `true` | Create backups during config updates (only when changes made) |
 | `CHIEF_CFG_PLUGINS_TYPE` | `"local"` | Use `"local"` or `"remote"` plugins |
 | `CHIEF_CFG_SSH_KEYS_PATH` | _unset_ | Auto-load SSH keys from path |
@@ -125,7 +125,7 @@ chief.plugin status               # Show which plugins are enabled/disabled
 **In configuration:** set `CHIEF_CFG_PLUGINS_DISABLED_CORE` and/or `CHIEF_CFG_PLUGINS_DISABLED_USER` in your config file. Both accept comma- or space-separated names. Core plugin names are the built-in ones (e.g. `aws`, `git`, `ssl`); user plugin names are the prefixes of your `*_chief-plugin.sh` files (e.g. `bc`, `lab`).
 
 ```bash
-# In chief.config or via chief.config_set:
+# In chief.config or via chief.config-set:
 CHIEF_CFG_PLUGINS_DISABLED_CORE="aws,ssl"    # Skip core aws and ssl
 CHIEF_CFG_PLUGINS_DISABLED_USER="lab"       # Skip user plugin "lab"
 ```
@@ -234,15 +234,15 @@ Chief is primarily designed as a **single-user system** that follows you across 
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
 
 # 2. Configure your plugin repository (replace with your repo)
-chief.config_set -y PLUGINS_GIT_REPO="git@github.com:yourusername/my-plugins.git"
-chief.config_set -y PLUGINS_PATH="${HOME}/chief_plugins"
-chief.config_set -y PLUGINS_GIT_BRANCH="main"
-chief.config_set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root, this is plugins path relative to PLUGINS_PATH
-chief.config_set -y PLUGINS_GIT_AUTOUPDATE="false"    # manual updates
-chief.config_set -y PLUGINS_TYPE="remote"             # Enable remote sync
+chief.config-set -y PLUGINS_GIT_REPO="git@github.com:yourusername/my-plugins.git"
+chief.config-set -y PLUGINS_PATH="${HOME}/chief_plugins"
+chief.config-set -y PLUGINS_GIT_BRANCH="main"
+chief.config-set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root, this is plugins path relative to PLUGINS_PATH
+chief.config-set -y PLUGINS_GIT_AUTOUPDATE="false"    # manual updates
+chief.config-set -y PLUGINS_TYPE="remote"             # Enable remote sync
 
 # 3. (Optional) Enable multi-line prompt, useful when current working dir is deep.
-chief.config_set -y MULTILINE_PROMPT=true 
+chief.config-set -y MULTILINE_PROMPT=true 
 
 # 4. (Optional) Load your encrypted secrets (if exists)
 chief.secrets_file-load  # Team secrets (.chief_shared-secrets - if exists)
@@ -382,14 +382,14 @@ Each team member points Chief to your existing repository:
 
 ```bash
 # Configure Chief to use your existing team repo
-chief.config_set plugins_git_repo "git@github.com:yourteam/existing-repo.git"
-chief.config_set plugins_git_branch "main"
-chief.config_set plugins_path "$HOME/team-repo"
-chief.config_set plugins_git_path "tools/bash-plugins"  # Relative path to plugin files
-chief.config_set plugins_git_autoupdate true
+chief.config-set plugins_git_repo "git@github.com:yourteam/existing-repo.git"
+chief.config-set plugins_git_branch "main"
+chief.config-set plugins_path "$HOME/team-repo"
+chief.config-set plugins_git_path "tools/bash-plugins"  # Relative path to plugin files
+chief.config-set plugins_git_autoupdate true
 
 # Set to remote LAST - Chief will offer to update plugins when git config is ready
-chief.config_set plugins_type remote
+chief.config-set plugins_type remote
 
 # Restart terminal or reload Chief
 chief.reload
@@ -475,10 +475,10 @@ git push -u origin main
 
 ```bash
 # Configure Chief for team repository
-chief.config_set plugins_git_repo "git@github.com:yourteam/team-bash-plugins.git"
-chief.config_set plugins_path "$HOME/team_plugins"
-chief.config_set plugins_git_autoupdate true
-chief.config_set plugins_type remote
+chief.config-set plugins_git_repo "git@github.com:yourteam/team-bash-plugins.git"
+chief.config-set plugins_path "$HOME/team_plugins"
+chief.config-set plugins_git_autoupdate true
+chief.config-set plugins_type remote
 
 # Team functions and vault are now available
 devops.deploy production
@@ -537,33 +537,33 @@ chief.vault_list-secrets secret/
 
 ```bash
 # Enable all productivity features
-chief.config_set prompt true
-chief.config_set git_prompt true
-chief.config_set multiline_prompt true
-chief.config_set colored_ls true
-chief.config_set ssh_keys_path "$HOME/.ssh"
-chief.config_set alias "cf"
+chief.config-set prompt true
+chief.config-set git_prompt true
+chief.config-set multiline_prompt true
+chief.config-set colored_ls true
+chief.config-set ssh_keys_path "$HOME/.ssh"
+chief.config-set alias "cf"
 ```
 
 ### Server/CI Environment
 
 ```bash
 # Minimal configuration for automation
-chief.config_set banner false
-chief.config_set hints false
-chief.config_set prompt false
-chief.config_set config_set_interactive false
-chief.config_set plugins_git_autoupdate true
+chief.config-set banner false
+chief.config-set hints false
+chief.config-set prompt false
+chief.config-set config_set_interactive false
+chief.config-set plugins_git_autoupdate true
 ```
 
 ### Team Lead Setup
 
 ```bash
 # Full team collaboration features
-chief.config_set plugins_type "remote"
-chief.config_set plugins_git_repo "git@github.com:yourteam/plugins.git"
-chief.config_set plugins_git_autoupdate true
-chief.config_set autocheck_updates true
+chief.config-set plugins_type "remote"
+chief.config-set plugins_git_repo "git@github.com:yourteam/plugins.git"
+chief.config-set plugins_git_autoupdate true
+chief.config-set autocheck_updates true
 ```
 
 ---

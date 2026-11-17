@@ -485,7 +485,7 @@ echo ""
 echo -e "${CYAN}BRANCH TRACKING:${NC}"
 echo -e "${CYAN}  • Installed from: ${YELLOW}${CHIEF_INSTALL_GIT_BRANCH}${NC} branch"
 echo -e "${CYAN}  • Future updates will track: ${YELLOW}${CHIEF_INSTALL_GIT_BRANCH}${NC} branch"
-echo -e "${CYAN}  • To switch branches: chief.config_set update_branch <branch_name>${NC}"
+echo -e "${CYAN}  • To switch branches: chief.config-set update_branch <branch_name>${NC}"
 elif $LOCAL_INSTALL; then
 echo ""
 echo -e "${CYAN}DISCONNECTED INSTALLATION:${NC}"

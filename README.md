@@ -42,15 +42,15 @@ For environments without git connectivity:
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
 
 # 2. Configure your plugin repository (replace with your repo)
-chief.config_set -y PLUGINS_GIT_REPO="git@github.com:yourusername/my-plugins.git"
-chief.config_set -y PLUGINS_PATH="${HOME}/chief_plugins"
-chief.config_set -y PLUGINS_GIT_BRANCH="main"
-chief.config_set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root, this is plugins path relative to PLUGINS_PATH
-chief.config_set -y PLUGINS_GIT_AUTOUPDATE="false"    # manual updates
-chief.config_set -y PLUGINS_TYPE="remote"             # Enable remote sync
+chief.config-set -y PLUGINS_GIT_REPO="git@github.com:yourusername/my-plugins.git"
+chief.config-set -y PLUGINS_PATH="${HOME}/chief_plugins"
+chief.config-set -y PLUGINS_GIT_BRANCH="main"
+chief.config-set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root, this is plugins path relative to PLUGINS_PATH
+chief.config-set -y PLUGINS_GIT_AUTOUPDATE="false"    # manual updates
+chief.config-set -y PLUGINS_TYPE="remote"             # Enable remote sync
 
 # 3. (Optional) Enable multi-line prompt, useful when current working dir is deep.
-chief.config_set -y MULTILINE_PROMPT=true 
+chief.config-set -y MULTILINE_PROMPT=true 
 
 # 4. (Optional) Load your encrypted secrets (if exists)
 chief.secrets_file-load  # Team secrets (.chief_shared-secrets - if exists)
@@ -229,4 +229,4 @@ Chief is designed, written, and maintained by [Randy E. Oyarzabal](https://githu
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+GNU General Public License v3.0 - see [LICENSE](LICENSE) file for details.

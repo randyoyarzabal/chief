@@ -118,8 +118,8 @@ chief.status
 chief.config_show
 
 # Set configuration options
-chief.config_set PROMPT true
-chief.config_set EDITOR "code"
+chief.config-set PROMPT true
+chief.config-set default_editor_path "code --wait"
 
 # Customize prompt hostname (environment variable)
 export CHIEF_HOST="my-server"  # Override hostname in prompt
@@ -219,8 +219,8 @@ chief.whereis my_function
 chief.config
 
 # Quick config changes
-chief.config_set PROMPT true
-chief.config_set MULTILINE_PROMPT true
+chief.config-set PROMPT true
+chief.config-set MULTILINE_PROMPT true
 ```
 
 ### Enhanced Terminal
@@ -485,8 +485,8 @@ chief.plugin mytools
 chief.config_show
 
 # Set configuration values
-chief.config_set PROMPT true
-chief.config_set EDITOR "vim"
+chief.config-set PROMPT true
+chief.config-set default_editor_path "vim"
 
 # Interactive configuration editor
 chief.config

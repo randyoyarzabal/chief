@@ -133,7 +133,7 @@ echo $BASH_VERSION
 ```
 
 Changing your login shell with `chsh -s /opt/homebrew/bin/bash` also works, but requires adding that path to `/etc/shells` first.
-To silence the start-up warning: `chief.config_set -y BASH_WARN=false`.
+To silence the start-up warning: `chief.config-set -y BASH_WARN=false`.
 
 ### Check Your Environment
 
@@ -258,7 +258,7 @@ chief.whereis my_status
 
 ```bash
 # Enable beautiful git-aware prompts
-chief.config_set PROMPT true
+chief.config-set PROMPT true
 
 # Reload to see changes
 chief.reload
@@ -272,15 +272,15 @@ chief.reload
 
 ```bash
 # Set up your preferred editor (for plugin editing)
-chief.config_set EDITOR "code"  # VS Code
+chief.config-set default_editor_path "code --wait"  # VS Code
 # or
-chief.config_set EDITOR "vim"   # Vim
+chief.config-set default_editor_path "vim"   # Vim
 
 # Configure multiline prompts (recommended)
-chief.config_set MULTILINE_PROMPT true
+chief.config-set MULTILINE_PROMPT true
 
 # Show full paths in prompt
-chief.config_set SHORT_PATH false
+chief.config-set SHORT_PATH false
 ```
 
 ### Learn More
@@ -314,10 +314,10 @@ Chief supports tracking any valid Git branch for updates:
 
 ```bash
 # Track stable releases (default)
-chief.config_set update_branch main
+chief.config-set update_branch main
 
 # Track development features (⚠ use with caution)  
-chief.config_set update_branch dev
+chief.config-set update_branch dev
 
 # Update to your configured branch
 chief.update

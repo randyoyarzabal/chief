@@ -206,7 +206,7 @@ function __chief_check_bash_version() {
   else
     echo -e "Upgrade Bash with your package manager (for example: apt-get install bash, dnf install bash)." >&2
   fi
-  echo -e "Silence this warning with: ${CHIEF_COLOR_CYAN}chief.config_set -y BASH_WARN=false${CHIEF_NO_COLOR}" >&2
+  echo -e "Silence this warning with: ${CHIEF_COLOR_CYAN}chief.config-set -y BASH_WARN=false${CHIEF_NO_COLOR}" >&2
   return 0
 }
 
@@ -1408,26 +1408,26 @@ function __chief.hints_text() {
     if $show_tracking; then
       local update_branch="${CHIEF_CFG_UPDATE_BRANCH:-main}"
       if [[ "${update_branch}" == "dev" ]]; then
-        echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_YELLOW}${update_branch}${CHIEF_COLOR_RED} (bleeding-edge)${CHIEF_COLOR_CYAN} branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch main${CHIEF_COLOR_CYAN} for stable${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_YELLOW}${update_branch}${CHIEF_COLOR_RED} (bleeding-edge)${CHIEF_COLOR_CYAN} branch | ${CHIEF_COLOR_GREEN}chief.config-set update_branch main${CHIEF_COLOR_CYAN} for stable${CHIEF_NO_COLOR}"
       elif [[ "${update_branch}" == "main" ]]; then
-        echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_GREEN}${update_branch}${CHIEF_COLOR_CYAN} (stable) branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch dev${CHIEF_COLOR_CYAN} for latest features${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_GREEN}${update_branch}${CHIEF_COLOR_CYAN} (stable) branch | ${CHIEF_COLOR_GREEN}chief.config-set update_branch dev${CHIEF_COLOR_CYAN} for latest features${CHIEF_NO_COLOR}"
       else
-        echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_CYAN}${update_branch}${CHIEF_COLOR_YELLOW} (custom)${CHIEF_COLOR_CYAN} branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch main${CHIEF_COLOR_CYAN} for stable${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_CYAN}${update_branch}${CHIEF_COLOR_YELLOW} (custom)${CHIEF_COLOR_CYAN} branch | ${CHIEF_COLOR_GREEN}chief.config-set update_branch main${CHIEF_COLOR_CYAN} for stable${CHIEF_NO_COLOR}"
       fi
     fi
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Essential Commands:${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit configuration file | ${CHIEF_COLOR_GREEN}chief.config_set <option> <value>${CHIEF_NO_COLOR} to set config directly
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit configuration file | ${CHIEF_COLOR_GREEN}chief.config-set <option> <value>${CHIEF_NO_COLOR} to set config directly
     - ${CHIEF_COLOR_GREEN}chief.config-update${CHIEF_NO_COLOR} to update config with new template options"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.help${CHIEF_NO_COLOR} for comprehensive help | ${CHIEF_COLOR_GREEN}chief.help --compact${CHIEF_NO_COLOR} for quick reference"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.whereis <name>${CHIEF_NO_COLOR} to find any function/alias location"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.secrets_*${CHIEF_NO_COLOR} to encrypt/decrypt secrets file (ansible-vault or gpg) | ${CHIEF_COLOR_GREEN}chief.vault_*${CHIEF_NO_COLOR} for HashiCorp Vault read/write"
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Quick Customization:${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set prompt true${CHIEF_NO_COLOR} for git-aware prompt | ${CHIEF_COLOR_GREEN}chief.git_legend${CHIEF_NO_COLOR} for colors"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set multiline_prompt true${CHIEF_NO_COLOR} for multi-line prompt"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set short_path true${CHIEF_NO_COLOR} for compact directory paths"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set --list${CHIEF_NO_COLOR} to see all available configuration options"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config-set prompt true${CHIEF_NO_COLOR} for git-aware prompt | ${CHIEF_COLOR_GREEN}chief.git_legend${CHIEF_NO_COLOR} for colors"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config-set multiline_prompt true${CHIEF_NO_COLOR} for multi-line prompt"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config-set short_path true${CHIEF_NO_COLOR} for compact directory paths"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config-set --list${CHIEF_NO_COLOR} to see all available configuration options"
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Plugin Management:${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin [name]${CHIEF_NO_COLOR} to create/edit plugins | ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR} to list"
@@ -1443,7 +1443,7 @@ function __chief.hints_text() {
     fi
     echo ""
     if [[ ${1} != '--verbose' ]]; then
-      echo -e "${CHIEF_COLOR_CYAN}** Run ${CHIEF_COLOR_GREEN}chief.config_set hints=false${CHIEF_COLOR_CYAN} to disable these hints. **${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_CYAN}** Run ${CHIEF_COLOR_GREEN}chief.config-set hints=false${CHIEF_COLOR_CYAN} to disable these hints. **${CHIEF_NO_COLOR}"
       echo ""
     fi
   else
@@ -2252,7 +2252,7 @@ You can also manually update by running git pull in the Chief directory.
         echo -e "${CHIEF_COLOR_RED}Error: Branch '${TARGET_BRANCH}' does not exist in remote repository${CHIEF_NO_COLOR}"
         echo -e "${CHIEF_COLOR_CYAN}Available remote branches:${CHIEF_NO_COLOR}"
         git ls-remote --heads origin | sed 's|.*refs/heads/||' | sed 's/^/  /'
-        echo -e "${CHIEF_COLOR_YELLOW}Try: chief.config_set update_branch <valid_branch_name>${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_COLOR_YELLOW}Try: chief.config-set update_branch <valid_branch_name>${CHIEF_NO_COLOR}"
         cd - > /dev/null 2>&1
         return 1
       fi
@@ -2364,7 +2364,7 @@ You can also manually update by running git pull in the Chief directory.
           echo -e "${CHIEF_COLOR_RED}Error: Branch '${TARGET_BRANCH}' does not exist in remote repository${CHIEF_NO_COLOR}"
           echo -e "${CHIEF_COLOR_CYAN}Available remote branches:${CHIEF_NO_COLOR}"
           git ls-remote --heads origin | sed 's|.*refs/heads/||' | sed 's/^/  /'
-          echo -e "${CHIEF_COLOR_YELLOW}Try: chief.config_set update_branch <valid_branch_name>${CHIEF_NO_COLOR}"
+          echo -e "${CHIEF_COLOR_YELLOW}Try: chief.config-set update_branch <valid_branch_name>${CHIEF_NO_COLOR}"
           return 1
         fi
         echo -e "${CHIEF_COLOR_GREEN}✓ Branch ${TARGET_BRANCH} found remotely${CHIEF_NO_COLOR}"

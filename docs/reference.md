@@ -66,8 +66,8 @@ chief.plugin mytools
 chief.config_show
 
 # Set configuration values
-chief.config_set PROMPT true
-chief.config_set EDITOR "vim"
+chief.config-set PROMPT true
+chief.config-set default_editor_path "vim"
 
 # Interactive configuration editor
 chief.config
@@ -753,9 +753,9 @@ sudo mount -t cifs -v //server/share /mnt/share -o username=user
 
 ```bash
 # Disable non-essential features
-chief.config_set banner false
-chief.config_set hints false
-chief.config_set autocheck_updates false
+chief.config-set banner false
+chief.config-set hints false
+chief.config-set autocheck_updates false
 
 # Check for large plugin files
 find ~/chief_plugins -name "*.sh" -size +1M
@@ -865,7 +865,7 @@ bash tests/run_tests.sh
 
 ## License
 
-This project is licensed under the **MIT License** - see the [LICENSE](https://github.com/randyoyarzabal/chief/blob/main/LICENSE) file for details.
+This project is licensed under the **GNU General Public License v3.0** - see the [LICENSE](https://github.com/randyoyarzabal/chief/blob/main/LICENSE) file for details.
 
 ### License Summary
 

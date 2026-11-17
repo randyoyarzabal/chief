@@ -648,9 +648,9 @@ For team development, set up remote plugin synchronization:
 
 ```bash
 # Configure remote plugins in chief.config
-chief.config_set PLUGINS_TYPE "remote"
-chief.config_set PLUGINS_GIT_REPO "git@github.com:yourteam/bash-plugins.git"
-chief.config_set PLUGINS_PATH "$HOME/team_plugins"
+chief.config-set PLUGINS_TYPE "remote"
+chief.config-set PLUGINS_GIT_REPO "git@github.com:yourteam/bash-plugins.git"
+chief.config-set PLUGINS_PATH "$HOME/team_plugins"
 
 # Update plugins from remote repository
 chief.plugins_update
