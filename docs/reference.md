@@ -630,6 +630,18 @@ chief.config_show | grep SSH_KEYS_PATH
 ssh-add ~/.ssh/id_rsa
 ```
 
+#### Q: "Too many authentication failures" with many keys loaded
+
+ssh offers every agent key in turn, and servers stop after a few rejected ones (`MaxAuthTries`). Pin the right key to each host:
+
+```bash
+chief.ssh_status                          # with 4+ keys loaded, lists hosts that don't pin a key
+chief.ssh_host-key github.com github      # adds IdentityFile + IdentitiesOnly yes for that host
+chief.ssh_host-key myserver work --dry-run  # preview the change first
+```
+
+`chief.ssh_host-key` backs up `~/.ssh/config` before writing. Chief only shows the many-keys note when 4 or more keys are in the agent.
+
 ### Built-in Plugin Issues
 
 #### Q: SSL plugin functions not working

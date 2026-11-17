@@ -1708,6 +1708,14 @@ function __chief_load_ssh_keys() {
       __chief_print "Loaded ${key_count} SSH key(s): ${loaded_keys[*]}" "$1"
     fi
   fi
+
+  # Too many keys in the agent can exhaust the server's MaxAuthTries; explain the fix.
+  # Explicit loads (--verbose) always show it; start-up shows it once per machine.
+  if [[ "${1}" == '--verbose' ]]; then
+    __chief_ssh_key_limit_hint "$(__chief_ssh_agent_key_count)" --always
+  else
+    __chief_ssh_key_limit_hint "$(__chief_ssh_agent_key_count)"
+  fi
 }
 
 # Build Git / VirtualEnv prompt
@@ -1983,6 +1991,11 @@ Supported key file patterns:
 - *.private (legacy support)
 This supports RSA, ed25519, and other key types. Symlinks are allowed for selective loading.
 Note: Standard SSH keys (id_rsa, id_ed25519, etc.) are automatically used by SSH clients and don't need to be loaded.
+
+Many keys: SSH servers count every key offered and disconnect after MaxAuthTries (often 3-6), so with
+${CHIEF_SSH_KEYS_WARN_AT}+ keys loaded the right one may never be tried (\"Too many authentication failures\").
+Pin a key to each host so ssh offers only that key: chief.ssh_host-key <host> <key>
+Check which hosts are pinned: chief.ssh_status
 "
 
   if [[ $1 == "-?" ]]; then
@@ -2065,6 +2078,264 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
       echo "• Or load Chief keys: chief.ssh_load-keys"
     fi
   fi
+
+  # Key-limit check: many agent keys + hosts that don't pin a key
+  local agent_keys cfg missing
+  agent_keys=$(__chief_ssh_agent_key_count)
+  cfg="${CHIEF_SSH_CONFIG:-$HOME/.ssh/config}"
+  echo
+  echo -e "${CHIEF_COLOR_BLUE}Key pinning (${cfg}):${CHIEF_NO_COLOR}"
+  # Only matters when many keys are in the agent; stay quiet otherwise.
+  if [[ "$agent_keys" -lt "${CHIEF_SSH_KEYS_WARN_AT}" ]]; then
+    echo -e "${CHIEF_COLOR_GREEN}${agent_keys} key(s) in ssh-agent: under the limit, nothing to pin.${CHIEF_NO_COLOR}"
+    return 0
+  fi
+  if [[ ! -f "$cfg" ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}No ssh config file.${CHIEF_NO_COLOR} Pin a key to a host with: chief.ssh_host-key <host> <key>"
+  else
+    missing=$(__chief_ssh_hosts_without_identitiesonly "$cfg")
+    if [[ "$missing" == "__ALL__" ]]; then
+      echo -e "${CHIEF_COLOR_GREEN}All hosts use IdentitiesOnly (set under Host *).${CHIEF_NO_COLOR}"
+    elif [[ -z "$missing" ]]; then
+      echo -e "${CHIEF_COLOR_GREEN}Every named host pins its key (IdentitiesOnly yes).${CHIEF_NO_COLOR}"
+    else
+      echo -e "Hosts without ${CHIEF_COLOR_CYAN}IdentitiesOnly yes${CHIEF_NO_COLOR} (ssh may offer every agent key):"
+      echo "$missing" | sed 's/^/  • /'
+      echo -e "Fix one with: ${CHIEF_COLOR_GREEN}chief.ssh_host-key <host> <key>${CHIEF_NO_COLOR}"
+    fi
+  fi
+  __chief_ssh_key_limit_hint "$agent_keys" --always
+}
+
+# SSH servers count every key the client offers as one authentication attempt and disconnect
+# after MaxAuthTries (OpenSSH default 6; many servers use fewer). With this many keys in the
+# agent, the right key may never be offered ("Too many authentication failures").
+CHIEF_SSH_KEYS_WARN_AT=4
+
+# Number of identities currently in ssh-agent (0 if none or no agent).
+function __chief_ssh_agent_key_count() {
+  local out
+  out=$(ssh-add -l 2>/dev/null) || { echo 0; return; }
+  [[ -z "$out" || "$out" == "The agent has no identities."* ]] && { echo 0; return; }
+  echo "$out" | grep -c .
+}
+
+# Explain the key-limit problem and the fix when many keys are loaded.
+# Usage: __chief_ssh_key_limit_hint <key_count> [--always]
+#   Without --always the hint is shown once per machine (marker under XDG state dir).
+function __chief_ssh_key_limit_hint() {
+  local count="${1:-0}"
+  [[ "$count" -ge "${CHIEF_SSH_KEYS_WARN_AT}" ]] || return 0
+  local marker="${XDG_STATE_HOME:-$HOME/.local/state}/chief/ssh-key-limit-hint-shown"
+  if [[ "$2" != "--always" ]]; then
+    [[ -f "$marker" ]] && return 0
+    mkdir -p "$(dirname "$marker")" 2>/dev/null && touch "$marker" 2>/dev/null
+  fi
+  echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} ${count} keys are loaded in ssh-agent. SSH servers stop after a few rejected keys (MaxAuthTries, often 3-6),"
+  echo -e "so the right key may never be tried (\"Too many authentication failures\"). Tell ssh which key each host uses:"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.ssh_host-key <host> <key>${CHIEF_NO_COLOR}   (adds IdentityFile + IdentitiesOnly yes to ~/.ssh/config)"
+}
+
+# Print hosts from an ssh config that don't set "IdentitiesOnly yes" (one per line).
+# Wildcard patterns are skipped. Prints "__ALL__" if "Host *" sets IdentitiesOnly yes.
+# Usage: __chief_ssh_hosts_without_identitiesonly [config_file]
+function __chief_ssh_hosts_without_identitiesonly() {
+  local cfg="${1:-${CHIEF_SSH_CONFIG:-$HOME/.ssh/config}}"
+  [[ -f "$cfg" ]] || return 0
+  awk '
+    function flush() {
+      if (in_host) {
+        if (star && only) { global = 1 }
+        else if (!star && !only) { for (i = 1; i <= nh; i++) missing[++nm] = hosts[i] }
+      }
+      in_host = 0; nh = 0; only = 0; star = 0
+    }
+    {
+      line = $0; sub(/#.*/, "", line)
+      if (line ~ /^[ \t]*$/) next
+      kw = tolower(line); sub(/^[ \t]*/, "", kw); split(kw, parts, /[ \t=]+/)
+      if (parts[1] == "host" || parts[1] == "match") {
+        flush()
+        if (parts[1] == "host") {
+          in_host = 1
+          n = split(line, toks, /[ \t=]+/)
+          for (i = 1; i <= n; i++) {
+            t = toks[i]; if (t == "" || tolower(t) == "host") continue
+            if (t == "*") star = 1
+            else if (t !~ /[*?!]/) hosts[++nh] = t
+          }
+        }
+        next
+      }
+      if (parts[1] == "identitiesonly" && tolower(parts[2]) == "yes") only = 1
+    }
+    END {
+      flush()
+      if (global) { print "__ALL__"; exit }
+      for (i = 1; i <= nm; i++) print missing[i]
+    }' "$cfg"
+}
+
+# Pin a key to a host in ~/.ssh/config (IdentityFile + IdentitiesOnly yes).
+function chief.ssh_host-key() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <host> <key> [--dry-run] [--yes]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Tell ssh which key to use for a host, so it only offers that key. Adds (or updates) the host's
+block in ~/.ssh/config with:
+    IdentityFile <key>
+    IdentitiesOnly yes
+
+${CHIEF_COLOR_BLUE}Why:${CHIEF_NO_COLOR}
+SSH servers count every key the client offers and disconnect after MaxAuthTries (often 3-6).
+With several keys in ssh-agent, the right key may never be tried (\"Too many authentication
+failures\"). With IdentitiesOnly, ssh offers only the pinned key; the agent still unlocks it.
+
+${CHIEF_COLOR_GREEN}Arguments:${CHIEF_NO_COLOR}
+  host   Host name as you type it in ssh/git (e.g. github.com, my-server)
+  key    Path to a private key, or a key name in CHIEF_CFG_SSH_KEYS_PATH (github, github.key)
+
+${CHIEF_COLOR_GREEN}Options:${CHIEF_NO_COLOR}
+  --dry-run   Show the block that would be written; change nothing
+  --yes, -y   Don't ask for confirmation
+  -?, --help  Show this help
+
+${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
+- Existing IdentityFile/IdentitiesOnly lines in that host's block are replaced; other lines are kept.
+- A new block goes before the first Host/Match line, where ssh reads specific hosts first.
+- Refuses Host lines that list several hosts (edit those by hand).
+- Backs up the config first (<config>.chief-backup.<timestamp>).
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME github.com github --dry-run
+  $FUNCNAME github.com ~/.ssh/keys/github.key
+  $FUNCNAME my-server work -y
+"
+  local host="" key="" dry_run=false assume_yes=false
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -\?|--help) echo -e "${USAGE}"; return 0 ;;
+      --dry-run) dry_run=true ;;
+      --yes|-y) assume_yes=true ;;
+      -*) echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} unknown option: $1" >&2; return 1 ;;
+      *) if [[ -z "$host" ]]; then host="$1"; elif [[ -z "$key" ]]; then key="$1"; else
+           echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} too many arguments" >&2; return 1; fi ;;
+    esac
+    shift
+  done
+  if [[ -z "$host" || -z "$key" ]]; then
+    echo -e "${USAGE}"; return 1
+  fi
+  if [[ "$host" =~ [[:space:],] ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} host must be a single name: $host" >&2; return 1
+  fi
+
+  # Resolve the key: a path, or a name in CHIEF_CFG_SSH_KEYS_PATH (with or without .key)
+  local key_path=""
+  local candidate
+  for candidate in "${key/#\~/$HOME}" \
+                   "${CHIEF_CFG_SSH_KEYS_PATH:+${CHIEF_CFG_SSH_KEYS_PATH}/$key}" \
+                   "${CHIEF_CFG_SSH_KEYS_PATH:+${CHIEF_CFG_SSH_KEYS_PATH}/$key.key}"; do
+    if [[ -n "$candidate" && -f "$candidate" ]]; then key_path="$candidate"; break; fi
+  done
+  if [[ -z "$key_path" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} key not found: $key" >&2
+    [[ -n "${CHIEF_CFG_SSH_KEYS_PATH}" ]] && echo "Looked for it as a path and in ${CHIEF_CFG_SSH_KEYS_PATH}" >&2
+    return 1
+  fi
+  [[ "$key_path" != /* ]] && key_path="$(cd "$(dirname "$key_path")" && pwd)/$(basename "$key_path")"
+  local id_path="$key_path"
+  [[ "$id_path" == "$HOME"/* ]] && id_path="~${id_path#$HOME}"
+
+  local cfg="${CHIEF_SSH_CONFIG:-$HOME/.ssh/config}"
+  local lines=() l
+  if [[ -f "$cfg" ]]; then
+    while IFS= read -r l || [[ -n "$l" ]]; do lines+=("$l"); done < "$cfg"
+  fi
+
+  # Find the host's block and the first Host/Match line
+  local n=${#lines[@]} i host_idx=-1 first_block=-1 kw rest tok
+  for ((i = 0; i < n; i++)); do
+    l="${lines[i]%%#*}"
+    read -r kw rest <<< "${l//=/ }"
+    kw=$(echo "$kw" | tr '[:upper:]' '[:lower:]')
+    [[ "$kw" == "host" || "$kw" == "match" ]] || continue
+    [[ $first_block -lt 0 ]] && first_block=$i
+    [[ "$kw" == "host" ]] || continue
+    local toks=()
+    read -r -a toks <<< "$rest"
+    for tok in "${toks[@]}"; do
+      if [[ "$tok" == "$host" ]]; then
+        if [[ ${#toks[@]} -gt 1 ]]; then
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} line $((i + 1)) of $cfg covers several hosts: ${lines[i]}" >&2
+          echo "Edit it by hand, or give $host its own Host block." >&2
+          return 1
+        fi
+        host_idx=$i
+      fi
+    done
+  done
+
+  local new=() replaced=0 in_block=false action
+  local pinned=("    IdentityFile ${id_path}" "    IdentitiesOnly yes")
+  if [[ $host_idx -ge 0 ]]; then
+    action="Update the existing 'Host ${host}' block (line $((host_idx + 1)))"
+    for ((i = 0; i < n; i++)); do
+      l="${lines[i]}"
+      if [[ $i -eq $host_idx ]]; then
+        new+=("$l" "${pinned[@]}"); in_block=true; continue
+      fi
+      if $in_block; then
+        read -r kw rest <<< "${l%%#*}"
+        kw=$(echo "${kw%%=*}" | tr '[:upper:]' '[:lower:]')
+        if [[ "$kw" == "host" || "$kw" == "match" ]]; then
+          in_block=false
+        elif [[ "$kw" == "identityfile" || "$kw" == "identitiesonly" ]]; then
+          ((replaced++)); continue
+        fi
+      fi
+      new+=("$l")
+    done
+  else
+    local block=("Host ${host}" "${pinned[@]}" "")
+    if [[ $first_block -ge 0 ]]; then
+      action="Add a 'Host ${host}' block before line $((first_block + 1))"
+      for ((i = 0; i < n; i++)); do
+        [[ $i -eq $first_block ]] && new+=("${block[@]}")
+        new+=("${lines[i]}")
+      done
+    else
+      action="Add a 'Host ${host}' block at the end"
+      new=("${lines[@]}")
+      [[ $n -gt 0 && -n "${lines[n - 1]}" ]] && new+=("")
+      new+=("${block[@]:0:3}")
+    fi
+  fi
+
+  echo -e "${CHIEF_COLOR_BLUE}${action} in ${cfg}:${CHIEF_NO_COLOR}"
+  printf '  %s\n' "Host ${host}" "${pinned[@]}"
+  [[ $replaced -gt 0 ]] && echo -e "  ${CHIEF_COLOR_YELLOW}(replaces ${replaced} existing IdentityFile/IdentitiesOnly line(s))${CHIEF_NO_COLOR}"
+  if $dry_run; then
+    echo -e "${CHIEF_COLOR_CYAN}Dry run: nothing changed.${CHIEF_NO_COLOR}"
+    return 0
+  fi
+  if ! $assume_yes; then
+    local confirm
+    echo -en "${CHIEF_COLOR_YELLOW}Write this to ${cfg}? (y/n [n]): ${CHIEF_NO_COLOR}"
+    read -r confirm
+    [[ "$confirm" == "y" || "$confirm" == "Y" ]] || { echo "Cancelled."; return 0; }
+  fi
+
+  mkdir -p "$(dirname "$cfg")" && chmod 700 "$(dirname "$cfg")" 2>/dev/null
+  if [[ -f "$cfg" ]]; then
+    local backup="${cfg}.chief-backup.$(date +%Y%m%d_%H%M%S)"
+    cp -p "$cfg" "$backup" || { echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} could not back up $cfg" >&2; return 1; }
+    echo -e "Backup: ${backup}"
+  fi
+  local tmp="${cfg}.chief-tmp.$$"
+  printf '%s\n' "${new[@]}" > "$tmp" && chmod 600 "$tmp" && mv -f "$tmp" "$cfg" || {
+    rm -f "$tmp"; echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} could not write $cfg" >&2; return 1; }
+  echo -e "${CHIEF_SYMBOL_CHECK:-✓} ${host} now uses only ${id_path}"
 }
 
 function chief.plugins-update() {

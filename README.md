@@ -144,6 +144,12 @@ Off by default; enable with `chief.plugin enable core.openshift`.
 - `chief.ssh_get-publickey` - Extract and display public keys
 - `chief.ssh_rm-host` - Clean known_hosts entries safely
 
+Core SSH helpers (always available):
+
+- `chief.ssh_load-keys` - Load your keys into ssh-agent
+- `chief.ssh_status` - Show agent keys; with 4 or more keys loaded, lists hosts that don't pin a key
+- `chief.ssh_host-key <host> <key>` - Pin one key to a host in `~/.ssh/config` (`IdentityFile` + `IdentitiesOnly yes`), so many loaded keys don't trigger "Too many authentication failures"
+
 ### System Utilities Plugin (18 functions)
 
 - `chief.etc_create-bootusb` - Create bootable USB drives safely
