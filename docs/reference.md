@@ -635,12 +635,12 @@ ssh-add ~/.ssh/id_rsa
 ssh offers every agent key in turn, and servers stop after a few rejected ones (`MaxAuthTries`). Pin the right key to each host:
 
 ```bash
-chief.ssh_status                          # with 4+ keys loaded, lists hosts that don't pin a key
+chief.ssh_status                          # with 3+ keys loaded, lists hosts that don't pin a key
 chief.ssh_host-key github.com github      # adds IdentityFile + IdentitiesOnly yes for that host
 chief.ssh_host-key myserver work --dry-run  # preview the change first
 ```
 
-`chief.ssh_host-key` backs up `~/.ssh/config` before writing. Chief only shows the many-keys note when 4 or more keys are in the agent.
+`chief.ssh_host-key` backs up `~/.ssh/config` before writing. Chief only shows the many-keys note when 3 or more keys are in the agent.
 
 ### Built-in Plugin Issues
 

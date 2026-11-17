@@ -2101,16 +2101,16 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     else
       echo -e "Hosts without ${CHIEF_COLOR_CYAN}IdentitiesOnly yes${CHIEF_NO_COLOR} (ssh may offer every agent key):"
       echo "$missing" | sed 's/^/  • /'
-      echo -e "Fix one with: ${CHIEF_COLOR_GREEN}chief.ssh_host-key <host> <key>${CHIEF_NO_COLOR}"
+      echo -e "Fix one with: ${CHIEF_COLOR_GREEN}chief.ssh_host-key <host> <key>${CHIEF_NO_COLOR}   (preview with --dry-run)"
+      __chief_ssh_key_names_line
     fi
   fi
-  __chief_ssh_key_limit_hint "$agent_keys" --always
 }
 
 # SSH servers count every key the client offers as one authentication attempt and disconnect
 # after MaxAuthTries (OpenSSH default 6; many servers use fewer). With this many keys in the
 # agent, the right key may never be offered ("Too many authentication failures").
-CHIEF_SSH_KEYS_WARN_AT=4
+CHIEF_SSH_KEYS_WARN_AT=3
 
 # Number of identities currently in ssh-agent (0 if none or no agent).
 function __chief_ssh_agent_key_count() {
@@ -2131,9 +2131,23 @@ function __chief_ssh_key_limit_hint() {
     [[ -f "$marker" ]] && return 0
     mkdir -p "$(dirname "$marker")" 2>/dev/null && touch "$marker" 2>/dev/null
   fi
-  echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} ${count} keys are loaded in ssh-agent. SSH servers stop after a few rejected keys (MaxAuthTries, often 3-6),"
-  echo -e "so the right key may never be tried (\"Too many authentication failures\"). Tell ssh which key each host uses:"
-  echo -e "  ${CHIEF_COLOR_GREEN}chief.ssh_host-key <host> <key>${CHIEF_NO_COLOR}   (adds IdentityFile + IdentitiesOnly yes to ~/.ssh/config)"
+  echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} ${count} keys are loaded in ssh-agent. Servers may stop before the right one is tried"
+  echo -e "(\"Too many authentication failures\"). Pin one key per host:"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.ssh_status${CHIEF_NO_COLOR}                  list hosts that don't pin a key"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.ssh_host-key <host> <key>${CHIEF_NO_COLOR}   pin one (add --dry-run to preview)"
+  __chief_ssh_key_names_line
+}
+
+# Print the key names chief.ssh_host-key accepts (from CHIEF_CFG_SSH_KEYS_PATH), if any.
+function __chief_ssh_key_names_line() {
+  local dir="${CHIEF_CFG_SSH_KEYS_PATH:-}" f names=""
+  [[ -n "$dir" && -d "$dir" ]] || return 0
+  for f in "$dir"/*.key; do
+    [[ -e "$f" ]] || continue
+    f="${f##*/}"; names="${names:+$names, }${f%.key}"
+  done
+  [[ -n "$names" ]] && echo -e "  Your keys: ${CHIEF_COLOR_CYAN}${names}${CHIEF_NO_COLOR}"
+  return 0
 }
 
 # Print hosts from an ssh config that don't set "IdentitiesOnly yes" (one per line).

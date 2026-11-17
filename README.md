@@ -147,7 +147,7 @@ Off by default; enable with `chief.plugin enable core.openshift`.
 Core SSH helpers (always available):
 
 - `chief.ssh_load-keys` - Load your keys into ssh-agent
-- `chief.ssh_status` - Show agent keys; with 4 or more keys loaded, lists hosts that don't pin a key
+- `chief.ssh_status` - Show agent keys; with 3 or more keys loaded, lists hosts that don't pin a key
 - `chief.ssh_host-key <host> <key>` - Pin one key to a host in `~/.ssh/config` (`IdentityFile` + `IdentitiesOnly yes`), so many loaded keys don't trigger "Too many authentication failures"
 
 ### System Utilities Plugin (18 functions)
