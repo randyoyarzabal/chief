@@ -153,7 +153,7 @@ confirm() {
 print_banner() {
   # Read version and website from installed Chief VERSION file
   local version="Unknown"
-  local website="https://chief.reonetlabs.us"  # Default fallback
+  local website="https://chief.randyo.dev"  # Default fallback
   
   if [[ -f "$CHIEF_PATH/VERSION" ]]; then
     source "$CHIEF_PATH/VERSION"

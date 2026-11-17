@@ -2,7 +2,7 @@
 
 **Bash Plugin Manager & Terminal Enhancement Tool**
 
-[![GitHub release](https://img.shields.io/badge/Download%20Release-v3.1.4-blue.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Dev Branch](https://img.shields.io/badge/Dev%20Branch-v3.2.0--dev-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev) [![Main Branch](https://img.shields.io/badge/Stable-v3.1.4-green.svg?style=social)](https://github.com/randyoyarzabal/chief) [![Documentation](https://img.shields.io/badge/Documentation-blue)](https://chief.reonetlabs.us)
+[![GitHub release](https://img.shields.io/badge/Download%20Release-v3.1.4-blue.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Dev Branch](https://img.shields.io/badge/Dev%20Branch-v3.2.0--dev-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev) [![Main Branch](https://img.shields.io/badge/Stable-v3.1.4-green.svg?style=social)](https://github.com/randyoyarzabal/chief) [![Documentation](https://img.shields.io/badge/Documentation-blue)](https://chief.randyo.dev)
 
 Chief is a lightweight, powerful Bash library system that helps you organize your shell environment through a plugin-based architecture. Think of it as a package manager for your bash functions, aliases, and tools.
 
@@ -57,7 +57,7 @@ chief.secrets_file-load  # Team secrets (.chief_shared-secrets - if exists)
 chief.secrets_file-load ~/.my-personal-secrets     # Personal secrets
 ```
 
-For detailed secrets and vault setup, see: [Secrets and Vault Configuration](https://chief.reonetlabs.us/configuration.html#-secrets-and-vault-configuration)
+For detailed secrets and vault setup, see: [Secrets and Vault Configuration](https://chief.randyo.dev/configuration.html#-secrets-and-vault-configuration)
 
 ### Result
 
@@ -217,15 +217,15 @@ This helps us quickly identify and fix issues!
 
 ## Learn More
 
-**[Complete Documentation](https://chief.reonetlabs.us)** - Installation, tutorials, examples, and advanced features
+**[Complete Documentation](https://chief.randyo.dev)** - Installation, tutorials, examples, and advanced features
 
-**[Quick Start Guide](https://chief.reonetlabs.us/getting-started)** - Get productive in 5 minutes
+**[Quick Start Guide](https://chief.randyo.dev/getting-started)** - Get productive in 5 minutes
 
-**[Plugin Development](https://chief.reonetlabs.us/plugin-development)** - Create and share your own plugins
+**[Plugin Development](https://chief.randyo.dev/plugin-development)** - Create and share your own plugins
 
 ## Contributing
 
-Contributions welcome! See our [documentation](https://chief.reonetlabs.us/reference#contributing) for guidelines.
+Contributions welcome! See our [documentation](https://chief.randyo.dev/reference#contributing) for guidelines.
 
 ## Acknowledgments
 

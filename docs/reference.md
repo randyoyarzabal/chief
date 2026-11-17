@@ -4,7 +4,7 @@ title: Reference
 description: "Complete command reference, examples, and additional resources"
 ---
 
-[← Back to Home](https://chief.reonetlabs.us/)
+[← Back to Home](https://chief.randyo.dev/)
 
 # Reference
 
@@ -932,4 +932,4 @@ This project is licensed under the **GNU General Public License v3.0** - see the
 
 ---
 
-[← Back to Home](https://chief.reonetlabs.us/)
+[← Back to Home](https://chief.randyo.dev/)

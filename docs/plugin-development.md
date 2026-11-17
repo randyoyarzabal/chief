@@ -4,7 +4,7 @@ title: Plugin Development
 description: "Complete guide to creating, managing, and sharing Chief plugins"
 ---
 
-[← Back to Home](https://chief.reonetlabs.us/)
+[← Back to Home](https://chief.randyo.dev/)
 
 # Plugin Development
 
@@ -711,4 +711,4 @@ test_myproject_deploy
 
 ---
 
-[← Back to Home](https://chief.reonetlabs.us/)
+[← Back to Home](https://chief.randyo.dev/)

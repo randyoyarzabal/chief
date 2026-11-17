@@ -56,7 +56,7 @@ done
 if [[ -f "${CHIEF_PATH}/VERSION" ]]; then
   source "${CHIEF_PATH}/VERSION"
 else
-  CHIEF_WEBSITE="https://chief.reonetlabs.us"
+  CHIEF_WEBSITE="https://chief.randyo.dev"
 fi
 
 # Colors: ANSI only when stdout is a capable TTY (same policy as chief_library.sh).

@@ -4,7 +4,7 @@ title: Getting Started
 description: "Installation, setup, and first steps with Chief"
 ---
 
-[← Back to Home](https://chief.reonetlabs.us/)
+[← Back to Home](https://chief.randyo.dev/)
 
 # Getting Started with Chief
 
@@ -393,4 +393,4 @@ git config --global user.email "your@email.com"
 
 ---
 
-[← Back to Home](https://chief.reonetlabs.us/)
+[← Back to Home](https://chief.randyo.dev/)

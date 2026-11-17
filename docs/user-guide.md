@@ -4,7 +4,7 @@ title: User Guide
 description: "Complete guide to using Chief's core features and commands"
 ---
 
-[← Back to Home](https://chief.reonetlabs.us/)
+[← Back to Home](https://chief.randyo.dev/)
 
 # User Guide
 
@@ -744,4 +744,4 @@ source ~/.bash_profile
 
 ---
 
-[← Back to Home](https://chief.reonetlabs.us/)
+[← Back to Home](https://chief.randyo.dev/)
