@@ -125,7 +125,8 @@ test_release_bump() {
     local copy; copy="$(make_scratch v9.8.0-dev)"
 
     TOTAL_TESTS+=1
-    if run_bump "$copy" release --skip-tests; then
+    local install_before; install_before="$(grep -c 'bash -c "$(curl -fsSL' "$copy/README.md")"
+    if run_bump "$copy" release --skip-tests --next v9.8.1; then
         log_success "release bump exit code 0"
     else
         log_error "release bump failed (see log below)"; sed 's/^/    /' "$TEMP_DIR/bump.log" | tail -20
@@ -135,7 +136,13 @@ test_release_bump() {
     assert_not_contains "$copy/VERSION"   'v9.8.0-dev'                        "VERSION has no -dev suffix"
     assert_contains     "$copy/README.md" 'Download%20Release-v9.8.0-blue'    "Download Release badge = released version"
     assert_contains     "$copy/README.md" 'Stable-v9.8.0-green'               "Stable badge = released version"
-    assert_contains     "$copy/README.md" 'Dev%20Branch-v9.9.0--dev-orange'   "Dev Branch badge = next minor dev"
+    assert_contains     "$copy/README.md" 'Dev%20Branch-v9.8.1--dev-orange'   "Dev Branch badge = the --next dev version"
+    TOTAL_TESTS+=1
+    if [[ "$(grep -c 'bash -c "$(curl -fsSL' "$copy/README.md")" == "$install_before" ]] && ! grep -q 'bash -c "[0-9]' "$copy/README.md"; then
+        log_success "install commands untouched by release"
+    else
+        log_error "install commands changed by release"; grep -n 'bash -c' "$copy/README.md" | sed 's/^/    /'
+    fi
     assert_not_contains "$copy/README.md" 'v9.8.0-dev'                        "README has no stray -dev version"
     assert_contains     "$copy/docs/index.md" 'Download-Release%20v9.8.0-green' "docs/index.md badge = released version"
     assert_file_exists  "$copy/release-notes/v9.8.0.md"                       "release notes renamed to final version"
@@ -157,6 +164,7 @@ test_next_dev_bump() {
     # Either way next-dev must land on v9.9.0--dev.
 
     TOTAL_TESTS+=1
+    local install_before; install_before="$(grep -c 'bash -c "$(curl -fsSL' "$copy/README.md")"
     if run_bump "$copy" next-dev v9.9.0; then
         log_success "next-dev bump exit code 0"
     else
@@ -167,6 +175,14 @@ test_next_dev_bump() {
     assert_contains     "$copy/README.md" 'Download%20Release-v9.8.0-blue'    "Download Release badge still = last release"
     assert_contains     "$copy/README.md" 'Stable-v9.8.0-green'               "Stable badge still = last release"
     assert_contains     "$copy/README.md" 'Dev%20Branch-v9.9.0--dev-orange'   "Dev Branch badge = new dev version"
+    assert_contains     "$copy/README.md" '(Development Version)'             "README title marks the dev version"
+    assert_contains     "$copy/README.md" 'This is the development branch'   "README has the dev-branch warning"
+    TOTAL_TESTS+=1
+    if [[ "$(grep -c 'bash -c "$(curl -fsSL' "$copy/README.md")" == "$install_before" ]] && ! grep -q 'bash -c "[0-9]' "$copy/README.md"; then
+        log_success "install commands untouched by next-dev (no \$( mangling, no duplicates)"
+    else
+        log_error "install commands changed by next-dev"; grep -n 'bash -c' "$copy/README.md" | sed 's/^/    /'
+    fi
     assert_not_contains "$copy/README.md" 'Download%20Release-v9.9.0'         "Download Release badge not polluted with dev"
     assert_not_contains "$copy/README.md" 'Stable-v9.9.0'                     "Stable badge not polluted with dev"
     assert_contains     "$copy/docs/index.md" 'Download-Release%20v9.8.0-green' "docs/index.md badge still = last release"

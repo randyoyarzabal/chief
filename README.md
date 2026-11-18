@@ -1,25 +1,16 @@
-# Chief (Development Version)
+# Chief
 
 **Bash Plugin Manager & Terminal Enhancement Tool**
 
-
-> ⚠️ **Warning**: This is the development branch. Features may be unstable. For stable releases, use the [main branch](https://github.com/randyoyarzabal/chief/tree/main).
-
-[![GitHub release](https://img.shields.io/badge/Download%20Release-v3.2.0-blue.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Dev Branch](https://img.shields.io/badge/Dev%20Branch-v3.2.1--dev-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev) [![Main Branch](https://img.shields.io/badge/Stable-v3.2.0-green.svg?style=social)](https://github.com/randyoyarzabal/chief) [![Documentation](https://img.shields.io/badge/Documentation-blue)](https://chief.randyo.dev)
+[![GitHub release](https://img.shields.io/badge/Download%20Release-v3.1.4-blue.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Dev Branch](https://img.shields.io/badge/Dev%20Branch-v3.2.0--dev-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev) [![Main Branch](https://img.shields.io/badge/Stable-v3.1.4-green.svg?style=social)](https://github.com/randyoyarzabal/chief) [![Documentation](https://img.shields.io/badge/Documentation-blue)](https://chief.randyo.dev)
 
 Chief is a lightweight, powerful Bash library system that helps you organize your shell environment through a plugin-based architecture. Think of it as a package manager for your bash functions, aliases, and tools.
 
-## Quick Install (Development Version)
+## Quick Install
 
 ```bash
-# Install development version (may be unstable)
-bash -c "20 20 12 61 79 80 81 701 33 98 100 204 250 395 398 399 400curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/dev/tools/install.sh)"
-```
-
-**For stable release**, use:
-```bash
-# Install stable version from main branch
-bash -c "20 20 12 61 79 80 81 701 33 98 100 204 250 395 398 399 400curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
+# Install stable version
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
 ```
 
 **For development version**, use:

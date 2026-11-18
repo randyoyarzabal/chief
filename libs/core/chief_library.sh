@@ -1987,6 +1987,8 @@ __CHIEF_STEPS_ROWS=0
 __CHIEF_STEPS_LIVE=false
 __CHIEF_STEPS_FRAME=0
 __CHIEF_STEPS_COLS=80
+__CHIEF_STEPS_TROWS=0
+__CHIEF_STEPS_WINDOWED=false
 __CHIEF_STEPS_FOOTER=""
 __CHIEF_STEPS_NOTES=""
 __CHIEF_STEPS_LOG=""
@@ -1997,8 +1999,12 @@ function __chief_steps_cur_state() {
 
 # Current terminal width (the real one, not a possibly stale $COLUMNS) into __CHIEF_STEPS_COLS.
 function __chief_steps_width() {
-  local size cols=""
-  size="$(stty size </dev/tty 2>/dev/null)" && cols="${size##* }"
+  local size cols="" rows=""
+  size="$(stty size </dev/tty 2>/dev/null)" && cols="${size##* }" && rows="${size%% *}"
+  [[ "$rows" =~ ^[0-9]+$ && "$rows" -gt 0 ]] || rows="${LINES:-}"
+  [[ "$rows" =~ ^[0-9]+$ && "$rows" -gt 0 ]] || rows="$(tput lines 2>/dev/null)"
+  [[ "$rows" =~ ^[0-9]+$ && "$rows" -gt 0 ]] || rows=0
+  __CHIEF_STEPS_TROWS="$rows"
   [[ "$cols" =~ ^[0-9]+$ && "$cols" -gt 0 ]] || cols="${COLUMNS:-}"
   [[ "$cols" =~ ^[0-9]+$ && "$cols" -gt 0 ]] || cols="$(tput cols 2>/dev/null)"
   [[ "$cols" =~ ^[0-9]+$ && "$cols" -gt 0 ]] || cols=80
@@ -2034,6 +2040,7 @@ function __chief_steps_begin() {
   __CHIEF_STEPS_FRAME=0
   __CHIEF_STEPS_FOOTER=""
   __CHIEF_STEPS_NOTES=""
+  __CHIEF_STEPS_WINDOWED=false
   __CHIEF_STEPS_LOG="${TMPDIR:-/tmp}/chief-steps.$$.log"
   : > "$__CHIEF_STEPS_LOG" 2>/dev/null
   __CHIEF_STEPS_LIVE=false
@@ -2077,12 +2084,9 @@ function __chief_steps_draw() {
   $__CHIEF_STEPS_LIVE || return 0
   ((__CHIEF_STEPS_ROWS > 0)) && printf '\033[%dA' "$__CHIEF_STEPS_ROWS"
   printf '\r\033[J'
-  local i rows=0 line plain c
-  for ((i = 0; i < ${#__CHIEF_STEPS_NAMES[@]}; i++)); do
-    __chief_steps_line "$i"
-    printf '%b\n' "$__CHIEF_STEPS_LINE"
-    rows=$((rows + 1))
-  done
+  local i rows=0 line plain c n=${#__CHIEF_STEPS_NAMES[@]}
+  # Notes and footer (questions) first, so we know how many rows the steps may use.
+  local -a extra_lines=()
   local extra="${__CHIEF_STEPS_NOTES}"
   [[ -n "$__CHIEF_STEPS_FOOTER" ]] && extra+="${extra:+\n}${__CHIEF_STEPS_FOOTER}"
   if [[ -n "$extra" ]]; then
@@ -2094,14 +2098,62 @@ function __chief_steps_draw() {
         [[ -n "$c" ]] && plain="${plain//"$(printf '%b' "$c")"/}"
       done
       if ((${#plain} > __CHIEF_STEPS_COLS - 1)); then
-        printf '%s\n' "$(__chief_steps_fit "$plain" $((__CHIEF_STEPS_COLS - 1)))"
+        extra_lines+=("$(__chief_steps_fit "$plain" $((__CHIEF_STEPS_COLS - 1)))")
       else
-        printf '%s\n' "$line"
+        extra_lines+=("$line")
       fi
-      rows=$((rows + 1))
     done < <(printf '%b\n' "$extra")
   fi
+  # A terminal can't move the cursor above its top row, so the block must fit on screen
+  # (with room for a typed answer). If it doesn't, show a window around the current step.
+  local first=0 last=$((n - 1)) avail=0
+  if ((__CHIEF_STEPS_TROWS > 0)); then
+    avail=$((__CHIEF_STEPS_TROWS - 3 - ${#extra_lines[@]}))
+    if ((n > avail)); then
+      __CHIEF_STEPS_WINDOWED=true
+      local w=$((avail - 2)) cur=$__CHIEF_STEPS_CUR
+      ((w < 1)) && w=1
+      ((cur < 0)) && cur=0
+      first=$((cur - w / 2))
+      ((first > n - w)) && first=$((n - w))
+      ((first < 0)) && first=0
+      last=$((first + w - 1))
+    fi
+  fi
+  if ((first > 0)); then
+    printf '  %b… %d earlier step(s)%b\n' "$CHIEF_COLOR_CYAN" "$first" "$CHIEF_NO_COLOR"
+    rows=$((rows + 1))
+  fi
+  for ((i = first; i <= last; i++)); do
+    __chief_steps_line "$i"
+    printf '%b\n' "$__CHIEF_STEPS_LINE"
+    rows=$((rows + 1))
+  done
+  if ((last < n - 1)); then
+    printf '  %b… %d more step(s)%b\n' "$CHIEF_COLOR_CYAN" $((n - 1 - last)) "$CHIEF_NO_COLOR"
+    rows=$((rows + 1))
+  fi
+  for line in ${extra_lines[@]+"${extra_lines[@]}"}; do
+    printf '%s\n' "$line"
+    rows=$((rows + 1))
+  done
   __CHIEF_STEPS_ROWS=$rows
+}
+
+# After a windowed live run ends or stops, replace the window with the full list, once
+# (no more redraws follow, so it may scroll freely).
+function __chief_steps_finalize() {
+  $__CHIEF_STEPS_LIVE && $__CHIEF_STEPS_WINDOWED || return 0
+  ((__CHIEF_STEPS_ROWS > 0)) && printf '\033[%dA' "$__CHIEF_STEPS_ROWS"
+  printf '\r\033[J'
+  local i
+  for ((i = 0; i < ${#__CHIEF_STEPS_NAMES[@]}; i++)); do
+    __chief_steps_line "$i"
+    printf '%b\n' "$__CHIEF_STEPS_LINE"
+  done
+  [[ -n "$__CHIEF_STEPS_NOTES" ]] && printf '%b\n' "$__CHIEF_STEPS_NOTES"
+  __CHIEF_STEPS_ROWS=0
+  __CHIEF_STEPS_WINDOWED=false
 }
 
 # Set the current step's state; in plain mode print it once when it finishes.
@@ -2147,6 +2199,7 @@ function __chief_steps_would() {
 function __chief_steps_fail() {
   local reason="$1"; shift
   __chief_steps_set fail "$reason"
+  __chief_steps_finalize
   __CHIEF_STEPS_ROWS=0
   # The list line may have been cut to fit; the full reason matters, so show it below.
   if $__CHIEF_STEPS_LIVE && ((${#reason} + ${#__CHIEF_STEPS_NAMES[__CHIEF_STEPS_CUR]} + 7 > __CHIEF_STEPS_COLS)); then
@@ -2226,6 +2279,7 @@ function __chief_steps_ask() {
 
 function __chief_steps_end() {
   local title="${1:-}"; shift
+  __chief_steps_finalize
   __CHIEF_STEPS_ROWS=0
   [[ -n "$__CHIEF_STEPS_LOG" ]] && rm -f "$__CHIEF_STEPS_LOG" 2>/dev/null
   [[ -z "$title" ]] && return 0
