@@ -2133,7 +2133,14 @@ function __chief_steps_exec() {
   if $__CHIEF_STEPS_LIVE; then
     # Job-control notices ("[1] 1234", "Done") would break the redraw.
     [[ $- == *m* ]] && monitor=true && set +m
-    "$@" >>"$__CHIEF_STEPS_LOG" 2>&1 </dev/null &
+    # Run external commands in their own session, without the terminal: anything they write
+    # straight to /dev/tty would land between redraws and shift the list (duplicated lines).
+    # Shell functions (e.g. git push wrappers) keep the terminal so auth prompts still work.
+    local -a runner=()
+    if [[ "$(type -t "$1")" == file ]] && command -v perl >/dev/null 2>&1; then
+      runner=(perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV or die "cannot run $ARGV[0]: $!\n"' --)
+    fi
+    ${runner[@]+"${runner[@]}"} "$@" >>"$__CHIEF_STEPS_LOG" 2>&1 </dev/null &
     pid=$!
     while kill -0 "$pid" 2>/dev/null; do
       __chief_steps_tick

@@ -153,6 +153,74 @@ test_steps_helper() {
     echo ""
 }
 
+# Live (terminal) mode: a step command that writes straight to /dev/tty must not shift the
+# redrawn list (it used to duplicate the first line). Runs under a real pseudo-terminal.
+test_steps_live_redraw() {
+    log_info "step-progress helper (live redraw under a terminal)"
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "    python3 not installed; skipping"; echo ""; return 0
+    fi
+    cat > "$TEMP_DIR/live-steps.sh" <<LIVE
+export CHIEF_PATH="$PROJECT_ROOT" CHIEF_CONFIG=/dev/null TERM=xterm-256color COLUMNS=100
+source "\$CHIEF_PATH/VERSION"; source "\$CHIEF_PATH/libs/core/chief_library.sh" >/dev/null 2>&1
+__chief_steps_begin "Live" "First" "Second" "Third"
+__chief_steps_start; __chief_steps_done "ok"
+__chief_steps_exec bash -c 'sleep 0.3; echo stray-tty-write > /dev/tty; sleep 0.3'; __chief_steps_done "ran"
+__chief_steps_start; __chief_steps_done
+__chief_steps_end
+LIVE
+    python3 - "$BASH" "$TEMP_DIR/live-steps.sh" > "$TEMP_DIR/out.log" 2>&1 <<'PY'
+import os, pty, re, select, sys, time
+pid, fd = pty.fork()
+if pid == 0:
+    os.execv(sys.argv[1], [sys.argv[1], "--norc", "-i", sys.argv[2]])
+buf, t0 = b"", time.time()
+while time.time() - t0 < 20:
+    r, _, _ = select.select([fd], [], [], 0.3)
+    if r:
+        try:
+            d = os.read(fd, 65536)
+        except OSError:
+            break
+        if not d:
+            break
+        buf += d
+    elif os.waitpid(pid, os.WNOHANG)[0]:
+        break
+# Replay the output on a tiny virtual screen: newline, CR, cursor-up, clear-to-end.
+lines, row, col = [], 0, 0
+for t in re.split(r"(\x1b\[\d*[A-Za-z]|\r\n|\r|\n)", buf.decode("utf-8", "replace")):
+    if not t:
+        continue
+    if t in ("\n", "\r\n"):
+        row, col = row + 1, 0
+    elif t == "\r":
+        col = 0
+    elif t.startswith("\x1b["):
+        m = re.match(r"\x1b\[(\d*)([A-Za-z])", t)
+        n, c = int(m.group(1) or 1), m.group(2)
+        if c == "A":
+            row = max(0, row - n)
+        elif c == "J":
+            del lines[row + 1:]
+            if row < len(lines):
+                lines[row] = lines[row][:col]
+    else:
+        while len(lines) <= row:
+            lines.append("")
+        lines[row] = lines[row][:col] + t + lines[row][col + len(t):]
+        col += len(t)
+for l in lines:
+    l = re.sub(r"\x1b\[[0-9;]*m", "", l)
+    if l.strip():
+        print(l)
+PY
+    check "live list shows every step once"   [ "$(grep -c '✓ First (ok)' "$TEMP_DIR/out.log")" -eq 1 ]
+    check "live list finished all steps"      contains "$TEMP_DIR/out.log" "  ✓ Third"
+    check "step output kept off the screen"   not_contains "$TEMP_DIR/out.log" "stray-tty-write"
+    echo ""
+}
+
 test_gate() {
     log_info "dev-tools gate"
     local work="$TEMP_DIR/work" state
@@ -278,6 +346,7 @@ main() {
     fi
     setup
     test_steps_helper
+    test_steps_live_redraw
     test_gate
     test_next_validation
     test_dry_run_and_status
