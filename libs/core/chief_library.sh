@@ -1957,11 +1957,12 @@ function __chief_print_info(){
 
 # STEP PROGRESS (live task list)
 ########################################################################
-# Shared progress UI for multi-step Chief commands. Every step is listed up front and
-# updated as the command runs:
-#   ✓ done   ⠋ running   · pending   ↷ skipped   ✗ failed   ○ would (dry run)   ? waiting for an answer
-# In a terminal the list redraws in place. When stdout is not a terminal (pipe, file, CI),
-# NO_COLOR is set, or CHIEF_STEPS_PLAIN=1, it prints one plain line per finished step.
+# Shared progress UI for multi-step Chief commands. Steps are shown as they happen:
+#   ✓ done   ⠋ running   · pending (status views)   ↷ skipped   ✗ failed   ○ would (dry run)
+# Output is append-only: a finished step is printed once and never redrawn. In a terminal,
+# only the line of the step that is running updates in place (spinner + detail), so nothing
+# can be duplicated whatever the terminal size, locale, or other output. When stdout is not
+# a terminal (pipe, file, CI), NO_COLOR is set, or CHIEF_STEPS_PLAIN=1, there is no spinner.
 #
 # Usage (internal, for Chief commands):
 #   __chief_steps_begin "Title" "Step one" "Step two" ...
@@ -1975,20 +1976,18 @@ function __chief_print_info(){
 #                                           $__CHIEF_STEPS_LOG and is shown if it fails
 #   __chief_steps_ask "Question?" [preview] pause on the current step for y/N; 0 = yes.
 #                                           CHIEF_STEPS_ASSUME_YES=1 answers yes without asking.
-#   __chief_steps_note "text"               add a line under the list that stays (e.g. problems found)
-#   __chief_steps_end ["Summary title" [line...]]  finish the list and print a summary
+#   __chief_steps_note "text"               print a line that stays (e.g. problems found)
+#   __chief_steps_end ["Summary title" [line...]]  finish and print a summary
 # Steps are taken in order; each start/done/skip/would/fail call applies to the current step.
 
 __CHIEF_STEPS_NAMES=()
 __CHIEF_STEPS_STATE=()
 __CHIEF_STEPS_DETAIL=()
 __CHIEF_STEPS_CUR=-1
-__CHIEF_STEPS_ROWS=0
 __CHIEF_STEPS_LIVE=false
 __CHIEF_STEPS_FRAME=0
 __CHIEF_STEPS_COLS=80
-__CHIEF_STEPS_FOOTER=""
-__CHIEF_STEPS_NOTES=""
+__CHIEF_STEPS_SHOWING=false   # a running line is on screen (no newline yet)
 __CHIEF_STEPS_LOG=""
 
 function __chief_steps_cur_state() {
@@ -2005,9 +2004,8 @@ function __chief_steps_width() {
   __CHIEF_STEPS_COLS="$cols"
 }
 
-# Cut text so a line never wraps: every line is exactly one terminal row, which is what makes
-# the in-place redraw exact (wrapped lines used to throw the count off and duplicate lines).
-# ${#} counts characters in a UTF-8 locale and bytes otherwise; both are >= the display width.
+# Cut text to at most <max> characters. Used for the line that updates in place (it must
+# not wrap, or "\r" would only clear its last row) and for question lines.
 function __chief_steps_fit() { # <text> <max>
   local text="$1" max="$2"
   ((max < 4)) && max=4
@@ -2030,10 +2028,8 @@ function __chief_steps_begin() {
     __CHIEF_STEPS_DETAIL[i]=""
   done
   __CHIEF_STEPS_CUR=-1
-  __CHIEF_STEPS_ROWS=0
   __CHIEF_STEPS_FRAME=0
-  __CHIEF_STEPS_FOOTER=""
-  __CHIEF_STEPS_NOTES=""
+  __CHIEF_STEPS_SHOWING=false
   __CHIEF_STEPS_LOG="${TMPDIR:-/tmp}/chief-steps.$$.log"
   : > "$__CHIEF_STEPS_LOG" 2>/dev/null
   __CHIEF_STEPS_LIVE=false
@@ -2042,7 +2038,7 @@ function __chief_steps_begin() {
     __chief_steps_width
   fi
   [[ -n "$title" ]] && echo -e "${CHIEF_COLOR_CYAN}${title}${CHIEF_NO_COLOR}\n"
-  __chief_steps_draw
+  return 0
 }
 
 # Build step i's line into __CHIEF_STEPS_LINE (colored) and __CHIEF_STEPS_PLAIN (no color).
@@ -2066,57 +2062,46 @@ function __chief_steps_line() {
     running) [[ -n "$detail" ]] && text+=" ($detail)"; text+="..." ;;
     *)       [[ -n "$detail" ]] && text+=" ($detail)" ;;
   esac
-  $__CHIEF_STEPS_LIVE && text="$(__chief_steps_fit "$text" $((__CHIEF_STEPS_COLS - 5)))"
+  # Only the in-place (running) line must fit on one row; finished lines may wrap freely.
+  if $__CHIEF_STEPS_LIVE && [[ "${__CHIEF_STEPS_STATE[i]}" == running ]]; then
+    text="$(__chief_steps_fit "$text" $((__CHIEF_STEPS_COLS - 5)))"
+  fi
   __CHIEF_STEPS_PLAIN="  $sym $text"
   __CHIEF_STEPS_LINE="  ${color}${sym}${CHIEF_NO_COLOR} $text"
 }
 
-# Redraw the whole list in place (terminal mode only). Every printed line is cut to the
-# terminal width, so the block is exactly as many rows as lines and moving back up is exact.
-function __chief_steps_draw() {
-  $__CHIEF_STEPS_LIVE || return 0
-  ((__CHIEF_STEPS_ROWS > 0)) && printf '\033[%dA' "$__CHIEF_STEPS_ROWS"
-  printf '\r\033[J'
-  local i rows=0 line plain c
-  for ((i = 0; i < ${#__CHIEF_STEPS_NAMES[@]}; i++)); do
-    __chief_steps_line "$i"
-    printf '%b\n' "$__CHIEF_STEPS_LINE"
-    rows=$((rows + 1))
-  done
-  local extra="${__CHIEF_STEPS_NOTES}"
-  [[ -n "$__CHIEF_STEPS_FOOTER" ]] && extra+="${extra:+\n}${__CHIEF_STEPS_FOOTER}"
-  if [[ -n "$extra" ]]; then
-    while IFS= read -r line; do
-      # Measure without color codes; if it has to be cut, print it uncolored.
-      plain="$line"
-      for c in "$CHIEF_COLOR_RED" "$CHIEF_COLOR_GREEN" "$CHIEF_COLOR_YELLOW" "$CHIEF_COLOR_CYAN" \
-               "$CHIEF_COLOR_BLUE" "$CHIEF_COLOR_MAGENTA" "$CHIEF_NO_COLOR"; do
-        [[ -n "$c" ]] && plain="${plain//"$(printf '%b' "$c")"/}"
-      done
-      if ((${#plain} > __CHIEF_STEPS_COLS - 1)); then
-        printf '%s\n' "$(__chief_steps_fit "$plain" $((__CHIEF_STEPS_COLS - 1)))"
-      else
-        printf '%s\n' "$line"
-      fi
-      rows=$((rows + 1))
-    done < <(printf '%b\n' "$extra")
+# Clear the running line (if one is on screen) so permanent output can be printed.
+function __chief_steps_clear_running() {
+  if $__CHIEF_STEPS_SHOWING; then
+    printf '\r\033[K'
+    __CHIEF_STEPS_SHOWING=false
   fi
-  __CHIEF_STEPS_ROWS=$rows
 }
 
-# Set the current step's state; in plain mode print it once when it finishes.
+# Show the running step's line in place (terminal mode only).
+function __chief_steps_show_running() {
+  $__CHIEF_STEPS_LIVE || return 0
+  ((__CHIEF_STEPS_CUR >= 0)) || return 0
+  [[ "${__CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]}" == running ]] || return 0
+  __chief_steps_line "$__CHIEF_STEPS_CUR"
+  printf '\r\033[K%b' "$__CHIEF_STEPS_LINE"
+  __CHIEF_STEPS_SHOWING=true
+}
+
+# Set the current step's state. Running: shown in place. Anything else: printed once.
 function __chief_steps_set() {
   local state="$1" detail="$2"
   ((__CHIEF_STEPS_CUR >= 0)) || return 0
   __CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]="$state"
   __CHIEF_STEPS_DETAIL[__CHIEF_STEPS_CUR]="$detail"
-  if $__CHIEF_STEPS_LIVE; then
-    __chief_steps_width
-    __chief_steps_draw
-  elif [[ "$state" != running && "$state" != ask ]]; then
+  if [[ "$state" == running ]]; then
+    $__CHIEF_STEPS_LIVE && __chief_steps_width && __chief_steps_show_running
+  elif [[ "$state" != ask ]]; then
+    __chief_steps_clear_running
     __chief_steps_line "$__CHIEF_STEPS_CUR"
     printf '%b\n' "$__CHIEF_STEPS_LINE"
   fi
+  return 0
 }
 
 function __chief_steps_start() {
@@ -2127,16 +2112,17 @@ function __chief_steps_start() {
 function __chief_steps_tick() {
   __CHIEF_STEPS_FRAME=$((__CHIEF_STEPS_FRAME + 1))
   [[ $# -gt 0 && $__CHIEF_STEPS_CUR -ge 0 ]] && __CHIEF_STEPS_DETAIL[__CHIEF_STEPS_CUR]="$1"
-  __chief_steps_draw
+  __chief_steps_show_running
 }
 
 function __chief_steps_done()  { __chief_steps_set done "$1"; }
+function __chief_steps_skip()  { __chief_steps_set skip "$1"; }
 
 function __chief_steps_note() {
-  __CHIEF_STEPS_NOTES+="${__CHIEF_STEPS_NOTES:+\n}$1"
-  if $__CHIEF_STEPS_LIVE; then __chief_steps_draw; else echo -e "$1"; fi
+  __chief_steps_clear_running
+  echo -e "$1"
+  __chief_steps_show_running
 }
-function __chief_steps_skip()  { __chief_steps_set skip "$1"; }
 
 function __chief_steps_would() {
   # A dry-run step may be marked without being started first.
@@ -2147,11 +2133,6 @@ function __chief_steps_would() {
 function __chief_steps_fail() {
   local reason="$1"; shift
   __chief_steps_set fail "$reason"
-  __CHIEF_STEPS_ROWS=0
-  # The list line may have been cut to fit; the full reason matters, so show it below.
-  if $__CHIEF_STEPS_LIVE && ((${#reason} + ${#__CHIEF_STEPS_NAMES[__CHIEF_STEPS_CUR]} + 7 > __CHIEF_STEPS_COLS)); then
-    echo -e "    ${CHIEF_COLOR_RED}${reason}${CHIEF_NO_COLOR}"
-  fi
   local hint
   for hint in "$@"; do
     echo -e "    $hint"
@@ -2164,11 +2145,11 @@ function __chief_steps_exec() {
   : > "$__CHIEF_STEPS_LOG" 2>/dev/null
   [[ "$(__chief_steps_cur_state)" == running ]] || __chief_steps_start
   if $__CHIEF_STEPS_LIVE; then
-    # Job-control notices ("[1] 1234", "Done") would break the redraw.
+    # Job-control notices ("[1] 1234", "Done") would land on the spinner line.
     [[ $- == *m* ]] && monitor=true && set +m
-    # Run external commands in their own session, without the terminal: anything they write
-    # straight to /dev/tty would land between redraws and shift the list (duplicated lines).
-    # Shell functions (e.g. git push wrappers) keep the terminal so auth prompts still work.
+    # Run external commands in their own session, without the terminal, so nothing they
+    # write straight to /dev/tty lands on the spinner line. Shell functions (e.g. git push
+    # wrappers) keep the terminal so auth prompts still work.
     local -a runner=()
     if [[ "$(type -t "$1")" == file ]] && command -v perl >/dev/null 2>&1; then
       runner=(perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV or die "cannot run $ARGV[0]: $!\n"' --)
@@ -2202,31 +2183,32 @@ function __chief_steps_ask() {
     __chief_steps_fail "needs confirmation" "No terminal to ask \"$question\"; re-run with --yes to confirm."
     return 1
   fi
-  ((__CHIEF_STEPS_CUR >= 0)) || __CHIEF_STEPS_CUR=0
-  local prev_state="${__CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]}"
-  __CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]="ask"
+  __chief_steps_clear_running
   if $__CHIEF_STEPS_LIVE; then
-    # The question is part of the redrawn block (cut to fit); the answer is typed on the
-    # line below it, which adds exactly one row.
+    # Print the preview and question with lines that never wrap, so after the answer
+    # exactly those rows can be cleared again.
     __chief_steps_width
-    # Shorten the question, never the [y/N] after it.
-    __CHIEF_STEPS_FOOTER="${preview}${preview:+\n}  ? $(__chief_steps_fit "$question" $((__CHIEF_STEPS_COLS - 11))) [y/N]"
-    __chief_steps_draw
-    read -r answer
-    __CHIEF_STEPS_ROWS=$((__CHIEF_STEPS_ROWS + 1))
-    __CHIEF_STEPS_FOOTER=""
+    local rows=0 line max=$((__CHIEF_STEPS_COLS - 1))
+    if [[ -n "$preview" ]]; then
+      while IFS= read -r line; do
+        printf '%s\n' "$(__chief_steps_fit "$line" "$max")"
+        rows=$((rows + 1))
+      done < <(printf '%b\n' "$preview")
+    fi
+    read -r -p "  ? $(__chief_steps_fit "$question" $((__CHIEF_STEPS_COLS - 13))) [y/N] " answer
+    rows=$((rows + 1))
+    printf '\033[%dA\r\033[J' "$rows"
   else
     [[ -n "$preview" ]] && printf '%b\n' "$preview"
     read -r -p "  ? ${question} [y/N] " answer
   fi
-  __CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]="$prev_state"
-  __chief_steps_draw
+  __chief_steps_show_running
   [[ "$answer" =~ ^[Yy]([Ee][Ss])?$ ]]
 }
 
 function __chief_steps_end() {
   local title="${1:-}"; shift
-  __CHIEF_STEPS_ROWS=0
+  __chief_steps_clear_running
   [[ -n "$__CHIEF_STEPS_LOG" ]] && rm -f "$__CHIEF_STEPS_LOG" 2>/dev/null
   [[ -z "$title" ]] && return 0
   echo

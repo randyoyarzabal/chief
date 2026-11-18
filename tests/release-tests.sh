@@ -228,6 +228,9 @@ for t in re.split(r"(\x1b\[[0-9;]*[A-Za-z]|\r\n|\r|\n)", buf.decode("utf-8", "re
         m = re.match(r"\x1b\[(\d*)([A-Za-z])", t)
         if m and m.group(2) == "A":
             row = max(0, row - int(m.group(1) or 1))
+        elif m and m.group(2) == "K":
+            if row < len(lines):
+                lines[row] = lines[row][:col]
         elif m and m.group(2) == "J":
             del lines[row + 1:]
             if row < len(lines):
@@ -245,9 +248,99 @@ PY
     check "live list shows every step once"   [ "$(grep -c '✓ First' "$TEMP_DIR/out.log")" -eq 1 ]
     check "answered step completed once"      [ "$(grep -c '✓ Commit' "$TEMP_DIR/out.log")" -eq 1 ]
     check "live list finished all steps"      contains "$TEMP_DIR/out.log" "  ✓ Last"
-    check "no line wider than the terminal"   contains "$TEMP_DIR/out.log" "NO_LINE_WRAPPED"
+    check "long finished line kept in full"   bash -c "tr -d '\\n' < '$TEMP_DIR/out.log' | grep -qF 'fairly long detail that does not fit'"
     check "prompt cleared after the answer"   not_contains "$TEMP_DIR/out.log" "[y/N]"
     check "step output kept off the screen"   not_contains "$TEMP_DIR/out.log" "stray-tty-write"
+    echo ""
+}
+
+# A list taller than the terminal: the live view windows around the current step instead of
+# redrawing past the top of the screen (which left copies of the first line behind).
+test_steps_short_terminal() {
+    log_info "step-progress helper (list taller than the terminal)"
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "    python3 not installed; skipping"; echo ""; return 0
+    fi
+    cat > "$TEMP_DIR/tall-steps.sh" <<LIVE
+export CHIEF_PATH="$PROJECT_ROOT" CHIEF_CONFIG=/dev/null TERM=xterm-256color
+unset LANG LC_ALL LC_CTYPE COLUMNS LINES
+source "\$CHIEF_PATH/VERSION"; source "\$CHIEF_PATH/libs/core/chief_library.sh" >/dev/null 2>&1
+__chief_steps_begin "Tall" "First" "Two" "Three" "Four" "Five" "Six" "Merge" "Tag" "Nine" "Ten" "Eleven" "Twelve"
+__chief_steps_start; __chief_steps_done "ok"
+for i in 2 3 4 5 6; do __chief_steps_start; __chief_steps_skip "done before"; done
+__chief_steps_start; __chief_steps_ask "Merge into main?" && __chief_steps_done "merged"
+__chief_steps_start; __chief_steps_ask "Tag and release?" && __chief_steps_done "tagged"
+for i in 9 10 11 12; do __chief_steps_start; __chief_steps_done; done
+__chief_steps_end "Done"
+LIVE
+    python3 - "$BASH" "$TEMP_DIR/tall-steps.sh" > "$TEMP_DIR/out.log" 2>&1 <<'PY'
+import fcntl, os, pty, re, select, struct, sys, termios, time
+W, H = 55, 10
+pid, fd = pty.fork()
+if pid == 0:
+    os.execv(sys.argv[1], [sys.argv[1], "--norc", "-i", sys.argv[2]])
+fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", H, W, 0, 0))
+buf, t0, answered = b"", time.time(), 0
+while time.time() - t0 < 30:
+    r, _, _ = select.select([fd], [], [], 0.2)
+    if r:
+        try:
+            d = os.read(fd, 65536)
+        except OSError:
+            break
+        if not d:
+            break
+        buf += d
+        if buf.count(b"[y/N]") > answered:
+            answered = buf.count(b"[y/N]"); time.sleep(0.3); os.write(fd, b"y\n")
+    elif os.waitpid(pid, os.WNOHANG)[0]:
+        break
+# Virtual H-row screen with scrollback: the cursor can't go above the visible top.
+lines, row, col, top = [], 0, 0, 0
+def nl():
+    global row, col, top
+    row, col = row + 1, 0
+    if row >= top + H:
+        top = row - H + 1
+def put(ch):
+    global col
+    if col >= W:
+        nl()
+    while len(lines) <= row:
+        lines.append("")
+    l = lines[row].ljust(col)
+    lines[row] = l[:col] + ch + l[col + 1:]
+    col += 1
+for t in re.split(r"(\x1b\[[0-9;]*[A-Za-z]|\r\n|\r|\n)", buf.decode("utf-8", "replace")):
+    if not t:
+        continue
+    if t in ("\n", "\r\n"):
+        nl()
+    elif t == "\r":
+        col = 0
+    elif t.startswith("\x1b["):
+        m = re.match(r"\x1b\[(\d*)([A-Za-z])", t)
+        if m and m.group(2) == "A":
+            row = max(top, row - int(m.group(1) or 1))
+        elif m and m.group(2) == "K":
+            if row < len(lines):
+                lines[row] = lines[row][:col]
+        elif m and m.group(2) == "J":
+            del lines[row + 1:]
+            if row < len(lines):
+                lines[row] = lines[row][:col]
+    else:
+        for ch in t:
+            put(ch)
+print("ANSWERED=%d" % answered)
+for l in lines:
+    if l.strip():
+        print(l)
+PY
+    check "both questions answered"            contains "$TEMP_DIR/out.log" "ANSWERED=2"
+    check "first line appears once"            [ "$(grep -c '✓ First (ok)' "$TEMP_DIR/out.log")" -eq 1 ]
+    check "full list printed at the end"       [ "$(grep -cE '^  (✓|↷) ' "$TEMP_DIR/out.log")" -eq 12 ]
+    check "no leftover window markers"         not_contains "$TEMP_DIR/out.log" "more step(s)"
     echo ""
 }
 
@@ -321,6 +414,10 @@ test_publish_with_resume() {
     check "next release notes created on dev"     bash -c "git -C '$TEMP_DIR/remote.git' cat-file -e dev:release-notes/v9.8.1-dev.md"
     check "dev badge shows next dev version"      bash -c "git -C '$TEMP_DIR/remote.git' show dev:README.md | grep -qF 'Dev%20Branch-v9.8.1--dev'"
     check "stable badge shows the release"        bash -c "git -C '$TEMP_DIR/remote.git' show dev:README.md | grep -qF 'Download%20Release-v9.8.0-'"
+    check "main's Dev badge shows --next"         bash -c "git -C '$TEMP_DIR/remote.git' show main:README.md | grep -qF 'Dev%20Branch-v9.8.1--dev'"
+    check "install commands intact on main"       bash -c "! git -C '$TEMP_DIR/remote.git' show main:README.md | grep -q 'bash -c \"[0-9]'"
+    check "install commands intact on dev"        bash -c "! git -C '$TEMP_DIR/remote.git' show dev:README.md | grep -q 'bash -c \"[0-9]'"
+    check "install section not duplicated on dev" [ "$(git -C "$TEMP_DIR/remote.git" show dev:README.md | grep -c 'bash -c "$(curl')" -eq "$(grep -c 'bash -c "$(curl' "$PROJECT_ROOT/README.md")" ]
     check "summary lists the release"             contains "$TEMP_DIR/out.log" "Released Chief v9.8.0"
     check "config not touched without --track"   not_contains "$TEMP_DIR/config.sh" 'CHIEF_CFG_UPDATE_BRANCH="dev"'
     echo ""
@@ -387,6 +484,7 @@ main() {
     setup
     test_steps_helper
     test_steps_live_redraw
+    test_steps_short_terminal
     test_gate
     test_next_validation
     test_dry_run_and_status

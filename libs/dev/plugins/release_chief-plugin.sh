@@ -50,7 +50,8 @@ function __chief_release_bump() {
 Internal: rewrites VERSION, release notes and README/docs badges for a release or a new
 dev cycle. Called by chief.release_prepare / chief.release_publish; it never commits,
 pushes, or touches your config.
-  release             vX.Y.Z-dev -> vX.Y.Z (renames release-notes/vX.Y.Z-dev.md)
+  release [--next vA.B.C]  vX.Y.Z-dev -> vX.Y.Z (renames release-notes/vX.Y.Z-dev.md);
+                      --next sets the Dev Branch badge to vA.B.C-dev
   next-dev vA.B.C     vX.Y.Z -> vA.B.C-dev (creates release-notes/vA.B.C-dev.md)"
 
   # Parse arguments
@@ -59,6 +60,7 @@ pushes, or touches your config.
   local dry_run=false
   local create_backups=false
   local skip_tests=false
+  local dev_badge_next=""
   local positional_args=()
   
   while [[ $# -gt 0 ]]; do
@@ -78,6 +80,11 @@ pushes, or touches your config.
       --skip-tests)
         skip_tests=true
         shift
+        ;;
+      --next)
+        # release mode: the next dev version, for main's Dev Branch badge
+        dev_badge_next="${2:-}"
+        shift 2
         ;;
       -*)
         __chief_print_error "Unknown option: $1"
@@ -321,7 +328,7 @@ EOF
               -e 's/- Ready for development work on '"${new_version}"'-dev/- Release version '"${new_version}"'/g' \
               -e 's/\*\*Status:\*\* Development in progress/\*\*Status:\*\* Released/g' \
               -e 's/\*\*Target Release:\*\* '"${new_version}"'/\*\*Release Date:\*\* '"${new_version}"'/g' \
-              -e "s/${new_version}-dev/${new_version}/g" \
+              -e "1s/${new_version}-dev/${new_version}/" \
               "$dev_release_notes" > "$final_release_notes"
         fi
         
@@ -455,6 +462,11 @@ EOF
       if ! grep -q "$badge_new" "$file" 2>/dev/null; then
         badge_needs_update=true
       fi
+      # A release with --next must also leave the Dev Branch badge on that version.
+      if [[ -n "$dev_badge_next" ]] && grep -q "Dev%20Branch-" "$file" 2>/dev/null && \
+         ! grep -qF "Dev%20Branch-${dev_badge_next//-/--}--dev-" "$file" 2>/dev/null; then
+        badge_needs_update=true
+      fi
     fi
     
     # For README.md, also check content structure for dev vs release versions
@@ -466,16 +478,12 @@ EOF
           readme_content_correct=false
         elif ! grep -q "Warning.*development branch" "$file" 2>/dev/null; then
           readme_content_correct=false
-        elif ! grep -q "Quick Install (Development Version)" "$file" 2>/dev/null; then
-          readme_content_correct=false
         fi
       elif [[ "${positional_args[0]}" == "release" ]]; then
         # For release, README should have release content structure
-        if ! grep -q "^# 🚀 Chief$" "$file" 2>/dev/null; then
+        if ! grep -qE "^# (🚀 )?Chief$" "$file" 2>/dev/null; then
           readme_content_correct=false
         elif grep -q "Warning.*development branch" "$file" 2>/dev/null; then
-          readme_content_correct=false
-        elif ! grep -q "^## ⚡ Quick Install$" "$file" 2>/dev/null; then
           readme_content_correct=false
         fi
       fi
@@ -524,7 +532,9 @@ EOF
     local stable_version="" dev_version=""
     if [[ "${positional_args[0]}" == "release" ]]; then
       stable_version="${new_version}"
-      if [[ "$current_version" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)-dev$ ]]; then
+      if [[ -n "$dev_badge_next" ]]; then
+        dev_version="${dev_badge_next}-dev"
+      elif [[ "$current_version" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)-dev$ ]]; then
         dev_version="v${BASH_REMATCH[1]}.$((BASH_REMATCH[2] + 1)).0-dev"
       fi
     elif [[ "${positional_args[0]}" == "next-dev" ]]; then
@@ -586,7 +596,7 @@ EOF
       if [[ "${positional_args[0]}" == "release" ]]; then
         # RELEASE: Remove dev-specific content from README
         # 1. Remove "(Development Version)" from title
-        if ! sed -i.tmp5 "s/# 🚀 Chief (Development Version)/# 🚀 Chief/g" "$file" 2>/dev/null; then
+        if ! sed -i.tmp5 -e "s/^# 🚀 Chief (Development Version)$/# 🚀 Chief/" -e "s/^# Chief (Development Version)$/# Chief/" "$file" 2>/dev/null; then
           success=false
         fi
         
@@ -598,18 +608,11 @@ EOF
           fi
         fi
         
-        # 3. Simplify installation section
+        # 3. Older dev READMEs renamed the heading; the install section itself is never rewritten
+        #    (it lists both the stable and the dev command on every branch).
         if $success; then
-          # Replace development install section with simple install
-          if ! sed -i.tmp6 's/## ⚡ Quick Install (Development Version)/## ⚡ Quick Install/g' "$file" 2>/dev/null; then
-            success=false
-          fi
-          
-          # Remove the dev install block and stable alternative, keep only main install
-          if $success; then
-            # Use perl to replace the complex install section
-            perl -i -pe 'BEGIN{undef $/;} s/```bash\n# Install development version \(may be unstable\)\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/dev\/tools\/install\.sh\)"\n```\n\n\*\*For stable release\*\*, use:\n```bash\n# Install stable version from main branch\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install\.sh\)"\n```/```bash\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install\.sh\)"\n```/smg' "$file" 2>/dev/null || success=false
-          fi
+          sed -i.tmp6 -e 's/^## ⚡ Quick Install (Development Version)$/## ⚡ Quick Install/' \
+                      -e 's/^## Quick Install (Development Version)$/## Quick Install/' "$file" 2>/dev/null || success=false
         fi
         
       elif [[ "${positional_args[0]}" == "next-dev" ]]; then
@@ -631,23 +634,6 @@ EOF
           fi
         fi
 
-        # 3. Expand installation section (accept "## Quick Install" or "## ⚡ Quick Install")
-        if $success; then
-          if grep -q '^## ⚡ Quick Install$' "$file" 2>/dev/null; then
-            sed -i.tmp7 's/## ⚡ Quick Install$/## ⚡ Quick Install (Development Version)/g' "$file" 2>/dev/null || success=false
-          elif grep -q '^## Quick Install$' "$file" 2>/dev/null; then
-            sed -i.tmp7 's/## Quick Install$/## Quick Install (Development Version)/g' "$file" 2>/dev/null || success=false
-          fi
-        fi
-
-        # 4. Replace install block with dev-first version (optional; skip if already in dev format)
-        if $success && grep -q "Install stable version" "$file" 2>/dev/null && grep -q "refs/heads/main/tools/install" "$file" 2>/dev/null; then
-          if perl -i.tmp_install -pe 'BEGIN{undef $/;} s/(```bash\n)(# Install stable version\n)?(bash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install\.sh\)"\n```)/$1# Install development version (may be unstable)\nbash -c "$(curl -fsSL https:\/\/raw.githubusercontent.com\/randyoyarzabal\/chief\/refs\/heads\/dev\/tools\/install.sh)"\n```\n\n**For stable release**, use:\n```bash\n# Install stable version from main branch\nbash -c "$(curl -fsSL https:\/\/raw.githubusercontent.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install.sh)"\n```/smg' "$file" 2>/dev/null; then
-            rm -f "${file}.tmp_install" 2>/dev/null
-          else
-            rm -f "${file}.tmp_install" 2>/dev/null
-          fi
-        fi
       fi
     fi
     
@@ -853,7 +839,7 @@ function __chief_release_engine() {
   fi
 
   # --next is required to publish (except to finish a cycle whose next version is already set).
-  if [[ $mode == publish && $phase != nextdev ]]; then
+  if [[ ($mode == publish || $mode == prepare) && $phase != nextdev ]]; then
     if [[ -z "$next" ]]; then
       __chief_print_error "--next is required. For ${rel}, the next version is usually one of:"
       __chief_release_print_candidates "$rel"
@@ -878,7 +864,13 @@ function __chief_release_engine() {
   main_ver="$(__chief_release_version_at "${remote}/main")"
   tag_sha="$(__chief_release_git ls-remote --tags "$remote" "refs/tags/${rel}^{}" 2>/dev/null | cut -c1-7)"
   [[ -z "$tag_sha" ]] && tag_sha="$(__chief_release_git ls-remote --tags "$remote" "refs/tags/${rel}" 2>/dev/null | cut -c1-7)"
-  [[ "$main_ver" == "$rel" || -n "$tag_sha" ]] && merged=true
+  # Merged = the release is tagged, or main already contains dev's release commit. (main's
+  # VERSION alone isn't enough: after a release is rewound, main can still say vX.Y.Z.)
+  if [[ -n "$tag_sha" ]]; then
+    merged=true
+  elif [[ $phase == prepared ]] && __chief_release_git merge-base --is-ancestor HEAD "${remote}/main" 2>/dev/null; then
+    merged=true
+  fi
   local gh_ok=false
   command -v gh >/dev/null 2>&1 && gh auth status >/dev/null 2>&1 && gh_ok=true
   if [[ $mode != prepare ]] && $gh_ok; then
@@ -926,6 +918,10 @@ function __chief_release_engine() {
     unprepared) [[ -f "${CHIEF_PATH}/release-notes/${rel}-dev.md" ]] || problems+=("Missing release notes: release-notes/${rel}-dev.md") ;;
     bumped|prepared) [[ -f "${CHIEF_PATH}/release-notes/${rel}.md" ]] || problems+=("Missing release notes: release-notes/${rel}.md") ;;
   esac
+  if [[ ($phase == prepared || $phase == bumped) && -n "$next" ]] && \
+     ! grep -qF "Dev%20Branch-${next//-/--}--dev-" "${CHIEF_PATH}/README.md" 2>/dev/null; then
+    problems+=("The release commit's Dev Branch badge doesn't show ${next}-dev. Use the --next it was prepared with, or fix README.md's badge on dev.")
+  fi
   if [[ $mode != prepare ]] && ! $gh_ok; then
     problems+=("GitHub CLI is not installed or not signed in. Run: gh auth login")
   fi
@@ -958,7 +954,7 @@ function __chief_release_engine() {
         __chief_steps_done "all suites passed"
       fi
       if __chief_release_todo; then
-        if ! __chief_steps_exec __chief_release_bump release --skip-tests; then
+        if ! __chief_steps_exec __chief_release_bump release --skip-tests --next "$next"; then
           __chief_steps_fail "version bump failed"
           __chief_steps_show_log 20
           return 1
@@ -1001,8 +997,8 @@ function __chief_release_engine() {
     if $dry; then
       __chief_steps_end "Dry run complete. Nothing was changed."
     else
-      __chief_steps_end "Prepared Chief ${rel} on dev" "Publish it with one of:"
-      __chief_release_print_candidates "$rel"
+      __chief_steps_end "Prepared Chief ${rel} on dev" \
+        "Publish it with: ${CHIEF_COLOR_GREEN}chief.release_publish --next ${next}${CHIEF_NO_COLOR}"
     fi
     return 0
   fi
@@ -1249,7 +1245,7 @@ ${CHIEF_COLOR_BLUE}Maintainers only:${CHIEF_NO_COLOR} available when ${CHIEF_PAT
 }
 
 function chief.release_prepare() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--dry-run] [--yes]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME --next vX.Y.Z [--dry-run] [--yes]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
   Optional. Stages the release on dev without publishing anything: checks, runs the
@@ -1259,8 +1255,10 @@ ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
   when you want to review before going public. Re-running continues where it stopped.
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
-  --dry-run   Show every step and what it would do; change nothing
-  --yes, -y   Don't ask before committing and pushing
+  --next vX.Y.Z  Required. The next development version; the release's Dev Branch badge
+                 shows it (use the same --next with chief.release_publish).
+  --dry-run      Show every step and what it would do; change nothing
+  --yes, -y      Don't ask before committing and pushing
 
 ${CHIEF_COLOR_BLUE}Maintainers only:${CHIEF_NO_COLOR} available when ${CHIEF_PATH} is on the dev branch
   and dev_tools is on (chief.config-set dev_tools true)."
@@ -1271,7 +1269,7 @@ ${CHIEF_COLOR_BLUE}Maintainers only:${CHIEF_NO_COLOR} available when ${CHIEF_PAT
   local CHIEF_STEPS_ASSUME_YES=""
   $yes && CHIEF_STEPS_ASSUME_YES=1
   local mode=prepare
-  __chief_release_engine prepare "$dry" "" ""
+  __chief_release_engine prepare "$dry" "$next" ""
 }
 
 function chief.release_publish() {
