@@ -69,7 +69,8 @@ chief.config-set config_set_interactive false
 | `CHIEF_CFG_CONFIG_SET_INTERACTIVE` | `true` | Prompt for confirmation in `chief.config-set` |
 | `CHIEF_CFG_CONFIG_UPDATE_BACKUP` | `true` | Create backups during config updates (only when changes made) |
 | `CHIEF_CFG_PLUGINS_TYPE` | `"local"` | Use `"local"` or `"remote"` plugins |
-| `CHIEF_CFG_SSH_KEYS_PATH` | _unset_ | Auto-load SSH keys from path |
+| `CHIEF_CFG_SSH_LOAD_KEYS` | `false` | Load SSH keys into ssh-agent at start-up and on `chief.reload` |
+| `CHIEF_CFG_SSH_KEYS_PATH` | _unset_ (`~/.ssh`) | Optional: a different directory to load keys from |
 | `CHIEF_CFG_ALIAS` | _unset_ | Create short alias (e.g., `"cf"`) |
 | `CHIEF_CFG_AUTOCHECK_UPDATES` | `false` | Check for updates on startup |
 | `CHIEF_CFG_UPDATE_BRANCH` | `"main"` | Branch to track for updates: any valid Git branch (⚠ non-main may be unstable) |
@@ -103,9 +104,8 @@ CHIEF_HOST="dev-box" bash
 | `CHIEF_CFG_PLUGINS_PATH` | Local plugin directory (also remote repo clone location) |
 | `CHIEF_CFG_PLUGINS_GIT_PATH` | [Remote only] Relative path within repo containing plugins (empty = repo root) |
 | `CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE` | Auto-update plugins on startup (with local changes protection) |
-| `CHIEF_CFG_PLUGINS_DISABLED_CORE` | Comma- or space-separated list of **core** plugin names to skip loading (e.g. `aws,git,ssl` or `aws git ssl`). Empty = all core plugins enabled. |
+| `CHIEF_CFG_PLUGINS_DISABLED_CORE` | Comma- or space-separated list of **core** plugin names to skip loading. New installs: `"aws openshift vault"` (they need extra tools or accounts). Empty = all core plugins enabled. |
 | `CHIEF_CFG_PLUGINS_DISABLED_USER` | Comma- or space-separated list of **user** plugin names to skip loading (e.g. `bc,lab` or `bc lab`). Empty = all user plugins enabled. |
-| `CHIEF_CFG_PLUGINS_ENABLED_CORE` | Comma- or space-separated list of **opt-in** core plugins to load (`aws`, `openshift`, `vault`). Opt-in plugins are off unless listed here. Managed by `chief.plugin enable\|disable core.<name>`. |
 | `CHIEF_CFG_PLUGINS_ENABLED_CONTRIB` | Comma- or space-separated list of **contrib** plugins to load (e.g. `cg`). Contrib plugins are off unless listed here. Managed by `chief.plugin enable\|disable contrib.<name>`. |
 | `CHIEF_CFG_CG_HELPER_FUNCTIONS` | [`cg` contrib plugin] Path to `.helper_functions.sh` in your local clone of the customer-success repo. No default; set it with `chief.config-set cg_helper_functions "<path>"`. |
 
@@ -130,17 +130,15 @@ CHIEF_CFG_PLUGINS_DISABLED_CORE="aws,ssl"    # Skip core aws and ssl
 CHIEF_CFG_PLUGINS_DISABLED_USER="lab"       # Skip user plugin "lab"
 ```
 
-### Opt-in core plugins
+### Core plugins that are off by default
 
-Some core plugins ship with Chief but are **off by default**, because they need tools or accounts most users don't have. They use the same commands as any other plugin:
+`aws`, `openshift` and `vault` need tools or accounts most users don't have, so new installs list them in `CHIEF_CFG_PLUGINS_DISABLED_CORE`. They follow the same rule as every other core plugin: loaded unless they're in the disabled list.
 
 ```bash
-chief.plugin enable core.openshift   # Turn on an opt-in plugin (adds it to CHIEF_CFG_PLUGINS_ENABLED_CORE)
-chief.plugin disable core.openshift  # Turn it off again
-chief.plugin status                  # Opt-in plugins that are off show as "<name>(opt-in)" under Disabled
+chief.plugin enable core.openshift   # Removes it from CHIEF_CFG_PLUGINS_DISABLED_CORE
+chief.plugin disable core.openshift  # Adds it back
+chief.plugin status                  # Shows what's on and off
 ```
-
-An opt-in plugin loads only when it's in `CHIEF_CFG_PLUGINS_ENABLED_CORE` and **not** in `CHIEF_CFG_PLUGINS_DISABLED_CORE` (an explicit disable always wins; `enable` clears it).
 
 | Plugin | Needs |
 |--------|-------|
@@ -148,7 +146,7 @@ An opt-in plugin loads only when it's in `CHIEF_CFG_PLUGINS_ENABLED_CORE` and **
 | `openshift` | `oc` and a cluster login, `jq` |
 | `vault` | HashiCorp `vault` CLI and a Vault server |
 
-**Upgrading:** a config from before opt-in plugins existed has no `CHIEF_CFG_PLUGINS_ENABLED_CORE` line. For it, every opt-in plugin that isn't in `CHIEF_CFG_PLUGINS_DISABLED_CORE` keeps loading, so nothing disappears after `chief.update`. `chief.config-update` then writes those plugins into `CHIEF_CFG_PLUGINS_ENABLED_CORE` when it adds the setting. New installs start with all opt-in plugins off.
+**Upgrading:** existing configs already have their own `CHIEF_CFG_PLUGINS_DISABLED_CORE` line, so whatever was loading keeps loading. Only new installs start with these three off.
 
 ### Contrib plugins
 
@@ -171,10 +169,13 @@ chief.plugin status               # Contrib plugins are listed in their own sect
 ### SSH Key Auto-loading
 
 ```bash
-# In chief.config, set:
-CHIEF_CFG_SSH_KEYS_PATH="$HOME/.ssh"
+# Turn on auto-loading (keys come from ~/.ssh):
+chief.config-set ssh_load_keys true
 
-# Chief automatically loads all *.key files
+# Optional: load from a different directory instead of ~/.ssh
+chief.config-set ssh_keys_path "$HOME/keys"
+
+# Chief loads all *.key files (and legacy *.private)
 # Supports RSA, ed25519, and other key types
 # Use symlinks for selective loading (e.g., ln -s id_rsa mykey.key)
 ```

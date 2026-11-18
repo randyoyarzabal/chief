@@ -119,14 +119,11 @@ CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="false"
 CHIEF_CFG_PLUGIN_TEMPLATE="${CHIEF_PATH}/templates/chief_plugin_template.sh"
 
 # Comma- or space-separated list of plugins to skip loading. Managed via: chief.plugin enable|disable [core.]<name>
-# Empty (default) = nothing skipped (opt-in core plugins still need enabling; see below). Core: built-in names (e.g. aws,git,ssl or aws git ssl). User: your plugin names (e.g. bc,lab or bc lab).
-CHIEF_CFG_PLUGINS_DISABLED_CORE=""
+# Core: built-in plugin names. aws, openshift and vault are off by default because they need
+# tools or accounts most users don't have; turn one on with: chief.plugin enable core.aws
+# User: your own plugin names (e.g. bc,lab or bc lab).
+CHIEF_CFG_PLUGINS_DISABLED_CORE="aws openshift vault"
 CHIEF_CFG_PLUGINS_DISABLED_USER=""
-
-# Opt-in core plugins are shipped with Chief but OFF by default because they need tools or
-# accounts most users don't have (currently: aws, openshift, vault).
-# Turn one on with: chief.plugin enable core.<name>   (off again: chief.plugin disable core.<name>)
-CHIEF_CFG_PLUGINS_ENABLED_CORE=""
 
 # Contrib plugins are shipped with Chief (libs/contrib/plugins) for specific teams or workflows.
 # Chief scans them on every load, but each is OFF until enabled (currently: cg).
@@ -138,6 +135,12 @@ CHIEF_CFG_PLUGINS_ENABLED_CONTRIB=""
 # No default: set it to wherever your clone lives, e.g.
 #   chief.config-set cg_helper_functions "/path/to/customer-success/scripts/.helper_functions.sh"
 CHIEF_CFG_CG_HELPER_FUNCTIONS=""
+
+# DEV TOOLS (Chief maintainers only)
+# Loads maintainer tooling from libs/dev/plugins, such as chief.release_status,
+# chief.release_prepare and chief.release_publish. It only takes effect when Chief's own
+# checkout ($CHIEF_PATH) is on the "dev" branch; on main or a release it never loads.
+CHIEF_CFG_DEV_TOOLS=false
 ####################################
 
 # PROMPT CONFIGURATION
@@ -206,10 +209,11 @@ CHIEF_CFG_CONFIG_UPDATE_BACKUP=true
 # Chief will automatically enable (ssh-add) auto-load and auto-cleanup of ssh-agent.
 # Note: Standard SSH keys (id_rsa, id_ed25519, etc.) are automatically used by SSH clients.
 #
-# If you have a directory with your private keys, you can set the path here.
-# Setting this variable will automatically load your SSH keys, you can also run $>chief.ssh_load-keys
-# to manually load them. 
-# If you do not set or comment this variable, it will not load any keys.
+# Load your SSH keys into ssh-agent at start-up (and on chief.reload). Off by default.
+# Turn on with: chief.config-set ssh_load_keys true   (any time: chief.ssh_load-keys)
+CHIEF_CFG_SSH_LOAD_KEYS=false
+
+# Where the keys are. Optional: Chief uses ~/.ssh unless you set a different directory here.
 #CHIEF_CFG_SSH_KEYS_PATH="$HOME/.ssh"
 
 # If you want to create a custom alias for the chief command, you can do so here.

@@ -72,8 +72,8 @@ __chief_check_bash_version
 # Load core libraries (including plugins) for full interactive mode
 __chief_load_library
 
-# Load RSA/SSH keys if directory is defined
-if [[ ! -z ${CHIEF_CFG_SSH_KEYS_PATH} ]] && ([[ ${PLATFORM} == "MacOS" ]] || [[ $(uname) == "Linux" ]]); then
+# Load SSH keys at start-up if enabled (CHIEF_CFG_SSH_LOAD_KEYS)
+if __chief_ssh_autoload_on && ([[ ${PLATFORM} == "MacOS" ]] || [[ $(uname) == "Linux" ]]); then
   chief.etc_spinner "Loading SSH keys..." "__chief_load_ssh_keys" tmp_out
   echo -e "${tmp_out}"
 fi

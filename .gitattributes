@@ -1,0 +1,2 @@
+# Maintainer-only tooling: keep it out of GitHub release archives (.zip / .tar.gz).
+libs/dev export-ignore

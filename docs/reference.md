@@ -624,7 +624,7 @@ chief.reload  # Will re-clone
 ls ~/.ssh/*.key
 
 # Check configuration
-chief.config_show | grep SSH_KEYS_PATH
+chief.config | grep SSH_   # CHIEF_CFG_SSH_LOAD_KEYS=true? keys path (default ~/.ssh)?
 
 # Manually load keys
 ssh-add ~/.ssh/id_rsa

@@ -705,7 +705,7 @@ chief.config_show | grep PLUGINS_PATH
 ```bash
 # Verify key naming (must end in .key) and path
 ls ~/.ssh/*.key
-chief.config  # Check CHIEF_CFG_SSH_KEYS_PATH
+chief.config  # Check CHIEF_CFG_SSH_LOAD_KEYS (and CHIEF_CFG_SSH_KEYS_PATH if you use a non-default directory)
 ```
 
 #### Q: Git prompt not working

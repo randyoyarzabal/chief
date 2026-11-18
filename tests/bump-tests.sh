@@ -3,7 +3,7 @@
 ########################################################################
 # Chief Test Suite - Version Bump Tests
 #
-# Runs __chief.bump (release and next-dev) against a scratch copy of the
+# Runs __chief_release_bump (release and next-dev; libs/dev release plugin) against a scratch copy of the
 # project and asserts the resulting VERSION, badges, and release notes.
 # The real checkout and the user's config are never touched.
 #
@@ -73,13 +73,14 @@ make_scratch() {
     mkdir -p "$TEMP_DIR"
 
     # Only the files the bump touches, plus what chief_library.sh needs to source.
-    mkdir -p "$copy/docs" "$copy/release-notes" "$copy/libs/core" "$copy/templates"
+    mkdir -p "$copy/docs" "$copy/release-notes" "$copy/libs/core" "$copy/libs/dev/plugins" "$copy/templates"
     cp "$PROJECT_ROOT/VERSION" "$copy/VERSION"
     cp "$PROJECT_ROOT/README.md" "$copy/README.md"
     cp "$PROJECT_ROOT/docs/index.md" "$copy/docs/index.md"
     cp "$PROJECT_ROOT/docs/getting-started.md" "$copy/docs/getting-started.md" 2>/dev/null || true
     cp "$PROJECT_ROOT/libs/core/chief_library.sh" "$copy/libs/core/chief_library.sh"
     cp -R "$PROJECT_ROOT/libs/core/plugins" "$copy/libs/core/plugins"
+    cp "$PROJECT_ROOT/libs/dev/plugins/release_chief-plugin.sh" "$copy/libs/dev/plugins/"
     cp "$PROJECT_ROOT/templates/chief_config_template.sh" "$copy/config.sh"
 
     # Normalise to a synthetic version so the test does not depend on the repo's real version
@@ -101,13 +102,14 @@ make_scratch() {
     echo "$copy"
 }
 
-# Run __chief.bump inside the scratch copy. Never touches the real checkout.
+# Run __chief_release_bump inside the scratch copy. Never touches the real checkout.
 run_bump() {
     local copy="$1"; shift
     CHIEF_PATH="$copy" CHIEF_CONFIG="$copy/config.sh" bash -c '
         source "$CHIEF_PATH/VERSION"
         source "$CHIEF_PATH/libs/core/chief_library.sh" >/dev/null 2>&1
-        __chief.bump "$@"
+        source "$CHIEF_PATH/libs/dev/plugins/release_chief-plugin.sh"
+        __chief_release_bump "$@"
     ' _ "$@" </dev/null >"$TEMP_DIR/bump.log" 2>&1
     local rc=$?
     if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then sed 's/^/    /' "$TEMP_DIR/bump.log"; fi
@@ -141,7 +143,7 @@ test_release_bump() {
     else
         log_error "dev release notes file still present"
     fi
-    assert_contains     "$copy/config.sh" 'CHIEF_CFG_UPDATE_BRANCH="main"'   "config tracks main after release"
+    assert_contains     "$copy/config.sh" 'CHIEF_CFG_UPDATE_BRANCH="main"'   "config untouched by release (template default kept)"
     [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]] && echo "    badges: $(badges "$copy/README.md")"
     echo ""
 }
@@ -153,7 +155,7 @@ test_next_dev_bump() {
     # Either way next-dev must land on v9.9.0--dev.
 
     TOTAL_TESTS+=1
-    if run_bump "$copy" next-dev; then
+    if run_bump "$copy" next-dev v9.9.0; then
         log_success "next-dev bump exit code 0"
     else
         log_error "next-dev bump failed (see log below)"; sed 's/^/    /' "$TEMP_DIR/bump.log" | tail -20
@@ -166,7 +168,7 @@ test_next_dev_bump() {
     assert_not_contains "$copy/README.md" 'Download%20Release-v9.9.0'         "Download Release badge not polluted with dev"
     assert_not_contains "$copy/README.md" 'Stable-v9.9.0'                     "Stable badge not polluted with dev"
     assert_contains     "$copy/docs/index.md" 'Download-Release%20v9.8.0-green' "docs/index.md badge still = last release"
-    assert_contains     "$copy/config.sh" 'CHIEF_CFG_UPDATE_BRANCH="dev"'    "config tracks dev after next-dev"
+    assert_not_contains "$copy/config.sh" 'CHIEF_CFG_UPDATE_BRANCH="dev"'    "config untouched by next-dev"
     [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]] && echo "    badges: $(badges "$copy/README.md")"
     echo ""
 }
@@ -221,8 +223,8 @@ show_help() {
     echo "  -h, --help     Show this help"
     echo "  -v, --verbose  Show bump output and resulting badges"
     echo ""
-    echo "Runs __chief.bump release / next-dev on a scratch copy and checks VERSION,"
-    echo "README and docs/index.md badges, release-notes renaming, and config branch."
+    echo "Runs __chief_release_bump release / next-dev on a scratch copy and checks VERSION,"
+    echo "README and docs/index.md badges, release-notes renaming, and that config is untouched."
 }
 
 while [[ $# -gt 0 ]]; do

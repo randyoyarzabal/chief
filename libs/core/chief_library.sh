@@ -39,16 +39,16 @@
 source "${CHIEF_PATH}/VERSION"
 CHIEF_PLUGINS_CORE="${CHIEF_PATH}/libs/core/plugins"
 CHIEF_PLUGIN_SUFFIX="_chief-plugin.sh"
-# Opt-in core plugins: shipped with Chief but OFF by default because they need tools or
-# accounts most users don't have. They load only after `chief.plugin enable core.<name>`
-# (persisted in CHIEF_CFG_PLUGINS_ENABLED_CORE). Space-separated plugin names.
-# Configs from before opt-in existed (no CHIEF_CFG_PLUGINS_ENABLED_CORE line) keep them on;
-# see __chief_plugins_optin_enabled.
-CHIEF_PLUGINS_CORE_OPTIN="aws openshift vault"
+# Core plugins that need tools or accounts most users don't have (aws, openshift, vault) are
+# simply listed in the template's CHIEF_CFG_PLUGINS_DISABLED_CORE, so new installs start with
+# them off. One rule for every core plugin: loaded unless it's in the disabled list.
 # Contrib plugins: optional plugins shipped with Chief for specific teams or workflows.
 # Chief scans this directory on every load, but every contrib plugin is OFF until
 # `chief.plugin enable contrib.<name>` (persisted in CHIEF_CFG_PLUGINS_ENABLED_CONTRIB).
 CHIEF_PLUGINS_CONTRIB="${CHIEF_PATH}/libs/contrib/plugins"
+# Dev plugins: maintainer tooling (e.g. chief.release_*). Never loaded for users: only when
+# Chief's own checkout is on the "dev" branch AND CHIEF_CFG_DEV_TOOLS=true. See __chief_dev_tools_state.
+CHIEF_PLUGINS_DEV="${CHIEF_PATH}/libs/dev/plugins"
 CHIEF_DEFAULT_PLUGINS_TYPE="local" 
 CHIEF_DEFAULT_PLUGINS_GIT_BRANCH="main"
 CHIEF_DEFAULT_PLUGINS="${HOME}/chief_plugins"
@@ -156,6 +156,7 @@ function __chief_load_library() {
 
   __chief_load_plugins 'core' "$1"
   __chief_load_plugins 'contrib' "$1"
+  __chief_load_dev_tools "$1"
 
   if [[ -z ${CHIEF_CFG_PLUGINS_TYPE} ]]; then
     # If not set, default to local plugins.
@@ -171,6 +172,38 @@ function __chief_load_library() {
 
   __chief_print_shared_secrets_summary "$1"
   __chief_framework_print "library reloaded." "$1"
+}
+
+function __chief_dev_tools_state() {
+  # Usage: __chief_dev_tools_state
+  #
+  # Developer usage: Prints whether maintainer dev tools (libs/dev/plugins) may load:
+  #   active  - Chief's checkout is on the dev branch and CHIEF_CFG_DEV_TOOLS=true
+  #   off     - CHIEF_CFG_DEV_TOOLS is not true (the default)
+  #   branch  - the switch is on, but the checkout is not on the dev branch (main, a tag, ...)
+  #   missing - this checkout has no libs/dev/plugins (e.g. a release archive)
+  [[ "${CHIEF_CFG_DEV_TOOLS:-false}" == true ]] || { echo off; return 0; }
+  [[ -d "${CHIEF_PLUGINS_DEV}" ]] || { echo missing; return 0; }
+  local branch
+  branch="$(git -C "${CHIEF_PATH}" symbolic-ref --short -q HEAD 2>/dev/null)"
+  if [[ "$branch" == dev ]]; then echo active; else echo branch; fi
+}
+
+function __chief_load_dev_tools() {
+  # Usage: __chief_load_dev_tools [--verbose]
+  #
+  # Developer usage: Sources libs/dev/plugins/*_chief-plugin.sh only when __chief_dev_tools_state
+  # is "active". Users (main branch, release archives, switch off) never get these functions.
+  [[ "$(__chief_dev_tools_state)" == active ]] || return 0
+  local plugin names=""
+  for plugin in "${CHIEF_PLUGINS_DEV}/"*"${CHIEF_PLUGIN_SUFFIX}"; do
+    [[ -f "$plugin" ]] || continue
+    __chief_load_file "$plugin"
+    plugin="${plugin##*/}"
+    names+="${names:+, }${CHIEF_COLOR_MAGENTA}${plugin%%_*}${CHIEF_NO_COLOR}"
+  done
+  [[ -n "$names" ]] && __chief_framework_print "dev: ${names}" "$1"
+  return 0
 }
 
 function __chief_check_bash_version() {
@@ -778,28 +811,6 @@ function __chief_plugin_in_list() {
   [[ -n "$n" && "$list" == *" $n "* ]]
 }
 
-# Returns 0 if the given core plugin is opt-in (shipped OFF by default).
-# Usage: __chief_plugin_is_optin <plugin_name>
-function __chief_plugin_is_optin() {
-  __chief_plugin_in_list "$1" "${CHIEF_PLUGINS_CORE_OPTIN:-}"
-}
-
-# Prints the effective list of enabled opt-in core plugins (space-separated).
-# If CHIEF_CFG_PLUGINS_ENABLED_CORE is not defined at all, the config predates opt-in
-# plugins: every opt-in plugin that isn't explicitly disabled stays on, so upgrading
-# never removes commands a user already had. New configs (from the template) define it.
-function __chief_plugins_optin_enabled() {
-  if [[ -n "${CHIEF_CFG_PLUGINS_ENABLED_CORE+set}" ]]; then
-    __chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_ENABLED_CORE}"
-    return
-  fi
-  local n out=""
-  for n in ${CHIEF_PLUGINS_CORE_OPTIN}; do
-    __chief_plugin_in_list "$n" "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}" || out+=" $n"
-  done
-  echo "${out# }"
-}
-
 function __chief_plugin_disabled() {
   local module="$1"
   local name="$2"
@@ -817,14 +828,7 @@ function __chief_plugin_disabled() {
   else
     return 1
   fi
-  # Explicitly disabled always wins.
-  __chief_plugin_in_list "$name" "$list" && return 0
-  # Opt-in core plugins are off unless explicitly enabled.
-  if [[ "$module" == 'core' ]] && __chief_plugin_is_optin "$name"; then
-    __chief_plugin_in_list "$name" "$(__chief_plugins_optin_enabled)" && return 1
-    return 0
-  fi
-  return 1
+  __chief_plugin_in_list "$name" "$list"
 }
 
 # Update disabled-plugins list in config: add or remove a name. Persists and reloads.
@@ -858,35 +862,6 @@ function __chief_plugin_enable_disable() {
       new_value="$(echo "$new_value" | xargs)"
     fi
     chief.config-set --yes plugins_enabled_contrib "$new_value"
-    return
-  fi
-
-  # Opt-in core plugins are tracked in an ENABLED list (they're off by default).
-  # Enable adds the name (and clears any explicit disable); disable removes it.
-  if [[ "$module" == 'core' ]] && __chief_plugin_is_optin "$name"; then
-    # Seed from the effective list so a pre-opt-in config keeps its other opt-in plugins on.
-    current="$(__chief_plugins_optin_enabled)"
-    if [[ "$action" == "enable" ]]; then
-      if ! __chief_plugin_disabled core "$name"; then
-        echo -e "${CHIEF_COLOR_YELLOW}Plugin ${CHIEF_COLOR_CYAN}${name}${CHIEF_NO_COLOR} is already enabled."
-        return 0
-      fi
-      if __chief_plugin_in_list "$name" "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}"; then
-        new_value=$(echo "$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}")" | tr ' ' '\n' | grep -v "^$" | grep -v "^${name}$" | tr '\n' ' ')
-        chief.config-set --yes plugins_disabled_core "$(echo "$new_value" | xargs)" || return 1
-      fi
-      if ! __chief_plugin_in_list "$name" "$current"; then
-        new_value="$(echo "$current $name" | tr ' ' '\n' | sort -u | grep -v '^$' | tr '\n' ' ' | xargs)"
-        chief.config-set --yes plugins_enabled_core "$new_value"
-      fi
-    else
-      if __chief_plugin_disabled core "$name"; then
-        echo -e "${CHIEF_COLOR_YELLOW}Plugin ${CHIEF_COLOR_CYAN}${name}${CHIEF_NO_COLOR} is already disabled."
-        return 0
-      fi
-      new_value=$(echo "$current" | tr ' ' '\n' | grep -v "^$" | grep -v "^${name}$" | tr '\n' ' ')
-      chief.config-set --yes plugins_enabled_core "$(echo "$new_value" | xargs)"
-    fi
     return
   fi
 
@@ -1101,8 +1076,7 @@ __chief_get_contrib_plugins() {
   echo "${out#|}"
 }
 
-# Returns core plugin names that are OFF (explicitly disabled, or opt-in and not enabled).
-# Opt-in plugins are suffixed with " (opt-in)". Output is space-separated.
+# Returns core plugin names that are OFF (in CHIEF_CFG_PLUGINS_DISABLED_CORE). Space-separated.
 __chief_get_core_plugins_disabled() {
   local plugin plugin_file plugin_name out=""
   [[ -d ${CHIEF_PLUGINS_CORE} ]] || return 0
@@ -1111,11 +1085,7 @@ __chief_get_core_plugins_disabled() {
     plugin_file=${plugin##*/}
     plugin_name=${plugin_file%%_*}
     __chief_plugin_disabled 'core' "$plugin_name" || continue
-    if __chief_plugin_is_optin "$plugin_name"; then
-      out+=" ${plugin_name}(opt-in)"
-    else
-      out+=" ${plugin_name}"
-    fi
+    out+=" ${plugin_name}"
   done
   echo "${out# }"
 }
@@ -1579,10 +1549,33 @@ function chief.status() {
   __chief.banner
   echo
   __chief_show_chief_stats
+  case "$(__chief_dev_tools_state)" in
+    active)  echo -e "${CHIEF_COLOR_MAGENTA}Dev tools:${CHIEF_NO_COLOR} active (chief.release_status, chief.release_prepare, chief.release_publish)" ;;
+    branch)  echo -e "${CHIEF_COLOR_MAGENTA}Dev tools:${CHIEF_NO_COLOR} on, but inactive: ${CHIEF_PATH} is not on the dev branch (they only load on dev)" ;;
+    missing) echo -e "${CHIEF_COLOR_MAGENTA}Dev tools:${CHIEF_NO_COLOR} on, but this checkout has no libs/dev (release archive?)" ;;
+  esac
+}
+
+# Directory Chief loads keys from: CHIEF_CFG_SSH_KEYS_PATH if set, otherwise ~/.ssh.
+function __chief_ssh_keys_path() {
+  echo "${CHIEF_CFG_SSH_KEYS_PATH:-$HOME/.ssh}"
+}
+
+# Should Chief load SSH keys at start-up / reload? CHIEF_CFG_SSH_LOAD_KEYS=true|false.
+# Configs from before that switch existed don't have it: there, a set CHIEF_CFG_SSH_KEYS_PATH
+# meant "auto-load", so keep honoring that.
+function __chief_ssh_autoload_on() {
+  if [[ -n "${CHIEF_CFG_SSH_LOAD_KEYS:-}" ]]; then
+    [[ "${CHIEF_CFG_SSH_LOAD_KEYS}" == true ]]
+    return
+  fi
+  [[ -n "${CHIEF_CFG_SSH_KEYS_PATH:-}" ]]
 }
 
 function __chief_load_ssh_keys() {
-  __chief_print "Loading SSH keys from: ${CHIEF_CFG_SSH_KEYS_PATH}..." "$1"
+  local keys_path
+  keys_path="$(__chief_ssh_keys_path)"
+  __chief_print "Loading SSH keys from: ${keys_path}..." "$1"
 
 
   # Platform-specific SSH setup
@@ -1614,9 +1607,9 @@ function __chief_load_ssh_keys() {
     load="/usr/bin/ssh-add"
   fi
 
-  # Validate that CHIEF_CFG_SSH_KEYS_PATH exists
-  if [[ ! -d "${CHIEF_CFG_SSH_KEYS_PATH}" ]]; then
-    __chief_print "SSH keys directory does not exist: ${CHIEF_CFG_SSH_KEYS_PATH}" "$1"
+  # Validate that the keys directory exists
+  if [[ ! -d "${keys_path}" ]]; then
+    __chief_print "SSH keys directory does not exist: ${keys_path}" "$1"
     return 1
   fi
 
@@ -1631,7 +1624,7 @@ function __chief_load_ssh_keys() {
   fi
   
   # 1. Load keys with .key extension (Chief's preferred naming)
-  for ssh_key in "${CHIEF_CFG_SSH_KEYS_PATH}"/*.key; do
+  for ssh_key in "${keys_path}"/*.key; do
     # Check if glob matched actual files
     if [[ -f "${ssh_key}" ]]; then
       local key_name=$(basename "$ssh_key")
@@ -1665,7 +1658,7 @@ function __chief_load_ssh_keys() {
   done
   
   # 2. Load keys with .private extension (legacy support)
-  for ssh_key in "${CHIEF_CFG_SSH_KEYS_PATH}"/*.private; do
+  for ssh_key in "${keys_path}"/*.private; do
     # Check if glob matched actual files
     if [[ -f "${ssh_key}" ]]; then
       local key_name=$(basename "$ssh_key")
@@ -1700,7 +1693,7 @@ function __chief_load_ssh_keys() {
   # Report results
   if [[ ${key_count} -eq 0 ]]; then
     if [[ "$verbose_mode" == true ]]; then
-      __chief_print "No SSH keys found in ${CHIEF_CFG_SSH_KEYS_PATH}" "$1"
+      __chief_print "No SSH keys found in ${keys_path}" "$1"
       __chief_print "Supported file patterns: *.key, *.private" "$1"
     fi
   else
@@ -1962,6 +1955,245 @@ function __chief_print_info(){
   echo -e "${CHIEF_COLOR_CYAN}$1${CHIEF_NO_COLOR}"
 }
 
+# STEP PROGRESS (live task list)
+########################################################################
+# Shared progress UI for multi-step Chief commands. Every step is listed up front and
+# updated as the command runs:
+#   ✓ done   ⠋ running   · pending   ↷ skipped   ✗ failed   ○ would (dry run)   ? waiting for an answer
+# In a terminal the list redraws in place. When stdout is not a terminal (pipe, file, CI),
+# NO_COLOR is set, or CHIEF_STEPS_PLAIN=1, it prints one plain line per finished step.
+#
+# Usage (internal, for Chief commands):
+#   __chief_steps_begin "Title" "Step one" "Step two" ...
+#   __chief_steps_start [detail]            mark the next step as running
+#   __chief_steps_tick [detail]             advance the spinner (polling loops)
+#   __chief_steps_done [detail]             ✓ the current step
+#   __chief_steps_skip [reason]             ↷ the current step (already done / not needed)
+#   __chief_steps_would [detail]            ○ the current step (dry run)
+#   __chief_steps_fail "reason" [hint...]   ✗ the current step, print reason and hints; returns 1
+#   __chief_steps_exec <command> [args...]  run a step's command with a spinner; output goes to
+#                                           $__CHIEF_STEPS_LOG and is shown if it fails
+#   __chief_steps_ask "Question?" [preview] pause on the current step for y/N; 0 = yes.
+#                                           CHIEF_STEPS_ASSUME_YES=1 answers yes without asking.
+#   __chief_steps_note "text"               add a line under the list that stays (e.g. problems found)
+#   __chief_steps_end ["Summary title" [line...]]  finish the list and print a summary
+# Steps are taken in order; each start/done/skip/would/fail call applies to the current step.
+
+__CHIEF_STEPS_NAMES=()
+__CHIEF_STEPS_STATE=()
+__CHIEF_STEPS_DETAIL=()
+__CHIEF_STEPS_CUR=-1
+__CHIEF_STEPS_ROWS=0
+__CHIEF_STEPS_LIVE=false
+__CHIEF_STEPS_FRAME=0
+__CHIEF_STEPS_COLS=80
+__CHIEF_STEPS_FOOTER=""
+__CHIEF_STEPS_NOTES=""
+__CHIEF_STEPS_LOG=""
+
+function __chief_steps_cur_state() {
+  ((__CHIEF_STEPS_CUR >= 0)) && echo "${__CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]}"
+}
+
+function __chief_steps_live_ok() {
+  [[ -z "${CHIEF_STEPS_PLAIN:-}" && -z "${NO_COLOR:-}" ]] || return 1
+  [[ -t 1 && -n "${TERM:-}" && "${TERM}" != dumb ]]
+}
+
+function __chief_steps_begin() {
+  local title="$1"; shift
+  __CHIEF_STEPS_NAMES=("$@")
+  __CHIEF_STEPS_STATE=()
+  __CHIEF_STEPS_DETAIL=()
+  local i
+  for ((i = 0; i < ${#__CHIEF_STEPS_NAMES[@]}; i++)); do
+    __CHIEF_STEPS_STATE[i]="pending"
+    __CHIEF_STEPS_DETAIL[i]=""
+  done
+  __CHIEF_STEPS_CUR=-1
+  __CHIEF_STEPS_ROWS=0
+  __CHIEF_STEPS_FRAME=0
+  __CHIEF_STEPS_FOOTER=""
+  __CHIEF_STEPS_NOTES=""
+  __CHIEF_STEPS_LOG="${TMPDIR:-/tmp}/chief-steps.$$.log"
+  : > "$__CHIEF_STEPS_LOG" 2>/dev/null
+  __CHIEF_STEPS_LIVE=false
+  if __chief_steps_live_ok; then
+    __CHIEF_STEPS_LIVE=true
+    __CHIEF_STEPS_COLS="${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}"
+    [[ "$__CHIEF_STEPS_COLS" =~ ^[0-9]+$ && "$__CHIEF_STEPS_COLS" -gt 0 ]] || __CHIEF_STEPS_COLS=80
+  fi
+  [[ -n "$title" ]] && echo -e "${CHIEF_COLOR_CYAN}${title}${CHIEF_NO_COLOR}\n"
+  __chief_steps_draw
+}
+
+# Build step i's line into __CHIEF_STEPS_LINE (colored) and __CHIEF_STEPS_PLAIN (no color).
+function __chief_steps_line() {
+  local i="$1" sym color text
+  local frames=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+  local name="${__CHIEF_STEPS_NAMES[i]}" detail="${__CHIEF_STEPS_DETAIL[i]}"
+  case "${__CHIEF_STEPS_STATE[i]}" in
+    done)    sym="✓"; color="$CHIEF_COLOR_GREEN" ;;
+    running) sym="${frames[__CHIEF_STEPS_FRAME % 10]}"; color="$CHIEF_COLOR_CYAN" ;;
+    skip)    sym="↷"; color="$CHIEF_COLOR_YELLOW" ;;
+    fail)    sym="✗"; color="$CHIEF_COLOR_RED" ;;
+    would)   sym="○"; color="$CHIEF_COLOR_BLUE" ;;
+    ask)     sym="?"; color="$CHIEF_COLOR_YELLOW" ;;
+    *)       sym="·"; color="" ;;
+  esac
+  text="$name"
+  case "${__CHIEF_STEPS_STATE[i]}" in
+    fail)    [[ -n "$detail" ]] && text+=": $detail" ;;
+    would)   text="Would: $name"; [[ -n "$detail" ]] && text+=" ($detail)" ;;
+    running) [[ -n "$detail" ]] && text+=" ($detail)"; text+="..." ;;
+    *)       [[ -n "$detail" ]] && text+=" ($detail)" ;;
+  esac
+  __CHIEF_STEPS_PLAIN="  $sym $text"
+  __CHIEF_STEPS_LINE="  ${color}${sym}${CHIEF_NO_COLOR} $text"
+}
+
+# Redraw the whole list in place (terminal mode only).
+function __chief_steps_draw() {
+  $__CHIEF_STEPS_LIVE || return 0
+  ((__CHIEF_STEPS_ROWS > 0)) && printf '\033[%dA' "$__CHIEF_STEPS_ROWS"
+  printf '\r\033[J'
+  local i rows=0 n line
+  for ((i = 0; i < ${#__CHIEF_STEPS_NAMES[@]}; i++)); do
+    __chief_steps_line "$i"
+    printf '%b\n' "$__CHIEF_STEPS_LINE"
+    n=${#__CHIEF_STEPS_PLAIN}
+    rows=$((rows + (n > 0 ? (n + __CHIEF_STEPS_COLS - 1) / __CHIEF_STEPS_COLS : 1)))
+  done
+  local extra="${__CHIEF_STEPS_NOTES}"
+  [[ -n "$__CHIEF_STEPS_FOOTER" ]] && extra+="${extra:+\n}${__CHIEF_STEPS_FOOTER}"
+  if [[ -n "$extra" ]]; then
+    while IFS= read -r line; do
+      printf '%b\n' "$line"
+      n=${#line}
+      rows=$((rows + (n > 0 ? (n + __CHIEF_STEPS_COLS - 1) / __CHIEF_STEPS_COLS : 1)))
+    done < <(printf '%b\n' "$extra")
+  fi
+  __CHIEF_STEPS_ROWS=$rows
+}
+
+# Set the current step's state; in plain mode print it once when it finishes.
+function __chief_steps_set() {
+  local state="$1" detail="$2"
+  ((__CHIEF_STEPS_CUR >= 0)) || return 0
+  __CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]="$state"
+  __CHIEF_STEPS_DETAIL[__CHIEF_STEPS_CUR]="$detail"
+  if $__CHIEF_STEPS_LIVE; then
+    __chief_steps_draw
+  elif [[ "$state" != running && "$state" != ask ]]; then
+    __chief_steps_line "$__CHIEF_STEPS_CUR"
+    printf '%b\n' "$__CHIEF_STEPS_LINE"
+  fi
+}
+
+function __chief_steps_start() {
+  ((__CHIEF_STEPS_CUR < ${#__CHIEF_STEPS_NAMES[@]} - 1)) && __CHIEF_STEPS_CUR=$((__CHIEF_STEPS_CUR + 1))
+  __chief_steps_set running "$1"
+}
+
+function __chief_steps_tick() {
+  __CHIEF_STEPS_FRAME=$((__CHIEF_STEPS_FRAME + 1))
+  [[ $# -gt 0 && $__CHIEF_STEPS_CUR -ge 0 ]] && __CHIEF_STEPS_DETAIL[__CHIEF_STEPS_CUR]="$1"
+  __chief_steps_draw
+}
+
+function __chief_steps_done()  { __chief_steps_set done "$1"; }
+
+function __chief_steps_note() {
+  __CHIEF_STEPS_NOTES+="${__CHIEF_STEPS_NOTES:+\n}$1"
+  if $__CHIEF_STEPS_LIVE; then __chief_steps_draw; else echo -e "$1"; fi
+}
+function __chief_steps_skip()  { __chief_steps_set skip "$1"; }
+
+function __chief_steps_would() {
+  # A dry-run step may be marked without being started first.
+  [[ "$(__chief_steps_cur_state)" == running ]] || __CHIEF_STEPS_CUR=$((__CHIEF_STEPS_CUR + 1))
+  __chief_steps_set would "$1"
+}
+
+function __chief_steps_fail() {
+  local reason="$1"; shift
+  __chief_steps_set fail "$reason"
+  __CHIEF_STEPS_ROWS=0
+  local hint
+  for hint in "$@"; do
+    echo -e "    $hint"
+  done
+  return 1
+}
+
+function __chief_steps_exec() {
+  local rc pid monitor=false
+  : > "$__CHIEF_STEPS_LOG" 2>/dev/null
+  [[ "$(__chief_steps_cur_state)" == running ]] || __chief_steps_start
+  if $__CHIEF_STEPS_LIVE; then
+    # Job-control notices ("[1] 1234", "Done") would break the redraw.
+    [[ $- == *m* ]] && monitor=true && set +m
+    "$@" >>"$__CHIEF_STEPS_LOG" 2>&1 </dev/null &
+    pid=$!
+    while kill -0 "$pid" 2>/dev/null; do
+      __chief_steps_tick
+      sleep 0.1
+    done
+    wait "$pid"; rc=$?
+    $monitor && set -m
+  else
+    "$@" >>"$__CHIEF_STEPS_LOG" 2>&1 </dev/null; rc=$?
+  fi
+  return $rc
+}
+
+# Show the tail of the step log, indented (used after a failed step).
+function __chief_steps_show_log() {
+  [[ -s "$__CHIEF_STEPS_LOG" ]] || return 0
+  tail -n "${1:-15}" "$__CHIEF_STEPS_LOG" | sed 's/^/      /'
+}
+
+function __chief_steps_ask() {
+  local question="$1" preview="${2:-}" answer
+  if [[ "${CHIEF_STEPS_ASSUME_YES:-}" == 1 ]]; then
+    return 0
+  fi
+  if [[ ! -t 0 ]]; then
+    __chief_steps_fail "needs confirmation" "No terminal to ask \"$question\"; re-run with --yes to confirm."
+    return 1
+  fi
+  ((__CHIEF_STEPS_CUR >= 0)) || __CHIEF_STEPS_CUR=0
+  local prev_state="${__CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]}"
+  __CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]="ask"
+  if $__CHIEF_STEPS_LIVE; then
+    __CHIEF_STEPS_FOOTER="$preview"
+    __chief_steps_draw
+  else
+    [[ -n "$preview" ]] && printf '%b\n' "$preview"
+  fi
+  read -r -p "  ? ${question} [y/N] " answer
+  if $__CHIEF_STEPS_LIVE; then
+    __CHIEF_STEPS_ROWS=$((__CHIEF_STEPS_ROWS + 1))
+    __CHIEF_STEPS_FOOTER=""
+  fi
+  __CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]="$prev_state"
+  __chief_steps_draw
+  [[ "$answer" =~ ^[Yy]([Ee][Ss])?$ ]]
+}
+
+function __chief_steps_end() {
+  local title="${1:-}"; shift
+  __CHIEF_STEPS_ROWS=0
+  [[ -n "$__CHIEF_STEPS_LOG" ]] && rm -f "$__CHIEF_STEPS_LOG" 2>/dev/null
+  [[ -z "$title" ]] && return 0
+  echo
+  echo -e "${CHIEF_COLOR_GREEN}${title}${CHIEF_NO_COLOR}"
+  local line
+  for line in "$@"; do
+    echo -e "  $line"
+  done
+}
+
 # MAIN FUNCTIONS
 ########################################################################
 
@@ -1985,7 +2217,8 @@ Change directory (cd) into the Chief utility root installation directory."
 function chief.ssh_load-keys() {
   local USAGE="Usage: $FUNCNAME
 
-Load SSH keys from CHIEF_CFG_SSH_KEYS_PATH defined in the Chief configuration.
+Load SSH keys from ~/.ssh (or CHIEF_CFG_SSH_KEYS_PATH if set) into ssh-agent.
+To load them automatically at start-up: chief.config-set ssh_load_keys true
 Supported key file patterns:
 - *.key (Chief preferred naming)
 - *.private (legacy support)
@@ -2003,12 +2236,6 @@ Check which hosts are pinned: chief.ssh_status
     return
   fi
 
-  if [[ -z ${CHIEF_CFG_SSH_KEYS_PATH}  ]]; then
-    echo -e "${CHIEF_COLOR_RED}Error: CHIEF_CFG_SSH_KEYS_PATH is not set in ${CHIEF_CONFIG}. Please set it to the path where your SSH keys are stored.${CHIEF_NO_COLOR}"
-    echo -e "${CHIEF_COLOR_YELLOW}Note: Keys must end with '.key' extension (supports RSA, ed25519, etc.)${CHIEF_NO_COLOR}"
-    echo "${USAGE}"
-    return 1
-  fi
   chief.etc_spinner "Loading SSH keys..." "__chief_load_ssh_keys --verbose" tmp_out
   echo -e "${tmp_out}"
 }
@@ -2074,9 +2301,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     echo -e "${CHIEF_COLOR_YELLOW}Troubleshooting:${CHIEF_NO_COLOR}"
     echo "• Try: eval \$(ssh-agent) && ssh-add"
     echo "• Or reload Chief: chief.reload"
-    if [[ -n "${CHIEF_CFG_SSH_KEYS_PATH}" ]]; then
-      echo "• Or load Chief keys: chief.ssh_load-keys"
-    fi
+    echo "• Or load Chief keys: chief.ssh_load-keys"
   fi
 
   # Key-limit check: many agent keys + hosts that don't pin a key
@@ -2138,9 +2363,10 @@ function __chief_ssh_key_limit_hint() {
   __chief_ssh_key_names_line
 }
 
-# Print the key names chief.ssh_host-key accepts (from CHIEF_CFG_SSH_KEYS_PATH), if any.
+# Print the key names chief.ssh_host-key accepts (from the keys directory), if any.
 function __chief_ssh_key_names_line() {
-  local dir="${CHIEF_CFG_SSH_KEYS_PATH:-}" f names=""
+  local dir f names=""
+  dir="$(__chief_ssh_keys_path)"
   [[ -n "$dir" && -d "$dir" ]] || return 0
   for f in "$dir"/*.key; do
     [[ -e "$f" ]] || continue
@@ -2207,7 +2433,7 @@ failures\"). With IdentitiesOnly, ssh offers only the pinned key; the agent stil
 
 ${CHIEF_COLOR_GREEN}Arguments:${CHIEF_NO_COLOR}
   host   Host name as you type it in ssh/git (e.g. github.com, my-server)
-  key    Path to a private key, or a key name in CHIEF_CFG_SSH_KEYS_PATH (github, github.key)
+  key    Path to a private key, or a key name in ~/.ssh or CHIEF_CFG_SSH_KEYS_PATH (github, github.key)
 
 ${CHIEF_COLOR_GREEN}Options:${CHIEF_NO_COLOR}
   --dry-run   Show the block that would be written; change nothing
@@ -2244,17 +2470,17 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} host must be a single name: $host" >&2; return 1
   fi
 
-  # Resolve the key: a path, or a name in CHIEF_CFG_SSH_KEYS_PATH (with or without .key)
+  # Resolve the key: a path, or a name in the keys directory (with or without .key)
   local key_path=""
   local candidate
   for candidate in "${key/#\~/$HOME}" \
-                   "${CHIEF_CFG_SSH_KEYS_PATH:+${CHIEF_CFG_SSH_KEYS_PATH}/$key}" \
-                   "${CHIEF_CFG_SSH_KEYS_PATH:+${CHIEF_CFG_SSH_KEYS_PATH}/$key.key}"; do
+                   "$(__chief_ssh_keys_path)/$key" \
+                   "$(__chief_ssh_keys_path)/$key.key"; do
     if [[ -n "$candidate" && -f "$candidate" ]]; then key_path="$candidate"; break; fi
   done
   if [[ -z "$key_path" ]]; then
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} key not found: $key" >&2
-    [[ -n "${CHIEF_CFG_SSH_KEYS_PATH}" ]] && echo "Looked for it as a path and in ${CHIEF_CFG_SSH_KEYS_PATH}" >&2
+    echo "Looked for it as a path and in $(__chief_ssh_keys_path)" >&2
     return 1
   fi
   [[ "$key_path" != /* ]] && key_path="$(cd "$(dirname "$key_path")" && pwd)/$(basename "$key_path")"
@@ -2775,7 +3001,7 @@ ${CHIEF_COLOR_GREEN}Configuration Options:${CHIEF_NO_COLOR}
 - CHIEF_CFG_GIT_PROMPT: Git-aware prompt features
 - CHIEF_CFG_MULTILINE_PROMPT: Enable multiline prompt
 - CHIEF_CFG_PLUGINS_TYPE: 'local' or 'remote' plugins
-- CHIEF_CFG_SSH_KEYS_PATH: Auto-load SSH keys path (keys must end in .key)
+- CHIEF_CFG_SSH_LOAD_KEYS: Auto-load SSH keys at start-up (from ~/.ssh or CHIEF_CFG_SSH_KEYS_PATH)
 - And many more...
 
 ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
@@ -2842,7 +3068,6 @@ ${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
   PLUGINS_GIT_AUTOUPDATE    Auto-update remote plugins (true/false)
   PLUGINS_DISABLED_CORE     Space-separated list of core plugins to skip (e.g. \"ssl secrets vault\");
   PLUGINS_DISABLED_USER     Space-separated list of user plugins to skip (e.g. \"lab workmac\");
-  PLUGINS_ENABLED_CORE      Space-separated list of opt-in core plugins to load (aws, openshift, vault); use chief.plugin enable core.<name>
   PLUGINS_ENABLED_CONTRIB   Space-separated list of contrib plugins to load (e.g. \"cg\"); use chief.plugin enable contrib.<name>
   CG_HELPER_FUNCTIONS       [cg contrib plugin] Path to .helper_functions.sh in your local customer-success clone
   PROMPT                    Enable/disable Chief prompt (true/false)
@@ -3392,11 +3617,11 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
         user_value="${user_vars[$var_name]}"
       fi
       
-      # Upgrade from a config that predates opt-in core plugins: keep the opt-in plugins
-      # it was loading (all not explicitly disabled) instead of the template's empty default.
-      if [[ -z "$user_value" && "$var_name" == "CHIEF_CFG_PLUGINS_ENABLED_CORE" ]]; then
-        user_value="\"$(__chief_plugins_optin_enabled)\""
-        echo "# Set on upgrade to the opt-in plugins this config was already loading"
+      # Upgrade: before CHIEF_CFG_SSH_LOAD_KEYS existed, setting CHIEF_CFG_SSH_KEYS_PATH meant
+      # "auto-load keys". Keep that behavior instead of the template's default (false).
+      if [[ -z "$user_value" && "$var_name" == "CHIEF_CFG_SSH_LOAD_KEYS" && -n "${user_vars[CHIEF_CFG_SSH_KEYS_PATH]:-}" ]]; then
+        user_value="true"
+        echo "# Set on upgrade: this config already auto-loaded keys from CHIEF_CFG_SSH_KEYS_PATH"
       fi
 
       # Use template default if no user value
@@ -3958,7 +4183,7 @@ Restart your terminal session for a complete reset.
   __chief_load_library --verbose
   
   # Reload SSH keys if configured
-  if [[ ! -z ${CHIEF_CFG_SSH_KEYS_PATH} ]] && ([[ ${PLATFORM} == "MacOS" ]] || [[ $(uname) == "Linux" ]]); then
+  if __chief_ssh_autoload_on && ([[ ${PLATFORM} == "MacOS" ]] || [[ $(uname) == "Linux" ]]); then
     echo -e "${CHIEF_FRAMEWORK_MSG_PREFIX}${CHIEF_COLOR_BLUE}reloading SSH keys…${CHIEF_NO_COLOR}"
     __chief_load_ssh_keys --verbose
   fi
@@ -4542,752 +4767,6 @@ ${CHIEF_COLOR_BLUE}Output Features:${CHIEF_NO_COLOR}
     
     if ! $is_var && ! $is_func && ! $is_alias; then
       echo -e "${CHIEF_COLOR_YELLOW}Found in files but not currently loaded${CHIEF_NO_COLOR}"
-    fi
-  fi
-}
-
-########################################################################
-# DEVELOPMENT FUNCTIONS - NOT FOR USER USE
-########################################################################
-
-# INTERNAL: Version bump function for Chief development
-function __chief.bump() {
-  local usage="Usage: $FUNCNAME <new_version> [--dry-run] [--backup]
-
-${CHIEF_COLOR_RED}WARNING: DEVELOPMENT FUNCTION ONLY${CHIEF_NO_COLOR}
-This function is for Chief developers only and modifies core files.
-
-Arguments:
-  new_version    Version to bump to (e.g., v4.0, v4.0.0) - MUST start with 'v'
-                 OR use special keywords: 'release' or 'next-dev [target_version]'
-
-Options:
-  --dry-run     Show what would be changed without making changes
-  --backup      Create backup files before modifying (default: no backups)
-  --skip-tests  Skip test validation (NOT recommended for releases)
-  
-Examples:
-  $FUNCNAME v4.0 --dry-run           # Preview changes
-  $FUNCNAME v4.0.0                   # Bump version (no backups)
-  $FUNCNAME v4.0.0 --backup          # Bump version with backups
-  $FUNCNAME v4.1.0                   # Standard semantic version
-  
-  # For dev workflow:
-  $FUNCNAME release                   # Convert v3.0.4-dev → v3.0.4 for release
-  $FUNCNAME release --dry-run         # Preview release conversion
-  $FUNCNAME release --skip-tests      # Emergency release without test validation (NOT recommended)
-  $FUNCNAME next-dev                  # Convert v3.0.4 → v3.0.5-dev for next development cycle
-  $FUNCNAME next-dev v3.1.1           # Convert v3.1.0 → v3.1.1-dev for patch development cycle
-  $FUNCNAME next-dev --dry-run        # Preview next dev cycle setup
-  
-Note: This function only handles version updates. Create GitHub releases manually for tagging and publishing."
-
-  # Parse arguments
-  local new_version=""
-  local target_version=""
-  local dry_run=false
-  local create_backups=false
-  local skip_tests=false
-  local positional_args=()
-  
-  while [[ $# -gt 0 ]]; do
-    case $1 in
-      --help|-h)
-        echo -e "$usage"
-        return 0
-        ;;
-      --dry-run)
-        dry_run=true
-        shift
-        ;;
-      --backup)
-        create_backups=true
-        shift
-        ;;
-      --skip-tests)
-        skip_tests=true
-        shift
-        ;;
-      -*)
-        __chief_print_error "Unknown option: $1"
-        echo -e "$usage"
-        return 1
-        ;;
-      *)
-        positional_args+=("$1")
-        shift
-        ;;
-    esac
-  done
-  
-  # Handle positional arguments
-  if [[ ${#positional_args[@]} -eq 0 ]]; then
-    __chief_print_error "New version is required"
-    echo -e "$usage"
-    return 1
-  elif [[ ${#positional_args[@]} -eq 1 ]]; then
-    new_version="${positional_args[0]}"
-  elif [[ ${#positional_args[@]} -eq 2 && "${positional_args[0]}" == "next-dev" ]]; then
-    new_version="${positional_args[0]}"
-    target_version="${positional_args[1]}"
-  else
-    __chief_print_error "Too many arguments"
-    echo -e "$usage"
-    return 1
-  fi
-  
-  
-  # Get current version early for keyword processing
-  local current_version="$CHIEF_VERSION"
-  
-  # Handle special keywords
-  if [[ "$new_version" == "release" ]]; then
-    if [[ "$current_version" =~ ^(v[0-9]+\.[0-9]+(\.[0-9]+)?)-dev$ ]]; then
-      new_version="${BASH_REMATCH[1]}"
-      __chief_print_info "Release mode: Converting $current_version → $new_version"
-    else
-      __chief_print_error "Current version ($current_version) is not a -dev version"
-      return 1
-    fi
-  elif [[ "$new_version" == "next-dev" ]]; then
-    # Allow both release versions (v3.1.1) and dev versions (v3.1.1-dev) for next-dev workflow
-    if [[ "$current_version" =~ ^v([0-9]+)\.([0-9]+)(\.([0-9]+))?(-dev)?$ ]]; then
-      local major="${BASH_REMATCH[1]}"
-      local minor="${BASH_REMATCH[2]}"
-      local patch="${BASH_REMATCH[4]:-0}"
-      
-      if [[ -n "$target_version" ]]; then
-        # Use provided target version
-        if [[ ! "$target_version" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
-          __chief_print_error "Invalid target version format: $target_version"
-          __chief_print_error "Expected format: v4.0 or v4.0.0 (must be prefixed with 'v')"
-          return 1
-        fi
-        new_version="${target_version}-dev"
-        __chief_print_info "Next dev mode: Converting $current_version → $new_version (custom target)"
-      else
-        # Auto-increment minor version for next development cycle
-        ((minor++))
-        new_version="v${major}.${minor}.0-dev"
-        __chief_print_info "Next dev mode: Converting $current_version → $new_version (auto-increment)"
-      fi
-    else
-      __chief_print_error "Current version ($current_version) is not a valid release version"
-      return 1
-    fi
-  fi
-  
-  # Validate version format (MUST be prefixed with 'v')
-  # Accept v4.0, v4.0.0 formats, and -dev versions for development workflow
-  if [[ ! "$new_version" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?(-dev)?$ ]]; then
-    __chief_print_error "Invalid version format: $new_version"
-    __chief_print_error "Expected format: v4.0 or v4.0.0 (must be prefixed with 'v'), optionally with -dev suffix"
-    return 1
-  fi
-  
-  # Normalize to full semantic version (add .0 if missing patch version)
-  if [[ "$new_version" =~ ^v[0-9]+\.[0-9]+$ ]]; then
-    new_version="${new_version}.0"
-  fi
-  
-  # Test validation for releases only
-  local is_release_workflow=false
-  local is_next_dev_workflow=false
-  
-  if [[ "${positional_args[0]}" == "release" ]] || [[ ! "$new_version" =~ -dev$ ]]; then
-    is_release_workflow=true
-  elif [[ "${positional_args[0]}" == "next-dev" ]]; then
-    is_next_dev_workflow=true
-  fi
-  
-  # Only run tests for release workflows (next-dev skips tests since it follows a successful release)
-  if ! $dry_run && ! $skip_tests && $is_release_workflow; then
-    local test_script="${CHIEF_PATH}/tests/run-tests.sh"
-    
-    if [[ -f "$test_script" ]]; then
-      __chief_print_info "Running test suite (required for releases)..."
-      
-      if ! "$test_script"; then
-        __chief_print_error "Test suite failed!"
-        __chief_print_error "Cannot proceed with release while tests are failing."
-        __chief_print_info "Fix failing tests or use --skip-tests (NOT recommended)"
-        return 1
-      else
-        __chief_print_success "All tests passed! ✅"
-        echo ""
-      fi
-    else
-      __chief_print_warn "Test suite not found at: $test_script"
-      __chief_print_warn "Proceeding without test validation (not recommended)"
-    fi
-  elif $skip_tests && $is_release_workflow; then
-    __chief_print_warn "⚠️  SKIPPING TESTS FOR RELEASE - THIS IS DANGEROUS!"
-    __chief_print_warn "Release versions should always pass tests before deployment."
-    echo ""
-  elif $is_next_dev_workflow; then
-    __chief_print_info "Skipping tests for next-dev (tests passed in previous release cycle)"
-    echo ""
-  fi
-  
-  # Set version file path
-  local version_file="${CHIEF_PATH}/VERSION"
-  
-  __chief_print_info "Chief Development Version Bump"
-  __chief_print_info "Current version: $current_version"
-  __chief_print_info "New version: $new_version"
-  __chief_print_info "Dry run: $dry_run"
-  echo ""
-  
-  # Check if versions are the same  
-  if [[ "$current_version" == "$new_version" ]]; then
-    __chief_print_warn "Version is already $new_version"
-    if ! $dry_run; then
-      __chief_print_info "Re-applying version to ensure consistency..."
-    fi
-  fi
-  
-  # Files to update with version references
-  local files_to_update=(
-    "${CHIEF_PATH}/VERSION"
-    "${CHIEF_PATH}/README.md"
-    "${CHIEF_PATH}/docs/index.md"
-    "${CHIEF_PATH}/docs/getting-started.md"
-  )
-  
-  # Special handling for next-dev workflow
-  local is_next_dev=false
-  if [[ "${positional_args[0]}" == "next-dev" ]]; then
-    is_next_dev=true
-    
-    # Note: Using release-notes structure instead of UPDATES file
-    if ! $dry_run; then
-      __chief_print_info "Using release-notes structure for version tracking"
-      
-      # Update configuration for development workflow
-      local config_file="${CHIEF_CONFIG}"
-      if [[ -f "$config_file" ]]; then
-        # Update UPDATE_BRANCH to dev for development workflow
-        if grep -q "^CHIEF_CFG_UPDATE_BRANCH=" "$config_file"; then
-          sed -i.tmp_config 's/^CHIEF_CFG_UPDATE_BRANCH=.*/CHIEF_CFG_UPDATE_BRANCH="dev"/' "$config_file"
-          rm -f "${config_file}.tmp_config" 2>/dev/null
-          __chief_print_info "Updated CHIEF_CFG_UPDATE_BRANCH to 'dev' for development workflow"
-        else
-          echo 'CHIEF_CFG_UPDATE_BRANCH="dev"' >> "$config_file"
-          __chief_print_info "Added CHIEF_CFG_UPDATE_BRANCH='dev' to configuration"
-        fi
-      fi
-      
-      # Release notes will be managed manually in release-notes/ directory
-    elif $dry_run; then
-      __chief_print_info "Would update CHIEF_CFG_UPDATE_BRANCH to 'dev' for development workflow"
-    fi
-    
-    # Create version-specific release notes file  
-    local release_notes_dir="${CHIEF_PATH}/release-notes"
-    local release_notes_file="${release_notes_dir}/${new_version}.md"
-    
-    if ! $dry_run; then
-      # Ensure release-notes directory exists
-      mkdir -p "$release_notes_dir"
-      
-      # Create new release notes file if it doesn't exist
-      if [[ ! -f "$release_notes_file" ]]; then
-        __chief_print_info "Creating new release notes: release-notes/${new_version}.md"
-        
-        cat > "$release_notes_file" << EOF
-# Chief ${new_version} Release Notes
-
-## 🚀 What's New
-
-### 🔧 Version ${new_version} Development
-
-- Ready for development work on ${new_version}
-
-## 📋 Upgrade Notes
-
-### For Developers
-
-- This is a development version - features and changes will be documented as they are implemented
-
----
-
-**Full details**: See [release-notes](../release-notes/) directory for complete changelog and version history.
-EOF
-      else
-        __chief_print_info "Release notes file already exists: release-notes/${new_version}.md"
-      fi
-    fi
-    
-    if $dry_run; then
-      __chief_print_info "Would create new release notes file: release-notes/${new_version}.md"
-    fi
-  fi
-
-  # Special handling for release workflow - transform dev release notes to final
-  if $is_release_workflow && [[ "${positional_args[0]}" == "release" ]]; then
-    # Update configuration for release workflow
-    if ! $dry_run; then
-      local config_file="${CHIEF_CONFIG}"
-      if [[ -f "$config_file" ]]; then
-        # Update UPDATE_BRANCH to main for release workflow
-        if grep -q "^CHIEF_CFG_UPDATE_BRANCH=" "$config_file"; then
-          sed -i.tmp_config 's/^CHIEF_CFG_UPDATE_BRANCH=.*/CHIEF_CFG_UPDATE_BRANCH="main"/' "$config_file"
-          rm -f "${config_file}.tmp_config" 2>/dev/null
-          __chief_print_info "Updated CHIEF_CFG_UPDATE_BRANCH to 'main' for stable release tracking"
-        else
-          echo 'CHIEF_CFG_UPDATE_BRANCH="main"' >> "$config_file"
-          __chief_print_info "Added CHIEF_CFG_UPDATE_BRANCH='main' to configuration"
-        fi
-      fi
-    elif $dry_run; then
-      __chief_print_info "Would update CHIEF_CFG_UPDATE_BRANCH to 'main' for stable release tracking"
-    fi
-    
-    local release_notes_dir="${CHIEF_PATH}/release-notes"
-    local dev_release_notes="${release_notes_dir}/${new_version}-dev.md"
-    local final_release_notes="${release_notes_dir}/${new_version}.md"
-    
-    if [[ -f "$dev_release_notes" ]]; then
-      if ! $dry_run; then
-        __chief_print_info "Transforming development release notes to final release..."
-        __chief_print_info "  ${new_version}-dev.md → ${new_version}.md"
-        
-        # Transform the content: remove -dev references and update status
-        # First, ensure we have content to work with
-        if [[ ! -s "$dev_release_notes" ]]; then
-          __chief_print_warn "Development release notes file is empty: $dev_release_notes"
-          __chief_print_info "Creating basic release notes template..."
-          
-          cat > "$final_release_notes" << EOF
-# Chief ${new_version} Release Notes
-
-## 🚀 What's New in ${new_version}
-
-### 🔧 Version ${new_version} Release
-
-- Release version ${new_version}
-
-## 📋 Upgrade Notes
-
-### For Users
-
-- This is a release version
-
----
-
-**Status:** Released  
-**Release Date:** ${new_version}  
-**Breaking Changes:** TBD  
-**New Features:** TBD
-EOF
-        else
-          # Transform the content with more flexible patterns
-          # Apply patterns in order that works with transformations
-          sed -e 's/## 🚀 What'\''s New$/## 🚀 What'\''s New in '"${new_version}"'/g' \
-              -e 's/## 🚀 What'\''s New in Development/## 🚀 What'\''s New in '"${new_version}"'/g' \
-              -e 's/### 🔧 Version '"${new_version}"'-dev Development/### 🔧 Version '"${new_version}"' Release/g' \
-              -e 's/- Ready for development work on '"${new_version}"'-dev/- Release version '"${new_version}"'/g' \
-              -e 's/\*\*Status:\*\* Development in progress/\*\*Status:\*\* Released/g' \
-              -e 's/\*\*Target Release:\*\* '"${new_version}"'/\*\*Release Date:\*\* '"${new_version}"'/g' \
-              -e "s/${new_version}-dev/${new_version}/g" \
-              "$dev_release_notes" > "$final_release_notes"
-        fi
-        
-        # Remove the development version file
-        rm "$dev_release_notes"
-        __chief_print_success "Release notes updated for ${new_version} release"
-      else
-        __chief_print_info "Would transform: ${new_version}-dev.md → ${new_version}.md"
-        __chief_print_info "Would update content to reflect released status"
-      fi
-    elif [[ ! -f "$final_release_notes" ]]; then
-      if ! $dry_run; then
-        __chief_print_warn "No development release notes found at: ${dev_release_notes}"
-        __chief_print_info "Creating basic release notes for ${new_version}..."
-        
-        mkdir -p "$release_notes_dir"
-        cat > "$final_release_notes" << EOF
-# Chief ${new_version} Release Notes
-
-## 🚀 What's New in ${new_version}
-
-### 🔧 Version ${new_version} Release
-
-- Release version ${new_version}
-
-## 📋 Upgrade Notes
-
-### For Users
-
-- This is a release version
-
----
-
-**Status:** Released  
-**Release Date:** ${new_version}  
-**Breaking Changes:** TBD  
-**New Features:** TBD
-EOF
-        __chief_print_info "Created basic release notes: release-notes/${new_version}.md"
-      else
-        __chief_print_info "Would create basic release notes: release-notes/${new_version}.md"
-      fi
-    else
-      __chief_print_info "Final release notes already exist: release-notes/${new_version}.md"
-    fi
-  fi
-
-  # Update each file
-  local updated_count=0
-  for file in "${files_to_update[@]}"; do
-    if [[ ! -f "$file" ]]; then
-      __chief_print_warn "File not found, skipping: $(basename "$file")"
-      continue
-    fi
-    
-    # Note: No special UPDATES handling needed - using release-notes structure
-    
-    # Check if file already has the new version (both regular and badge formats)
-    # Handle badge URL encoding with proper shields.io format: label-message-color
-    local badge_current=""
-    
-    # For Download Release badge: should always show the latest stable version
-    local download_release_version=""
-    if [[ "${positional_args[0]}" == "next-dev" ]]; then
-      # For next-dev: Download Release shows the current stable version (remove -dev from current)
-      download_release_version="${current_version%-dev}"
-    elif [[ "${positional_args[0]}" == "release" ]]; then
-      # For release: Download Release shows the new release version
-      download_release_version="${new_version}"
-    else
-      # Default case
-      download_release_version="${new_version}"
-    fi
-    
-    local badge_new_encoded="${download_release_version//-/--}"  # Double dashes for shields.io
-    local badge_new="Download%20Release-${badge_new_encoded}"
-    
-    # For badge_current: determine what the current Download Release badge should contain
-    local current_download_release_version=""
-    if [[ "${positional_args[0]}" == "release" ]]; then
-      # For release: current badge might show dev version, will change to release version
-      current_download_release_version="${current_version%-dev}"  # Strip -dev to get stable version
-    elif [[ "${positional_args[0]}" == "next-dev" ]]; then
-      # For next-dev: current badge shows stable version, should continue showing stable version
-      current_download_release_version="${current_version%-dev}"  # Strip -dev to get stable version
-    else
-      # Default case
-      current_download_release_version="${current_version}"
-    fi
-    
-    local badge_current_encoded="${current_download_release_version//-/--}"  # Double dashes for shields.io
-    badge_current="Download%20Release-${badge_current_encoded}"
-    
-    # Handle dev badge updates for two-badge structure
-    local dev_badge_current=""
-    local dev_badge_new=""
-    
-    # For release workflow: v3.1.1-dev → v3.1.1, dev badge should show next dev version  
-    if [[ "${positional_args[0]}" == "release" && "$current_version" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)-dev$ ]]; then
-      local major="${BASH_REMATCH[1]}"
-      local minor="${BASH_REMATCH[2]}"
-      local patch="${BASH_REMATCH[3]}"
-      # Next development cycle: increment minor version for next dev
-      ((minor++))
-      local current_encoded="${current_version//-/--}"  # Double dashes for shields.io
-      dev_badge_current="Dev%20Branch-${current_encoded}"
-      dev_badge_new="Dev%20Branch-v${major}.${minor}.0"
-    # For next-dev workflow: v3.1.1 → v3.1.2-dev, dev badge should show the new dev version
-    elif [[ "${positional_args[0]}" == "next-dev" ]]; then
-      # Current version would be release version, new version would be dev version
-      dev_badge_current="Dev%20Branch-.*"  # Pattern to match any current dev badge
-      local dev_badge_new_encoded="${new_version//-/--}"  # Double dashes for shields.io
-      dev_badge_new="Dev%20Branch-${dev_badge_new_encoded}"
-    fi
-    
-    # Check if file already has the new version (check version first, then badges if they exist)
-    local has_new_version=false
-    local has_badges=false
-    local badge_needs_update=false
-    
-    # Up to date only if the new version is present AND the old one is gone.
-    # A plain substring check is not enough: "v3.2.0" matches inside "v3.2.0-dev".
-    if grep -qF "$new_version" "$file" 2>/dev/null && ! grep -qF "$current_version" "$file" 2>/dev/null; then
-      has_new_version=true
-    fi
-    
-    # Check if file has badges at all
-    if grep -q "shields\.io\|badge" "$file" 2>/dev/null; then
-      has_badges=true
-      # If it has badges, check if they need updating
-      if ! grep -q "$badge_new" "$file" 2>/dev/null; then
-        badge_needs_update=true
-      fi
-    fi
-    
-    # For README.md, also check content structure for dev vs release versions
-    local readme_content_correct=true
-    if [[ "$(basename "$file")" == "README.md" ]]; then
-      if [[ "${positional_args[0]}" == "next-dev" ]]; then
-        # For next-dev, README should have dev content structure (accept # Chief or # 🚀 Chief)
-        if ! grep -qE "# (🚀 )?Chief \(Development Version\)" "$file" 2>/dev/null; then
-          readme_content_correct=false
-        elif ! grep -q "Warning.*development branch" "$file" 2>/dev/null; then
-          readme_content_correct=false
-        elif ! grep -q "Quick Install (Development Version)" "$file" 2>/dev/null; then
-          readme_content_correct=false
-        fi
-      elif [[ "${positional_args[0]}" == "release" ]]; then
-        # For release, README should have release content structure
-        if ! grep -q "^# 🚀 Chief$" "$file" 2>/dev/null; then
-          readme_content_correct=false
-        elif grep -q "Warning.*development branch" "$file" 2>/dev/null; then
-          readme_content_correct=false
-        elif ! grep -q "^## ⚡ Quick Install$" "$file" 2>/dev/null; then
-          readme_content_correct=false
-        fi
-      fi
-    fi
-    
-    # File is up to date if version is correct AND (no badges OR badges are correct) AND README content is correct
-    if $has_new_version && (! $has_badges || ! $badge_needs_update) && $readme_content_correct; then
-      __chief_print_info "$(basename "$file"): Already up to date ($new_version)"
-      continue
-    fi
-    
-    if $dry_run; then
-      # Describe what the real run would touch in this file
-      local changes=()
-      if grep -v "img\.shields\.io/badge/" "$file" 2>/dev/null | grep -qF "$current_version"; then
-        changes+=("version")
-      fi
-      if grep -q "img\.shields\.io/badge/" "$file" 2>/dev/null; then
-        changes+=("badges")
-      fi
-      if [[ "$(basename "$file")" == "README.md" ]]; then
-        changes+=("content structure")
-      fi
-      if [[ ${#changes[@]} -eq 0 ]]; then
-        __chief_print_info "$(basename "$file"): No version or badge references found; nothing to change"
-        continue
-      fi
-      local changes_str
-      changes_str="$(IFS='|'; echo "${changes[*]}")"
-      __chief_print_info "$(basename "$file"): Would update ${changes_str//|/ + } ($current_version → $new_version)"
-      continue
-    fi
-    
-    # Create backup if requested
-    if $create_backups; then
-      cp "$file" "${file}.backup.$(date +%s)"
-    fi
-    
-    # Perform replacements (both regular version and badge URLs)
-    local success=true
-    
-    # Badge versions. Each badge has a fixed meaning regardless of branch:
-    #   Download Release / Stable  -> latest *released* (stable) version, never "-dev"
-    #   Dev Branch                 -> in-progress development version, always "-dev"
-    # shields.io encodes a literal "-" inside the message as "--".
-    local stable_version="" dev_version=""
-    if [[ "${positional_args[0]}" == "release" ]]; then
-      stable_version="${new_version}"
-      if [[ "$current_version" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)-dev$ ]]; then
-        dev_version="v${BASH_REMATCH[1]}.$((BASH_REMATCH[2] + 1)).0-dev"
-      fi
-    elif [[ "${positional_args[0]}" == "next-dev" ]]; then
-      stable_version="${current_version%-dev}"
-      dev_version="${new_version}"
-    else
-      stable_version="${new_version%-dev}"
-      [[ "$new_version" == *-dev ]] && dev_version="${new_version}"
-    fi
-    local stable_enc="${stable_version//-/--}"
-    local dev_enc="${dev_version//-/--}"
-    # Matches a badge version token such as v3.1.4 or v3.2.0--dev (portable BRE, BSD + GNU sed)
-    local ver_re='v[0-9][0-9.]*\(--dev\)\{0,1\}'
-    local current_version_re="${current_version//./\\.}"
-
-    # Update regular version references everywhere EXCEPT shields.io badge lines,
-    # so a global replace can never turn a stable badge into a dev badge.
-    if ! sed -i.tmp1 "/img\.shields\.io\/badge\//!s/${current_version_re}/${new_version}/g" "$file" 2>/dev/null; then
-      success=false
-    fi
-
-    # Rewrite each badge explicitly from its intended meaning
-    if $success && grep -q "img\.shields\.io/badge/" "$file" 2>/dev/null; then
-      if ! sed -i.tmp2 \
-        -e "s|Download%20Release-${ver_re}-|Download%20Release-${stable_enc}-|g" \
-        -e "s|Download-Release%20${ver_re}-|Download-Release%20${stable_enc}-|g" \
-        -e "s|Stable-${ver_re}-|Stable-${stable_enc}-|g" \
-        "$file" 2>/dev/null; then
-        success=false
-      fi
-
-      if $success && [[ -n "$dev_enc" ]]; then
-        if grep -q "Dev%20Branch-" "$file" 2>/dev/null; then
-          if ! sed -i.tmp_dev "s|Dev%20Branch-${ver_re}-|Dev%20Branch-${dev_enc}-|g" "$file" 2>/dev/null; then
-            success=false
-          fi
-        elif [[ "$(basename "$file")" == "README.md" ]]; then
-          # README has no Dev Branch badge yet: insert one right after the Download Release badge
-          if ! sed -i.tmp_dev "s|\(\[!\[[^]]*\](https://img\.shields\.io/badge/Download%20Release-[^)]*)\]([^)]*)\)|\1 [![Dev Branch](https://img.shields.io/badge/Dev%20Branch-${dev_enc}-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev)|" "$file" 2>/dev/null; then
-            success=false
-          fi
-        fi
-      fi
-    fi
-    
-    # For release bumps (not next-dev), remove "(Unreleased)" markers
-    if $success && [[ "${positional_args[0]}" == "release" ]]; then
-      # Handle different unreleased patterns
-      if ! sed -i.tmp3 "s/## Unreleased (${new_version})/## ${new_version}/g" "$file" 2>/dev/null; then
-        success=false
-      fi
-      if $success && ! sed -i.tmp4 "s/# Chief ${new_version} Release Notes (Unreleased)/# Chief ${new_version} Release Notes/g" "$file" 2>/dev/null; then
-        success=false
-      fi
-    fi
-    
-    # Handle README.md content changes for dev vs release versions
-    if $success && [[ "$(basename "$file")" == "README.md" ]]; then
-      if [[ "${positional_args[0]}" == "release" ]]; then
-        # RELEASE: Remove dev-specific content from README
-        # 1. Remove "(Development Version)" from title
-        if ! sed -i.tmp5 "s/# 🚀 Chief (Development Version)/# 🚀 Chief/g" "$file" 2>/dev/null; then
-          success=false
-        fi
-        
-        # 2. Remove warning box (multi-line pattern)
-        if $success; then
-          # Use perl for multi-line replacement to remove the warning block
-          if ! perl -i -pe 'BEGIN{undef $/;} s/\n> ⚠️ \*\*Warning\*\*: This is the development branch.*?\[main branch\]\(.*?\)\.\n//smg' "$file" 2>/dev/null; then
-            success=false
-          fi
-        fi
-        
-        # 3. Simplify installation section
-        if $success; then
-          # Replace development install section with simple install
-          if ! sed -i.tmp6 's/## ⚡ Quick Install (Development Version)/## ⚡ Quick Install/g' "$file" 2>/dev/null; then
-            success=false
-          fi
-          
-          # Remove the dev install block and stable alternative, keep only main install
-          if $success; then
-            # Use perl to replace the complex install section
-            perl -i -pe 'BEGIN{undef $/;} s/```bash\n# Install development version \(may be unstable\)\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/dev\/tools\/install\.sh\)"\n```\n\n\*\*For stable release\*\*, use:\n```bash\n# Install stable version from main branch\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install\.sh\)"\n```/```bash\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install\.sh\)"\n```/smg' "$file" 2>/dev/null || success=false
-          fi
-        fi
-        
-      elif [[ "${positional_args[0]}" == "next-dev" ]]; then
-        # NEXT-DEV: Add dev-specific content to README
-        # 1. Add "(Development Version)" to title (accept "# Chief" or "# 🚀 Chief")
-        if grep -q "^# Chief$" "$file" 2>/dev/null; then
-          sed -i.tmp5 "s/^# Chief$/# Chief (Development Version)/g" "$file" 2>/dev/null || success=false
-        elif grep -q "^# 🚀 Chief$" "$file" 2>/dev/null; then
-          sed -i.tmp5 "s/# 🚀 Chief$/# 🚀 Chief (Development Version)/g" "$file" 2>/dev/null || success=false
-        fi
-
-        # 2. Add warning box after title (only if it doesn't exist)
-        if $success; then
-          if ! grep -q "Warning.*development branch" "$file" 2>/dev/null; then
-            local warning_line="> ⚠️ **Warning**: This is the development branch. Features may be unstable. For stable releases, use the [main branch](https://github.com/randyoyarzabal/chief/tree/main)."
-            if ! WARNING_LINE="$warning_line" perl -i.tmp6 -pe 'if (/^\*\*Bash Plugin Manager & Terminal Enhancement Tool\*\*$/) { $_ .= "\n\n" . $ENV{WARNING_LINE} . "\n" }' "$file" 2>/dev/null; then
-              success=false
-            fi
-          fi
-        fi
-
-        # 3. Expand installation section (accept "## Quick Install" or "## ⚡ Quick Install")
-        if $success; then
-          if grep -q '^## ⚡ Quick Install$' "$file" 2>/dev/null; then
-            sed -i.tmp7 's/## ⚡ Quick Install$/## ⚡ Quick Install (Development Version)/g' "$file" 2>/dev/null || success=false
-          elif grep -q '^## Quick Install$' "$file" 2>/dev/null; then
-            sed -i.tmp7 's/## Quick Install$/## Quick Install (Development Version)/g' "$file" 2>/dev/null || success=false
-          fi
-        fi
-
-        # 4. Replace install block with dev-first version (optional; skip if already in dev format)
-        if $success && grep -q "Install stable version" "$file" 2>/dev/null && grep -q "refs/heads/main/tools/install" "$file" 2>/dev/null; then
-          if perl -i.tmp_install -pe 'BEGIN{undef $/;} s/(```bash\n)(# Install stable version\n)?(bash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install\.sh\)"\n```)/$1# Install development version (may be unstable)\nbash -c "$(curl -fsSL https:\/\/raw.githubusercontent.com\/randyoyarzabal\/chief\/refs\/heads\/dev\/tools\/install.sh)"\n```\n\n**For stable release**, use:\n```bash\n# Install stable version from main branch\nbash -c "$(curl -fsSL https:\/\/raw.githubusercontent.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install.sh)"\n```/smg' "$file" 2>/dev/null; then
-            rm -f "${file}.tmp_install" 2>/dev/null
-          else
-            rm -f "${file}.tmp_install" 2>/dev/null
-          fi
-        fi
-      fi
-    fi
-    
-    if $success; then
-      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp5" "${file}.tmp6" "${file}.tmp7" "${file}.tmp_dev" "${file}.tmp_stable" "${file}.tmp_install" 2>/dev/null
-      if [[ "$(basename "$file")" == "README.md" ]]; then
-        __chief_print_success "$(basename "$file"): Updated $current_version → $new_version (including badges and content structure)"
-      else
-        __chief_print_success "$(basename "$file"): Updated $current_version → $new_version (including badges)"
-      fi
-      ((updated_count++))
-    else
-      # Restore backup on failure if it exists
-      if $create_backups; then
-        local backup_file="${file}.backup.$(date +%s)"
-        if [[ -f "$backup_file" ]]; then
-          mv "$backup_file" "$file" 2>/dev/null
-        fi
-      fi
-      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp5" "${file}.tmp6" "${file}.tmp7" "${file}.tmp_dev" "${file}.tmp_stable" "${file}.tmp_install" 2>/dev/null
-      __chief_print_error "$(basename "$file"): Failed to update"
-      return 1
-    fi
-  done
-  
-  
-  # Summary
-  echo ""
-  if $dry_run; then
-    __chief_print_info "Dry run completed. No files were modified."
-    __chief_print_info "Run without --dry-run to apply changes."
-  else
-    __chief_print_success "Version bump completed: $current_version → $new_version"
-    __chief_print_info "Files updated: $updated_count"
-    
-    # Clean up old backups (keep only the 3 most recent) - only if backups were created
-    if $create_backups; then
-      local backup_files
-      backup_files=$(find "${CHIEF_PATH}" -name "*.backup.*" -type f 2>/dev/null | sort)
-      if [[ -n "$backup_files" ]]; then
-        local total_backups
-        total_backups=$(echo "$backup_files" | wc -l | tr -d ' ')
-        if [[ "$total_backups" -gt 3 ]]; then
-          local files_to_delete=$((total_backups - 3))
-          echo "$backup_files" | head -n "$files_to_delete" | xargs rm -f 2>/dev/null || true
-          __chief_print_info "Cleaned up old backup files (kept 3 most recent)"
-        fi
-      fi
-    fi
-    
-    # Different next steps for dev vs release versions
-    if [[ "$new_version" =~ -dev$ ]]; then
-      __chief_print_info "📋 Next steps for development version ($new_version):"
-      __chief_print_info "  1. ✅ Ready for development work on $new_version"
-      __chief_print_info "  2. 📄 README.md converted to dev format (added warnings/dev structure)"
-      __chief_print_info "  3. 🔄 Update branch set to 'dev' (will track development updates)"
-      __chief_print_info "  4. When ready to release, run: __chief.bump release"
-    else
-      __chief_print_info "🚀 Release version ready ($new_version):"
-      __chief_print_info "  📝 Badges now show release version (no -dev suffix)"
-      __chief_print_info "  📄 README.md converted to release format (removed dev warnings/structure)"
-      __chief_print_info "  🔄 Update branch set to 'main' (will track stable releases)"
-      __chief_print_info "  📋 Next steps to publish release:"
-      __chief_print_info "  1. 🔄 Create PR: dev → main (for release)"
-      __chief_print_info "  2. 📦 Create GitHub release from tag for publishing"
-      __chief_print_info ""
-      __chief_print_info "📋 Copy-paste for GitHub release description:"
-      __chief_print_info "────────────────────────────────────────────────────"
-      __chief_print_info "See [$new_version release notes](https://github.com/randyoyarzabal/chief/blob/main/release-notes/$new_version.md)"
-      __chief_print_info "────────────────────────────────────────────────────"
-      __chief_print_info ""
-      __chief_print_info "  7. 🔄 Run: __chief.bump next-dev (to start next development cycle)"
     fi
   fi
 }

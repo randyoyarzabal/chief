@@ -194,6 +194,32 @@ main() {
         echo ""
     fi
     
+    # 5b. Release tooling tests (dev-only plugin, fake GitHub)
+    if [[ -f "$TEST_DIR/release-tests.sh" ]]; then
+        log_info "Running release tooling tests..."
+        TOTAL_TESTS=$((TOTAL_TESTS + 1))
+        if "$TEST_DIR/release-tests.sh"; then
+            log_success "Release tooling tests"
+        else
+            log_error "Release tooling tests"
+            suite_failures=$((suite_failures + 1))
+        fi
+        echo ""
+    fi
+
+    # 5c. Config defaults and upgrade behavior
+    if [[ -f "$TEST_DIR/config-defaults-tests.sh" ]]; then
+        log_info "Running config defaults tests..."
+        TOTAL_TESTS=$((TOTAL_TESTS + 1))
+        if "$TEST_DIR/config-defaults-tests.sh"; then
+            log_success "Config defaults tests"
+        else
+            log_error "Config defaults tests"
+            suite_failures=$((suite_failures + 1))
+        fi
+        echo ""
+    fi
+
     # 6. Bash version warning tests
     if [[ -f "$TEST_DIR/bash-version-tests.sh" ]]; then
         log_info "Running bash version warning tests..."
@@ -230,7 +256,9 @@ show_help() {
     echo "  ./tests/source-tests.sh     - Script loading validation"
     echo "  ./tests/plugin-tests.sh     - Plugin-specific tests"
     echo "  ./tests/integration-tests.sh - End-to-end functionality"
-    echo "  ./tests/bump-tests.sh       - __chief.bump release/next-dev on a scratch copy"
+    echo "  ./tests/bump-tests.sh       - version bump (release/next-dev) on a scratch copy"
+    echo "  ./tests/release-tests.sh    - dev-only release tooling end to end (fake GitHub)"
+    echo "  ./tests/config-defaults-tests.sh - plugin defaults and SSH auto-load (incl. upgrades)"
     echo "  ./tests/bash-version-tests.sh - Bash < 4 start-up warning"
 }
 

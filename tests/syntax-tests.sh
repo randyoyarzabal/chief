@@ -118,7 +118,7 @@ find_bash_scripts() {
     # Core plugin files (user plugins are intentionally excluded from syntax testing)
     while IFS= read -r -d '' file; do
         scripts+=("$file")
-    done < <(find "$PROJECT_ROOT/libs/core/plugins" -name "*_chief-plugin.sh" -type f -print0 2>/dev/null || true)
+    done < <(find "$PROJECT_ROOT/libs/core/plugins" "$PROJECT_ROOT/libs/dev/plugins" -name "*_chief-plugin.sh" -type f -print0 2>/dev/null || true)
     
     # Template files excluded (they're meant to be customized, not tested as-is)
     # Commented out: find "$PROJECT_ROOT/templates" -name "*.sh" -type f -print0

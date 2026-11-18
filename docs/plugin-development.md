@@ -2,10 +2,6 @@
 layout: default
 title: Plugin Development
 description: "Complete guide to creating, managing, and sharing Chief plugins"
----
-
-[← Back to Home](https://chief.randyo.dev/)
-
 # Plugin Development
 
 Complete guide to creating custom plugins, best practices, and advanced plugin features.
@@ -708,6 +704,35 @@ test_myproject_deploy
 - Study built-in plugins for examples: `~/.chief/libs/core/plugins/`
 - Use `chief.whereis` to understand how existing functions work
 - Check the [plugin template](https://github.com/randyoyarzabal/chief/blob/main/templates/chief_plugin_template.sh) for best practices
+
+---
+
+[← Back to Home](https://chief.randyo.dev/)
+
+---
+
+## Releasing Chief (maintainers)
+
+Release tooling lives in `libs/dev/plugins/` and is **not** part of what users get: it loads only when Chief's own checkout is on the `dev` branch and `CHIEF_CFG_DEV_TOOLS=true`. Release archives leave `libs/dev` out (`.gitattributes`).
+
+One-time setup on your machine:
+
+```bash
+chief.config-set dev_tools true   # then: chief.reload
+gh auth login                     # the release step uses the GitHub CLI
+```
+
+Release:
+
+```bash
+chief.release_status                          # where things stand (read-only)
+chief.release_publish --next v3.2.1 --dry-run # every step, changes nothing
+chief.release_publish --next v3.2.1           # do it
+```
+
+`chief.release_publish` runs: checks → test suite → bump VERSION, release notes and badges → commit "Release vX.Y.Z" and push dev → open the dev → main pull request → wait for CI → merge → tag → GitHub release (notes from `release-notes/vX.Y.Z.md`) → merge main back into dev → start the `--next` dev version → commit and push dev. It asks before every push, merge and publish, and shows live progress. If it stops, run the same command again; finished steps are skipped.
+
+To review the release commit before going public, run `chief.release_prepare` first, then `chief.release_publish` when ready.
 
 ---
 
