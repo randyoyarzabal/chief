@@ -1,6 +1,9 @@
-# Chief
+# Chief (Development Version)
 
 **Bash Plugin Manager & Terminal Enhancement Tool**
+
+
+> ⚠️ **Warning**: This is the development branch. Features may be unstable. For stable releases, use the [main branch](https://github.com/randyoyarzabal/chief/tree/main).
 
 [![GitHub release](https://img.shields.io/badge/Download%20Release-v3.2.0-blue.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Dev Branch](https://img.shields.io/badge/Dev%20Branch-v3.2.1--dev-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev) [![Main Branch](https://img.shields.io/badge/Stable-v3.2.0-green.svg?style=social)](https://github.com/randyoyarzabal/chief) [![Documentation](https://img.shields.io/badge/Documentation-blue)](https://chief.randyo.dev)
 
