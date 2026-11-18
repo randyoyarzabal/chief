@@ -344,6 +344,51 @@ PY
     echo ""
 }
 
+# Typed at a real interactive prompt (like a user's terminal): starting a step's command
+# must not make bash print job notices ("[1] 12345"), and exit codes must come through.
+test_steps_no_job_notices() {
+    log_info "step-progress helper (no job notices at an interactive prompt)"
+    if ! command -v python3 >/dev/null 2>&1; then
+        echo "    python3 not installed; skipping"; echo ""; return 0
+    fi
+    cat > "$TEMP_DIR/jobs-setup.sh" <<LIVE
+export CHIEF_PATH="$PROJECT_ROOT" CHIEF_CONFIG=/dev/null TERM=xterm-256color
+source "\$CHIEF_PATH/VERSION"; source "\$CHIEF_PATH/libs/core/chief_library.sh" >/dev/null 2>&1
+demo() {
+  __chief_steps_begin "Demo" "One" "Two"
+  __chief_steps_exec sleep 0.3 && __chief_steps_done "ok"
+  __chief_steps_exec bash -c 'exit 7'; echo "RC=\$?"
+  __chief_steps_end
+}
+LIVE
+    python3 - "$BASH" "$TEMP_DIR/jobs-setup.sh" > "$TEMP_DIR/out.log" 2>&1 <<'PY'
+import os, pty, select, sys, time
+pid, fd = pty.fork()
+if pid == 0:
+    os.environ["PS1"] = "PROMPT$ "
+    os.execv(sys.argv[1], [sys.argv[1], "--norc", "-i"])
+def pump(t):
+    out, end = b"", time.time() + t
+    while time.time() < end:
+        r, _, _ = select.select([fd], [], [], 0.1)
+        if r:
+            try:
+                out += os.read(fd, 65536)
+            except OSError:
+                break
+    return out
+pump(1)
+os.write(fd, ("source " + sys.argv[2] + "\n").encode()); pump(2)
+os.write(fd, b"demo\n"); out = pump(5)
+os.write(fd, b"exit\n"); pump(1)
+sys.stdout.write(out.decode("utf-8", "replace"))
+PY
+    check "no job notices printed"            bash -c "! grep -qE '\[[0-9]+\] [0-9]+' '$TEMP_DIR/out.log'"
+    check "step ran and finished"             contains "$TEMP_DIR/out.log" "One (ok)"
+    check "exit code passed through"          contains "$TEMP_DIR/out.log" "RC=7"
+    echo ""
+}
+
 test_gate() {
     log_info "dev-tools gate"
     local work="$TEMP_DIR/work" state
@@ -485,6 +530,7 @@ main() {
     test_steps_helper
     test_steps_live_redraw
     test_steps_short_terminal
+    test_steps_no_job_notices
     test_gate
     test_next_validation
     test_dry_run_and_status

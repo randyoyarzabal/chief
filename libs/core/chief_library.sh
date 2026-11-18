@@ -2141,12 +2141,10 @@ function __chief_steps_fail() {
 }
 
 function __chief_steps_exec() {
-  local rc pid monitor=false
+  local rc pid
   : > "$__CHIEF_STEPS_LOG" 2>/dev/null
   [[ "$(__chief_steps_cur_state)" == running ]] || __chief_steps_start
   if $__CHIEF_STEPS_LIVE; then
-    # Job-control notices ("[1] 1234", "Done") would land on the spinner line.
-    [[ $- == *m* ]] && monitor=true && set +m
     # Run external commands in their own session, without the terminal, so nothing they
     # write straight to /dev/tty lands on the spinner line. Shell functions (e.g. git push
     # wrappers) keep the terminal so auth prompts still work.
@@ -2154,14 +2152,21 @@ function __chief_steps_exec() {
     if [[ "$(type -t "$1")" == file ]] && command -v perl >/dev/null 2>&1; then
       runner=(perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV or die "cannot run $ARGV[0]: $!\n"' --)
     fi
-    ${runner[@]+"${runner[@]}"} "$@" >>"$__CHIEF_STEPS_LOG" 2>&1 </dev/null &
-    pid=$!
+    # Start it from a short-lived subshell: a background job of the interactive shell itself
+    # makes bash print "[1] 12345" (even with job control off), which breaks the spinner line.
+    local rcfile="${__CHIEF_STEPS_LOG}.rc"
+    rm -f "$rcfile"
+    pid="$(
+      { ${runner[@]+"${runner[@]}"} "$@" >>"$__CHIEF_STEPS_LOG" 2>&1 </dev/null; echo $? > "$rcfile"; } >/dev/null 2>&1 &
+      echo $!
+    )"
     while kill -0 "$pid" 2>/dev/null; do
       __chief_steps_tick
       sleep 0.1
     done
-    wait "$pid"; rc=$?
-    $monitor && set -m
+    rc="$(cat "$rcfile" 2>/dev/null)"
+    rm -f "$rcfile"
+    [[ "$rc" =~ ^[0-9]+$ ]] || rc=1
   else
     "$@" >>"$__CHIEF_STEPS_LOG" 2>&1 </dev/null; rc=$?
   fi
