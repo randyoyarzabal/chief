@@ -353,30 +353,75 @@ function myproject.select_environment() {
 
 ### Progress Indicators
 
-Use Chief's spinner utility for long-running operations:
+Chief has two progress helpers, both in the core library (always loaded), and both behave well everywhere: no animation when output goes to a pipe, a file or CI (or `NO_COLOR` is set), lines fit the terminal width, and no `[1] 12345` job notices.
+
+#### One command: `chief.etc_spinner` / `__chief_spin`
+
+Runs a command with a spinner, then clears the line. `chief.etc_spinner` is the documented command (in the `etc` plugin); `__chief_spin` is the core function behind it, with the same arguments. Use `__chief_spin` in a plugin that must work even when someone turns the `etc` plugin off. Everything the command printed (stdout and stderr) goes into the variable you name, and the command's exit code is returned.
 
 ```bash
-function myproject.long_task() {
-    echo "Starting long task..."
-    
-    # Start background task
-    (
-        sleep 10  # Simulate long task
-        echo "Task completed" > /tmp/myproject_result
-    ) &
-    
-    local task_pid=$!
-    
-    # Show spinner while task runs
-    chief.etc_spinner "Processing..." "$task_pid"
-    
-    # Check result
-    if [[ -f /tmp/myproject_result ]]; then
-        cat /tmp/myproject_result
-        rm /tmp/myproject_result
+function myproject.sync() {
+    local output
+    if chief.etc_spinner "Syncing files..." "rsync -a src/ dst/" output; then
+        echo "Synced."
+    else
+        echo "Sync failed:"; echo "$output"
+        return 1
     fi
 }
 ```
+
+`--legacy` gives the original look, `Syncing files... [|]` turning through `| / - \`:
+
+```bash
+chief.etc_spinner --legacy "Syncing files..." "rsync -a src/ dst/" output
+```
+
+The command runs in a subshell, so variables it sets don't reach your function; read what you need from its output.
+
+#### Several steps: the step progress helpers
+
+For a command made of named steps, show each one as it happens: `✓` done, a spinner while running, `↷` skipped, `✗` failed with the reason, then a summary. Finished steps print once and are never redrawn.
+
+```bash
+function myproject.deploy() {
+    __chief_steps_begin "Deploying myproject" "Build" "Run tests" "Upload" "Restart service"
+
+    __chief_steps_exec make build || { __chief_steps_fail "build failed"; __chief_steps_show_log; return 1; }
+    __chief_steps_done "ok"
+
+    __chief_steps_exec make test || { __chief_steps_fail "tests failed"; __chief_steps_show_log; return 1; }
+    __chief_steps_done "all passed"
+
+    __chief_steps_start
+    if ! __chief_steps_ask "Upload to production?"; then
+        __chief_steps_fail "stopped" "Nothing was uploaded."; return 1
+    fi
+    __chief_steps_exec scp build/app.tar.gz prod:/srv/ || { __chief_steps_fail "upload failed"; __chief_steps_show_log; return 1; }
+    __chief_steps_done "app.tar.gz"
+
+    __chief_steps_start
+    __chief_steps_skip "already running the new build"
+
+    __chief_steps_end "Deployed" "Host  prod" "Build $(git rev-parse --short HEAD)"
+}
+```
+
+| Call | What it does |
+|------|--------------|
+| `__chief_steps_begin "Title" "Step 1" "Step 2" ...` | Prints the title; declares the steps in order |
+| `__chief_steps_start [detail]` | Starts the next step (spinner in a terminal) |
+| `__chief_steps_exec <command> [args...]` | Starts the next step if needed and runs the command with a spinner; its output goes to a log. Returns the command's exit code |
+| `__chief_steps_done [detail]` / `__chief_steps_skip [reason]` | Finishes the current step with `✓` / `↷` |
+| `__chief_steps_fail "reason" [hint...]` | Finishes it with `✗`, prints the hints, returns 1 |
+| `__chief_steps_show_log [lines]` | Prints the end of the last command's output (after a failure) |
+| `__chief_steps_ask "Question?" [preview]` | Asks y/N on the current step; returns 0 for yes. `CHIEF_STEPS_ASSUME_YES=1` (for example from a `--yes` option) answers yes |
+| `__chief_steps_tick [detail]` | Advances the spinner and updates the detail, for your own polling loops |
+| `__chief_steps_would [detail]` | Marks the next step `○ Would:` for a `--dry-run` |
+| `__chief_steps_note "text"` | Prints a line that stays, such as a problem found |
+| `__chief_steps_end ["Summary title" [line...]]` | Finishes and prints a summary |
+
+Commands given to `__chief_steps_exec` run without the terminal (so stray output can't disturb the display); shell functions keep it, so password prompts inside them still work. `chief.release_publish` (maintainers) is a full example.
 
 ---
 

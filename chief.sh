@@ -74,7 +74,7 @@ __chief_load_library
 
 # Load SSH keys at start-up if enabled (CHIEF_CFG_SSH_LOAD_KEYS)
 if __chief_ssh_autoload_on && ([[ ${PLATFORM} == "MacOS" ]] || [[ $(uname) == "Linux" ]]); then
-  chief.etc_spinner "Loading SSH keys..." "__chief_load_ssh_keys" tmp_out
+  __chief_spin "Loading SSH keys..." "__chief_load_ssh_keys" tmp_out
   echo -e "${tmp_out}"
 fi
 

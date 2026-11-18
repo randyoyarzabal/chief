@@ -389,6 +389,62 @@ PY
     echo ""
 }
 
+# The one-command spinner (__chief_spin, wrapped by chief.etc_spinner).
+test_spinner() {
+    log_info "spinner (__chief_spin and chief.etc_spinner)"
+    CHIEF_PATH="$PROJECT_ROOT" CHIEF_CONFIG=/dev/null bash -c '
+        source "$CHIEF_PATH/VERSION"; source "$CHIEF_PATH/libs/core/chief_library.sh" >/dev/null 2>&1
+        source "$CHIEF_PATH/libs/core/plugins/etc_chief-plugin.sh" >/dev/null 2>&1
+        __chief_spin "Working" "echo hello; echo oops >&2; exit 3" out; echo "rc=$? out=[$out]"
+        __chief_spin "Quotes" "echo \"it'"'"'s fine\"" q; echo "q=[$q]"
+        chief.etc_spinner "Wrapped" "echo wrapped; exit 4" w; echo "wrc=$? w=[$w]"
+        chief.etc_spinner --legacy "Classic" "echo classic; exit 5" c; echo "lrc=$? c=[$c]"
+    ' > "$TEMP_DIR/out.log" 2>&1
+    check "exit code passed through"          contains "$TEMP_DIR/out.log" "rc=3"
+    check "stdout and stderr captured"        bash -c "tr '\n' ' ' < '$TEMP_DIR/out.log' | grep -qF 'out=[hello oops]'"
+    check "output with quotes kept"           contains "$TEMP_DIR/out.log" "q=[it's fine]"
+    check "chief.etc_spinner wraps it"        contains "$TEMP_DIR/out.log" "wrc=4 w=[wrapped]"
+    check "--legacy keeps output and code"    contains "$TEMP_DIR/out.log" "lrc=5 c=[classic]"
+
+    if command -v python3 >/dev/null 2>&1; then
+        cat > "$TEMP_DIR/spin-setup.sh" <<LIVE
+export CHIEF_PATH="$PROJECT_ROOT" CHIEF_CONFIG=/dev/null TERM=xterm-256color
+source "\$CHIEF_PATH/VERSION"; source "\$CHIEF_PATH/libs/core/chief_library.sh" >/dev/null 2>&1
+spindemo() { __chief_spin "Spinning a bit" "sleep 0.5; echo done-output" o; echo "AFTER=[\$o]"; }
+classicdemo() { __chief_spin --legacy "Classic look" "sleep 3.2; echo classic-output" o; echo "CLASSIC=[\$o]"; }
+LIVE
+        python3 - "$BASH" "$TEMP_DIR/spin-setup.sh" > "$TEMP_DIR/out.log" 2>&1 <<'PY'
+import os, pty, select, sys, time
+pid, fd = pty.fork()
+if pid == 0:
+    os.environ["PS1"] = "PROMPT$ "
+    os.execv(sys.argv[1], [sys.argv[1], "--norc", "-i"])
+def pump(t):
+    out, end = b"", time.time() + t
+    while time.time() < end:
+        r, _, _ = select.select([fd], [], [], 0.1)
+        if r:
+            try:
+                out += os.read(fd, 65536)
+            except OSError:
+                break
+    return out
+pump(1)
+os.write(fd, ("source " + sys.argv[2] + "\n").encode()); pump(2)
+os.write(fd, b"spindemo\n"); out = pump(3)
+os.write(fd, b"classicdemo\n"); out += pump(5)
+os.write(fd, b"exit\n"); pump(1)
+sys.stdout.write(out.decode("utf-8", "replace"))
+PY
+        check "spinner shows at a prompt"         contains "$TEMP_DIR/out.log" "Spinning a bit"
+        check "no job notices from the spinner"   bash -c "! grep -qE '\[[0-9]+\] [0-9]+' '$TEMP_DIR/out.log'"
+        check "output available after spinning"  contains "$TEMP_DIR/out.log" "AFTER=[done-output]"
+        check "--legacy shows all four frames"    bash -c "for f in '[|]' '[/]' '[-]' '[\\]'; do grep -qF \"Classic look \$f\" '$TEMP_DIR/out.log' || exit 1; done"
+        check "--legacy output after spinning"    contains "$TEMP_DIR/out.log" "CLASSIC=[classic-output]"
+    fi
+    echo ""
+}
+
 test_gate() {
     log_info "dev-tools gate"
     local work="$TEMP_DIR/work" state
@@ -531,6 +587,7 @@ main() {
     test_steps_live_redraw
     test_steps_short_terminal
     test_steps_no_job_notices
+    test_spinner
     test_gate
     test_next_validation
     test_dry_run_and_status

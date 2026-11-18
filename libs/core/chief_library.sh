@@ -2173,6 +2173,55 @@ function __chief_steps_exec() {
   return $rc
 }
 
+# One-command spinner: run <command>, show a spinner with <message> while it runs, then clear
+# the line and put everything the command printed into the variable named <output_variable>.
+# Returns the command's exit code. Same calling convention as chief.etc_spinner (which wraps
+# this), but in core, so Chief's own start-up and SSH key loading don't depend on a plugin.
+# Like the step helper: started from a short-lived subshell (no "[1] 12345" job notices),
+# the line is fit to the terminal width, and there's no animation when not on a terminal.
+# --legacy: the original Chief look, "message [|]" turning through | / - \ at the original pace.
+# Usage: __chief_spin [--legacy] <message> <command> [output_variable]
+function __chief_spin() {
+  local __cs_legacy=false
+  [[ "$1" == --legacy ]] && __cs_legacy=true && shift
+  local __cs_msg="$1" __cs_cmd="$2" __cs_var="${3:-}" __cs_out __cs_rc __cs_pid __cs_f=0
+  local -a __cs_frames=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+  local -a __cs_classic=('|' '/' '-' '\')
+  __cs_out="$(mktemp "${TMPDIR:-/tmp}/chief-spin.XXXXXX")" || return 1
+  if __chief_steps_live_ok; then
+    __chief_steps_width
+    __cs_msg="$(__chief_steps_fit "$__cs_msg" $((__CHIEF_STEPS_COLS - 6)))"
+    __cs_pid="$(
+      { eval "$__cs_cmd" >"$__cs_out" 2>&1; echo $? > "${__cs_out}.rc"; } >/dev/null 2>&1 &
+      echo $!
+    )"
+    while kill -0 "$__cs_pid" 2>/dev/null; do
+      if $__cs_legacy; then
+        # Original look and pace: a new character about every 0.75s, checked every 0.25s.
+        printf '\r\033[K%s [%s]' "$__cs_msg" "${__cs_classic[(__cs_f / 3) % 4]}"
+        sleep 0.25
+      else
+        printf '\r\033[K%b%s%b %s' "$CHIEF_COLOR_CYAN" "${__cs_frames[__cs_f % 10]}" "$CHIEF_NO_COLOR" "$__cs_msg"
+        sleep 0.1
+      fi
+      __cs_f=$((__cs_f + 1))
+    done
+    printf '\r\033[K'
+    __cs_rc="$(cat "${__cs_out}.rc" 2>/dev/null)"
+    rm -f "${__cs_out}.rc"
+    [[ "$__cs_rc" =~ ^[0-9]+$ ]] || __cs_rc=1
+  else
+    # A subshell, as in terminal mode: an "exit" in the command must not end the caller.
+    ( eval "$__cs_cmd" ) >"$__cs_out" 2>&1
+    __cs_rc=$?
+  fi
+  if [[ -n "$__cs_var" ]]; then
+    printf -v "$__cs_var" '%s' "$(cat "$__cs_out")"
+  fi
+  rm -f "$__cs_out"
+  return "$__cs_rc"
+}
+
 # Show the tail of the step log, indented (used after a failed step).
 function __chief_steps_show_log() {
   [[ -s "$__CHIEF_STEPS_LOG" ]] || return 0
@@ -2266,7 +2315,7 @@ Check which hosts are pinned: chief.ssh_status
     return
   fi
 
-  chief.etc_spinner "Loading SSH keys..." "__chief_load_ssh_keys --verbose" tmp_out
+  __chief_spin "Loading SSH keys..." "__chief_load_ssh_keys --verbose" tmp_out
   echo -e "${tmp_out}"
 }
 
@@ -2865,7 +2914,7 @@ You can also manually update by running git pull in the Chief directory.
   fi
   
   # Now check for updates on the current/correct branch
-  chief.etc_spinner "Checking for updates..." "__chief_check_for_updates" tmp_out
+  __chief_spin "Checking for updates..." "__chief_check_for_updates" tmp_out
   echo -e "${tmp_out}"
   if [[ ${tmp_out} == *"available"* ]]; then
     if chief.etc_ask-yes-or-no "Updates are available, update now?"; then

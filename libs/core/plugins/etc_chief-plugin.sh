@@ -2004,7 +2004,7 @@ ${CHIEF_COLOR_BLUE}Speed Guide:${CHIEF_NO_COLOR}
 }
 
 function chief.etc_spinner() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <message> <command> <output_variable>
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--legacy] <message> <command> <output_variable>
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Display a spinning progress indicator while a command executes in the background.
@@ -2015,6 +2015,7 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   output_variable Name of variable to store command output
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  --legacy        Original look: \"message [|]\" turning through | / - \\\\
   -?, --help      Show this help
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
@@ -2023,13 +2024,16 @@ ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Cross-platform spinner animation
 - Non-blocking execution with progress indication
 
-${CHIEF_COLOR_MAGENTA}Spinner Characters:${CHIEF_NO_COLOR}
-Rotates through: | / - \\ (creating animation effect)
+${CHIEF_COLOR_MAGENTA}Behavior:${CHIEF_NO_COLOR}
+Shows a spinner while the command runs, then clears the line. No animation when output
+isn't a terminal. Returns the command's exit code. For several steps with ✓/✗ per step,
+plugins can use Chief's step progress helpers (see docs/plugin-development.md).
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME \"Installing packages\" \"apt update\" install_output
   $FUNCNAME \"Building project\" \"make all\" build_result
   $FUNCNAME \"Downloading file\" \"wget file.tar.gz\" download_log
+  $FUNCNAME --legacy \"Syncing\" \"rsync -a src/ dst/\" sync_log
 
 ${CHIEF_COLOR_BLUE}Usage Pattern:${CHIEF_NO_COLOR}
   $FUNCNAME \"Processing...\" \"long_command\" result_var
@@ -2039,71 +2043,20 @@ ${CHIEF_COLOR_RED}Note:${CHIEF_NO_COLOR}
 Output variable is set in the caller's environment for access after completion.
 "
 
+  local legacy=()
+  [[ "$1" == --legacy ]] && legacy=(--legacy) && shift
   if [[ -z $3 ]] || [[ $1 == "-?" ]] || [[ $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return
   fi
 
-  # Create a random file to hold output
-  if [[ ${PLATFORM} == "MacOS" ]]; then
-    tmp_file="/tmp/._$(cat /dev/random | LC_CTYPE=C tr -dc "[:alpha:]" | fold -w 8 | head -n 1)"
-  else
-    tmp_file="/tmp/._$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 8 | head -n 1)"
-  fi
-
-  # Process the command in the background until it returns (saving the output to the temp file).
-  #   In the meantime, keep printing the spinner chars.
-  read < <(
-    eval "$2" &> $tmp_file &
-    echo $!
-  )
-  printf "$1"
-  __chief_spinner $REPLY "$1"
-
-  # Clear the message in-place
-  local start=1
-  local end=$(echo -n $1 | wc -m)
-
-  # Move the cursor to the left with backspace.
-  for ((i = $start; i <= $end; i++)); do printf "\b"; done
-
-  # Remove message from console.
-  for ((i = $start; i <= $end; i++)); do printf " "; done
-
-  # Reposition the cursor to the beginning before any other writes to the screen
-  for ((i = $start; i <= $end; i++)); do printf "\b"; done
-
-  # Save output to 3rd parameter variable
-  eval "$3='$(cat $tmp_file)'"
-
-  # Destroy / delete the temp file
-  rm -rf $tmp_file
+  # The work is done by Chief's core spinner (always loaded, even if this plugin is off).
+  __chief_spin ${legacy[@]+"${legacy[@]}"} "$1" "$2" "$3"
 }
 
 
 # HELPER FUNCTIONS
 ##################################################
-function __chief_spinner() {
-  # Usage: __chief_spinner <pid>
-  local pid=$1
-  local delay=0.75
-  local spinstr='|/-\'
-  while [[ "$(ps a | awk '{print $1}' | grep $pid)" ]]; do
-    local temp=${spinstr#?}
-    printf " [%c]  " "$spinstr"
-    local spinstr=$temp${spinstr%"$temp"}
-    sleep $delay
-    printf "\b\b\b\b\b\b"
-  done
-  printf "    \b\b\b\b" # This deletes the completed spinner.
-
-  # Delete spinner message
-  local str_len=`echo $2 |awk '{print length}'`
-  for (( i=1; i <= $str_len; i++ )); do
-    printf "\b"
-  done
-}
-
 function __chief_timer() {
   # Usage: __chief_timer <start | end>
   if [[ ${PLATFORM} != "MacOS" ]]; then # Need to figure out the Mac equivalent of below
