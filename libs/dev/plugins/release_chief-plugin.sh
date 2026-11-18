@@ -797,6 +797,23 @@ function __chief_release_commit_push() {
     __chief_release_git push --quiet "$remote" HEAD:dev
 }
 
+# How to change the version this dev cycle releases (e.g. v3.2.1 -> v3.3.0), as copy-paste
+# commands. A hint instead of a command: it's rare, and these four lines are the whole job.
+# The "--dev" pattern is the Dev Branch badge (shields.io writes "-" as "--"); Stable and
+# Download badges show the last release and don't match. Exercised by tests/release-tests.sh.
+function __chief_release_retarget_hint() {
+  local rel="$1" example re
+  example="$(__chief_release_candidates "$rel" | sed -n 2p)"
+  example="${example%%|*}"
+  re="${rel//./\\.}"
+  echo
+  echo "  Change the version this cycle releases (e.g. ${rel} → ${example}):"
+  echo "    cd ${CHIEF_PATH}"
+  echo "    git mv release-notes/${rel}-dev.md release-notes/${example}-dev.md"
+  echo "    perl -pi -e 's/${re}--dev/${example}--dev/g; s/${re}-dev/${example}-dev/g' VERSION README.md docs/index.md release-notes/${example}-dev.md"
+  echo "    git commit -am \"Retarget dev to ${example}-dev\" && git push $(__chief_release_remote) dev"
+}
+
 # THE RELEASE ENGINE
 ########################################################################
 # One engine drives status, prepare and publish so they always agree on what is done.
@@ -1157,6 +1174,7 @@ function __chief_release_engine() {
       echo
       echo "  To release ${rel}, run one of:"
       __chief_release_print_candidates "$rel"
+      [[ $phase == unprepared ]] && __chief_release_retarget_hint "$rel"
     fi
   elif $dry; then
     __chief_steps_end "Dry run complete. Nothing was changed."

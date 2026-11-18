@@ -14,6 +14,7 @@
 #   - dry run and status change nothing
 #   - a full publish: release on main, tag, GitHub release, next -dev cycle on dev
 #   - re-running after success, and resuming after a failed step
+#   - the retarget hint in chief.release_status: its printed commands, run as-is, work
 #   - the step-progress helper's plain output
 ########################################################################
 
@@ -239,6 +240,34 @@ test_rerun_after_success() {
     echo ""
 }
 
+test_retarget_hint() {
+    log_info "retarget hint: switch the cycle from v9.8.1 to v9.9.0, then release it"
+    local work="$TEMP_DIR/work"
+    # Some work on the cycle, including release notes we must not lose
+    echo "- retarget marker note" >> "$work/release-notes/v9.8.1-dev.md"
+    git -C "$work" commit -qam "work in progress" && git -C "$work" push -q origin dev
+
+    run_chief chief.release_status
+    check "status shows the retarget hint"        contains "$TEMP_DIR/out.log" "Change the version this cycle releases (e.g. v9.8.1 → v9.9.0)"
+    # Run the hint's commands exactly as printed
+    sed -n '/Change the version this cycle releases/,$p' "$TEMP_DIR/out.log" | sed -n 's/^    //p' > "$TEMP_DIR/retarget.sh"
+    check "hint has the four commands"            [ "$(wc -l < "$TEMP_DIR/retarget.sh" | tr -d ' ')" -eq 4 ]
+    (set -e; source "$TEMP_DIR/retarget.sh") >/dev/null 2>&1
+    check "hint commands ran cleanly"             [ $? -eq 0 ]
+    check "dev is now v9.9.0-dev"                 [ "$(remote_version dev)" == "v9.9.0-dev" ]
+    check "notes renamed with content kept"       bash -c "git -C '$TEMP_DIR/remote.git' show dev:release-notes/v9.9.0-dev.md | grep -qF 'retarget marker note'"
+    check "dev badge retargeted"                  bash -c "git -C '$TEMP_DIR/remote.git' show dev:README.md | grep -qF 'Dev%20Branch-v9.9.0--dev'"
+    check "stable badge untouched"                bash -c "git -C '$TEMP_DIR/remote.git' show dev:README.md | grep -qF 'Download%20Release-v9.8.0-'"
+
+    run_chief chief.release_publish --next v9.9.1 --yes
+    check "publish after retarget completes"      [ $? -eq 0 ] || show_out 30
+    check "main released as v9.9.0"               [ "$(remote_version main)" == "v9.9.0" ]
+    check "release notes kept the cycle's notes"  bash -c "git -C '$TEMP_DIR/remote.git' show main:release-notes/v9.9.0.md | grep -qF 'retarget marker note'"
+    check "GitHub release v9.9.0 created"         [ -f "$TEMP_DIR/gh/release_v9.9.0" ]
+    check "dev moved on to v9.9.1-dev"            [ "$(remote_version dev)" == "v9.9.1-dev" ]
+    echo ""
+}
+
 main() {
     echo -e "${CYAN}========================================${NC}"
     echo -e "${CYAN}        RELEASE TOOLING TESTS${NC}"
@@ -254,6 +283,7 @@ main() {
     test_dry_run_and_status
     test_publish_with_resume
     test_rerun_after_success
+    test_retarget_hint
 
     echo -e "${CYAN}========================================${NC}"
     echo -e "${BLUE}Total Tests:${NC} $TOTAL_TESTS"

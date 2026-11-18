@@ -734,6 +734,15 @@ chief.release_publish --next v3.2.1           # do it
 
 To review the release commit before going public, run `chief.release_prepare` first, then `chief.release_publish` when ready.
 
+**Changing the version a cycle releases.** `--next` sets the next dev version (for example `v3.2.1-dev`). If you later decide that cycle should be `v3.3.0`, `chief.release_status` prints the exact commands, filled in with your versions. They rename the release notes (keeping what you wrote), update `VERSION` and the Dev Branch badge, then commit and push dev:
+
+```bash
+cd ~/.chief
+git mv release-notes/v3.2.1-dev.md release-notes/v3.3.0-dev.md
+perl -pi -e 's/v3\.2\.1--dev/v3.3.0--dev/g; s/v3\.2\.1-dev/v3.3.0-dev/g' VERSION README.md docs/index.md release-notes/v3.3.0-dev.md
+git commit -am "Retarget dev to v3.3.0-dev" && git push origin dev
+```
+
 ---
 
 [← Back to Home](https://chief.randyo.dev/)
