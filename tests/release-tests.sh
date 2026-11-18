@@ -228,6 +228,9 @@ for t in re.split(r"(\x1b\[[0-9;]*[A-Za-z]|\r\n|\r|\n)", buf.decode("utf-8", "re
         m = re.match(r"\x1b\[(\d*)([A-Za-z])", t)
         if m and m.group(2) == "A":
             row = max(0, row - int(m.group(1) or 1))
+        elif m and m.group(2) == "K":
+            if row < len(lines):
+                lines[row] = lines[row][:col]
         elif m and m.group(2) == "J":
             del lines[row + 1:]
             if row < len(lines):
@@ -245,7 +248,7 @@ PY
     check "live list shows every step once"   [ "$(grep -c '✓ First' "$TEMP_DIR/out.log")" -eq 1 ]
     check "answered step completed once"      [ "$(grep -c '✓ Commit' "$TEMP_DIR/out.log")" -eq 1 ]
     check "live list finished all steps"      contains "$TEMP_DIR/out.log" "  ✓ Last"
-    check "no line wider than the terminal"   contains "$TEMP_DIR/out.log" "NO_LINE_WRAPPED"
+    check "long finished line kept in full"   bash -c "tr -d '\\n' < '$TEMP_DIR/out.log' | grep -qF 'fairly long detail that does not fit'"
     check "prompt cleared after the answer"   not_contains "$TEMP_DIR/out.log" "[y/N]"
     check "step output kept off the screen"   not_contains "$TEMP_DIR/out.log" "stray-tty-write"
     echo ""
@@ -319,6 +322,9 @@ for t in re.split(r"(\x1b\[[0-9;]*[A-Za-z]|\r\n|\r|\n)", buf.decode("utf-8", "re
         m = re.match(r"\x1b\[(\d*)([A-Za-z])", t)
         if m and m.group(2) == "A":
             row = max(top, row - int(m.group(1) or 1))
+        elif m and m.group(2) == "K":
+            if row < len(lines):
+                lines[row] = lines[row][:col]
         elif m and m.group(2) == "J":
             del lines[row + 1:]
             if row < len(lines):
