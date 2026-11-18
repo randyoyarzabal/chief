@@ -15,6 +15,7 @@
 #   - a full publish: release on main, tag, GitHub release, next -dev cycle on dev
 #   - re-running after success, and resuming after a failed step
 #   - the retarget hint in chief.release_status: its printed commands, run as-is, work
+#   - a review-required main: stops with a hint, then merges with --admin
 #   - the step-progress helper's plain output
 ########################################################################
 
@@ -103,8 +104,12 @@ case "$1 $2" in
   "pr list")   [[ -f "$S/pr_open" ]] && echo "1 https://github.com/test/chief/pull/1"; exit 0 ;;
   "pr create") touch "$S/pr_open"; echo "https://github.com/test/chief/pull/1"; exit 0 ;;
   "pr checks") printf 'test\tpass\t1m\thttps://example.com/run/1\n'; exit 0 ;;
+  "pr view")   if [[ -f "$S/require_review" ]]; then echo REVIEW_REQUIRED; else echo APPROVED; fi; exit 0 ;;
   "pr merge")
     if [[ -f "$S/fail_merge_once" ]]; then rm -f "$S/fail_merge_once"; echo "merge blocked (stub)" >&2; exit 1; fi
+    if [[ -f "$S/require_review" && " $* " != *" --admin "* ]]; then
+      echo "X Pull request test/chief#1 is not mergeable: the base branch policy prohibits the merge." >&2; exit 1
+    fi
     tmp="$S/merge-clone"; rm -rf "$tmp"
     git clone -q "$GH_STUB_REMOTE" "$tmp" && git -C "$tmp" checkout -q main &&
       git -C "$tmp" merge -q --no-ff -m "Merge pull request #1 from test/dev" origin/dev &&
@@ -352,8 +357,18 @@ test_retarget_hint() {
     check "dev badge retargeted"                  bash -c "git -C '$TEMP_DIR/remote.git' show dev:README.md | grep -qF 'Dev%20Branch-v9.9.0--dev'"
     check "stable badge untouched"                bash -c "git -C '$TEMP_DIR/remote.git' show dev:README.md | grep -qF 'Download%20Release-v9.8.0-'"
 
+    # main requires a review (like a solo maintainer's repo): stop with a hint, then --admin
+    touch "$TEMP_DIR/gh/require_review"
     run_chief chief.release_publish --next v9.9.1 --yes
+    check "review-required merge stops"           [ $? -ne 0 ]
+    check "it explains the review rule"           contains "$TEMP_DIR/out.log" "✗ Merge into main: needs an approving review"
+    check "it suggests --admin"                   contains "$TEMP_DIR/out.log" "chief.release_publish --next v9.9.1 --admin"
+    check "nothing merged without --admin"        [ "$(remote_version main)" == "v9.8.0" ]
+
+    run_chief chief.release_publish --next v9.9.1 --yes --admin
     check "publish after retarget completes"      [ $? -eq 0 ] || show_out 30
+    check "merge used admin rights"               contains "$TEMP_DIR/gh/calls.log" "pr merge 1 --repo test/chief --merge --admin"
+    check "merge step says admin bypass"          contains "$TEMP_DIR/out.log" "(admin bypass)"
     check "main released as v9.9.0"               [ "$(remote_version main)" == "v9.9.0" ]
     check "release notes kept the cycle's notes"  bash -c "git -C '$TEMP_DIR/remote.git' show main:release-notes/v9.9.0.md | grep -qF 'retarget marker note'"
     check "GitHub release v9.9.0 created"         [ -f "$TEMP_DIR/gh/release_v9.9.0" ]

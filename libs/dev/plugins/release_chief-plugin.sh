@@ -824,7 +824,7 @@ function __chief_release_retarget_hint() {
 #   prepared    the "Release vX.Y.Z" commit is on dev
 #   nextdev     dev's last commit is "Start vA.B.C-dev development (after vX.Y.Z)"
 function __chief_release_engine() {
-  local mode="$1" dry="$2" next="$3" track="$4"
+  local mode="$1" dry="$2" next="$3" track="$4" admin="${5:-false}"
   local remote repo
   remote="$(__chief_release_remote)"
   repo="$(__chief_release_repo)"
@@ -1063,10 +1063,30 @@ function __chief_release_engine() {
   if $merged; then
     __chief_release_already "main is on ${rel}"
   elif __chief_release_todo; then
-    if ! __chief_steps_ask "Merge ${repo}#${pr_num} into main?"; then
+    local merge_args=(--merge) merge_note=""
+    if $admin; then
+      merge_args+=(--admin); merge_note=" (admin bypass)"
+    else
+      # Branch rules that need an approving review block a solo maintainer's own pull request.
+      # Say so plainly instead of letting gh fail with a policy error.
+      local review
+      review="$(gh pr view "$pr_num" --repo "$repo" --json reviewDecision --jq .reviewDecision 2>/dev/null)"
+      if [[ "$review" == REVIEW_REQUIRED ]]; then
+        __chief_steps_fail "needs an approving review" \
+          "main's branch rules require a review on ${pr_url:-${repo}#${pr_num}}." \
+          "Get it approved, or merge with your admin rights: chief.release_publish --next ${next} --admin"
+        return 1
+      fi
+    fi
+    if ! __chief_steps_ask "Merge ${repo}#${pr_num} into main${merge_note}?"; then
       __chief_steps_fail "stopped" "Nothing was merged. Re-run to continue."; return 1
     fi
-    if ! __chief_steps_exec gh pr merge "$pr_num" --repo "$repo" --merge; then
+    if ! __chief_steps_exec gh pr merge "$pr_num" --repo "$repo" "${merge_args[@]}"; then
+      if ! $admin && grep -q 'base branch policy prohibits' "$__CHIEF_STEPS_LOG" 2>/dev/null; then
+        __chief_steps_fail "blocked by main's branch rules" \
+          "Get ${pr_url:-${repo}#${pr_num}} approved, or merge with your admin rights: chief.release_publish --next ${next} --admin"
+        return 1
+      fi
       __chief_steps_fail "merge failed"; __chief_steps_show_log; return 1
     fi
     __chief_release_git fetch --quiet --tags "$remote" 2>/dev/null
@@ -1075,7 +1095,7 @@ function __chief_release_engine() {
       __chief_steps_fail "main is on '${main_ver}', expected ${rel}" "Check ${pr_url}, then re-run."; return 1
     fi
     merged=true
-    __chief_steps_done "${repo}#${pr_num}"
+    __chief_steps_done "${repo}#${pr_num}${merge_note}"
   fi
 
   # 8. Tag
@@ -1200,6 +1220,7 @@ function __chief_release_parse_opts() {
       --track=*)  track="${1#--track=}"; shift ;;
       --dry-run)  dry=true; shift ;;
       --yes|-y)   yes=true; shift ;;
+      --admin)    admin=true; shift ;;
       *)          __chief_print_error "Unknown option: $1"; return 1 ;;
     esac
   done
@@ -1244,7 +1265,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_BLUE}Maintainers only:${CHIEF_NO_COLOR} available when ${CHIEF_PATH} is on the dev branch
   and dev_tools is on (chief.config-set dev_tools true)."
   if [[ "$1" == "-?" || "$1" == "--help" ]]; then echo -e "$USAGE"; return 0; fi
-  local next="" track="" dry=false yes=false
+  local next="" track="" dry=false yes=false admin=false
   __chief_release_parse_opts "$@" || { echo -e "$USAGE"; return 1; }
   __chief_release_ready || return 1
   local CHIEF_STEPS_ASSUME_YES=""
@@ -1254,7 +1275,7 @@ ${CHIEF_COLOR_BLUE}Maintainers only:${CHIEF_NO_COLOR} available when ${CHIEF_PAT
 }
 
 function chief.release_publish() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME --next vX.Y.Z [--track main|dev] [--dry-run] [--yes]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME --next vX.Y.Z [--admin] [--track main|dev] [--dry-run] [--yes]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
   Releases the version on dev and starts the next development cycle, in one run:
@@ -1266,6 +1287,9 @@ ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   --next vX.Y.Z   Required. The next development version (must be newer than the release).
+  --admin         Merge with your admin rights when main's branch rules require a review you
+                  can't give yourself (gh pr merge --admin). Without it, a review-required
+                  pull request stops the release with a hint instead of merging.
   --track BRANCH  Also switch your own Chief updates to main or dev (CHIEF_CFG_UPDATE_BRANCH).
                   Without it your config is not touched.
   --dry-run       Show every step and what it would do; change nothing
@@ -1274,15 +1298,16 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_BLUE}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME --next v3.2.1 --dry-run
   $FUNCNAME --next v3.3.0
+  $FUNCNAME --next v3.2.1 --admin      # main requires a review; bypass it as repo admin
 
 ${CHIEF_COLOR_BLUE}Maintainers only:${CHIEF_NO_COLOR} available when ${CHIEF_PATH} is on the dev branch
   and dev_tools is on (chief.config-set dev_tools true)."
   if [[ "$1" == "-?" || "$1" == "--help" ]]; then echo -e "$USAGE"; return 0; fi
-  local next="" track="" dry=false yes=false
+  local next="" track="" dry=false yes=false admin=false
   __chief_release_parse_opts "$@" || { echo -e "$USAGE"; return 1; }
   __chief_release_ready || return 1
   local CHIEF_STEPS_ASSUME_YES=""
   $yes && CHIEF_STEPS_ASSUME_YES=1
   local mode=publish
-  __chief_release_engine publish "$dry" "$next" "$track"
+  __chief_release_engine publish "$dry" "$next" "$track" "$admin"
 }

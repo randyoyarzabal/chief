@@ -734,6 +734,8 @@ chief.release_publish --next v3.2.1           # do it
 
 To review the release commit before going public, run `chief.release_prepare` first, then `chief.release_publish` when ready.
 
+If `main` requires an approving review and you maintain the repo alone, the merge step stops and says so. Re-run with `--admin` to merge with your admin rights: `chief.release_publish --next v3.2.1 --admin`.
+
 **Changing the version a cycle releases.** `--next` sets the next dev version (for example `v3.2.1-dev`). If you later decide that cycle should be `v3.3.0`, `chief.release_status` prints the exact commands, filled in with your versions. They rename the release notes (keeping what you wrote), update `VERSION` and the Dev Branch badge, then commit and push dev:
 
 ```bash
