@@ -68,12 +68,15 @@ setup() {
     local current stable
     current="$(grep -o 'CHIEF_VERSION="[^"]*"' "$work/VERSION" | cut -d'"' -f2)"
     stable="${start%-dev}"
-    sed -i.bak "s/${current//./\\.}/${start}/g" "$work/VERSION" "$work/README.md" "$work/docs/index.md"
+    # Version text everywhere except badge lines (badges are set by meaning below), so this
+    # works whether the repo is in dev form or already holds a release commit.
+    sed -i.bak "/img\.shields\.io\/badge\//!s/${current//./\\.}/${start}/g" "$work/VERSION" "$work/README.md" "$work/docs/index.md"
     sed -i.bak \
         -e "s|Download%20Release-v[0-9][0-9.]*\(--dev\)\{0,1\}-|Download%20Release-v9.7.0-|g" \
         -e "s|Stable-v[0-9][0-9.]*\(--dev\)\{0,1\}-|Stable-v9.7.0-|g" \
         -e "s|Dev%20Branch-v[0-9][0-9.]*\(--dev\)\{0,1\}-|Dev%20Branch-${start//-/--}-|g" \
         "$work/README.md"
+    sed -i.bak "s|Download-Release%20v[0-9][0-9.]*\(--dev\)\{0,1\}-|Download-Release%20v9.7.0-|g" "$work/docs/index.md"
     rm -f "$work/release-notes/"*-dev.md
     printf '# Chief %s Release Notes\n\n## What'"'"'s New\n\n- test release\n' "$start" > "$work/release-notes/${start}.md"
     find "$work" -name "*.bak" -delete
@@ -160,23 +163,32 @@ test_steps_live_redraw() {
     if ! command -v python3 >/dev/null 2>&1; then
         echo "    python3 not installed; skipping"; echo ""; return 0
     fi
+    # Narrow (55 columns), no UTF-8 locale, a prompt to answer, long lines, and a step that
+    # writes straight to /dev/tty: the conditions that used to duplicate lines.
     cat > "$TEMP_DIR/live-steps.sh" <<LIVE
-export CHIEF_PATH="$PROJECT_ROOT" CHIEF_CONFIG=/dev/null TERM=xterm-256color COLUMNS=100
+export CHIEF_PATH="$PROJECT_ROOT" CHIEF_CONFIG=/dev/null TERM=xterm-256color
+unset LANG LC_ALL LC_CTYPE COLUMNS
 source "\$CHIEF_PATH/VERSION"; source "\$CHIEF_PATH/libs/core/chief_library.sh" >/dev/null 2>&1
-__chief_steps_begin "Live" "First" "Second" "Third"
-__chief_steps_start; __chief_steps_done "ok"
+set -m
+__chief_steps_begin "Live" "First" "Second" "Commit \"Release v9.8.0\" and push dev" "Open pull request dev → main" "Last"
+__chief_steps_start; __chief_steps_done "ok, with a fairly long detail that does not fit"
 __chief_steps_exec bash -c 'sleep 0.3; echo stray-tty-write > /dev/tty; sleep 0.3'; __chief_steps_done "ran"
+__chief_steps_start
+__chief_steps_ask "Commit \"Release v9.8.0\" and push dev to origin?" "    Changes:\n       M README.md\n       M VERSION" && __chief_steps_done "answered"
+__chief_steps_start; __chief_steps_done "test/chief#1 with a long repository name"
 __chief_steps_start; __chief_steps_done
 __chief_steps_end
 LIVE
     python3 - "$BASH" "$TEMP_DIR/live-steps.sh" > "$TEMP_DIR/out.log" 2>&1 <<'PY'
-import os, pty, re, select, sys, time
+import fcntl, os, pty, re, select, struct, sys, termios, time
+W = 55
 pid, fd = pty.fork()
 if pid == 0:
     os.execv(sys.argv[1], [sys.argv[1], "--norc", "-i", sys.argv[2]])
-buf, t0 = b"", time.time()
-while time.time() - t0 < 20:
-    r, _, _ = select.select([fd], [], [], 0.3)
+fcntl.ioctl(fd, termios.TIOCSWINSZ, struct.pack("HHHH", 24, W, 0, 0))
+buf, t0, sent = b"", time.time(), False
+while time.time() - t0 < 25:
+    r, _, _ = select.select([fd], [], [], 0.2)
     if r:
         try:
             d = os.read(fd, 65536)
@@ -185,11 +197,22 @@ while time.time() - t0 < 20:
         if not d:
             break
         buf += d
+        if not sent and b"[y/N]" in buf:
+            time.sleep(0.3); os.write(fd, b"y\n"); sent = True
     elif os.waitpid(pid, os.WNOHANG)[0]:
         break
-# Replay the output on a tiny virtual screen: newline, CR, cursor-up, clear-to-end.
-lines, row, col = [], 0, 0
-for t in re.split(r"(\x1b\[\d*[A-Za-z]|\r\n|\r|\n)", buf.decode("utf-8", "replace")):
+# Replay on a W-column virtual screen: wrap, newline, CR, cursor-up, clear-to-end.
+lines, row, col, wrapped = [], 0, 0, False
+def put(ch):
+    global row, col, wrapped
+    if col >= W:
+        row, col, wrapped = row + 1, 0, True
+    while len(lines) <= row:
+        lines.append("")
+    l = lines[row].ljust(col)
+    lines[row] = l[:col] + ch + l[col + 1:]
+    col += 1
+for t in re.split(r"(\x1b\[[0-9;]*[A-Za-z]|\r\n|\r|\n)", buf.decode("utf-8", "replace")):
     if not t:
         continue
     if t in ("\n", "\r\n"):
@@ -198,25 +221,27 @@ for t in re.split(r"(\x1b\[\d*[A-Za-z]|\r\n|\r|\n)", buf.decode("utf-8", "replac
         col = 0
     elif t.startswith("\x1b["):
         m = re.match(r"\x1b\[(\d*)([A-Za-z])", t)
-        n, c = int(m.group(1) or 1), m.group(2)
-        if c == "A":
-            row = max(0, row - n)
-        elif c == "J":
+        if m and m.group(2) == "A":
+            row = max(0, row - int(m.group(1) or 1))
+        elif m and m.group(2) == "J":
             del lines[row + 1:]
             if row < len(lines):
                 lines[row] = lines[row][:col]
     else:
-        while len(lines) <= row:
-            lines.append("")
-        lines[row] = lines[row][:col] + t + lines[row][col + len(t):]
-        col += len(t)
+        for ch in t:
+            put(ch)
+print("PROMPT_SEEN" if sent else "PROMPT_NOT_SEEN")
+print("A_LINE_WRAPPED" if wrapped else "NO_LINE_WRAPPED")
 for l in lines:
-    l = re.sub(r"\x1b\[[0-9;]*m", "", l)
     if l.strip():
         print(l)
 PY
-    check "live list shows every step once"   [ "$(grep -c '✓ First (ok)' "$TEMP_DIR/out.log")" -eq 1 ]
-    check "live list finished all steps"      contains "$TEMP_DIR/out.log" "  ✓ Third"
+    check "prompt showed [y/N] and was answered" contains "$TEMP_DIR/out.log" "PROMPT_SEEN"
+    check "live list shows every step once"   [ "$(grep -c '✓ First' "$TEMP_DIR/out.log")" -eq 1 ]
+    check "answered step completed once"      [ "$(grep -c '✓ Commit' "$TEMP_DIR/out.log")" -eq 1 ]
+    check "live list finished all steps"      contains "$TEMP_DIR/out.log" "  ✓ Last"
+    check "no line wider than the terminal"   contains "$TEMP_DIR/out.log" "NO_LINE_WRAPPED"
+    check "prompt cleared after the answer"   not_contains "$TEMP_DIR/out.log" "[y/N]"
     check "step output kept off the screen"   not_contains "$TEMP_DIR/out.log" "stray-tty-write"
     echo ""
 }

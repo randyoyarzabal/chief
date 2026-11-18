@@ -1995,6 +1995,25 @@ function __chief_steps_cur_state() {
   ((__CHIEF_STEPS_CUR >= 0)) && echo "${__CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]}"
 }
 
+# Current terminal width (the real one, not a possibly stale $COLUMNS) into __CHIEF_STEPS_COLS.
+function __chief_steps_width() {
+  local size cols=""
+  size="$(stty size </dev/tty 2>/dev/null)" && cols="${size##* }"
+  [[ "$cols" =~ ^[0-9]+$ && "$cols" -gt 0 ]] || cols="${COLUMNS:-}"
+  [[ "$cols" =~ ^[0-9]+$ && "$cols" -gt 0 ]] || cols="$(tput cols 2>/dev/null)"
+  [[ "$cols" =~ ^[0-9]+$ && "$cols" -gt 0 ]] || cols=80
+  __CHIEF_STEPS_COLS="$cols"
+}
+
+# Cut text so a line never wraps: every line is exactly one terminal row, which is what makes
+# the in-place redraw exact (wrapped lines used to throw the count off and duplicate lines).
+# ${#} counts characters in a UTF-8 locale and bytes otherwise; both are >= the display width.
+function __chief_steps_fit() { # <text> <max>
+  local text="$1" max="$2"
+  ((max < 4)) && max=4
+  if ((${#text} > max)); then echo "${text:0:max-3}..."; else echo "$text"; fi
+}
+
 function __chief_steps_live_ok() {
   [[ -z "${CHIEF_STEPS_PLAIN:-}" && -z "${NO_COLOR:-}" ]] || return 1
   [[ -t 1 && -n "${TERM:-}" && "${TERM}" != dumb ]]
@@ -2020,8 +2039,7 @@ function __chief_steps_begin() {
   __CHIEF_STEPS_LIVE=false
   if __chief_steps_live_ok; then
     __CHIEF_STEPS_LIVE=true
-    __CHIEF_STEPS_COLS="${COLUMNS:-$(tput cols 2>/dev/null || echo 80)}"
-    [[ "$__CHIEF_STEPS_COLS" =~ ^[0-9]+$ && "$__CHIEF_STEPS_COLS" -gt 0 ]] || __CHIEF_STEPS_COLS=80
+    __chief_steps_width
   fi
   [[ -n "$title" ]] && echo -e "${CHIEF_COLOR_CYAN}${title}${CHIEF_NO_COLOR}\n"
   __chief_steps_draw
@@ -2048,29 +2066,39 @@ function __chief_steps_line() {
     running) [[ -n "$detail" ]] && text+=" ($detail)"; text+="..." ;;
     *)       [[ -n "$detail" ]] && text+=" ($detail)" ;;
   esac
+  $__CHIEF_STEPS_LIVE && text="$(__chief_steps_fit "$text" $((__CHIEF_STEPS_COLS - 5)))"
   __CHIEF_STEPS_PLAIN="  $sym $text"
   __CHIEF_STEPS_LINE="  ${color}${sym}${CHIEF_NO_COLOR} $text"
 }
 
-# Redraw the whole list in place (terminal mode only).
+# Redraw the whole list in place (terminal mode only). Every printed line is cut to the
+# terminal width, so the block is exactly as many rows as lines and moving back up is exact.
 function __chief_steps_draw() {
   $__CHIEF_STEPS_LIVE || return 0
   ((__CHIEF_STEPS_ROWS > 0)) && printf '\033[%dA' "$__CHIEF_STEPS_ROWS"
   printf '\r\033[J'
-  local i rows=0 n line
+  local i rows=0 line plain c
   for ((i = 0; i < ${#__CHIEF_STEPS_NAMES[@]}; i++)); do
     __chief_steps_line "$i"
     printf '%b\n' "$__CHIEF_STEPS_LINE"
-    n=${#__CHIEF_STEPS_PLAIN}
-    rows=$((rows + (n > 0 ? (n + __CHIEF_STEPS_COLS - 1) / __CHIEF_STEPS_COLS : 1)))
+    rows=$((rows + 1))
   done
   local extra="${__CHIEF_STEPS_NOTES}"
   [[ -n "$__CHIEF_STEPS_FOOTER" ]] && extra+="${extra:+\n}${__CHIEF_STEPS_FOOTER}"
   if [[ -n "$extra" ]]; then
     while IFS= read -r line; do
-      printf '%b\n' "$line"
-      n=${#line}
-      rows=$((rows + (n > 0 ? (n + __CHIEF_STEPS_COLS - 1) / __CHIEF_STEPS_COLS : 1)))
+      # Measure without color codes; if it has to be cut, print it uncolored.
+      plain="$line"
+      for c in "$CHIEF_COLOR_RED" "$CHIEF_COLOR_GREEN" "$CHIEF_COLOR_YELLOW" "$CHIEF_COLOR_CYAN" \
+               "$CHIEF_COLOR_BLUE" "$CHIEF_COLOR_MAGENTA" "$CHIEF_NO_COLOR"; do
+        [[ -n "$c" ]] && plain="${plain//"$(printf '%b' "$c")"/}"
+      done
+      if ((${#plain} > __CHIEF_STEPS_COLS - 1)); then
+        printf '%s\n' "$(__chief_steps_fit "$plain" $((__CHIEF_STEPS_COLS - 1)))"
+      else
+        printf '%s\n' "$line"
+      fi
+      rows=$((rows + 1))
     done < <(printf '%b\n' "$extra")
   fi
   __CHIEF_STEPS_ROWS=$rows
@@ -2083,6 +2111,7 @@ function __chief_steps_set() {
   __CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]="$state"
   __CHIEF_STEPS_DETAIL[__CHIEF_STEPS_CUR]="$detail"
   if $__CHIEF_STEPS_LIVE; then
+    __chief_steps_width
     __chief_steps_draw
   elif [[ "$state" != running && "$state" != ask ]]; then
     __chief_steps_line "$__CHIEF_STEPS_CUR"
@@ -2119,6 +2148,10 @@ function __chief_steps_fail() {
   local reason="$1"; shift
   __chief_steps_set fail "$reason"
   __CHIEF_STEPS_ROWS=0
+  # The list line may have been cut to fit; the full reason matters, so show it below.
+  if $__CHIEF_STEPS_LIVE && ((${#reason} + ${#__CHIEF_STEPS_NAMES[__CHIEF_STEPS_CUR]} + 7 > __CHIEF_STEPS_COLS)); then
+    echo -e "    ${CHIEF_COLOR_RED}${reason}${CHIEF_NO_COLOR}"
+  fi
   local hint
   for hint in "$@"; do
     echo -e "    $hint"
@@ -2173,15 +2206,18 @@ function __chief_steps_ask() {
   local prev_state="${__CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]}"
   __CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]="ask"
   if $__CHIEF_STEPS_LIVE; then
-    __CHIEF_STEPS_FOOTER="$preview"
+    # The question is part of the redrawn block (cut to fit); the answer is typed on the
+    # line below it, which adds exactly one row.
+    __chief_steps_width
+    # Shorten the question, never the [y/N] after it.
+    __CHIEF_STEPS_FOOTER="${preview}${preview:+\n}  ? $(__chief_steps_fit "$question" $((__CHIEF_STEPS_COLS - 11))) [y/N]"
     __chief_steps_draw
-  else
-    [[ -n "$preview" ]] && printf '%b\n' "$preview"
-  fi
-  read -r -p "  ? ${question} [y/N] " answer
-  if $__CHIEF_STEPS_LIVE; then
+    read -r answer
     __CHIEF_STEPS_ROWS=$((__CHIEF_STEPS_ROWS + 1))
     __CHIEF_STEPS_FOOTER=""
+  else
+    [[ -n "$preview" ]] && printf '%b\n' "$preview"
+    read -r -p "  ? ${question} [y/N] " answer
   fi
   __CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]="$prev_state"
   __chief_steps_draw

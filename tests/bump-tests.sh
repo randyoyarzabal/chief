@@ -87,7 +87,9 @@ make_scratch() {
     local current
     current="$(grep -o 'CHIEF_VERSION="[^"]*"' "$copy/VERSION" | cut -d'"' -f2)"
     local stable="${start_version%-dev}"
-    sed -i.bak "s/${current//./\\.}/${start_version}/g" "$copy/VERSION" "$copy/README.md" "$copy/docs/index.md" "$copy/docs/getting-started.md" 2>/dev/null
+    # Version text everywhere except badge lines; badges are set by meaning just below.
+    # (Works whether the repo is in dev form or already holds a release commit.)
+    sed -i.bak "/img\.shields\.io\/badge\//!s/${current//./\\.}/${start_version}/g" "$copy/VERSION" "$copy/README.md" "$copy/docs/index.md" "$copy/docs/getting-started.md" 2>/dev/null
     # Badges: rewrite to the intended starting meanings
     sed -i.bak \
         -e "s|Download%20Release-v[0-9][0-9.]*\(--dev\)\{0,1\}-|Download%20Release-${stable}-|g" \
