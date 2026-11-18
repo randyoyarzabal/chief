@@ -98,94 +98,6 @@ EOF
     fi
 }
 
-# Test plugin loading with mock environment
-test_plugin_loading() {
-    local plugin_file="$1"
-    local plugin_name="$(basename "$plugin_file" _chief-plugin.sh)"
-    local relative_path="${plugin_file#$PROJECT_ROOT/}"
-    
-    TOTAL_TESTS=$((TOTAL_TESTS + 1))
-    
-    if [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]]; then
-        log_info "Testing plugin load: $plugin_name"
-    fi
-    
-    # Create a mock environment for plugin testing
-    local test_script="$TEMP_DIR/test_plugin.sh"
-    
-    cat > "$test_script" << 'EOF'
-#!/usr/bin/env bash
-set -e
-
-# Mock Chief environment variables and functions that plugins might expect
-export CHIEF_PATH="/mock/chief/path"
-export CHIEF_CONFIG="/mock/chief/config"
-export CHIEF_PLUGIN_NAME="test_plugin"
-
-# Mock color variables that plugins often use
-export CHIEF_COLOR_RED='\033[0;31m'
-export CHIEF_COLOR_GREEN='\033[0;32m'
-export CHIEF_COLOR_YELLOW='\033[1;33m'
-export CHIEF_COLOR_BLUE='\033[0;34m'
-export CHIEF_COLOR_CYAN='\033[0;36m'
-export CHIEF_NO_COLOR='\033[0m'
-export NC='\033[0m'
-
-# Mock common Chief functions that plugins might use
-__chief_print() { echo "[MOCK] $*"; }
-__chief_debug() { echo "[DEBUG] $*" >&2; }
-
-# Redirect stdout to suppress plugin loading messages
-exec 1>/dev/null
-
-# Try to source the plugin
-source "$1" 2>/dev/null || exit 1
-
-# Exit successfully if we get here
-exit 0
-EOF
-    
-    chmod +x "$test_script"
-    
-    # Run the test with timeout using background process and kill
-    local test_pid
-    local timeout_seconds=15
-    
-    # Start the test in background
-    bash "$test_script" "$plugin_file" 2>/dev/null &
-    test_pid=$!
-    
-    # Wait for completion or timeout
-    local count=0
-    while [[ $count -lt $timeout_seconds ]]; do
-        if ! kill -0 "$test_pid" 2>/dev/null; then
-            # Process has completed
-            wait "$test_pid"
-            local exit_code=$?
-            if [[ $exit_code -eq 0 ]]; then
-                log_success "Plugin load OK: $plugin_name"
-                return 0
-            else
-                log_error "Plugin load FAILED: $plugin_name (exit code: $exit_code)"
-                return 1
-            fi
-        fi
-        sleep 1
-        count=$((count + 1))
-    done
-    
-    # Timeout reached - kill the process
-    if kill -0 "$test_pid" 2>/dev/null; then
-        kill -TERM "$test_pid" 2>/dev/null || true
-        sleep 2
-        kill -KILL "$test_pid" 2>/dev/null || true
-        wait "$test_pid" 2>/dev/null || true
-    fi
-    
-    log_error "Plugin load TIMED OUT: $plugin_name (after ${timeout_seconds} seconds)"
-    return 1
-}
-
 # Template files are excluded from testing (they're meant to be customized)
 
 # Test chief.sh with lib-only mode
@@ -300,30 +212,9 @@ main() {
     test_chief_lib_only
     echo ""
     
-    # Test core plugin files (user plugins are intentionally excluded)
-    log_info "Testing core plugin files..."
-    local plugin_files=()
-    while IFS= read -r -d '' file; do
-        plugin_files+=("$file")
-    done < <(find "$PROJECT_ROOT/libs/core/plugins" -name "*_chief-plugin.sh" -type f -print0 2>/dev/null || true)
-    
-    if [[ ${#plugin_files[@]} -gt 0 ]]; then
-        log_info "Found ${#plugin_files[@]} core plugin file(s) (user plugins excluded)"
-        for plugin_file in "${plugin_files[@]}"; do
-            test_plugin_loading "$plugin_file"
-        done
-    else
-        log_warning "No core plugin files found"
-    fi
-    echo ""
-    
-    # Skip template files (they're meant to be customized, not tested as-is)
-    log_info "Skipping template files (excluded from testing)"
-    echo ""
-    
-    # Skip tool scripts (they're meant to be executed, not sourced)
-    log_info "Skipping tool scripts (excluded from testing)"
-    
+    # Individual plugin sourcing is covered by plugin-tests.sh (load/unload),
+    # so it is intentionally not repeated here.
+
     echo ""
     echo -e "${CYAN}========================================${NC}"
     echo -e "${CYAN}        SOURCE/LOADING SUMMARY${NC}"

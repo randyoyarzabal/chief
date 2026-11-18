@@ -2,7 +2,7 @@
 
 **Bash Plugin Manager & Terminal Enhancement Tool**
 
-[![GitHub release](https://img.shields.io/badge/Download%20Release-v3.1.4-blue.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Dev Branch](https://img.shields.io/badge/Dev%20Branch-v3.1.5--dev-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev) [![Main Branch](https://img.shields.io/badge/Stable-v3.1.4-green.svg?style=social)](https://github.com/randyoyarzabal/chief) [![Documentation](https://img.shields.io/badge/Documentation-blue)](https://chief.reonetlabs.us)
+[![GitHub release](https://img.shields.io/badge/Download%20Release-v3.2.0-blue.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Dev Branch](https://img.shields.io/badge/Dev%20Branch-v3.3.0--dev-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev) [![Main Branch](https://img.shields.io/badge/Stable-v3.2.0-green.svg?style=social)](https://github.com/randyoyarzabal/chief) [![Documentation](https://img.shields.io/badge/Documentation-blue)](https://chief.randyo.dev)
 
 Chief is a lightweight, powerful Bash library system that helps you organize your shell environment through a plugin-based architecture. Think of it as a package manager for your bash functions, aliases, and tools.
 
@@ -42,27 +42,27 @@ For environments without git connectivity:
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
 
 # 2. Configure your plugin repository (replace with your repo)
-chief.config_set -y PLUGINS_GIT_REPO="git@github.com:yourusername/my-plugins.git"
-chief.config_set -y PLUGINS_PATH="${HOME}/chief_plugins"
-chief.config_set -y PLUGINS_GIT_BRANCH="main"
-chief.config_set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root, this is plugins path relative to PLUGINS_PATH
-chief.config_set -y PLUGINS_GIT_AUTOUPDATE="false"    # manual updates
-chief.config_set -y PLUGINS_TYPE="remote"             # Enable remote sync
+chief.config-set -y PLUGINS_GIT_REPO="git@github.com:yourusername/my-plugins.git"
+chief.config-set -y PLUGINS_PATH="${HOME}/chief_plugins"
+chief.config-set -y PLUGINS_GIT_BRANCH="main"
+chief.config-set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root, this is plugins path relative to PLUGINS_PATH
+chief.config-set -y PLUGINS_GIT_AUTOUPDATE="false"    # manual updates
+chief.config-set -y PLUGINS_TYPE="remote"             # Enable remote sync
 
 # 3. (Optional) Enable multi-line prompt, useful when current working dir is deep.
-chief.config_set -y MULTILINE_PROMPT=true 
+chief.config-set -y MULTILINE_PROMPT=true 
 
 # 4. (Optional) Load your encrypted secrets (if exists)
-chief.vault_file-load  # Team vault (.chief_shared-vault - if exists)
-chief.vault_file-load ~/.my-personal-vault     # Personal vault
+chief.secrets_file-load  # Team secrets (.chief_shared-secrets - if exists)
+chief.secrets_file-load ~/.my-personal-secrets     # Personal secrets
 ```
 
-For detailed vault setup and management, see: [Vault Configuration](https://chief.reonetlabs.us/configuration.html#-vault-configuration)
+For detailed secrets and vault setup, see: [Secrets and Vault Configuration](https://chief.randyo.dev/configuration.html#-secrets-and-vault-configuration)
 
 ### Result
 
 - **Same plugins everywhere**: Functions, aliases, and tools sync across laptop, server, CI/CD
-- **Encrypted secrets**: Vault files travel with your setup (team + personal)
+- **Encrypted secrets**: Secrets files travel with your setup (team + personal)
 - **Zero reconfiguration**: New systems work identically after this setup
 - **Version controlled**: Track changes to your shell environment
 
@@ -100,14 +100,25 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 
 - `chief.help` - Interactive help system with plugin browsing
 - `chief.whereis <function>` - Find any function across all plugins
-- `chief.plugins_*` - Plugin management and discovery tools
+- `chief.plugins-*` - Plugin management and discovery tools
+- `chief.plugin enable|disable [core.|contrib.]<name>` - Enable or disable core, contrib or user plugins; `chief.plugin status` shows state
 
-### Vault Plugin (2 functions)
+### Secrets Plugin (2 functions)
 
-- `chief.vault_file-edit` - Edit encrypted files securely
-- `chief.vault_file-load` - Load encrypted environment variables
+- `chief.secrets_file-edit` - Edit encrypted secrets file (Ansible Vault or GPG)
+- `chief.secrets_file-load` - Load encrypted environment variables into shell
 
-### OpenShift/Kubernetes Plugin (9 functions)
+### Vault Plugin (HashiCorp) (3 functions) — opt-in
+
+Off by default; enable with `chief.plugin enable core.vault`.
+
+- `chief.vault_read-secret` - Read secret from HashiCorp Vault KV
+- `chief.vault_write-secret` - Write secret to HashiCorp Vault KV
+- `chief.vault_list-secrets` - List keys or paths in HashiCorp Vault KV
+
+### OpenShift/Kubernetes Plugin (9 functions) — opt-in
+
+Off by default; enable with `chief.plugin enable core.openshift`.
 
 - `chief.oc_get-all-objects` - Comprehensive resource discovery with filtering
 - `chief.oc_clean-olm` - OLM cleanup with selective targeting
@@ -133,6 +144,12 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.ssh_get-publickey` - Extract and display public keys
 - `chief.ssh_rm-host` - Clean known_hosts entries safely
 
+Core SSH helpers (always available):
+
+- `chief.ssh_load-keys` - Load your keys into ssh-agent
+- `chief.ssh_status` - Show agent keys; with 3 or more keys loaded, lists hosts that don't pin a key
+- `chief.ssh_host-key <host> <key>` - Pin one key to a host in `~/.ssh/config` (`IdentityFile` + `IdentitiesOnly yes`), so many loaded keys don't trigger "Too many authentication failures"
+
 ### System Utilities Plugin (18 functions)
 
 - `chief.etc_create-bootusb` - Create bootable USB drives safely
@@ -143,14 +160,23 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.etc_mount-share` - Network share mounting utilities
 - File comparison, IP validation, system prompts, and more...
 
-### Git Plugin (16 functions)
+### Git Plugin (17 functions)
 
+- `chief.git_init` - Initially commit current directory to a repository
 - `chief.git_clone` - Enhanced git cloning with safety checks
-- `chief.git_commit` - Streamlined commit workflow
+- `chief.git_commit` - Streamlined pull, commit, and push workflow (large-file warning; pull failures warn and continue)
 - `chief.git_reset_*` - Safe reset operations with dry-run support
 - `chief.git_branch` - Advanced branch management
 - `chief.git_config-user` - Quick user configuration setup
 - Complete workflow support: tagging, amending, credential caching, URL management
+
+### Chainguard Plugin `cg` (contrib, off by default)
+
+Enable with `chief.plugin enable contrib.cg`. Chief ships only the wrapper: it sources your local copy of the Chainguard customer-success helper functions (set the path with `chief.config-set cg_helper_functions "<path>"`) and exposes them as `cg.*` commands, each with `-?`/`--help`:
+
+- `cg.help` - List the cg commands
+- `cg.setup_customer_org`, `cg.create_customer_yaml`, `cg.get_customer_id`, `cg.cli`, `cg.console`, `cg.tag_history`, and more
+- `cg.reload` - Re-source the helper functions after pulling updates
 
 ### Python Plugin (4 functions)
 
@@ -159,7 +185,9 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.python_stop-ve` - Deactivate environments
 - `chief.python_ve-dep` - Install dependencies from requirements.txt
 
-### AWS Plugin (2 functions)
+### AWS Plugin (2 functions) — opt-in
+
+Off by default; enable with `chief.plugin enable core.aws`.
 
 - `chief.aws_set-role` - Switch between AWS IAM roles
 - `chief.aws_export-creds` - Export AWS credentials to environment
@@ -189,16 +217,22 @@ This helps us quickly identify and fix issues!
 
 ## Learn More
 
-**[Complete Documentation](https://chief.reonetlabs.us)** - Installation, tutorials, examples, and advanced features
+**[Complete Documentation](https://chief.randyo.dev)** - Installation, tutorials, examples, and advanced features
 
-**[Quick Start Guide](https://chief.reonetlabs.us/getting-started)** - Get productive in 5 minutes
+**[Quick Start Guide](https://chief.randyo.dev/getting-started)** - Get productive in 5 minutes
 
-**[Plugin Development](https://chief.reonetlabs.us/plugin-development)** - Create and share your own plugins
+**[Plugin Development](https://chief.randyo.dev/plugin-development)** - Create and share your own plugins
 
 ## Contributing
 
-Contributions welcome! See our [documentation](https://chief.reonetlabs.us/reference#contributing) for guidelines.
+Contributions welcome! See our [documentation](https://chief.randyo.dev/reference#contributing) for guidelines.
+
+## Acknowledgments
+
+Chief is designed, written, and maintained by [Randy E. Oyarzabal](https://github.com/randyoyarzabal).
+
+**AI-assisted development.** Portions of this project were developed and maintained with the help of AI coding assistants, specifically [Cursor](https://cursor.com) and [Claude](https://claude.com) (Anthropic). AI assistance was used for tasks such as refactoring, test authoring, bug-fixing, and documentation. All AI-generated changes are reviewed, tested, and approved by the maintainer before release, and the maintainer remains responsible for the code. Where an AI tool contributed to a commit, it is credited with a `Co-authored-by` trailer in the commit message.
 
 ## License
 
-MIT License - see [LICENSE](LICENSE) file for details.
+GNU General Public License v3.0 - see [LICENSE](LICENSE) file for details.

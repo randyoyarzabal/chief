@@ -2,10 +2,6 @@
 layout: default
 title: Plugin Development
 description: "Complete guide to creating, managing, and sharing Chief plugins"
----
-
-[← Back to Home](https://chief.reonetlabs.us/)
-
 # Plugin Development
 
 Complete guide to creating custom plugins, best practices, and advanced plugin features.
@@ -31,7 +27,8 @@ Chief comes with several comprehensive plugins ready to use:
 | **Git** | `chief.git_*` | Enhanced git operations, branch management |
 | **SSH** | `chief.ssh_*` | SSH key management, connection helpers |
 | **AWS** | `chief.aws_*` | AWS credential management, S3 operations |
-| **Vault** | `chief.vault_*` | Ansible-vault secret management |
+| **Secrets** | `chief.secrets_*` | Encrypted secrets file (Ansible Vault or GPG) |
+| **Vault** | `chief.vault_*` | HashiCorp Vault read/write |
 | **Python** | `chief.python_*` | Python environment and tool helpers |
 
 ### SSL/TLS Certificate Management Plugin
@@ -86,8 +83,8 @@ chief.etc_mount_share //server/shared /mnt/shared john # Mount SMB share
 chief.etc_create_cipher ~/.cipher_key  # Generate encryption key
 
 # Network and Collaboration Tools
-chief.etc_shared-term_create dev-session    # Create shared terminal
-chief.etc_shared-term_connect dev-session   # Connect to shared terminal
+chief.etc_shared-term-create dev-session    # Create shared terminal
+chief.etc_shared-term-connect dev-session   # Connect to shared terminal
 chief.etc_at_run "now + 10 minutes" "backup.sh" # Schedule commands
 
 # Interactive Utilities
@@ -138,17 +135,22 @@ chief.git_branch_cleanup    # Remove merged branches
 chief.git_commit_stats     # Show commit statistics
 
 # SSH management
-chief.ssh_load_keys        # Load SSH keys
+chief.ssh_load-keys        # Load SSH keys
 chief.ssh_test_connection  # Test SSH connections
 
 # AWS helpers  
 chief.aws_profile_switch   # Switch AWS profiles
 chief.aws_s3_sync         # S3 synchronization
 
-# Vault operations
-chief.vault_file-edit         # Create/edit encrypted vault
-chief.vault_file-edit --load  # Create/edit and auto-load vault
-chief.vault_file-load         # Load vault into environment
+# Secrets plugin (encrypted file)
+chief.secrets_file-edit         # Create/edit encrypted secrets file (Ansible Vault or GPG)
+chief.secrets_file-edit --load  # Create/edit and auto-load secrets
+chief.secrets_file-load         # Load secrets into environment
+
+# Vault plugin (HashiCorp Vault KV)
+chief.vault_read-secret         # Read secret from Vault
+chief.vault_write-secret        # Write secret to Vault
+chief.vault_list-secrets        # List keys or paths in Vault
 ```
 
 ---
@@ -164,6 +166,20 @@ chief.plugin myproject
 # This creates ~/chief_plugins/myproject_chief-plugin.sh
 # Opens the file in your configured editor
 ```
+
+### Symlink mode: reuse a script as a plugin
+
+If you already have a shell script in a repository (for example under `scripts/`) and want Chief to load it without renaming it, install a plugin symlink:
+
+```bash
+chief.plugin teamtools ./scripts/team_tools.sh
+```
+
+Chief writes `teamtools_chief-plugin.sh` in your configured plugins directory pointing at that script.
+
+**Feature — portable links for teams:** When the script path is under the **same directory tree** as the plugin file (typical when both live in one git checkout, including a cloned remote-plugins directory), the symlink target is **relative** (for example `../scripts/team_tools.sh`). That survives `git push` / `git clone` on other machines. If the script is only reachable by an absolute path outside that tree, Chief uses an absolute symlink target and warns you—it is fine for a personal machine but should not be committed for a shared remote-plugins repo.
+
+After changing or recreating links, commit the `*_chief-plugin.sh` symlink as usual. On Windows, ensure your Git client can create/checkout symlinks if you rely on this workflow.
 
 ### Plugin Template
 
@@ -446,13 +462,13 @@ Include encrypted team secrets:
 
 ```bash
 function devops.load_secrets() {
-    local vault_file="${CHIEF_CFG_PLUGINS_PATH}/.chief_shared-vault"
+    local secrets_file="${CHIEF_CFG_PLUGINS_PATH}/.chief_shared-secrets"
     
-    if [[ -f "$vault_file" ]]; then
+    if [[ -f "$secrets_file" ]]; then
         echo "Loading team secrets..."
-        chief.vault_file-load "$vault_file"
+        chief.secrets_file-load "$secrets_file"
     else
-        echo "Team vault not found: $vault_file"
+        echo "Team secrets file not found: $secrets_file"
     fi
 }
 
@@ -628,12 +644,12 @@ For team development, set up remote plugin synchronization:
 
 ```bash
 # Configure remote plugins in chief.config
-chief.config_set PLUGINS_TYPE "remote"
-chief.config_set PLUGINS_GIT_REPO "git@github.com:yourteam/bash-plugins.git"
-chief.config_set PLUGINS_PATH "$HOME/team_plugins"
+chief.config-set PLUGINS_TYPE "remote"
+chief.config-set PLUGINS_GIT_REPO "git@github.com:yourteam/bash-plugins.git"
+chief.config-set PLUGINS_PATH "$HOME/team_plugins"
 
 # Update plugins from remote repository
-chief.plugins_update
+chief.plugins-update
 ```
 
 ---
@@ -691,4 +707,44 @@ test_myproject_deploy
 
 ---
 
-[← Back to Home](https://chief.reonetlabs.us/)
+[← Back to Home](https://chief.randyo.dev/)
+
+---
+
+## Releasing Chief (maintainers)
+
+Release tooling lives in `libs/dev/plugins/` and is **not** part of what users get: it loads only when Chief's own checkout is on the `dev` branch and `CHIEF_CFG_DEV_TOOLS=true`. Release archives leave `libs/dev` out (`.gitattributes`).
+
+One-time setup on your machine:
+
+```bash
+chief.config-set dev_tools true   # then: chief.reload
+gh auth login                     # the release step uses the GitHub CLI
+```
+
+Release:
+
+```bash
+chief.release_status                          # where things stand (read-only)
+chief.release_publish --next v3.2.1 --dry-run # every step, changes nothing
+chief.release_publish --next v3.2.1           # do it
+```
+
+`chief.release_publish` runs: checks → test suite → bump VERSION, release notes and badges → commit "Release vX.Y.Z" and push dev → open the dev → main pull request → wait for CI → merge → tag → GitHub release (notes from `release-notes/vX.Y.Z.md`) → merge main back into dev → start the `--next` dev version → commit and push dev. It asks before every push, merge and publish, and shows live progress. If it stops, run the same command again; finished steps are skipped.
+
+To review the release commit before going public, run `chief.release_prepare` first, then `chief.release_publish` when ready.
+
+If `main` requires an approving review and you maintain the repo alone, the merge step stops and says so. Re-run with `--admin` to merge with your admin rights: `chief.release_publish --next v3.2.1 --admin`.
+
+**Changing the version a cycle releases.** `--next` sets the next dev version (for example `v3.2.1-dev`). If you later decide that cycle should be `v3.3.0`, `chief.release_status` prints the exact commands, filled in with your versions. They rename the release notes (keeping what you wrote), update `VERSION` and the Dev Branch badge, then commit and push dev:
+
+```bash
+cd ~/.chief
+git mv release-notes/v3.2.1-dev.md release-notes/v3.3.0-dev.md
+perl -pi -e 's/v3\.2\.1--dev/v3.3.0--dev/g; s/v3\.2\.1-dev/v3.3.0-dev/g' VERSION README.md docs/index.md release-notes/v3.3.0-dev.md
+git commit -am "Retarget dev to v3.3.0-dev" && git push origin dev
+```
+
+---
+
+[← Back to Home](https://chief.randyo.dev/)

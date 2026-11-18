@@ -78,21 +78,65 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-# Validate argument combinations
-if $LOCAL_INSTALL && $BRANCH_SPECIFIED; then
-  echo -e "\033[1;33mWARNING: --branch option is ignored when using --local installation.\033[0m"
-  echo -e "\033[0;36mLocal installations use the files present in the current directory,\033[0m"
-  echo -e "\033[0;36mnot a specific git branch. This is intended for disconnected environments.\033[0m"
-  echo ""
+# Colors: ANSI only when stdout is a capable TTY (same policy as chief_library.sh).
+__chief_tools_stdout_color_ok() {
+  [[ -z "${NO_COLOR:-}" ]] || return 1
+  [[ -n "${CHIEF_FORCE_COLOR:-}" ]] && return 0
+  [[ -t 1 && -n "${TERM:-}" && "${TERM}" != dumb ]]
+}
+if __chief_tools_stdout_color_ok; then
+  RED='\033[0;31m'
+  BLUE='\033[0;34m'
+  CYAN='\033[0;36m'
+  GREEN='\033[0;32m'
+  YELLOW='\033[1;33m'
+  NC='\033[0m'
+else
+  RED=''
+  BLUE=''
+  CYAN=''
+  GREEN=''
+  YELLOW=''
+  NC=''
 fi
 
-# Colors
-RED='\033[0;31m'
-BLUE='\033[0;34m'
-CYAN='\033[0;36m'
-GREEN='\033[0;32m'
-YELLOW='\033[1;33m'
-NC='\033[0m'
+# Chief itself needs Bash 4.0+ (associative arrays, declare -g). This installer runs fine on 3.2,
+# but the shell you load Chief in must be newer. Warn only; never block the install.
+__chief_install_bash_notice() {
+  local cand brew_bash=""
+  for cand in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+    [[ -x "$cand" ]] && { brew_bash="$cand"; break; }
+  done
+  local current_major="${BASH_VERSINFO[0]:-0}"
+  local newer_ok=false
+  if [[ -n "$brew_bash" ]] && "$brew_bash" -c '(( BASH_VERSINFO[0] >= 4 ))' 2>/dev/null; then
+    newer_ok=true
+  fi
+  (( current_major >= 4 )) && return 0
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    echo -e "${YELLOW}NOTE: Chief needs Bash 4.0+, but this shell is Bash ${BASH_VERSION} (the macOS system bash).${NC}"
+    if $newer_ok; then
+      echo -e "${CYAN}A newer Bash is installed at ${brew_bash}. Make your terminal use it (set the terminal's${NC}"
+      echo -e "${CYAN}command to '${brew_bash} -l'), otherwise Chief plugins will fail with 'declare: -A: invalid option'.${NC}"
+    else
+      echo -e "${CYAN}Install a current Bash first:  brew install bash${NC}"
+      echo -e "${CYAN}Then make your terminal use it (set the terminal's command to '/opt/homebrew/bin/bash -l').${NC}"
+    fi
+    echo -e "${CYAN}Chief will also print these steps at start-up until it is running under Bash 4+.${NC}"
+  else
+    echo -e "${YELLOW}NOTE: Chief needs Bash 4.0+, but this shell is Bash ${BASH_VERSION}. Upgrade Bash with your package manager.${NC}"
+  fi
+  echo ""
+}
+__chief_install_bash_notice
+
+# Validate argument combinations
+if $LOCAL_INSTALL && $BRANCH_SPECIFIED; then
+  echo -e "${YELLOW}WARNING: --branch option is ignored when using --local installation.${NC}"
+  echo -e "${CYAN}Local installations use the files present in the current directory,${NC}"
+  echo -e "${CYAN}not a specific git branch. This is intended for disconnected environments.${NC}"
+  echo ""
+fi
 
 # Configuration lines to add to .bash_profile
 CONFIG_LINES=(
@@ -109,7 +153,7 @@ confirm() {
 print_banner() {
   # Read version and website from installed Chief VERSION file
   local version="Unknown"
-  local website="https://chief.reonetlabs.us"  # Default fallback
+  local website="https://chief.randyo.dev"  # Default fallback
   
   if [[ -f "$CHIEF_PATH/VERSION" ]]; then
     source "$CHIEF_PATH/VERSION"
@@ -441,7 +485,7 @@ echo ""
 echo -e "${CYAN}BRANCH TRACKING:${NC}"
 echo -e "${CYAN}  • Installed from: ${YELLOW}${CHIEF_INSTALL_GIT_BRANCH}${NC} branch"
 echo -e "${CYAN}  • Future updates will track: ${YELLOW}${CHIEF_INSTALL_GIT_BRANCH}${NC} branch"
-echo -e "${CYAN}  • To switch branches: chief.config_set update_branch <branch_name>${NC}"
+echo -e "${CYAN}  • To switch branches: chief.config-set update_branch <branch_name>${NC}"
 elif $LOCAL_INSTALL; then
 echo ""
 echo -e "${CYAN}DISCONNECTED INSTALLATION:${NC}"

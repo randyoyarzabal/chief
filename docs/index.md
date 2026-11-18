@@ -9,7 +9,7 @@ permalink: /
 
 **Bash Plugin Manager & Terminal Enhancement Tool**
 
-[![GitHub release](https://img.shields.io/badge/Download-Release%20v3.1.4-green.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Documentation](https://img.shields.io/badge/Documentation-blue)](https://chief.reonetlabs.us)
+[![GitHub release](https://img.shields.io/badge/Download-Release%20v3.2.0-green.svg?style=social)](https://github.com/randyoyarzabal/chief/releases/latest) [![Documentation](https://img.shields.io/badge/Documentation-blue)](https://chief.randyo.dev)
 
 Chief is a lightweight, powerful Bash library system that helps you organize your shell environment through a plugin-based architecture. Think of it as a package manager for your bash functions, aliases, and tools.
 
@@ -41,27 +41,27 @@ For environments without git connectivity:
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
 
 # 2. Configure your plugin repository (replace with your repo)
-chief.config_set -y PLUGINS_GIT_REPO="git@github.com:yourusername/my-plugins.git"
-chief.config_set -y PLUGINS_PATH="${HOME}/chief_plugins"
-chief.config_set -y PLUGINS_GIT_BRANCH="main"
-chief.config_set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root, this is plugins path relative to PLUGINS_PATH
-chief.config_set -y PLUGINS_GIT_AUTOUPDATE="false"    # manual updates
-chief.config_set -y PLUGINS_TYPE="remote"             # Enable remote sync
+chief.config-set -y PLUGINS_GIT_REPO="git@github.com:yourusername/my-plugins.git"
+chief.config-set -y PLUGINS_PATH="${HOME}/chief_plugins"
+chief.config-set -y PLUGINS_GIT_BRANCH="main"
+chief.config-set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root, this is plugins path relative to PLUGINS_PATH
+chief.config-set -y PLUGINS_GIT_AUTOUPDATE="false"    # manual updates
+chief.config-set -y PLUGINS_TYPE="remote"             # Enable remote sync
 
 # 3. (Optional) Enable multi-line prompt, useful when current working dir is deep.
-chief.config_set -y MULTILINE_PROMPT=true 
+chief.config-set -y MULTILINE_PROMPT=true 
 
 # 4. (Optional) Load your encrypted secrets (if exists)
-chief.vault_file-load  # Team vault (.chief_shared-vault - if exists)
-chief.vault_file-load ~/.my-personal-vault     # Personal vault
+chief.secrets_file-load  # Team secrets (.chief_shared-secrets - if exists)
+chief.secrets_file-load ~/.my-personal-secrets     # Personal secrets
 ```
 
-For detailed vault setup and management, see: [Vault Configuration](configuration.html#vault-configuration)
+For detailed secrets and vault setup, see: [Secrets and Vault Configuration](configuration.html#secrets-and-vault-configuration)
 
 ### Result
 
 - ✓ **Same plugins everywhere**: Functions, aliases, and tools sync across laptop, server, CI/CD
-- ✓ **Encrypted secrets**: Vault files travel with your setup (team + personal)
+- ✓ **Encrypted secrets**: Secrets files travel with your setup (team + personal)
 - ✓ **Zero reconfiguration**: New systems work identically after this setup
 - ✓ **Version controlled**: Track changes to your shell environment
 
@@ -99,12 +99,18 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 
 - `chief.help` - Interactive help system with plugin browsing
 - `chief.whereis <function>` - Find any function across all plugins
-- `chief.plugins_*` - Plugin management and discovery tools
+- `chief.plugins-*` - Plugin management and discovery tools
 
-### **Vault Plugin** (2 functions)
+### **Secrets Plugin** (2 functions)
 
-- `chief.vault_file-edit` - Edit encrypted files securely
-- `chief.vault_file-load` - Load encrypted environment variables
+- `chief.secrets_file-edit` - Edit encrypted secrets file (Ansible Vault or GPG)
+- `chief.secrets_file-load` - Load encrypted environment variables into shell
+
+### **Vault Plugin (HashiCorp)** (3 functions)
+
+- `chief.vault_read-secret` - Read secret from HashiCorp Vault KV
+- `chief.vault_write-secret` - Write secret to HashiCorp Vault KV
+- `chief.vault_list-secrets` - List keys or paths in HashiCorp Vault KV
 
 ### **OpenShift/Kubernetes Plugin** (9 functions)
 
@@ -142,8 +148,9 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.etc_mount-share` - Network share mounting utilities
 - File comparison, IP validation, system prompts, and more...
 
-### **Git Plugin** (16 functions)
+### **Git Plugin** (17 functions)
 
+- `chief.git_init` - Initially commit current directory to a repository
 - `chief.git_clone` - Enhanced git cloning with safety checks
 - `chief.git_commit` - Streamlined commit workflow
 - `chief.git_reset_*` - Safe reset operations with dry-run support
@@ -221,6 +228,12 @@ This helps us quickly identify and fix issues!
 
 Contributions welcome! See our [reference documentation](reference.html#contributing) for guidelines.
 
+## Acknowledgments
+
+Chief is designed, written, and maintained by [Randy E. Oyarzabal](https://github.com/randyoyarzabal).
+
+**AI-assisted development.** Portions of this project were developed and maintained with the help of AI coding assistants, specifically [Cursor](https://cursor.com) and [Claude](https://claude.com) (Anthropic), for tasks such as refactoring, test authoring, bug-fixing, and documentation. All AI-generated changes are reviewed, tested, and approved by the maintainer before release. Where an AI tool contributed to a commit, it is credited with a `Co-authored-by` trailer.
+
 ## License
 
-MIT License - see [LICENSE](https://github.com/randyoyarzabal/chief/blob/main/LICENSE) file for details.
+GNU General Public License v3.0 - see [LICENSE](https://github.com/randyoyarzabal/chief/blob/main/LICENSE) file for details.

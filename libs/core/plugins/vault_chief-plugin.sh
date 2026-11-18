@@ -17,7 +17,8 @@
 
 # Chief Plugin File: vault_chief-plugin.sh
 # Author: Randy E. Oyarzabal
-# Functions and aliases that are Vault (HashiCorp vault or ansible-vault) related.
+# HashiCorp Vault utilities: read/write KV secrets via the vault CLI.
+# Requires: vault binary, VAULT_ADDR, and VAULT_TOKEN (or VAULT_TOKEN_FILE).
 
 # Block interactive execution
 if [[ $0 == "${BASH_SOURCE[0]}" ]]; then
@@ -25,307 +26,191 @@ if [[ $0 == "${BASH_SOURCE[0]}" ]]; then
   exit 1
 fi
 
-function chief.vault_file-edit() {
-  # Check if CHIEF_SECRETS_FILE is set, if not set it to default.
-  if [[ -z $CHIEF_SECRETS_FILE ]]; then
-    CHIEF_SECRETS_FILE="$HOME/.chief_user-vault"
+function __chief_vault_ensure_auth() {
+  if [[ -z "${VAULT_ADDR:-}" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} VAULT_ADDR is not set." >&2
+    return 1
   fi
+  if [[ -n "${VAULT_TOKEN_FILE:-}" ]] && [[ -f "$VAULT_TOKEN_FILE" ]]; then
+    export VAULT_TOKEN
+    VAULT_TOKEN="$(cat "$VAULT_TOKEN_FILE")"
+  fi
+  if [[ -z "${VAULT_TOKEN:-}" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} VAULT_TOKEN (or VAULT_TOKEN_FILE) is not set." >&2
+    return 1
+  fi
+  if ! command -v vault >/dev/null 2>&1; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} vault CLI not found. Install HashiCorp Vault CLI." >&2
+    return 1
+  fi
+  return 0
+}
 
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [vault-file] [--load]
+function chief.vault_read-secret() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <path> [key] [-n]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
-Edit/create a Bash shell vault file using ansible-vault encryption.
+Read a secret from HashiCorp Vault KV engine.
+- With key: returns only the raw value for that key (no JSON). Default: value + newline (clean prompt).
+- Without key: returns full secret as JSON.
 
 ${CHIEF_COLOR_GREEN}Requirements:${CHIEF_NO_COLOR}
-- ansible-vault binary (ansible-core 2.9+)
-- Valid vault password
+- vault CLI, VAULT_ADDR, VAULT_TOKEN (or VAULT_TOKEN_FILE)
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
-  [vault-file]  Optional vault file path (default: \$CHIEF_SECRETS_FILE)
-  --load        Automatically load vault into environment after editing
-
-${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
-  -?, --help      Show this help
-
-${CHIEF_COLOR_MAGENTA}Security Notes:${CHIEF_NO_COLOR}
-- On single-user systems: Set ANSIBLE_VAULT_PASSWORD_FILE for convenience
-- On shared systems: Enter password manually (more secure)
-- Store CHIEF_SECRETS_FILE path in ~/.bash_profile (not shared plugins)
-
-${CHIEF_COLOR_BLUE}Default Vault File Name:${CHIEF_NO_COLOR}
-- ${CHIEF_COLOR_GREEN}Personal vault${CHIEF_NO_COLOR} (non-remote): .chief_user-vault 
-- ${CHIEF_COLOR_YELLOW}Shared vault${CHIEF_NO_COLOR} (remote repos): .chief_shared-vault
-
-${CHIEF_COLOR_MAGENTA}File Creation:${CHIEF_NO_COLOR}
-- Personal vaults are created in \$HOME/ if they don't exist
-- Shared vaults are created in the plugins repository root if they don't exist
-
-${CHIEF_COLOR_RED}⚠ TEAM COLLABORATION WARNING:${CHIEF_NO_COLOR}
-- .chief_shared-vault in team repos is ${CHIEF_COLOR_RED}SHARED BY ALL TEAM MEMBERS${CHIEF_NO_COLOR}
-- Use shared vault only for team secrets (service accounts, team API keys)
-- Create personal vault for private secrets: ${CHIEF_COLOR_CYAN}$FUNCNAME ~/.my-personal-vault${CHIEF_NO_COLOR}
+  path   Secret path (e.g. secrets/hello-world), not path/key
+  key    Optional: field name inside that secret (e.g. message); when given, only that value is returned
+  -n, --no-newline  For scripting: do not print trailing newline (use when capturing value)
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME                           # Edit default vault file (no auto-load)
-  $FUNCNAME ~/.my-secrets             # Edit specific file (no auto-load)
-  $FUNCNAME --load                    # Edit and auto-load default vault
-  $FUNCNAME ~/.my-secrets --load      # Edit specific file and auto-load
-
-${CHIEF_COLOR_GREEN}Current default:${CHIEF_NO_COLOR} $CHIEF_SECRETS_FILE
-${CHIEF_COLOR_BLUE}Configuration:${CHIEF_NO_COLOR} $(
-  if [[ "${CHIEF_CFG_PLUGINS_TYPE}" == "remote" ]]; then
-    echo "Remote repository (.chief_shared-vault)"
-  else
-    echo "Local setup (\$HOME/.chief_user-vault)"
-  fi
-)
+  $FUNCNAME secret/data/myapp              # full JSON
+  $FUNCNAME secret/data/myapp password     # value + newline (interactive)
+  $FUNCNAME -n secrets/hello-world message # no newline (e.g. url=\$(...))
 "
   if [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return 0
   fi
-
-  # Check if ansible-vault is installed and get version info
-  if ! command -v ansible-vault >/dev/null 2>&1; then
-    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} ansible-vault is required but not found."
-    echo -e "${CHIEF_COLOR_YELLOW}Install:${CHIEF_NO_COLOR}"
-    echo "  macOS: brew install ansible"
-    echo "  Linux: pip3 install ansible-core"
-    echo "  Or: Use your package manager (apt, yum, etc.)"
+  __chief_vault_ensure_auth || return 1
+  local no_newline=false path="" key=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -n|--no-newline) no_newline=true ;;
+      -?|--help) ;;
+      *)
+        if [[ -z "$path" ]]; then
+          path="$1"
+        elif [[ -z "$key" ]]; then
+          key="$1"
+        fi
+        ;;
+    esac
+    shift
+  done
+  if [[ -z "$path" ]]; then
+    echo -e "${USAGE}" >&2
     return 1
   fi
-
-  # Check ansible-vault version (warn if too old)
-  local ansible_version
-  ansible_version=$(ansible-vault --version 2>/dev/null | head -1 | grep -oE '[0-9]+\.[0-9]+' | head -1)
-  if [[ -n $ansible_version ]] && command -v bc >/dev/null 2>&1; then
-    if [[ $(echo "$ansible_version < 2.9" | bc 2>/dev/null) == "1" ]] 2>/dev/null; then
-      echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} ansible-vault $ansible_version detected. Recommend 2.9+ for best compatibility."
-    fi
-  fi
-
-  local no_load=true vault_file  # Default: don't auto-load (avoids double password prompt)
-  # Parse arguments more robustly
-  case "$1" in
-    "--load")
-      no_load=false
-      vault_file="$CHIEF_SECRETS_FILE"
-      ;;
-    "")
-      vault_file="$CHIEF_SECRETS_FILE"
-      ;;
-    *)
-      vault_file="$1"
-      [[ "$2" == "--load" ]] && no_load=false
-      ;;
-  esac
-
-  # Resolve relative paths to absolute paths to avoid issues when not in home directory
-  if [[ "$vault_file" != /* ]]; then
-    vault_file="$(realpath "$vault_file" 2>/dev/null || echo "$(pwd)/$vault_file")"
-  fi
-
-  # Create the file if it doesn't exist
-  if [[ ! -f "$vault_file" ]]; then
-    echo -e "${CHIEF_COLOR_GREEN}Creating new vault file:${CHIEF_NO_COLOR} $vault_file"
-    
-    # Create the directory if it doesn't exist
-    if ! mkdir -p "$(dirname "$vault_file")"; then
-      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Failed to create directory for vault file: $vault_file"
-      return 1
-    fi
-    
-    # Use preferred editor or fallback to vi
-    local editor="${EDITOR:-vi}"
-    echo -e "${CHIEF_COLOR_YELLOW}Opening editor:${CHIEF_NO_COLOR} $editor"
-    $editor "$vault_file"
-    
-    # Check if the file was created successfully
-    if [[ ! -f "$vault_file" ]] || [[ ! -s "$vault_file" ]]; then
-      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Vault file was not created or is empty: $vault_file"
-      echo "Please ensure you save the file in your editor."
-      return 1
-    fi
-    
-    # Source the file before encrypting (if not --no-load)
-    if ! $no_load; then
-      echo -e "${CHIEF_COLOR_BLUE}Loading vault file to memory...${CHIEF_NO_COLOR}"
-      if ! source "$vault_file"; then
-        echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} Failed to source vault file. Check syntax before encryption."
-      fi
-    fi
-    
-    # Encrypt the file
-    echo -e "${CHIEF_COLOR_GREEN}Encrypting vault file...${CHIEF_NO_COLOR}"
-    if ! ansible-vault encrypt "$vault_file"; then
-      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Failed to encrypt vault file: $vault_file"
-      return 1
-    fi
-    
-    if $no_load; then
-      echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Vault file created and encrypted (not loaded)."
-      # Show simplified command for default vault file, full path for custom files
-      if [[ "$vault_file" == "$CHIEF_SECRETS_FILE" ]]; then
-        echo -e "${CHIEF_COLOR_BLUE}Load with:${CHIEF_NO_COLOR} chief.vault_file-load"
-      else
-        echo -e "${CHIEF_COLOR_BLUE}Load with:${CHIEF_NO_COLOR} chief.vault_file-load $vault_file"
-      fi
+  if [[ -n "$key" ]]; then
+    local val
+    val="$(vault kv get -field="$key" "$path" 2>/dev/null)" || return 1
+    if $no_newline; then
+      printf '%s' "$val"
     else
-      echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Vault file created, encrypted, and loaded to memory."
-      echo -e "${CHIEF_COLOR_BLUE}Tip:${CHIEF_NO_COLOR} Use --load flag to automatically load after editing."
+      printf '%s\n' "$val"
     fi
   else
-    # Check if file is ansible-vault encrypted
-    if grep -q '^\$ANSIBLE_VAULT;' "$vault_file"; then
-      echo -e "${CHIEF_COLOR_BLUE}Editing encrypted vault file...${CHIEF_NO_COLOR}"
-      if ! ansible-vault edit "$vault_file"; then
-        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Failed to edit vault file: $vault_file"
-        echo "Check your password and file integrity."
-        return 1
-      fi
-      
-      # Optionally reload after editing
-      if $no_load; then
-        echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Vault file edited (changes not loaded to memory)."
-        # Show simplified command for default vault file, full path for custom files
-        if [[ "$vault_file" == "$CHIEF_SECRETS_FILE" ]]; then
-          echo -e "${CHIEF_COLOR_BLUE}Load with:${CHIEF_NO_COLOR} chief.vault_file-load"
-        else
-          echo -e "${CHIEF_COLOR_BLUE}Load with:${CHIEF_NO_COLOR} chief.vault_file-load $vault_file"
-        fi
-      else
-        echo -e "${CHIEF_COLOR_BLUE}Loading updated vault file...${CHIEF_NO_COLOR}"
-        chief.vault_file-load "$vault_file"
-      fi
-    else
-      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} File is not an encrypted ansible-vault file: $vault_file"
-      echo -e "${CHIEF_COLOR_YELLOW}Solutions:${CHIEF_NO_COLOR}"
-      echo "  1. Create new vault: chief.vault_file-edit"
-      echo "  2. Encrypt existing: ansible-vault encrypt $vault_file"
-      echo "  3. Check file format: head -1 $vault_file"
-      return 1
-    fi
+    vault kv get -format=json "$path" 2>/dev/null || return 1
   fi
 }
 
-function chief.vault_file-load() {
-  if [[ -z $CHIEF_SECRETS_FILE ]]; then
-    CHIEF_SECRETS_FILE="$HOME/.chief_user-vault"
-  fi
-
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [vault-file]
+function chief.vault_write-secret() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <path> <key>=<value> [key2=value2 ...] [-format=json]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
-Load (source) an encrypted Bash shell vault file into memory using ansible-vault.
+Write one or more key-value pairs to HashiCorp Vault KV path.
 
 ${CHIEF_COLOR_GREEN}Requirements:${CHIEF_NO_COLOR}
-- ansible-vault binary (ansible-core 2.9+)
-- Valid vault password
-- Existing encrypted vault file
+- vault CLI, VAULT_ADDR, VAULT_TOKEN (or VAULT_TOKEN_FILE)
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
-  [vault-file]  Optional vault file path (default: \$CHIEF_SECRETS_FILE)
-
-${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
-  -?, --help      Show this help
-
-${CHIEF_COLOR_MAGENTA}Security Notes:${CHIEF_NO_COLOR}
-- Variables are loaded into current shell session
-- Use ANSIBLE_VAULT_PASSWORD_FILE for convenience (single-user systems only)
-- Store CHIEF_SECRETS_FILE path in ~/.bash_profile (not shared plugins)
-
-${CHIEF_COLOR_BLUE}Default Vault File Name:${CHIEF_NO_COLOR}
-- ${CHIEF_COLOR_GREEN}Personal vault${CHIEF_NO_COLOR} (non-remote): .chief_user-vault 
-- ${CHIEF_COLOR_YELLOW}Shared vault${CHIEF_NO_COLOR} (remote repos): .chief_shared-vault
-
-${CHIEF_COLOR_MAGENTA}File Creation:${CHIEF_NO_COLOR}
-- Personal vaults are created in \$HOME/ if they don't exist
-- Shared vaults are created in the plugins repository root if they don't exist
-
-${CHIEF_COLOR_RED}⚠ TEAM COLLABORATION WARNING:${CHIEF_NO_COLOR}
-- .chief_shared-vault in team repos is ${CHIEF_COLOR_RED}SHARED BY ALL TEAM MEMBERS${CHIEF_NO_COLOR}
-- Load personal vault separately: ${CHIEF_COLOR_CYAN}$FUNCNAME ~/.my-personal-vault${CHIEF_NO_COLOR}
+  path   KV path (e.g. secret/data/myapp)
+  key=value  One or more key=value pairs
+  -format=json  Optional: after writing, output the full secret as JSON
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME                    # Load default vault file
-  $FUNCNAME ~/.my-secrets      # Load specific vault file
-
-${CHIEF_COLOR_GREEN}Current default:${CHIEF_NO_COLOR} $CHIEF_SECRETS_FILE
-${CHIEF_COLOR_BLUE}Configuration:${CHIEF_NO_COLOR} $(
-  if [[ "${CHIEF_CFG_PLUGINS_TYPE}" == "remote" ]]; then
-    echo "Remote repository (.chief_shared-vault)"
-  else
-    echo "Local setup (\$HOME/.chief_user-vault)"
-  fi
-)
-
-${CHIEF_COLOR_BLUE}Troubleshooting:${CHIEF_NO_COLOR}
-- macOS with older ansible: Use ansible-vault 2.18.0+ for best compatibility
-- Permission errors: Check file ownership and vault password
+  $FUNCNAME secret/data/myapp api_key=xxx
+  $FUNCNAME secret/data/myapp user=admin password=secret -format=json
 "
   if [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return 0
   fi
-
-  # Check if ansible-vault is installed
-  if ! command -v ansible-vault >/dev/null 2>&1; then
-    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} ansible-vault is required but not found."
-    echo -e "${CHIEF_COLOR_YELLOW}Install:${CHIEF_NO_COLOR}"
-    echo "  macOS: brew install ansible"
-    echo "  Linux: pip3 install ansible-core"
-    echo "  Or: Use your package manager (apt, yum, etc.)"
+  if [[ -z "$1" || -z "$2" ]]; then
+    echo -e "${USAGE}" >&2
     return 1
   fi
-
-  # Parse arguments
-  local vault_file
-  if [[ -z $1 ]]; then
-    vault_file="$CHIEF_SECRETS_FILE"
-  else
-    vault_file="$1"
-  fi
-
-  # Resolve relative paths to absolute paths to avoid issues when not in home directory
-  if [[ "$vault_file" != /* ]]; then
-    vault_file="$(realpath "$vault_file" 2>/dev/null || echo "$(pwd)/$vault_file")"
-  fi
-
-  # Validate vault file exists
-  if [[ ! -f "$vault_file" ]]; then
-    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Vault file does not exist: $vault_file"
-    echo -e "${CHIEF_COLOR_YELLOW}Solutions:${CHIEF_NO_COLOR}"
-    echo "  1. Create vault: chief.vault_file-edit"
-    echo "  2. Check path: ls -la $(dirname "$vault_file")"
-    echo "  3. Set CHIEF_SECRETS_FILE in ~/.bash_profile"
-    return 1
-  fi
-
-  # Check if file is ansible-vault encrypted
-  if grep -q '^\$ANSIBLE_VAULT;' "$vault_file"; then
-    echo -e "${CHIEF_COLOR_BLUE}Loading encrypted vault file:${CHIEF_NO_COLOR} $vault_file"
-    
-    # Load the vault file and check for errors
-    if source <(ansible-vault view "$vault_file" 2>/dev/null); then
-      echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Vault file loaded to memory."
-      echo -e "${CHIEF_COLOR_BLUE}Tip:${CHIEF_NO_COLOR} Vault env vars, functions, and aliases are now available in current shell session."
+  __chief_vault_ensure_auth || return 1
+  local path="$1"
+  shift
+  local out_json=false
+  local args=()
+  while [[ $# -gt 0 ]]; do
+    if [[ "$1" == -format=json ]]; then
+      out_json=true
     else
-      local exit_code=$?
-      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Failed to load vault file: $vault_file"
-      echo -e "${CHIEF_COLOR_YELLOW}Possible causes:${CHIEF_NO_COLOR}"
-      echo "  1. Incorrect vault password"
-      echo "  2. Corrupted vault file"
-      echo "  3. Syntax errors in decrypted content"
-      echo "  4. Ansible version compatibility issue"
-      echo -e "${CHIEF_COLOR_BLUE}Debug:${CHIEF_NO_COLOR} Try: ansible-vault view $vault_file | bash -n"
-      return $exit_code
+      args+=("$1")
     fi
-  else
-    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} File is not an encrypted ansible-vault file: $vault_file"
-    echo -e "${CHIEF_COLOR_YELLOW}Solutions:${CHIEF_NO_COLOR}"
-    echo "  1. Check file format: head -1 $vault_file"
-    echo "  2. Encrypt file: ansible-vault encrypt $vault_file"
-    echo "  3. Create new vault: chief.vault_file-edit"
+    shift
+  done
+  vault kv put "$path" "${args[@]}" 2>/dev/null || return 1
+  if $out_json; then
+    vault kv get -format=json "$path" 2>/dev/null || return 1
+  fi
+}
+
+function chief.vault_list-secrets() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <path> [-format=table|json|yaml]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+List at a path. If path is a secret, lists key names inside it. If path is a folder, lists secret names.
+Requires jq to detect secret vs folder and to list keys within a secret.
+
+${CHIEF_COLOR_GREEN}Requirements:${CHIEF_NO_COLOR}
+- vault CLI, VAULT_ADDR, VAULT_TOKEN (or VAULT_TOKEN_FILE), jq
+
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  path   KV path (secret e.g. secret/myapp, or folder e.g. secret/)
+  -format=table|json|yaml  table (default): key names or folder list; json/yaml: full data
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME secret/myapp           # keys inside secret (one per line)
+  $FUNCNAME secret/myapp -format=json   # full secret as JSON
+  $FUNCNAME secret/ -format=json   # folder list as JSON
+"
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
+    echo -e "${USAGE}"
+    return 0
+  fi
+  if [[ -z "$1" ]]; then
+    echo -e "${USAGE}" >&2
     return 1
   fi
+  __chief_vault_ensure_auth || return 1
+  if ! command -v jq >/dev/null 2>&1; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} jq is required for $FUNCNAME. Install jq:" >&2
+    if [[ "${PLATFORM:-}" == "MacOS" ]]; then
+      echo -e "  brew install jq" >&2
+    else
+      echo -e "  apt install jq / yum install jq / dnf install jq (or your package manager)" >&2
+    fi
+    return 1
+  fi
+  local path="$1"
+  local format_arg=""
+  local format_val="table"
+  if [[ "$2" == -format=* ]]; then
+    format_val="${2#-format=}"
+    format_arg="-format=$format_val"
+  fi
+
+  local json
+  json="$(vault kv get -format=json "$path" 2>/dev/null)"
+  # Secret: .data.data is a non-null object (KV v2). Otherwise treat as folder.
+  if [[ -n "$json" ]] && jq -e '.data.data != null and (.data.data | type == "object")' <<< "$json" >/dev/null 2>&1; then
+    if [[ "$format_val" == "json" ]]; then
+      echo "$json"
+      return 0
+    fi
+    if [[ "$format_val" == "yaml" ]]; then
+      vault kv get -format=yaml "$path" 2>/dev/null || return 1
+      return 0
+    fi
+    echo -e "${CHIEF_COLOR_GREEN}Keys in secret:${CHIEF_NO_COLOR} $path" >&2
+    jq -r '.data.data | keys[]' <<< "$json"
+    return 0
+  fi
+
+  echo -e "${CHIEF_COLOR_GREEN}Folder (secret names at path):${CHIEF_NO_COLOR} $path" >&2
+  vault kv list $format_arg "$path" 2>/dev/null || return 1
 }

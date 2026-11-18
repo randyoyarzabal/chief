@@ -3594,11 +3594,11 @@ __chief_output_status_table() {
       local status_text=""
       case "$status" in
         online) 
-          status_icon="\033[32m✓\033[0m"
+          status_icon="${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR}"
           status_text="Online"
           ;;
         offline) 
-          status_icon="\033[31m✗\033[0m"
+          status_icon="${CHIEF_COLOR_RED}✗${CHIEF_NO_COLOR}"
           status_text="Offline"
           ;;
         *) 
@@ -3647,11 +3647,11 @@ __chief_output_status_table() {
       local status_text=""
       case "$status" in
         online) 
-          status_icon="\033[32m✓\033[0m"
+          status_icon="${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR}"
           status_text="Online"
           ;;
         offline) 
-          status_icon="\033[31m✗\033[0m"
+          status_icon="${CHIEF_COLOR_RED}✗${CHIEF_NO_COLOR}"
           status_text="Offline"
           ;;
         *) 

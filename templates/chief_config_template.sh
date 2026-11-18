@@ -5,8 +5,25 @@
 # Configure items to suit. For all variables:
 #   Set values to un-quoted 'true', to enable Or 'false', to disable OR Comment (prefix with #) to disable.
 
+# BANNER
+####################################
+
 # If set to true, will display a banner at start-up.
 CHIEF_CFG_BANNER=true
+
+# Per-line visibility for banner header items. These only take effect when
+# CHIEF_CFG_BANNER=true. Setting either to false hides just that status line's
+# right-side text while keeping the ASCII art unchanged.
+#
+# CHIEF_CFG_BANNER_SHOW_PLUGINS:  show the "plugins: ..." line (local / git [auto-update ...])
+# CHIEF_CFG_BANNER_SHOW_TRACKING: show the "tracking: ..." line (branch + channel)
+CHIEF_CFG_BANNER_SHOW_PLUGINS=true
+CHIEF_CFG_BANNER_SHOW_TRACKING=true
+
+# If set to true, will warn at start-up when Chief is loaded by Bash older than 4.0
+# (e.g. the macOS system bash, 3.2) and show how to install/use a newer one.
+# Set to false to silence the warning.
+CHIEF_CFG_BASH_WARN=true
 
 # If set to true, will display output when plugins and SSH keys are loaded at start-up.
 CHIEF_CFG_VERBOSE=false
@@ -69,7 +86,7 @@ CHIEF_CFG_PLUGINS_GIT_PATH=""
 # Load/update remote plugins when Chief starts.
 # If this is set to true, it will clone/update the remote repository when Chief starts.
 # If set to false, you will need to manually update the plugins with the command:
-# $> chief.plugins_update
+# $> chief.plugins-update
 CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="false"
 
 # Plugins are loaded in alphabetical order, so you can control the order of loading by naming them accordingly.
@@ -91,10 +108,39 @@ CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE="false"
 # For example, if you have a script named "lab.sh" in the directory,
 # you can create a symlink to it in the directory as "lab_chief-plugin.sh"
 # Or rename it to "lab_chief-plugin.sh" and it will be loaded as a plug-in.
+#
+# Command: chief.plugin <plugin name> <path-to-existing-script>
+# creates that symlink for you. When the script is under the same directory tree as this
+# plugins directory, Chief uses a relative symlink target so git clones work on other machines
+# (team / remote plugin repos). Otherwise the target is absolute; see chief.plugin -?
 
 # You can define your own starting template for plugins, otherwise 
 # the default template will be used: "${CHIEF_PATH}/templates/chief_plugin_template.sh"
 CHIEF_CFG_PLUGIN_TEMPLATE="${CHIEF_PATH}/templates/chief_plugin_template.sh"
+
+# Comma- or space-separated list of plugins to skip loading. Managed via: chief.plugin enable|disable [core.]<name>
+# Core: built-in plugin names. aws, openshift and vault are off by default because they need
+# tools or accounts most users don't have; turn one on with: chief.plugin enable core.aws
+# User: your own plugin names (e.g. bc,lab or bc lab).
+CHIEF_CFG_PLUGINS_DISABLED_CORE="aws openshift vault"
+CHIEF_CFG_PLUGINS_DISABLED_USER=""
+
+# Contrib plugins are shipped with Chief (libs/contrib/plugins) for specific teams or workflows.
+# Chief scans them on every load, but each is OFF until enabled (currently: cg).
+# Turn one on with: chief.plugin enable contrib.<name>   (off again: chief.plugin disable contrib.<name>)
+CHIEF_CFG_PLUGINS_ENABLED_CONTRIB=""
+
+# [cg contrib plugin] Path to your local copy of the Chainguard customer-success helper
+# functions. The cg plugin sources it and exposes its functions as cg.* (see: cg.help).
+# No default: set it to wherever your clone lives, e.g.
+#   chief.config-set cg_helper_functions "/path/to/customer-success/scripts/.helper_functions.sh"
+CHIEF_CFG_CG_HELPER_FUNCTIONS=""
+
+# DEV TOOLS (Chief maintainers only)
+# Loads maintainer tooling from libs/dev/plugins, such as chief.release_status,
+# chief.release_prepare and chief.release_publish. It only takes effect when Chief's own
+# checkout ($CHIEF_PATH) is on the "dev" branch; on main or a release it never loads.
+CHIEF_CFG_DEV_TOOLS=false
 ####################################
 
 # PROMPT CONFIGURATION
@@ -136,15 +182,21 @@ CHIEF_CFG_MULTILINE_PROMPT=false
 # Leave commented to use system defaults ($EDITOR → vim → vi)
 #CHIEF_CFG_DEFAULT_EDITOR_PATH=""
 
+# Editor used when you pass --code or --vscode (e.g. chief.plugin mytools --code).
+# If unset, Chief tries: cursor --wait, then code --wait. Set this to force one:
+#   Cursor:  CHIEF_CFG_EDITOR_GUI_CMD="cursor --wait"
+#   VSCode:  CHIEF_CFG_EDITOR_GUI_CMD="code --wait"
+#CHIEF_CFG_EDITOR_GUI_CMD=""
+
 # If set to true, will use colored ls command.
 CHIEF_CFG_COLORED_LS=false
 
-# If set to true, chief.config_set will prompt for confirmation before modifying config file.
+# If set to true, chief.config-set will prompt for confirmation before modifying config file.
 # Set to false for non-interactive operation by default (useful for automation/scripts).
 # Individual commands can still use --yes to skip prompts regardless of this setting.
 CHIEF_CFG_CONFIG_SET_INTERACTIVE=true
 
-# If set to true, chief.config_update will create timestamped backups when making changes.
+# If set to true, chief.config-update will create timestamped backups when making changes.
 # Set to false to skip backup creation (useful for automation where you handle backups externally).
 # Only creates backups when actual changes are made to configuration file.
 CHIEF_CFG_CONFIG_UPDATE_BACKUP=true
@@ -157,10 +209,11 @@ CHIEF_CFG_CONFIG_UPDATE_BACKUP=true
 # Chief will automatically enable (ssh-add) auto-load and auto-cleanup of ssh-agent.
 # Note: Standard SSH keys (id_rsa, id_ed25519, etc.) are automatically used by SSH clients.
 #
-# If you have a directory with your private keys, you can set the path here.
-# Setting this variable will automatically load your SSH keys, you can also run $>chief.ssh_load_keys
-# to manually load them. 
-# If you do not set or comment this variable, it will not load any keys.
+# Load your SSH keys into ssh-agent at start-up (and on chief.reload). Off by default.
+# Turn on with: chief.config-set ssh_load_keys true   (any time: chief.ssh_load-keys)
+CHIEF_CFG_SSH_LOAD_KEYS=false
+
+# Where the keys are. Optional: Chief uses ~/.ssh unless you set a different directory here.
 #CHIEF_CFG_SSH_KEYS_PATH="$HOME/.ssh"
 
 # If you want to create a custom alias for the chief command, you can do so here.

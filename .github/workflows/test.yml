@@ -27,11 +27,12 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
     
-    # Step 2: Cache apt packages to speed up installation
-    - name: Cache apt packages
-      uses: awalsh128/cache-apt-pkgs-action@latest
+    # Step 2: Install shellcheck (pinned to a commit SHA for reproducible builds; v1.6.3)
+    # python3 is already present on ubuntu-latest, so only shellcheck is needed.
+    - name: Install shellcheck
+      uses: awalsh128/cache-apt-pkgs-action@553a35bb8ebd9fcabcb1c9451aa4c98e1b4ca8a9 # v1.6.3
       with:
-        packages: shellcheck python3 python3-pip
+        packages: shellcheck
         version: 1.0
     
     # Step 3: Make test scripts executable
@@ -73,17 +74,21 @@ jobs:
     - name: Checkout repository
       uses: actions/checkout@v4
     
-    - name: Install ShellCheck (macOS)
+    # macOS runner images ship with shellcheck; only install if it is missing
+    - name: Ensure ShellCheck (macOS)
       run: |
-        brew install shellcheck
+        command -v shellcheck >/dev/null 2>&1 || brew install shellcheck
+        shellcheck --version
     
     - name: Make test scripts executable
       run: |
         chmod +x tests/*.sh
     
-    # Run core tests only on cross-platform to save time
-    - name: Run syntax and source tests (cross-platform)
+    # Run core tests only on cross-platform to save time.
+    # bump-tests is included because it exercises BSD sed, which differs from GNU sed.
+    - name: Run syntax, source, and bump tests (cross-platform)
       run: |
         echo "🧪 Running core tests on ${{ matrix.os }}..."
         ./tests/syntax-tests.sh
         ./tests/source-tests.sh
+        ./tests/bump-tests.sh

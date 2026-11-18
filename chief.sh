@@ -50,6 +50,8 @@ fi
 # Load the Chief configuration file and core library.
 CHIEF_GIT_TOOLS="${CHIEF_PATH}/libs/extras/git"
 CHIEF_LIBRARY="${CHIEF_PATH}/libs/core/chief_library.sh"
+# Clear optional config keys before sourcing so commented/removed lines take effect (no stale env).
+unset CHIEF_CFG_ALIAS
 source ${CHIEF_CONFIG}
 source ${CHIEF_LIBRARY}
 
@@ -64,11 +66,14 @@ if [[ $1 == "--lib-only" ]]; then
   return 0
 fi
 
+# Warn (once, before plugins load) if running on Bash < 4, e.g. the macOS system bash.
+__chief_check_bash_version
+
 # Load core libraries (including plugins) for full interactive mode
 __chief_load_library
 
-# Load RSA/SSH keys if directory is defined
-if [[ ! -z ${CHIEF_CFG_SSH_KEYS_PATH} ]] && ([[ ${PLATFORM} == "MacOS" ]] || [[ $(uname) == "Linux" ]]); then
+# Load SSH keys at start-up if enabled (CHIEF_CFG_SSH_LOAD_KEYS)
+if __chief_ssh_autoload_on && ([[ ${PLATFORM} == "MacOS" ]] || [[ $(uname) == "Linux" ]]); then
   chief.etc_spinner "Loading SSH keys..." "__chief_load_ssh_keys" tmp_out
   echo -e "${tmp_out}"
 fi

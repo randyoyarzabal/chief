@@ -4,7 +4,7 @@ title: Getting Started
 description: "Installation, setup, and first steps with Chief"
 ---
 
-[← Back to Home](https://chief.reonetlabs.us/)
+[← Back to Home](https://chief.randyo.dev/)
 
 # Getting Started with Chief
 
@@ -90,7 +90,7 @@ cd chief
 
 ### Optional Dependencies
 
-- **Ansible Core 2.9+** - Required only for Vault-related functions (`chief.vault.*`)
+- **Ansible Core 2.9+** or **GPG** - Required only for Secrets plugin encrypted file backend (`chief.secrets_file-*`). HashiCorp Vault plugin (`chief.vault_*`) requires the `vault` CLI.
   - `ansible-vault` command must be in PATH
   - Used for encrypting/decrypting secrets in Chief configurations
   - If not installed, vault functions will show helpful error messages
@@ -108,6 +108,32 @@ cd chief
 | Git | 2.0 | Latest | Clone, fetch, submodules |
 | Ansible Core | 2.9 | Latest | Optional - vault functions only |
 | OpenShift CLI (oc) | 4.0 | Latest | Optional - OpenShift functions only |
+
+### macOS: install a newer Bash
+
+macOS ships **Bash 3.2** (`/bin/bash`), which is too old for Chief. Symptoms are errors such as
+`declare: -A: invalid option` and `declare: -g: invalid option` when your terminal starts, and some
+plugins not working. Chief now prints a warning with these steps at start-up when it detects Bash older than 4.0.
+
+```bash
+# 1. Install a current Bash (Apple Silicon: /opt/homebrew/bin/bash, Intel: /usr/local/bin/bash)
+brew install bash
+
+# 2. Make your terminal use it. Either set the terminal app's command / shell to:
+/opt/homebrew/bin/bash -l
+
+#    ...or add this to the TOP of ~/.bash_profile so any terminal switches over automatically:
+if [[ $- == *i* ]] && (( BASH_VERSINFO[0] < 4 )) && [[ -x /opt/homebrew/bin/bash ]]; then
+  exec /opt/homebrew/bin/bash -l
+fi
+
+# 3. Open a new terminal and confirm
+bash --version        # should report 4.x or 5.x
+echo $BASH_VERSION
+```
+
+Changing your login shell with `chsh -s /opt/homebrew/bin/bash` also works, but requires adding that path to `/etc/shells` first.
+To silence the start-up warning: `chief.config-set -y BASH_WARN=false`.
 
 ### Check Your Environment
 
@@ -232,7 +258,7 @@ chief.whereis my_status
 
 ```bash
 # Enable beautiful git-aware prompts
-chief.config_set PROMPT true
+chief.config-set PROMPT true
 
 # Reload to see changes
 chief.reload
@@ -246,15 +272,15 @@ chief.reload
 
 ```bash
 # Set up your preferred editor (for plugin editing)
-chief.config_set EDITOR "code"  # VS Code
+chief.config-set default_editor_path "code --wait"  # VS Code
 # or
-chief.config_set EDITOR "vim"   # Vim
+chief.config-set default_editor_path "vim"   # Vim
 
 # Configure multiline prompts (recommended)
-chief.config_set MULTILINE_PROMPT true
+chief.config-set MULTILINE_PROMPT true
 
 # Show full paths in prompt
-chief.config_set SHORT_PATH false
+chief.config-set SHORT_PATH false
 ```
 
 ### Learn More
@@ -288,10 +314,10 @@ Chief supports tracking any valid Git branch for updates:
 
 ```bash
 # Track stable releases (default)
-chief.config_set update_branch main
+chief.config-set update_branch main
 
 # Track development features (⚠ use with caution)  
-chief.config_set update_branch dev
+chief.config-set update_branch dev
 
 # Update to your configured branch
 chief.update
@@ -367,4 +393,4 @@ git config --global user.email "your@email.com"
 
 ---
 
-[← Back to Home](https://chief.reonetlabs.us/)
+[← Back to Home](https://chief.randyo.dev/)

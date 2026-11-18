@@ -4,7 +4,7 @@ title: Configuration
 description: "Advanced configuration, multi-system setup, and team collaboration"
 ---
 
-[← Back to Home](https://chief.reonetlabs.us/)
+[← Back to Home](https://chief.randyo.dev/)
 
 # Configuration
 
@@ -21,9 +21,9 @@ Advanced configuration options, multi-system setup, and team collaboration workf
 
 ## Configuration Management
 
-Chief is highly customizable. Use `chief.config` to edit the config file or `chief.config_set <option> <value>` for direct command-line configuration.
+Chief is highly customizable. Use `chief.config` to edit the config file or `chief.config-set <option> <value>` for direct command-line configuration.
 
-**Interactive Behavior:** By default, `chief.config_set` prompts for confirmation before modifying your configuration file. Use `--yes` (or `-y`) to skip prompts for scripting.
+**Interactive Behavior:** By default, `chief.config-set` prompts for confirmation before modifying your configuration file. Use `--yes` (or `-y`) to skip prompts for scripting.
 
 ### Basic Configuration Commands
 
@@ -32,20 +32,20 @@ Chief is highly customizable. Use `chief.config` to edit the config file or `chi
 chief.config
 
 # Set configuration variables directly (use option name without CHIEF_CFG_ prefix)
-chief.config_set banner false         # Sets CHIEF_CFG_BANNER=false (prompts for confirmation)
-chief.config_set banner=false         # Same as above using key=value syntax
-chief.config_set --yes prompt true    # Sets CHIEF_CFG_PROMPT=true (no prompt)  
-chief.config_set colored_ls=true      # Sets CHIEF_CFG_COLORED_LS=true (prompts for confirmation)
+chief.config-set banner false         # Sets CHIEF_CFG_BANNER=false (prompts for confirmation)
+chief.config-set banner=false         # Same as above using key=value syntax
+chief.config-set --yes prompt true    # Sets CHIEF_CFG_PROMPT=true (no prompt)  
+chief.config-set colored_ls=true      # Sets CHIEF_CFG_COLORED_LS=true (prompts for confirmation)
 
 # List all configuration variables and current values  
-chief.config_set --list
+chief.config-set --list
 
 # Update configuration with new template options (perfect for upgrades)
 chief.config_update                   # Add missing options, handle renames, preserve customizations
 chief.config_update --dry-run         # Preview changes without applying them
 
 # Disable interactive prompts globally
-chief.config_set config_set_interactive false
+chief.config-set config_set_interactive false
 ```
 
 ---
@@ -57,6 +57,8 @@ chief.config_set config_set_interactive false
 | Configuration | Default | Description |
 |---------------|---------|-------------|
 | `CHIEF_CFG_BANNER` | `true` | Show startup banner |
+| `CHIEF_CFG_BANNER_SHOW_PLUGINS` | `true` | Show the `plugins:` line in the banner (requires `CHIEF_CFG_BANNER=true`) |
+| `CHIEF_CFG_BANNER_SHOW_TRACKING` | `true` | Show the `tracking:` line in the banner (requires `CHIEF_CFG_BANNER=true`) |
 | `CHIEF_CFG_HINTS` | `true` | Display helpful tips on startup |
 | `CHIEF_CFG_PROMPT` | `false` | Use Chief's custom prompt (keep disabled if using Oh My Bash/Starship) |
 | `CHIEF_CFG_COLORED_PROMPT` | `true` | Colorize the prompt |
@@ -64,10 +66,11 @@ chief.config_set config_set_interactive false
 | `CHIEF_CFG_MULTILINE_PROMPT` | `false` | Enable multiline prompt display |
 | `CHIEF_CFG_SHORT_PATH` | `false` | Show only current directory name in prompt |
 | `CHIEF_CFG_COLORED_LS` | `false` | Colorize ls command output |
-| `CHIEF_CFG_CONFIG_SET_INTERACTIVE` | `true` | Prompt for confirmation in `chief.config_set` |
+| `CHIEF_CFG_CONFIG_SET_INTERACTIVE` | `true` | Prompt for confirmation in `chief.config-set` |
 | `CHIEF_CFG_CONFIG_UPDATE_BACKUP` | `true` | Create backups during config updates (only when changes made) |
 | `CHIEF_CFG_PLUGINS_TYPE` | `"local"` | Use `"local"` or `"remote"` plugins |
-| `CHIEF_CFG_SSH_KEYS_PATH` | _unset_ | Auto-load SSH keys from path |
+| `CHIEF_CFG_SSH_LOAD_KEYS` | `false` | Load SSH keys into ssh-agent at start-up and on `chief.reload` |
+| `CHIEF_CFG_SSH_KEYS_PATH` | _unset_ (`~/.ssh`) | Optional: a different directory to load keys from |
 | `CHIEF_CFG_ALIAS` | _unset_ | Create short alias (e.g., `"cf"`) |
 | `CHIEF_CFG_AUTOCHECK_UPDATES` | `false` | Check for updates on startup |
 | `CHIEF_CFG_UPDATE_BRANCH` | `"main"` | Branch to track for updates: any valid Git branch (⚠ non-main may be unstable) |
@@ -79,6 +82,8 @@ These are environment variables (not configuration settings) that affect Chief's
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `CHIEF_HOST` | _unset_ | Override hostname display in prompt. Useful for marking systems without changing hostname. |
+| `NO_COLOR` | _unset_ | When set, disables all ANSI colors in Chief output (core, plugins, install/uninstall scripts). |
+| `CHIEF_FORCE_COLOR` | _unset_ | When set, forces ANSI colors even when stdout is not a TTY (e.g. piped output or CI logs). By default colors are emitted only on a capable TTY. |
 
 **Example:**
 
@@ -99,6 +104,63 @@ CHIEF_HOST="dev-box" bash
 | `CHIEF_CFG_PLUGINS_PATH` | Local plugin directory (also remote repo clone location) |
 | `CHIEF_CFG_PLUGINS_GIT_PATH` | [Remote only] Relative path within repo containing plugins (empty = repo root) |
 | `CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE` | Auto-update plugins on startup (with local changes protection) |
+| `CHIEF_CFG_PLUGINS_DISABLED_CORE` | Comma- or space-separated list of **core** plugin names to skip loading. New installs: `"aws openshift vault"` (they need extra tools or accounts). Empty = all core plugins enabled. |
+| `CHIEF_CFG_PLUGINS_DISABLED_USER` | Comma- or space-separated list of **user** plugin names to skip loading (e.g. `bc,lab` or `bc lab`). Empty = all user plugins enabled. |
+| `CHIEF_CFG_PLUGINS_ENABLED_CONTRIB` | Comma- or space-separated list of **contrib** plugins to load (e.g. `cg`). Contrib plugins are off unless listed here. Managed by `chief.plugin enable\|disable contrib.<name>`. |
+| `CHIEF_CFG_CG_HELPER_FUNCTIONS` | [`cg` contrib plugin] Path to `.helper_functions.sh` in your local clone of the customer-success repo. No default; set it with `chief.config-set cg_helper_functions "<path>"`. |
+
+### Enabling and disabling plugins
+
+You can disable specific **core** (built-in) or **user** plugins so they are not loaded at startup. Disabled plugins are skipped on load; you can re-enable them anytime.
+
+**From the command line (updates config and reloads Chief):**
+
+```bash
+chief.plugin disable ssl          # Disable user plugin "ssl" (if you have one)
+chief.plugin disable core.ssl     # Disable core plugin "ssl"
+chief.plugin enable core.ssl      # Re-enable core plugin "ssl"
+chief.plugin status               # Show which plugins are enabled/disabled
+```
+
+**In configuration:** set `CHIEF_CFG_PLUGINS_DISABLED_CORE` and/or `CHIEF_CFG_PLUGINS_DISABLED_USER` in your config file. Both accept comma- or space-separated names. Core plugin names are the built-in ones (e.g. `aws`, `git`, `ssl`); user plugin names are the prefixes of your `*_chief-plugin.sh` files (e.g. `bc`, `lab`).
+
+```bash
+# In chief.config or via chief.config-set:
+CHIEF_CFG_PLUGINS_DISABLED_CORE="aws,ssl"    # Skip core aws and ssl
+CHIEF_CFG_PLUGINS_DISABLED_USER="lab"       # Skip user plugin "lab"
+```
+
+### Core plugins that are off by default
+
+`aws`, `openshift` and `vault` need tools or accounts most users don't have, so new installs list them in `CHIEF_CFG_PLUGINS_DISABLED_CORE`. They follow the same rule as every other core plugin: loaded unless they're in the disabled list.
+
+```bash
+chief.plugin enable core.openshift   # Removes it from CHIEF_CFG_PLUGINS_DISABLED_CORE
+chief.plugin disable core.openshift  # Adds it back
+chief.plugin status                  # Shows what's on and off
+```
+
+| Plugin | Needs |
+|--------|-------|
+| `aws` | AWS credentials, `python3` |
+| `openshift` | `oc` and a cluster login, `jq` |
+| `vault` | HashiCorp `vault` CLI and a Vault server |
+
+**Upgrading:** existing configs already have their own `CHIEF_CFG_PLUGINS_DISABLED_CORE` line, so whatever was loading keeps loading. Only new installs start with these three off.
+
+### Contrib plugins
+
+Chief also ships optional plugins for specific teams or workflows in `libs/contrib/plugins/`. Chief scans that directory on every load, but **every contrib plugin is off by default**, so it has no effect until you turn it on:
+
+```bash
+chief.plugin enable contrib.cg    # Turn on (adds it to CHIEF_CFG_PLUGINS_ENABLED_CONTRIB)
+chief.plugin disable contrib.cg   # Turn off again
+chief.plugin status               # Contrib plugins are listed in their own section
+```
+
+| Plugin | What it does |
+|--------|--------------|
+| `cg` | Exposes the Chainguard customer-success helper functions as `cg.*` commands (each with `-?`/`--help`; list them with `cg.help`). Chief ships only the wrapper: it sources your local copy of the helper functions from `CHIEF_CFG_CG_HELPER_FUNCTIONS`. No location is assumed; set it once with `chief.config-set cg_helper_functions "/path/to/customer-success/scripts/.helper_functions.sh"`. |
 
 ---
 
@@ -107,10 +169,13 @@ CHIEF_HOST="dev-box" bash
 ### SSH Key Auto-loading
 
 ```bash
-# In chief.config, set:
-CHIEF_CFG_SSH_KEYS_PATH="$HOME/.ssh"
+# Turn on auto-loading (keys come from ~/.ssh):
+chief.config-set ssh_load_keys true
 
-# Chief automatically loads all *.key files
+# Optional: load from a different directory instead of ~/.ssh
+chief.config-set ssh_keys_path "$HOME/keys"
+
+# Chief loads all *.key files (and legacy *.private)
 # Supports RSA, ed25519, and other key types
 # Use symlinks for selective loading (e.g., ln -s id_rsa mykey.key)
 ```
@@ -154,9 +219,9 @@ Chief is primarily designed as a **single-user system** that follows you across 
 
 ```bash
 # Your personal setup works the same everywhere:
-# Laptop:     chief.vault_file-load → access your secrets
-# Server:     chief.vault_file-load → same secrets, same functions  
-# CI/CD:      chief.vault_file-load → consistent automation
+# Laptop:     chief.secrets_file-load → access your secrets
+# Server:     chief.secrets_file-load → same secrets, same functions  
+# CI/CD:      chief.secrets_file-load → consistent automation
 ```
 
 ### Portable Setup Configuration
@@ -170,35 +235,35 @@ Chief is primarily designed as a **single-user system** that follows you across 
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
 
 # 2. Configure your plugin repository (replace with your repo)
-chief.config_set -y PLUGINS_GIT_REPO="git@github.com:yourusername/my-plugins.git"
-chief.config_set -y PLUGINS_PATH="${HOME}/chief_plugins"
-chief.config_set -y PLUGINS_GIT_BRANCH="main"
-chief.config_set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root, this is plugins path relative to PLUGINS_PATH
-chief.config_set -y PLUGINS_GIT_AUTOUPDATE="false"    # manual updates
-chief.config_set -y PLUGINS_TYPE="remote"             # Enable remote sync
+chief.config-set -y PLUGINS_GIT_REPO="git@github.com:yourusername/my-plugins.git"
+chief.config-set -y PLUGINS_PATH="${HOME}/chief_plugins"
+chief.config-set -y PLUGINS_GIT_BRANCH="main"
+chief.config-set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root, this is plugins path relative to PLUGINS_PATH
+chief.config-set -y PLUGINS_GIT_AUTOUPDATE="false"    # manual updates
+chief.config-set -y PLUGINS_TYPE="remote"             # Enable remote sync
 
 # 3. (Optional) Enable multi-line prompt, useful when current working dir is deep.
-chief.config_set -y MULTILINE_PROMPT=true 
+chief.config-set -y MULTILINE_PROMPT=true 
 
 # 4. (Optional) Load your encrypted secrets (if exists)
-chief.vault_file-load  # Team vault (.chief_shared-vault - if exists)
-chief.vault_file-load ~/.my-personal-vault     # Personal vault
+chief.secrets_file-load  # Team secrets (.chief_shared-secrets - if exists)
+chief.secrets_file-load ~/.my-personal-secrets     # Personal secrets
 ```
 
-For detailed vault setup and management, see: [Vault Configuration](configuration.html#vault-configuration)
+For detailed secrets and vault setup, see: [Secrets and Vault Configuration](configuration.html#secrets-and-vault-configuration)
 
 #### Result
 
 - ✓ **Same plugins everywhere**: Functions, aliases, and tools sync across laptop, server, CI/CD
-- ✓ **Encrypted secrets**: Vault files travel with your setup (team + personal)
+- ✓ **Encrypted secrets**: Secrets files travel with your setup (team + personal)
 - ✓ **Zero reconfiguration**: New systems work identically after this setup
 - ✓ **Version controlled**: Track changes to your shell environment
 
 #### Daily Workflow
 
 ```bash
-chief.plugins_update           # Get latest team plugins
-chief.vault_file-load          # Load secrets when needed
+chief.plugins-update           # Get latest team plugins
+chief.secrets_file-load          # Load secrets when needed
 chief.plugin mytools           # Edit/create plugins
 chief.whereis my_function      # Find any function instantly
 ```
@@ -212,6 +277,20 @@ The remote plugins feature enables powerful **team collaboration**:
 Chief is designed with teams in mind. Share your bash functions, aliases, and tools across your entire team for consistent development environments.
 
 > **Key Concept**: Chief automatically loads any file ending with `_chief-plugin.sh` from your configured plugin directory. The prefix before `_chief-plugin.sh` becomes the **plugin name** (e.g., `devops_chief-plugin.sh` → plugin name "devops"). This makes it perfect for both existing repositories and new team setups, with easy plugin management via `chief.plugin <name>`.
+
+#### Symlink mode: `chief.plugin <name> <existing-file>`
+
+You can point a plugin at an existing script instead of duplicating it:
+
+```bash
+chief.plugin mytools /path/to/your/shared_script.sh
+```
+
+Chief creates `mytools_chief-plugin.sh` in the plugins directory as a symlink to that file.
+
+For **remote or shared repositories**, symlink targets must not be machine-specific. When the existing file lives under the **same directory tree** as the plugin symlink (both paths inside the same clone), Chief creates a **relative** symlink so `git clone` on another laptop or server still resolves the link. If the file is outside that tree (for example only under your home directory), Chief falls back to an **absolute** path and warns you—those links break for teammates unless they share the same layout. Prefer keeping linked scripts inside the repo, or add a real `*_chief-plugin.sh` file in the repo.
+
+Use `chief.plugin -?` for full help, including enable/disable and editor options.
 
 ### Two Setup Scenarios
 
@@ -304,14 +383,14 @@ Each team member points Chief to your existing repository:
 
 ```bash
 # Configure Chief to use your existing team repo
-chief.config_set plugins_git_repo "git@github.com:yourteam/existing-repo.git"
-chief.config_set plugins_git_branch "main"
-chief.config_set plugins_path "$HOME/team-repo"
-chief.config_set plugins_git_path "tools/bash-plugins"  # Relative path to plugin files
-chief.config_set plugins_git_autoupdate true
+chief.config-set plugins_git_repo "git@github.com:yourteam/existing-repo.git"
+chief.config-set plugins_git_branch "main"
+chief.config-set plugins_path "$HOME/team-repo"
+chief.config-set plugins_git_path "tools/bash-plugins"  # Relative path to plugin files
+chief.config-set plugins_git_autoupdate true
 
 # Set to remote LAST - Chief will offer to update plugins when git config is ready
-chief.config_set plugins_type remote
+chief.config-set plugins_type remote
 
 # Restart terminal or reload Chief
 chief.reload
@@ -383,13 +462,13 @@ function devops.logs() {
 }
 EOF
 
-# Add team secrets (encrypted vault)
-chief.vault_file-edit .chief_shared-vault
+# Add team secrets (encrypted)
+chief.secrets_file-edit .chief_shared-secrets
 # Add shared environment variables, API keys, etc.
 
 # Commit and push
 git add .
-git commit -m "Initial team plugins and vault"
+git commit -m "Initial team plugins and secrets"
 git push -u origin main
 ```
 
@@ -397,10 +476,10 @@ git push -u origin main
 
 ```bash
 # Configure Chief for team repository
-chief.config_set plugins_git_repo "git@github.com:yourteam/team-bash-plugins.git"
-chief.config_set plugins_path "$HOME/team_plugins"
-chief.config_set plugins_git_autoupdate true
-chief.config_set plugins_type remote
+chief.config-set plugins_git_repo "git@github.com:yourteam/team-bash-plugins.git"
+chief.config-set plugins_path "$HOME/team_plugins"
+chief.config-set plugins_git_autoupdate true
+chief.config-set plugins_type remote
 
 # Team functions and vault are now available
 devops.deploy production
@@ -408,28 +487,48 @@ devops.deploy production
 
 ---
 
-## Vault Configuration
+## Secrets and Vault Configuration
 
-### Creating and Managing Vaults
+Chief provides two separate mechanisms:
+
+- **Secrets plugin** – Encrypted Bash secrets file (env vars, functions) that you edit and load into your shell. Backends: Ansible Vault or GPG.
+- **Vault plugin** – HashiCorp Vault KV: read, write, and list secrets via the Vault CLI. Requires `vault`, `VAULT_ADDR`, and `VAULT_TOKEN` (or `VAULT_TOKEN_FILE`).
+
+### Secrets plugin: creating and loading encrypted files
 
 ```bash
-# Create team vault (encrypted)
-chief.vault_file-edit .chief_shared-vault
+# Create team secrets file (encrypted; backend: gpg or ansible)
+chief.secrets_file-edit .chief_shared-secrets
 
-# Create personal vault
-chief.vault_file-edit ~/.my-personal-vault
+# Create personal secrets file
+chief.secrets_file-edit ~/.my-personal-secrets
 
-# Load vaults
-chief.vault_file-load .chief_shared-vault
-chief.vault_file-load ~/.my-personal-vault
+# Load secrets into shell (decrypt and source)
+chief.secrets_file-load .chief_shared-secrets
+chief.secrets_file-load ~/.my-personal-secrets
 ```
 
-### Team Vault Best Practices
+- **Backends**: Ansible Vault (`ansible-vault`) or GPG (symmetric AES256). Use `--backend=gpg` or `--backend=ansible` when creating; backend is auto-detected when editing or loading.
+- **Password (optional)**: To avoid prompts, set a password file. Ansible: `ANSIBLE_VAULT_PASSWORD_FILE`. GPG: `CHIEF_SECRETS_PASSWORD_FILE`. Otherwise you are prompted.
+- **Team secrets**: `CHIEF_CFG_PLUGINS_PATH/.chief_shared-secrets` (shared). Legacy name `.chief_shared-vault` is deprecated.
+- **Personal secrets**: `~/.chief_user-secrets` (or legacy `~/.chief_user-vault`).
 
-- **Team vault**: `CHIEF_CFG_PLUGINS_PATH/.chief_shared-vault` (shared secrets)
-- **Personal vault**: `~/.my-personal-vault` (personal secrets)
-- **Auto-loading**: Team vault loads automatically when in plugins directory
-- **Security**: All vault files are encrypted with ansible-vault
+### Vault plugin: HashiCorp Vault KV
+
+```bash
+# Read a secret (or one key)
+chief.vault_read-secret secret/data/myapp
+chief.vault_read-secret secret/data/myapp password
+
+# Write a secret
+chief.vault_write-secret secret/data/myapp api_key=xxx user=admin
+
+# List keys in a secret or paths in a folder
+chief.vault_list-secrets secret/myapp
+chief.vault_list-secrets secret/
+```
+
+- **Requirements**: `vault` CLI, `VAULT_ADDR`, `VAULT_TOKEN` (or `VAULT_TOKEN_FILE`). Use `chief.vault_read-secret -?`, `chief.vault_write-secret -?`, `chief.vault_list-secrets -?` for full help.
 
 ---
 
@@ -439,33 +538,33 @@ chief.vault_file-load ~/.my-personal-vault
 
 ```bash
 # Enable all productivity features
-chief.config_set prompt true
-chief.config_set git_prompt true
-chief.config_set multiline_prompt true
-chief.config_set colored_ls true
-chief.config_set ssh_keys_path "$HOME/.ssh"
-chief.config_set alias "cf"
+chief.config-set prompt true
+chief.config-set git_prompt true
+chief.config-set multiline_prompt true
+chief.config-set colored_ls true
+chief.config-set ssh_keys_path "$HOME/.ssh"
+chief.config-set alias "cf"
 ```
 
 ### Server/CI Environment
 
 ```bash
 # Minimal configuration for automation
-chief.config_set banner false
-chief.config_set hints false
-chief.config_set prompt false
-chief.config_set config_set_interactive false
-chief.config_set plugins_git_autoupdate true
+chief.config-set banner false
+chief.config-set hints false
+chief.config-set prompt false
+chief.config-set config_set_interactive false
+chief.config-set plugins_git_autoupdate true
 ```
 
 ### Team Lead Setup
 
 ```bash
 # Full team collaboration features
-chief.config_set plugins_type "remote"
-chief.config_set plugins_git_repo "git@github.com:yourteam/plugins.git"
-chief.config_set plugins_git_autoupdate true
-chief.config_set autocheck_updates true
+chief.config-set plugins_type "remote"
+chief.config-set plugins_git_repo "git@github.com:yourteam/plugins.git"
+chief.config-set plugins_git_autoupdate true
+chief.config-set autocheck_updates true
 ```
 
 ---
@@ -496,7 +595,7 @@ cd "$CHIEF_CFG_PLUGINS_PATH"
 git status
 
 # Force update plugins
-chief.plugins_update --force
+chief.plugins-update --force
 
 # Reset plugin repository
 rm -rf "$CHIEF_CFG_PLUGINS_PATH"
@@ -513,4 +612,4 @@ chief.reload  # Will re-clone repository
 
 ---
 
-[← Back to Home](https://chief.reonetlabs.us/)
+[← Back to Home](https://chief.randyo.dev/)

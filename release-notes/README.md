@@ -21,9 +21,9 @@ Each version has its own release notes file:
 
 ## Workflow
 
-1. **Starting Development**: `__chief.bump next-dev` creates new `vX.Y.Z-dev.md`
+1. **Releasing (maintainers)**: `chief.release_publish --next vX.Y.Z` turns `vX.Y.Z-dev.md` into the final `vX.Y.Z.md`, publishes the GitHub release from it, and creates the next `vA.B.C-dev.md`. Check progress any time with `chief.release_status`. These dev-only commands need `chief.config-set dev_tools true` and Chief on the `dev` branch.
 2. **During Development**: Update the development version's release notes
-3. **Releasing**: `__chief.bump release` can reference the final notes
+3. **Optional staging**: `chief.release_prepare` does the release bump on dev without publishing, for review first
 4. **Post-Release**: Development notes become historical record
 
 ## Usage

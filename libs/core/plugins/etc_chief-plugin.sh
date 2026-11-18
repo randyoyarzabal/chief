@@ -986,7 +986,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 }
 
-function chief.etc_shared-term_create() {
+function chief.etc_shared-term-create() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <session_name> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1025,7 +1025,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME meeting-room     # Create meeting session
 
 ${CHIEF_COLOR_BLUE}Related Commands:${CHIEF_NO_COLOR}
-  chief.etc_shared-term_connect <session_name>  # Connect to existing session
+  chief.etc_shared-term-connect <session_name>  # Connect to existing session
   tmux list-sessions                            # List all sessions
   tmux kill-session -t <name>                   # Kill a session
 "
@@ -1098,13 +1098,13 @@ ${CHIEF_COLOR_BLUE}Related Commands:${CHIEF_NO_COLOR}
   if [[ "$detached" == true ]]; then
     tmux new-session -d -s "$session_name"
     echo -e "${CHIEF_COLOR_GREEN}Session created in detached mode${CHIEF_NO_COLOR}"
-    echo -e "${CHIEF_COLOR_BLUE}Connect with:${CHIEF_NO_COLOR} chief.etc_shared-term_connect $session_name"
+    echo -e "${CHIEF_COLOR_BLUE}Connect with:${CHIEF_NO_COLOR} chief.etc_shared-term-connect $session_name"
   else
     tmux new-session -s "$session_name"
   fi
 }
 
-function chief.etc_shared-term_connect() {
+function chief.etc_shared-term-connect() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <session_name> [options]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1128,7 +1128,7 @@ ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_MAGENTA}Requirements:${CHIEF_NO_COLOR}
 - tmux installed (modern terminal multiplexer)
-- Session must already exist (created with chief.etc_shared-term_create)
+- Session must already exist (created with chief.etc_shared-term-create)
 - Appropriate permissions to access session
 
 ${CHIEF_COLOR_BLUE}tmux Session Management:${CHIEF_NO_COLOR}
@@ -1144,7 +1144,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME -r prod-deploy   # Connect read-only to production deployment
 
 ${CHIEF_COLOR_BLUE}Related Commands:${CHIEF_NO_COLOR}
-  chief.etc_shared-term_create <session_name>  # Create new shared session
+  chief.etc_shared-term-create <session_name>  # Create new shared session
   tmux list-sessions                           # List all sessions
   tmux kill-session -t <name>                  # Kill a session
 "
@@ -1204,7 +1204,7 @@ ${CHIEF_COLOR_BLUE}Related Commands:${CHIEF_NO_COLOR}
       echo -e "${CHIEF_COLOR_YELLOW}Use:${CHIEF_NO_COLOR} $FUNCNAME <session_name> to connect"
     else
       echo -e "${CHIEF_COLOR_YELLOW}No active sessions found${CHIEF_NO_COLOR}"
-      echo -e "${CHIEF_COLOR_BLUE}Create one with:${CHIEF_NO_COLOR} chief.etc_shared-term_create <session_name>"
+      echo -e "${CHIEF_COLOR_BLUE}Create one with:${CHIEF_NO_COLOR} chief.etc_shared-term-create <session_name>"
     fi
     return 0
   fi
@@ -1220,7 +1220,7 @@ ${CHIEF_COLOR_BLUE}Related Commands:${CHIEF_NO_COLOR}
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Session '$session_name' not found"
     echo -e "${CHIEF_COLOR_BLUE}Available sessions:${CHIEF_NO_COLOR}"
     tmux list-sessions 2>/dev/null || echo -e "${CHIEF_COLOR_YELLOW}No active sessions${CHIEF_NO_COLOR}"
-    echo -e "${CHIEF_COLOR_BLUE}Create session with:${CHIEF_NO_COLOR} chief.etc_shared-term_create $session_name"
+    echo -e "${CHIEF_COLOR_BLUE}Create session with:${CHIEF_NO_COLOR} chief.etc_shared-term-create $session_name"
     return 1
   fi
 

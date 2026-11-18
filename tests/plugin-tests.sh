@@ -5,7 +5,7 @@
 # 
 # This script tests plugin-specific functionality and behavior.
 # 
-# SCOPE: Only tests CORE plugins (libs/core/plugins/*_chief-plugin.sh)
+# SCOPE: Tests plugins shipped with Chief: core (libs/core/plugins) and contrib (libs/contrib/plugins)
 # USER PLUGINS: Intentionally excluded from testing - users manage their own
 ########################################################################
 
@@ -326,12 +326,12 @@ main() {
     # Create temp directory
     mkdir -p "$TEMP_DIR"
     
-    # Find all CORE plugin files (user plugins are intentionally excluded)
-    log_info "Discovering core plugin files..."
+    # Find all shipped plugin files: core and contrib (users' own plugins are intentionally excluded)
+    log_info "Discovering core and contrib plugin files..."
     local plugin_files=()
     while IFS= read -r -d '' file; do
         plugin_files+=("$file")
-    done < <(find "$PROJECT_ROOT/libs/core/plugins" -name "*_chief-plugin.sh" -type f -print0 2>/dev/null || true)
+    done < <(find "$PROJECT_ROOT/libs/core/plugins" "$PROJECT_ROOT/libs/contrib/plugins" -name "*_chief-plugin.sh" -type f -print0 2>/dev/null || true)
     
     if [[ ${#plugin_files[@]} -eq 0 ]]; then
         log_warning "No core plugin files found to test"

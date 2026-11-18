@@ -17,7 +17,7 @@
 
 # Chief Plugin File: git_chief-plugin.sh
 # Author: Randy E. Oyarzabal
-# Functions and aliases that are development to Git.
+# Functions and aliases for Git (e.g. chief.git_init, chief.git_clone, chief.git_commit).
 
 # Block interactive execution
 if [[ $0 == "${BASH_SOURCE[0]}" ]]; then
@@ -26,6 +26,62 @@ if [[ $0 == "${BASH_SOURCE[0]}" ]]; then
 fi
 
 alias chief.git_url='git config --get remote.origin.url'
+
+function chief.git_init() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <repo_url>
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Initially commit the current directory to a repository. Initializes a new Git repo,
+adds the remote, creates an initial commit on main, and pushes (with rebase to sync
+with existing remote content if present).
+
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  repo_url     Git repository URL to use as origin (e.g. https://... or git@...)
+
+${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
+1. git init (initialize repository)
+2. git remote add origin <repo_url> (add remote origin)
+3. git add . (stage all files)
+4. git commit -m \"Initial commit\" (create initial commit)
+5. git branch -M main (rename branch to main)
+6. git pull origin main --rebase (pull and rebase on origin main)
+7. git push -u origin main (push and set upstream)
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME https://github.com/user/repo.git
+  $FUNCNAME git@github.com:user/repo.git
+"
+
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
+    echo -e "${USAGE}"
+    return
+  fi
+
+  if [[ -z "$1" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Repository URL is required"
+    echo -e "${USAGE}"
+    return 1
+  fi
+
+  if [[ -d .git ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Current directory is already a Git repository"
+    return 1
+  fi
+
+  local repo_url="$1"
+  echo -e "${CHIEF_COLOR_BLUE}Initializing repository and linking to origin...${CHIEF_NO_COLOR}"
+  git init
+  git remote add origin "$repo_url"
+  echo -e "${CHIEF_COLOR_BLUE}Staging all files...${CHIEF_NO_COLOR}"
+  git add .
+  echo -e "${CHIEF_COLOR_BLUE}Creating initial commit...${CHIEF_NO_COLOR}"
+  git commit -m "Initial commit"
+  git branch -M main
+  echo -e "${CHIEF_COLOR_BLUE}Pulling origin main (rebase) and pushing...${CHIEF_NO_COLOR}"
+  git pull origin main --rebase 2>/dev/null || true
+  git push -u origin main
+  echo -e "${CHIEF_COLOR_GREEN}Repository initialized and pushed to origin${CHIEF_NO_COLOR}"
+}
 
 function chief.git_clone() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <repo_url>
@@ -36,10 +92,9 @@ Clone a Git repository with automatic submodule initialization and updates.
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   repo_url     Git repository URL to clone
 
-${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
-- Automatically clones with --recurse-submodules
-- Updates submodules to latest remote commits
-- Single command replaces multiple git operations
+${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
+1. git clone --recurse-submodules --remote-submodules <repo_url> (clone repository with submodules)
+2. (part of clone) Initialize and update submodules from remote
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME https://github.com/user/repo.git
@@ -71,11 +126,11 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -p           Pull-only mode (skip push and tag operations)
   -?, --help      Show this help
 
-${CHIEF_COLOR_GREEN}Default Operations:${CHIEF_NO_COLOR}
-1. Fetch latest changes from remote
-2. Pull changes into current branch
-3. Push local commits to remote
-4. Fetch and update tags
+${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
+1. git config --get remote.origin.url (show current remote URL)
+2. git pull (pull changes into current branch)
+3. (Unless -p) git push (push local commits to remote)
+4. (Unless -p) git fetch origin --tags --force; git pull --prune --tags (fetch and update tags)
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME        # Full update (pull + push + tags)
@@ -96,51 +151,251 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 }
 
+# Internal: format a byte count as a human-readable string.
+function __chief_git_human_size() {
+  awk -v s="$1" 'BEGIN{
+    if (s >= 1073741824)      printf "%.2f GB", s/1073741824
+    else if (s >= 1048576)    printf "%.2f MB", s/1048576
+    else if (s >= 1024)       printf "%.2f KB", s/1024
+    else                      printf "%d B",   s
+  }'
+}
+
+# Internal: return on-disk size (in bytes) of a file, portably between macOS and Linux.
+function __chief_git_file_size() {
+  local file="$1"
+  if [[ "$OSTYPE" == "darwin"* || "$OSTYPE" == "freebsd"* ]]; then
+    stat -f%z -- "$file" 2>/dev/null
+  else
+    stat -c%s -- "$file" 2>/dev/null
+  fi
+}
+
+# Internal: scan staged files for sizes exceeding the warning threshold and prompt
+# the user to either commit anyway, unstage + add to .gitignore, or abort.
+# Returns 0 to continue with the commit, non-zero to abort.
+function __chief_git_check_large_files() {
+  local threshold_mb="${CHIEF_CFG_GIT_COMMIT_WARN_MB:-50}"
+  # Guard against bad config values.
+  if ! [[ "$threshold_mb" =~ ^[0-9]+$ ]] || (( threshold_mb <= 0 )); then
+    threshold_mb=50
+  fi
+  local threshold_bytes=$(( threshold_mb * 1024 * 1024 ))
+
+  # Only inspect newly added or modified staged files (ignore deletions/renames).
+  local staged
+  staged=$(git diff --cached --name-only --diff-filter=AM 2>/dev/null)
+  [[ -z "$staged" ]] && return 0
+
+  local large_paths=() large_sizes=()
+  local file size
+  while IFS= read -r file; do
+    [[ -z "$file" ]] && continue
+    [[ ! -f "$file" ]] && continue
+    size=$(__chief_git_file_size "$file")
+    [[ -z "$size" ]] && continue
+    if (( size > threshold_bytes )); then
+      large_paths+=("$file")
+      large_sizes+=("$size")
+    fi
+  done <<< "$staged"
+
+  (( ${#large_paths[@]} == 0 )) && return 0
+
+  local i human
+  echo
+  echo -e "${CHIEF_COLOR_YELLOW}⚠  Warning:${CHIEF_NO_COLOR} ${CHIEF_COLOR_RED}${#large_paths[@]} large file(s) staged${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(> ${threshold_mb} MB):${CHIEF_NO_COLOR}"
+  for (( i=0; i<${#large_paths[@]}; i++ )); do
+    human=$(__chief_git_human_size "${large_sizes[$i]}")
+    echo -e "  ${CHIEF_COLOR_RED}●${CHIEF_NO_COLOR} ${large_paths[$i]} ${CHIEF_COLOR_YELLOW}(${human})${CHIEF_NO_COLOR}"
+  done
+  echo
+  echo -e "${CHIEF_COLOR_MAGENTA}Note:${CHIEF_NO_COLOR} GitHub recommends files < 50 MB; pushes over 100 MB are rejected."
+  echo
+
+  # In non-interactive shells we cannot prompt — fail safe and abort.
+  if [[ ! -t 0 ]]; then
+    echo -e "${CHIEF_COLOR_RED}Non-interactive shell detected; aborting commit.${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_BLUE}Tip:${CHIEF_NO_COLOR} Re-run with ${CHIEF_COLOR_CYAN}-f${CHIEF_NO_COLOR} to skip this check, or with ${CHIEF_COLOR_CYAN}CHIEF_CFG_GIT_COMMIT_WARN_MB=0${CHIEF_NO_COLOR} to disable."
+    return 1
+  fi
+
+  echo -e "${CHIEF_COLOR_CYAN}Options:${CHIEF_NO_COLOR}"
+  echo -e "  [${CHIEF_COLOR_GREEN}c${CHIEF_NO_COLOR}] Commit these files anyway"
+  echo -e "  [${CHIEF_COLOR_YELLOW}i${CHIEF_NO_COLOR}] Unstage and add to .gitignore, then continue"
+  echo -e "  [${CHIEF_COLOR_RED}a${CHIEF_NO_COLOR}] Abort commit"
+
+  local choice
+  while true; do
+    read -rp "$(echo -e "${CHIEF_COLOR_CYAN}Choice [c/i/a]:${CHIEF_NO_COLOR} ")" choice
+    case "$(echo "${choice}" | tr '[:upper:]' '[:lower:]')" in
+      c|commit)
+        echo -e "${CHIEF_COLOR_YELLOW}Proceeding with large file(s) in commit.${CHIEF_NO_COLOR}"
+        return 0
+        ;;
+      i|ignore)
+        __chief_git_ignore_large_files "${large_paths[@]}" || return 1
+        return 0
+        ;;
+      a|abort|"")
+        echo -e "${CHIEF_COLOR_RED}Commit aborted.${CHIEF_NO_COLOR}"
+        return 1
+        ;;
+      *)
+        echo -e "${CHIEF_COLOR_RED}Invalid choice:${CHIEF_NO_COLOR} '$choice' — enter c, i, or a."
+        ;;
+    esac
+  done
+}
+
+# Internal: unstage the given files and append them to .gitignore. If a file was
+# previously tracked (present in HEAD), `git rm --cached` removes it from the
+# index so the ignore takes effect on future commits.
+function __chief_git_ignore_large_files() {
+  local gitignore=".gitignore"
+  [[ ! -f "$gitignore" ]] && : > "$gitignore"
+  # Ensure the file ends with a newline before appending.
+  if [[ -s "$gitignore" ]]; then
+    local last_byte
+    last_byte=$(tail -c 1 "$gitignore" 2>/dev/null)
+    [[ "$last_byte" != $'\n' ]] && printf '\n' >> "$gitignore"
+  fi
+  printf '# Added by chief.git_commit on %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" >> "$gitignore"
+
+  local file
+  for file in "$@"; do
+    # Check whether the file already exists in HEAD (i.e. was previously
+    # committed). If so, we must use 'git rm --cached' to stop tracking it;
+    # otherwise a simple unstage is enough.
+    if git cat-file -e "HEAD:$file" 2>/dev/null; then
+      echo -e "${CHIEF_COLOR_YELLOW}Untracking previously tracked file:${CHIEF_NO_COLOR} $file"
+      git rm --cached --quiet -- "$file" &>/dev/null || {
+        echo -e "${CHIEF_COLOR_RED}Failed to untrack:${CHIEF_NO_COLOR} $file"
+        return 1
+      }
+    else
+      git restore --staged -- "$file" &>/dev/null \
+        || git reset --quiet HEAD -- "$file" &>/dev/null \
+        || {
+          echo -e "${CHIEF_COLOR_RED}Failed to unstage:${CHIEF_NO_COLOR} $file"
+          return 1
+        }
+    fi
+    printf '%s\n' "$file" >> "$gitignore"
+    echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Ignored: $file"
+  done
+
+  git add -- "$gitignore"
+  echo -e "${CHIEF_COLOR_GREEN}.gitignore updated and staged.${CHIEF_NO_COLOR}"
+  return 0
+}
+
 function chief.git_commit() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [commit_message]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [options] [commit_message]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Stage all changes, commit with message, and push to remote repository.
+Before committing, scans staged files and warns if any exceed a size threshold,
+offering to either commit anyway, unstage and add them to .gitignore, or abort.
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   commit_message  Optional descriptive message for the commit
                   (default: \"Auto-commit: \$(date)\")
 
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -f, --force     Skip the large-file size check
+  -?, --help      Show this help
+
+${CHIEF_COLOR_BLUE}Environment:${CHIEF_NO_COLOR}
+  CHIEF_CFG_GIT_COMMIT_WARN_MB   Threshold in MB for large-file warning (default: 50)
+
 ${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
-1. Pull latest changes from remote
-2. Stage all modified files (git add .)
-3. Commit changes with message
-4. Push to remote repository
+1. git pull (best-effort; on failure, skip and continue with commit/push)
+2. git add . (stage all modified files)
+3. Large-file safety check (unless -f/--force)
+4. git commit -a -m \"<message>\" (skipped if there is nothing to commit after pull)
+5. git push (push to remote repository)
 
 ${CHIEF_COLOR_MAGENTA}Safety Features:${CHIEF_NO_COLOR}
-- Pulls before committing to avoid conflicts
+- Tries to pull before committing; if pull fails (conflicts, unmerged files, etc.), continues anyway
 - Shows current remote URL for verification
 - Uses timestamped default message if none provided
+- Warns on large files (> ${CHIEF_CFG_GIT_COMMIT_WARN_MB:-50} MB) with interactive
+  commit / gitignore / abort options
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME                                # Uses default timestamp message
   $FUNCNAME \"Fix user authentication bug\"  # Custom message
-  $FUNCNAME \"Add new feature: dashboard\"   # Custom message
+  $FUNCNAME -f \"Ship release assets\"       # Skip large-file check
 "
 
-  if [[ $1 == "-?" || $1 == "--help" ]]; then
-    echo -e "${USAGE}"
-    return
-  fi
+  # Argument parsing: collect options and the optional message (last non-option).
+  local force=false
+  local commit_message=""
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -\?|--help)
+        echo -e "${USAGE}"
+        return
+        ;;
+      -f|--force)
+        force=true
+        shift
+        ;;
+      --)
+        shift
+        commit_message="${1:-$commit_message}"
+        break
+        ;;
+      *)
+        commit_message="$1"
+        shift
+        ;;
+    esac
+  done
 
   # Use provided message or generate default with timestamp
-  local commit_message="${1:-Auto-commit: $(date '+%Y-%m-%d %H:%M:%S')}"
+  commit_message="${commit_message:-Auto-commit: $(date '+%Y-%m-%d %H:%M:%S')}"
 
   echo -e "${CHIEF_COLOR_BLUE}Repository:${CHIEF_NO_COLOR} $(git config --get remote.origin.url)"
   echo -e "${CHIEF_COLOR_BLUE}Pulling latest changes...${CHIEF_NO_COLOR}"
-  git pull
+  if ! git pull; then
+    echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} git pull failed (e.g. merge conflicts or unmerged files). Skipping pull; continuing with commit and push."
+  fi
   echo -e "${CHIEF_COLOR_BLUE}Staging all changes...${CHIEF_NO_COLOR}"
   git add .
-  echo -e "${CHIEF_COLOR_BLUE}Committing with message:${CHIEF_NO_COLOR} $commit_message"
-  git commit -a -m "$commit_message"
+
+  if ! $force; then
+    if ! __chief_git_check_large_files; then
+      return 1
+    fi
+  fi
+
+  local did_commit=false
+  if git diff --cached --quiet; then
+    echo -e "${CHIEF_COLOR_YELLOW}Nothing to commit:${CHIEF_NO_COLOR} index matches HEAD (often after pull already included your changes). Skipping commit."
+  else
+    echo -e "${CHIEF_COLOR_BLUE}Committing with message:${CHIEF_NO_COLOR} $commit_message"
+    if ! git commit -a -m "$commit_message"; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git commit failed (pre-commit hook rejected the commit, or another git error)."
+      return 1
+    fi
+    did_commit=true
+  fi
   echo -e "${CHIEF_COLOR_BLUE}Pushing to remote...${CHIEF_NO_COLOR}"
-  git push
-  echo -e "${CHIEF_COLOR_GREEN}Commit and push completed${CHIEF_NO_COLOR}"
+  if ! git push; then
+    if $did_commit; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git push failed. The commit exists locally; fix remote access (e.g. correct SSH key for this repo) and run ${CHIEF_COLOR_CYAN}git push${CHIEF_NO_COLOR}."
+    else
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git push failed. Fix remote access (e.g. correct SSH key for this repo) and run ${CHIEF_COLOR_CYAN}git push${CHIEF_NO_COLOR}."
+    fi
+    return 1
+  fi
+  if $did_commit; then
+    echo -e "${CHIEF_COLOR_GREEN}Commit and push completed.${CHIEF_NO_COLOR}"
+  else
+    echo -e "${CHIEF_COLOR_GREEN}Nothing to commit; branch is in sync with remote.${CHIEF_NO_COLOR}"
+  fi
 }
 
 function chief.git_tag() {
@@ -153,10 +408,9 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   version       Version/tag name (e.g., v1.0.0, release-2023)
   tag_message   Optional custom tag message (default: \"Tag <version> creation.\")
 
-${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
-- Creates annotated tags (recommended over lightweight tags)
-- Automatically pushes tag to remote repository
-- Includes timestamp and tagger information
+${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
+1. git tag -a <version> -m \"<message>\" (create annotated tag at current HEAD with message)
+2. git push origin <version> (push tag to remote repository)
 
 ${CHIEF_COLOR_MAGENTA}Tag Naming Best Practices:${CHIEF_NO_COLOR}
 - Semantic versioning: v1.0.0, v2.1.3
@@ -181,9 +435,15 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   
   echo -e "${CHIEF_COLOR_BLUE}Creating annotated tag:${CHIEF_NO_COLOR} $1"
   echo -e "${CHIEF_COLOR_BLUE}Tag message:${CHIEF_NO_COLOR} $commit_msg"
-  git tag -a "$1" -m "$commit_msg"
+  if ! git tag -a "$1" -m "$commit_msg"; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git tag failed."
+    return 1
+  fi
   echo -e "${CHIEF_COLOR_BLUE}Pushing tag to remote...${CHIEF_NO_COLOR}"
-  git push origin "$1"
+  if ! git push origin "$1"; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git push failed. Tag may exist only locally."
+    return 1
+  fi
   echo -e "${CHIEF_COLOR_GREEN}Tag created and pushed successfully${CHIEF_NO_COLOR}"
 }
 
@@ -197,9 +457,8 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   branch_name  Name for the new branch
 
 ${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
-1. Create new branch from current HEAD
-2. Switch to the new branch
-3. Push to remote with upstream tracking
+1. git checkout -b <branch_name> (create new branch from current HEAD and switch to it)
+2. git push -u origin <branch_name> (push to remote with upstream tracking)
 
 ${CHIEF_COLOR_MAGENTA}Branch Naming Best Practices:${CHIEF_NO_COLOR}
 - feature/feature-name (new features)
@@ -219,9 +478,15 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 
   echo -e "${CHIEF_COLOR_BLUE}Creating new branch:${CHIEF_NO_COLOR} $1"
-  git checkout -b "$1"
+  if ! git checkout -b "$1"; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git checkout -b failed."
+    return 1
+  fi
   echo -e "${CHIEF_COLOR_BLUE}Setting up remote tracking...${CHIEF_NO_COLOR}"
-  git push -u origin "$1"
+  if ! git push -u origin "$1"; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git push failed. Branch exists locally only."
+    return 1
+  fi
   echo -e "${CHIEF_COLOR_GREEN}Branch created and tracking set up${CHIEF_NO_COLOR}"
 }
 
@@ -236,9 +501,8 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   new_name  New name for the branch
 
 ${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
-1. Rename branch locally
-2. Delete old branch from remote
-3. Push renamed branch with tracking
+1. git branch -m <old> <new> (rename branch locally)
+2. git push origin :<old> <new>; git push origin -u <new> (delete old branch from remote and push new branch)
 
 ${CHIEF_COLOR_MAGENTA}Branch Detection:${CHIEF_NO_COLOR}
 - Automatically detects if you're on the branch being renamed
@@ -286,9 +550,8 @@ This operation permanently removes the tag from both local and remote repositori
 Use with caution, especially for published releases.
 
 ${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
-1. Delete tag from local repository
-2. Delete tag from remote repository
-3. Verify removal
+1. git tag -d <tag_name> (delete tag from local repository)
+2. git push origin :refs/tags/<tag_name> (delete tag from remote repository)
 
 ${CHIEF_COLOR_MAGENTA}Common Use Cases:${CHIEF_NO_COLOR}
 - Remove incorrectly created tags
@@ -325,9 +588,9 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   commit_message  Optional new commit message (if omitted, keeps current message)
 
 ${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
-1. Stage any new changes (git add .)
-2. Amend last commit with staged changes and/or new message
-3. Intelligently push to remote (force-with-lease if previously pushed)
+1. git add . (stage any new changes)
+2. git commit --amend [-m \"<message>\"] (amend last commit with staged changes and/or new message)
+3. git push or git push --force-with-lease (push to remote; force-with-lease if commit was already pushed)
 
 ${CHIEF_COLOR_MAGENTA}Smart Push Logic:${CHIEF_NO_COLOR}
 - If commit was never pushed: performs regular push
@@ -392,16 +655,22 @@ ${CHIEF_COLOR_RED}Safety Notes:${CHIEF_NO_COLOR}
   if [[ -n "$remote_commit" ]] && git merge-base --is-ancestor "$local_commit" "origin/${current_branch}" 2>/dev/null; then
     # Commit was already pushed, use force-with-lease
     echo -e "${CHIEF_COLOR_BLUE}Commit was previously pushed, using force-with-lease...${CHIEF_NO_COLOR}"
-    git push --force-with-lease
+    if ! git push --force-with-lease; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git push --force-with-lease failed."
+      return 1
+    fi
   else
     # This is a new commit or remote doesn't exist, use regular push
     echo -e "${CHIEF_COLOR_BLUE}Pushing amended commit...${CHIEF_NO_COLOR}"
     if ! git push 2>/dev/null; then
       echo -e "${CHIEF_COLOR_YELLOW}Regular push failed, trying force-with-lease...${CHIEF_NO_COLOR}"
-      git push --force-with-lease
+      if ! git push --force-with-lease; then
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} git push failed."
+        return 1
+      fi
     fi
   fi
-  
+
   echo -e "${CHIEF_COLOR_GREEN}Commit amended and pushed successfully${CHIEF_NO_COLOR}"
 }
 
@@ -419,9 +688,8 @@ This operation permanently removes the branch from both local and remote reposit
 Ensure the branch is merged or no longer needed.
 
 ${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
-1. Delete branch from local repository
-2. Delete branch from remote repository
-3. Verify removal
+1. git branch -d <branch_name> (delete branch from local repository)
+2. git push origin --delete <branch_name> (delete branch from remote repository)
 
 ${CHIEF_COLOR_MAGENTA}Safety Features:${CHIEF_NO_COLOR}
 - Git will prevent deletion of unmerged branches (use -D to force)
@@ -465,6 +733,10 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   seconds       Cache timeout in seconds (cache mode only, default: 86400 = 1 day)
+
+${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
+1. git config --global credential.helper \"cache --timeout=<seconds>\" (cache mode: set credential cache with optional timeout)
+2. git config --global credential.helper '!f() { echo username=\$GIT_USER; echo password=\$GIT_PASSWORD; }; f' (environment mode --env: use GIT_USER and GIT_PASSWORD)
 
 ${CHIEF_COLOR_GREEN}Cache Mode (Default):${CHIEF_NO_COLOR}
 - Stores credentials in memory with timeout
@@ -574,6 +846,11 @@ Change the remote origin URL for the Git repository.
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   new_url  New remote repository URL
 
+${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
+1. git config --get remote.origin.url (display current remote origin URL)
+2. git remote set-url origin <new_url> (set remote origin to new URL)
+3. git config --get remote.origin.url (display new URL for verification)
+
 ${CHIEF_COLOR_GREEN}Supported URL Formats:${CHIEF_NO_COLOR}
 - HTTPS: https://github.com/user/repo.git
 - SSH: git@github.com:user/repo.git
@@ -620,6 +897,10 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   username          Git username for commits
   email             Git email address (optional)
+
+${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
+1. git config [--local|--global] user.name \"<name>\"; git config ... user.email \"<email>\" (set mode: set user.name and optionally user.email)
+2. git config user.name; git config user.email (show mode -s/--show: display current local and global configuration)
 
 ${CHIEF_COLOR_GREEN}Local Mode (Default):${CHIEF_NO_COLOR}
 - Configuration applies to current repository only
@@ -832,9 +1113,8 @@ ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Undo the last commit while keeping all changes staged for re-commit.
 
 ${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
-1. Reset HEAD pointer to previous commit (HEAD~1)
-2. Keep all changes from last commit in staging area
-3. Preserve working directory files unchanged
+1. git reset --soft HEAD~1 (reset HEAD to previous commit, keep changes staged)
+2. Working directory unchanged; all last-commit changes remain staged for re-commit
 
 ${CHIEF_COLOR_MAGENTA}Key Benefits:${CHIEF_NO_COLOR}
 - Safe operation (no data loss)
@@ -884,9 +1164,8 @@ This operation permanently discards all uncommitted local changes!
 Use with extreme caution.
 
 ${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
-1. Display current remote URL for verification
-2. Perform hard reset to HEAD
-3. Discard all working directory changes
+1. git config --get remote.origin.url (display current remote URL for verification)
+2. git reset --hard (discard all local changes, reset to HEAD)
 
 ${CHIEF_COLOR_MAGENTA}When to Use:${CHIEF_NO_COLOR}
 - Local repository is in broken state
@@ -1013,9 +1292,8 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   file_or_directory  Path to file or directory to untrack
 
 ${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
-1. Clear assume-unchanged flag
-2. Remove from Git index (staging area)
-3. Keep file in working directory
+1. git update-index --no-assume-unchanged <path> (clear assume-unchanged flag)
+2. git rm -r --cached <path> (remove from Git index, keep in working directory)
 
 ${CHIEF_COLOR_MAGENTA}Common Use Cases:${CHIEF_NO_COLOR}
 - Stop tracking configuration files with sensitive data
@@ -1057,6 +1335,9 @@ function chief.git_legend() {
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Display the character legend for Git prompt symbols when CHIEF_CFG_GIT_PROMPT is enabled.
+
+${CHIEF_COLOR_GREEN}Operations Performed:${CHIEF_NO_COLOR}
+1. echo of symbol meanings (display Git prompt symbol legend to the terminal)
 
 ${CHIEF_COLOR_GREEN}Prompt Enhancement:${CHIEF_NO_COLOR}
 When CHIEF_CFG_GIT_PROMPT=true, your prompt shows Git repository status with symbolic indicators.

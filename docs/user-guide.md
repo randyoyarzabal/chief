@@ -4,7 +4,7 @@ title: User Guide
 description: "Complete guide to using Chief's core features and commands"
 ---
 
-[← Back to Home](https://chief.reonetlabs.us/)
+[← Back to Home](https://chief.randyo.dev/)
 
 # User Guide
 
@@ -95,11 +95,20 @@ chief.plugin mytools
 # List all plugins
 chief.plugin -?
 
+# Enable or disable plugins (core = built-in, user = your plugins)
+chief.plugin disable core.ssl     # Disable core SSL plugin
+chief.plugin enable core.ssl      # Re-enable it
+chief.plugin disable bc          # Disable user plugin "bc"
+chief.plugin status              # Show enabled/disabled state
+
 # Find where a function is defined
 chief.whereis my_function
 
 # Reload all plugins after changes
 chief.reload
+
+# Show banner and stats (function count, core/user plugins, enabled/disabled)
+chief.status
 ```
 
 ### Configuration Management
@@ -109,8 +118,8 @@ chief.reload
 chief.config_show
 
 # Set configuration options
-chief.config_set PROMPT true
-chief.config_set EDITOR "code"
+chief.config-set PROMPT true
+chief.config-set default_editor_path "code --wait"
 
 # Customize prompt hostname (environment variable)
 export CHIEF_HOST="my-server"  # Override hostname in prompt
@@ -210,8 +219,8 @@ chief.whereis my_function
 chief.config
 
 # Quick config changes
-chief.config_set PROMPT true
-chief.config_set MULTILINE_PROMPT true
+chief.config-set PROMPT true
+chief.config-set MULTILINE_PROMPT true
 ```
 
 ### Enhanced Terminal
@@ -234,9 +243,14 @@ chief.config_set MULTILINE_PROMPT true
 git.branch_clean              # Clean merged branches
 git.uncommitted               # Find uncommitted changes
 
-# Vault utilities (vault_chief-plugin.sh) 
-chief.vault_file-edit         # Create/edit encrypted files
-chief.vault_file-load         # Load secrets
+# Secrets plugin (encrypted file): create/edit and load into shell
+chief.secrets_file-edit         # Create/edit encrypted secrets file (Ansible Vault or GPG)
+chief.secrets_file-load         # Load secrets into shell
+
+# Vault plugin (HashiCorp Vault): read/write/list KV secrets
+chief.vault_read-secret         # Read secret from HashiCorp Vault KV
+chief.vault_write-secret        # Write secret to HashiCorp Vault KV
+chief.vault_list-secrets        # List keys or paths in Vault KV
 
 # SSH utilities (ssh_chief-plugin.sh)
 ssh.key_add                   # Add SSH keys to agent
@@ -364,8 +378,8 @@ chief.etc_create_bootusb -k installer.iso 3    # Keep temp files
 chief.etc_mount_share //server/shared /mnt/shared john
 
 # Create shared terminal sessions
-chief.etc_shared-term_create dev-session
-chief.etc_shared-term_connect dev-session
+chief.etc_shared-term-create dev-session
+chief.etc_shared-term-connect dev-session
 
 # Schedule commands to run later
 chief.etc_at_run "now + 10 minutes" "echo 'Reminder!'"
@@ -471,8 +485,8 @@ chief.plugin mytools
 chief.config_show
 
 # Set configuration values
-chief.config_set PROMPT true
-chief.config_set EDITOR "vim"
+chief.config-set PROMPT true
+chief.config-set default_editor_path "vim"
 
 # Interactive configuration editor
 chief.config
@@ -492,14 +506,24 @@ chief.reload
 chief.plugin mytools          # Create or edit 'mytools' plugin
 chief.plugin list             # List all available plugins
 
+# Enable/disable plugins (config is updated; use chief.reload to apply)
+chief.plugin disable core.ssl # Disable built-in SSL plugin
+chief.plugin enable core.ssl  # Re-enable built-in SSL plugin
+chief.plugin disable bc       # Disable user plugin "bc"
+chief.plugin status           # Show which plugins are enabled vs disabled
+
 # Plugin discovery
 chief.whereis function_name   # Find where function is defined
 chief.help plugins            # Show plugin-provided commands
 
 # Plugin management
-chief.plugins_update          # Update remote plugins (if configured)
+chief.plugins-update          # Update remote plugins (if configured)
 chief.plugins_root             # Navigate to plugins directory
 ```
+
+#### `chief.plugin` symlink mode
+
+`chief.plugin <name> <path-to-script>` creates `<name>_chief-plugin.sh` as a symlink. When the script is under the same directory tree as the plugin directory, Chief uses a **relative** symlink so clones work on other machines (team plugins repo, dotfiles). If the script is outside that tree, Chief uses an absolute path and warns that it is not ideal to commit. See the reference manual for details.
 
 ---
 
@@ -621,7 +645,7 @@ Chief is designed specifically for **Bash** and won't interfere with other shell
 source ~/.bash_profile
 ```
 
-#### Q: "Bad substitution" or "Syntax error" messages
+#### Q: "Bad substitution", "Syntax error", or "declare: -A: invalid option" messages
 
 ```bash
 # Check bash version - Chief requires Bash 4.0+
@@ -631,6 +655,11 @@ bash --version
 # macOS: brew install bash
 # Linux: Update your package manager
 ```
+
+On macOS the terminal usually still starts `/bin/bash` (3.2) after installing a newer one. Set your terminal's
+command to `/opt/homebrew/bin/bash -l`, or add a re-exec snippet to the top of `~/.bash_profile`. Full steps:
+[macOS: install a newer Bash](getting-started.md#macos-install-a-newer-bash). Chief prints these steps at start-up when it
+detects Bash older than 4.0 (disable with `CHIEF_CFG_BASH_WARN=false`).
 
 #### Q: Vault functions not working
 
@@ -676,7 +705,7 @@ chief.config_show | grep PLUGINS_PATH
 ```bash
 # Verify key naming (must end in .key) and path
 ls ~/.ssh/*.key
-chief.config  # Check CHIEF_CFG_SSH_KEYS_PATH
+chief.config  # Check CHIEF_CFG_SSH_LOAD_KEYS (and CHIEF_CFG_SSH_KEYS_PATH if you use a non-default directory)
 ```
 
 #### Q: Git prompt not working
@@ -715,4 +744,4 @@ source ~/.bash_profile
 
 ---
 
-[← Back to Home](https://chief.reonetlabs.us/)
+[← Back to Home](https://chief.randyo.dev/)

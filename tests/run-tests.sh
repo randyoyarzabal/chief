@@ -115,25 +115,12 @@ main() {
     # Create temp directory
     mkdir -p "$TEMP_DIR"
     
-    # Check for required tools
-    log_info "Checking for required tools..."
-    
-    local required_tools=("bash" "shellcheck")
-    local missing_tools=()
-    
-    for tool in "${required_tools[@]}"; do
-        if ! command -v "$tool" >/dev/null 2>&1; then
-            missing_tools+=("$tool")
-        fi
-    done
-    
-    if [[ ${#missing_tools[@]} -gt 0 ]]; then
-        log_error "Missing required tools: ${missing_tools[*]}"
-        log_info "Please install missing tools and try again"
-        exit 1
+    # ShellCheck is optional locally (syntax-tests skips it when absent); CI installs it
+    if command -v shellcheck >/dev/null 2>&1; then
+        log_info "shellcheck found: static analysis enabled"
+    else
+        log_warning "shellcheck not installed: static analysis will be skipped (CI runs it)"
     fi
-    
-    log_info "All required tools found"
     echo ""
     
     # Run test suites
@@ -193,7 +180,59 @@ main() {
         fi
         echo ""
     fi
+
+    # 5. Version Bump Tests
+    if [[ -f "$TEST_DIR/bump-tests.sh" ]]; then
+        log_info "Running version bump tests..."
+        TOTAL_TESTS=$((TOTAL_TESTS + 1))
+        if "$TEST_DIR/bump-tests.sh"; then
+            log_success "Version bump tests"
+        else
+            log_error "Version bump tests"
+            suite_failures=$((suite_failures + 1))
+        fi
+        echo ""
+    fi
     
+    # 5b. Release tooling tests (dev-only plugin, fake GitHub)
+    if [[ -f "$TEST_DIR/release-tests.sh" ]]; then
+        log_info "Running release tooling tests..."
+        TOTAL_TESTS=$((TOTAL_TESTS + 1))
+        if "$TEST_DIR/release-tests.sh"; then
+            log_success "Release tooling tests"
+        else
+            log_error "Release tooling tests"
+            suite_failures=$((suite_failures + 1))
+        fi
+        echo ""
+    fi
+
+    # 5c. Config defaults and upgrade behavior
+    if [[ -f "$TEST_DIR/config-defaults-tests.sh" ]]; then
+        log_info "Running config defaults tests..."
+        TOTAL_TESTS=$((TOTAL_TESTS + 1))
+        if "$TEST_DIR/config-defaults-tests.sh"; then
+            log_success "Config defaults tests"
+        else
+            log_error "Config defaults tests"
+            suite_failures=$((suite_failures + 1))
+        fi
+        echo ""
+    fi
+
+    # 6. Bash version warning tests
+    if [[ -f "$TEST_DIR/bash-version-tests.sh" ]]; then
+        log_info "Running bash version warning tests..."
+        TOTAL_TESTS=$((TOTAL_TESTS + 1))
+        if "$TEST_DIR/bash-version-tests.sh"; then
+            log_success "Bash version warning tests"
+        else
+            log_error "Bash version warning tests"
+            suite_failures=$((suite_failures + 1))
+        fi
+        echo ""
+    fi
+
     # Print final summary
     print_summary
 }
@@ -217,6 +256,10 @@ show_help() {
     echo "  ./tests/source-tests.sh     - Script loading validation"
     echo "  ./tests/plugin-tests.sh     - Plugin-specific tests"
     echo "  ./tests/integration-tests.sh - End-to-end functionality"
+    echo "  ./tests/bump-tests.sh       - version bump (release/next-dev) on a scratch copy"
+    echo "  ./tests/release-tests.sh    - dev-only release tooling end to end (fake GitHub)"
+    echo "  ./tests/config-defaults-tests.sh - plugin defaults and SSH auto-load (incl. upgrades)"
+    echo "  ./tests/bash-version-tests.sh - Bash < 4 start-up warning"
 }
 
 # Parse command line arguments

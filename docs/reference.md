@@ -4,7 +4,7 @@ title: Reference
 description: "Complete command reference, examples, and additional resources"
 ---
 
-[← Back to Home](https://chief.reonetlabs.us/)
+[← Back to Home](https://chief.randyo.dev/)
 
 # Reference
 
@@ -66,8 +66,8 @@ chief.plugin mytools
 chief.config_show
 
 # Set configuration values
-chief.config_set PROMPT true
-chief.config_set EDITOR "vim"
+chief.config-set PROMPT true
+chief.config-set default_editor_path "vim"
 
 # Interactive configuration editor
 chief.config
@@ -78,7 +78,12 @@ chief.config_update --dry-run
 
 # Reload Chief after changes
 chief.reload
+
+# Show banner and stats (functions, core/user plugins, enabled/disabled)
+chief.status
 ```
+
+**Terminal colors:** Chief emits ANSI colors only when stdout is a capable TTY, so piped output and CI logs stay plain. Set `NO_COLOR=1` to disable colors, or `CHIEF_FORCE_COLOR=1` to force them.
 
 ### Plugin Management
 
@@ -87,14 +92,30 @@ chief.reload
 chief.plugin mytools          # Create or edit 'mytools' plugin
 chief.plugin list             # List all available plugins
 
+# Enable/disable plugins (updates config; chief.reload to apply)
+chief.plugin disable core.ssl # Disable core (built-in) plugin
+chief.plugin enable core.ssl  # Re-enable core plugin
+chief.plugin disable bc      # Disable user plugin "bc"
+chief.plugin status          # Show enabled/disabled state
+
 # Plugin discovery
 chief.whereis function_name   # Find where function is defined
 chief.help plugins            # Show plugin-provided commands
 
 # Plugin management
-chief.plugins_update          # Update remote plugins (if configured)
+chief.plugins-update          # Update remote plugins (if configured)
 chief.plugins_root             # Navigate to plugins directory
 ```
+
+#### `chief.plugin` symlink mode (portable plugin links)
+
+When you pass a second argument, Chief creates `<name>_chief-plugin.sh` in your plugins directory as a **symlink** to that file so the script loads like any other plugin (`chief.plugin myalias ~/scripts/foo.sh`).
+
+**Portable links (git / remote plugin repos):** If the existing script lives under the **same directory tree** as the plugin symlink (for example both inside your team repo or cloned plugins checkout), Chief writes a **relative** symlink target (for example `../scripts/team_helpers.sh`). That path is the same on every machine after `git clone`, so remote plugins and shared dotfiles work across hosts.
+
+**Not portable:** If the script is outside that tree (or on another volume), Chief uses an **absolute** target and prints a warning. For shared setups, keep the real script inside the repo or use a real `*_chief-plugin.sh` file instead of linking to `~/…`.
+
+Ensure Git records symlinks as symlinks (`core.symlinks` is typically true on Unix). On Windows, symlink support depends on Git/settings.
 
 ### System Management
 
@@ -115,6 +136,39 @@ chief.uninstall
 ---
 
 ## Built-in Plugin Command Reference
+
+### Secrets Plugin (encrypted file)
+
+Encrypted Bash secrets file (env vars, functions). Backends: Ansible Vault or GPG. Use `chief.secrets_file-edit -?` and `chief.secrets_file-load -?` for full help.
+
+```bash
+# Edit or create encrypted secrets file
+chief.secrets_file-edit [secrets-file] [--load] [--backend=gpg|ansible]
+  Arguments:
+    [secrets-file]  Optional path (default: $CHIEF_SECRETS_FILE)
+    --load          Load (source) secrets after editing
+    --backend=...   For new files only: gpg or ansible
+
+# Load secrets into current shell
+chief.secrets_file-load [secrets-file]
+```
+
+Optional password files (avoid prompts): Ansible Vault → `ANSIBLE_VAULT_PASSWORD_FILE`; GPG → `CHIEF_SECRETS_PASSWORD_FILE`.
+
+### Vault Plugin (HashiCorp Vault KV)
+
+Read, write, and list secrets in HashiCorp Vault KV. Requires `vault` CLI, `VAULT_ADDR`, `VAULT_TOKEN` (or `VAULT_TOKEN_FILE`). Use `chief.vault_read-secret -?`, etc., for full help.
+
+```bash
+# Read secret (full JSON or one key)
+chief.vault_read-secret <path> [key] [-n|--no-newline]
+
+# Write key=value pairs to a path
+chief.vault_write-secret <path> <key>=<value> [key2=value2 ...] [-format=json]
+
+# List keys in a secret or paths in a folder
+chief.vault_list-secrets <path> [-format=table|json|yaml]
+```
 
 ### SSL/TLS Certificate Management
 
@@ -203,8 +257,8 @@ chief.etc_at_run <time> <command>
 chief.etc_broadcast <message>
 
 # Terminal Collaboration
-chief.etc_shared-term_create <session_name>
-chief.etc_shared-term_connect <session_name>
+chief.etc_shared-term-create <session_name>
+chief.etc_shared-term-connect <session_name>
 
 # Utilities
 chief.etc_create_cipher [file_path] [--force]
@@ -457,8 +511,8 @@ chief.help
 # Check bash version - Chief requires Bash 4.0+
 bash --version
 
-# If using older bash (like macOS default), upgrade:
-# macOS: brew install bash
+# If using older bash (like macOS default), upgrade (also fixes "declare: -A: invalid option"):
+# macOS: brew install bash   (then set your terminal's command to /opt/homebrew/bin/bash -l)
 # Linux: Update your package manager
 
 # Ensure you're running bash
@@ -492,19 +546,26 @@ bash -n ~/.chief_config.sh
 chief.config_show
 ```
 
-#### Q: Vault functions not working
+#### Q: Secrets file or Vault functions not working
+
+**Secrets plugin** (encrypted file with `chief.secrets_file-edit` / `chief.secrets_file-load`):
 
 ```bash
-# Check if ansible is installed (optional dependency)
+# Ansible backend: check ansible-vault
 ansible-vault --version
 
-# Install if needed:
-# macOS: brew install ansible
-# Linux: pip3 install ansible-core
-# Windows: pip install ansible-core
+# Install if needed: macOS: brew install ansible; Linux: pip3 install ansible-core
 
-# Check vault file permissions
-ls -la ~/.chief_vault*
+# Check secrets file permissions
+ls -la ~/.chief_*secrets ~/.chief_*vault 2>/dev/null || true
+```
+
+**Vault plugin** (HashiCorp Vault with `chief.vault_read-secret` / `chief.vault_write-secret`):
+
+```bash
+# Check Vault CLI and auth
+vault version
+echo "VAULT_ADDR=$VAULT_ADDR" "VAULT_TOKEN set=$([ -n \"$VAULT_TOKEN\" ] && echo yes || echo no)"
 ```
 
 #### Q: OpenShift functions not working
@@ -549,7 +610,7 @@ git status
 git remote -v
 
 # Force update
-chief.plugins_update --force
+chief.plugins-update --force
 
 # Reset repository
 rm -rf "$CHIEF_CFG_PLUGINS_PATH"
@@ -563,11 +624,23 @@ chief.reload  # Will re-clone
 ls ~/.ssh/*.key
 
 # Check configuration
-chief.config_show | grep SSH_KEYS_PATH
+chief.config | grep SSH_   # CHIEF_CFG_SSH_LOAD_KEYS=true? keys path (default ~/.ssh)?
 
 # Manually load keys
 ssh-add ~/.ssh/id_rsa
 ```
+
+#### Q: "Too many authentication failures" with many keys loaded
+
+ssh offers every agent key in turn, and servers stop after a few rejected ones (`MaxAuthTries`). Pin the right key to each host:
+
+```bash
+chief.ssh_status                          # with 3+ keys loaded, lists hosts that don't pin a key
+chief.ssh_host-key github.com github      # adds IdentityFile + IdentitiesOnly yes for that host
+chief.ssh_host-key myserver work --dry-run  # preview the change first
+```
+
+`chief.ssh_host-key` backs up `~/.ssh/config` before writing. Chief only shows the many-keys note when 3 or more keys are in the agent.
 
 ### Built-in Plugin Issues
 
@@ -692,9 +765,9 @@ sudo mount -t cifs -v //server/share /mnt/share -o username=user
 
 ```bash
 # Disable non-essential features
-chief.config_set banner false
-chief.config_set hints false
-chief.config_set autocheck_updates false
+chief.config-set banner false
+chief.config-set hints false
+chief.config-set autocheck_updates false
 
 # Check for large plugin files
 find ~/chief_plugins -name "*.sh" -size +1M
@@ -804,7 +877,7 @@ bash tests/run_tests.sh
 
 ## License
 
-This project is licensed under the **MIT License** - see the [LICENSE](https://github.com/randyoyarzabal/chief/blob/main/LICENSE) file for details.
+This project is licensed under the **GNU General Public License v3.0** - see the [LICENSE](https://github.com/randyoyarzabal/chief/blob/main/LICENSE) file for details.
 
 ### License Summary
 
@@ -859,4 +932,4 @@ This project is licensed under the **MIT License** - see the [LICENSE](https://g
 
 ---
 
-[← Back to Home](https://chief.reonetlabs.us/)
+[← Back to Home](https://chief.randyo.dev/)

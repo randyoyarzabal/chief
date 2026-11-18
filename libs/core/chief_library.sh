@@ -39,6 +39,16 @@
 source "${CHIEF_PATH}/VERSION"
 CHIEF_PLUGINS_CORE="${CHIEF_PATH}/libs/core/plugins"
 CHIEF_PLUGIN_SUFFIX="_chief-plugin.sh"
+# Core plugins that need tools or accounts most users don't have (aws, openshift, vault) are
+# simply listed in the template's CHIEF_CFG_PLUGINS_DISABLED_CORE, so new installs start with
+# them off. One rule for every core plugin: loaded unless it's in the disabled list.
+# Contrib plugins: optional plugins shipped with Chief for specific teams or workflows.
+# Chief scans this directory on every load, but every contrib plugin is OFF until
+# `chief.plugin enable contrib.<name>` (persisted in CHIEF_CFG_PLUGINS_ENABLED_CONTRIB).
+CHIEF_PLUGINS_CONTRIB="${CHIEF_PATH}/libs/contrib/plugins"
+# Dev plugins: maintainer tooling (e.g. chief.release_*). Never loaded for users: only when
+# Chief's own checkout is on the "dev" branch AND CHIEF_CFG_DEV_TOOLS=true. See __chief_dev_tools_state.
+CHIEF_PLUGINS_DEV="${CHIEF_PATH}/libs/dev/plugins"
 CHIEF_DEFAULT_PLUGINS_TYPE="local" 
 CHIEF_DEFAULT_PLUGINS_GIT_BRANCH="main"
 CHIEF_DEFAULT_PLUGINS="${HOME}/chief_plugins"
@@ -133,16 +143,20 @@ function __chief_load_library() {
   # Options:
   #   --verbose - Display detailed loading information
   
+  # Optional keys: unset before re-sourcing config so removed/commented assignments do not stick.
+  unset CHIEF_CFG_ALIAS
   __chief_load_file ${CHIEF_CONFIG}
 
   __chief_load_file ${CHIEF_LIBRARY} 
 
   # Set a default alias if none defined.
   if [[ -n ${CHIEF_CFG_ALIAS} ]]; then
-    __chief_print "Chief is aliased as ${CHIEF_CFG_ALIAS}."
+    __chief_framework_print "aliased as ${CHIEF_CFG_ALIAS}." "$1"
   fi
 
   __chief_load_plugins 'core' "$1"
+  __chief_load_plugins 'contrib' "$1"
+  __chief_load_dev_tools "$1"
 
   if [[ -z ${CHIEF_CFG_PLUGINS_TYPE} ]]; then
     # If not set, default to local plugins.
@@ -152,10 +166,81 @@ function __chief_load_library() {
   if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]]; then
     __chief_load_remote_plugins "$1"
   elif [[ ${CHIEF_CFG_PLUGINS_TYPE} == "local" ]]; then
+    __chief_discover_shared_secrets_file
     __chief_load_plugins 'user' "$1"
   fi
 
-  __chief_print "Chief BASH library/environment (re)loaded." "$1"
+  __chief_print_shared_secrets_summary "$1"
+  __chief_framework_print "library reloaded." "$1"
+}
+
+function __chief_dev_tools_state() {
+  # Usage: __chief_dev_tools_state
+  #
+  # Developer usage: Prints whether maintainer dev tools (libs/dev/plugins) may load:
+  #   active  - Chief's checkout is on the dev branch and CHIEF_CFG_DEV_TOOLS=true
+  #   off     - CHIEF_CFG_DEV_TOOLS is not true (the default)
+  #   branch  - the switch is on, but the checkout is not on the dev branch (main, a tag, ...)
+  #   missing - this checkout has no libs/dev/plugins (e.g. a release archive)
+  [[ "${CHIEF_CFG_DEV_TOOLS:-false}" == true ]] || { echo off; return 0; }
+  [[ -d "${CHIEF_PLUGINS_DEV}" ]] || { echo missing; return 0; }
+  local branch
+  branch="$(git -C "${CHIEF_PATH}" symbolic-ref --short -q HEAD 2>/dev/null)"
+  if [[ "$branch" == dev ]]; then echo active; else echo branch; fi
+}
+
+function __chief_load_dev_tools() {
+  # Usage: __chief_load_dev_tools [--verbose]
+  #
+  # Developer usage: Sources libs/dev/plugins/*_chief-plugin.sh only when __chief_dev_tools_state
+  # is "active". Users (main branch, release archives, switch off) never get these functions.
+  [[ "$(__chief_dev_tools_state)" == active ]] || return 0
+  local plugin names=""
+  for plugin in "${CHIEF_PLUGINS_DEV}/"*"${CHIEF_PLUGIN_SUFFIX}"; do
+    [[ -f "$plugin" ]] || continue
+    __chief_load_file "$plugin"
+    plugin="${plugin##*/}"
+    names+="${names:+, }${CHIEF_COLOR_MAGENTA}${plugin%%_*}${CHIEF_NO_COLOR}"
+  done
+  [[ -n "$names" ]] && __chief_framework_print "dev: ${names}" "$1"
+  return 0
+}
+
+function __chief_check_bash_version() {
+  # Usage: __chief_check_bash_version
+  #
+  # Developer usage: Warns (never blocks) when Chief is loaded by a Bash older than 4.0.
+  # - macOS ships Bash 3.2, which lacks 'declare -A' / 'declare -g' used by Chief and many plugins.
+  #   Without this warning the only symptom is cryptic "declare: -A: invalid option" errors.
+  # - Prints to stderr. Disable with CHIEF_CFG_BASH_WARN=false.
+  # - Test hook: CHIEF_TEST_BASH_VERSINFO_MAJOR overrides the detected major version.
+  local major="${CHIEF_TEST_BASH_VERSINFO_MAJOR:-${BASH_VERSINFO[0]:-0}}"
+  (( major >= 4 )) && return 0
+  [[ "${CHIEF_CFG_BASH_WARN:-true}" == "false" ]] && return 0
+
+  local brew_bash="" cand
+  for cand in /opt/homebrew/bin/bash /usr/local/bin/bash; do
+    [[ -x "$cand" ]] && { brew_bash="$cand"; break; }
+  done
+
+  echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} Chief needs Bash 4.0+, but this shell is Bash ${BASH_VERSION:-unknown} (${BASH:-bash})." >&2
+  echo -e "Some Chief plugins and commands will fail (e.g. ${CHIEF_COLOR_RED}declare: -A: invalid option${CHIEF_NO_COLOR})." >&2
+  if [[ "$(uname -s)" == "Darwin" ]]; then
+    echo -e "macOS ships Bash 3.2. To fix:" >&2
+    if [[ -z "$brew_bash" ]]; then
+      echo -e "  1. Install a current Bash:  ${CHIEF_COLOR_CYAN}brew install bash${CHIEF_NO_COLOR}" >&2
+      brew_bash="/opt/homebrew/bin/bash"
+    else
+      echo -e "  1. A newer Bash is already installed at ${CHIEF_COLOR_CYAN}${brew_bash}${CHIEF_NO_COLOR}." >&2
+    fi
+    echo -e "  2. Make your terminal use it. Either set the terminal's command / shell to" >&2
+    echo -e "     ${CHIEF_COLOR_CYAN}${brew_bash} -l${CHIEF_NO_COLOR}, or put this at the top of ~/.bash_profile:" >&2
+    echo -e "       ${CHIEF_COLOR_GREEN}if [[ \$- == *i* ]] && (( BASH_VERSINFO[0] < 4 )) && [[ -x ${brew_bash} ]]; then exec ${brew_bash} -l; fi${CHIEF_NO_COLOR}" >&2
+  else
+    echo -e "Upgrade Bash with your package manager (for example: apt-get install bash, dnf install bash)." >&2
+  fi
+  echo -e "Silence this warning with: ${CHIEF_COLOR_CYAN}chief.config-set -y BASH_WARN=false${CHIEF_NO_COLOR}" >&2
+  return 0
 }
 
 function __chief_print() {
@@ -171,7 +256,7 @@ function __chief_print() {
   # Options:
   #   --verbose - Force printing regardless of CHIEF_CFG_VERBOSE setting  
   if ${CHIEF_CFG_VERBOSE} || [[ "${2}" == '--verbose' ]]; then
-    echo "${1}"
+    echo -e "${1}"
   fi
 }
 
@@ -265,10 +350,29 @@ function __chief_this_file() {
 # Edit a file and reload into memory if changed.
 function __chief_has_vscode() {
   # Usage: __chief_has_vscode
-  # 
+  #
   # Check if VSCode CLI 'code' binary is available
   # Returns: 0 if available, 1 if not available
   command -v code >/dev/null 2>&1
+}
+
+# Resolve GUI editor command for --code/--vscode flag.
+# Priority: CHIEF_CFG_EDITOR_GUI_CMD → cursor --wait → code --wait
+# Returns: command string (e.g. "cursor --wait") or empty if none available
+function __chief_get_gui_editor() {
+  if [[ -n "${CHIEF_CFG_EDITOR_GUI_CMD}" ]]; then
+    echo "${CHIEF_CFG_EDITOR_GUI_CMD}"
+    return
+  fi
+  if command -v cursor >/dev/null 2>&1; then
+    echo "cursor --wait"
+    return
+  fi
+  if command -v code >/dev/null 2>&1; then
+    echo "code --wait"
+    return
+  fi
+  echo ""
 }
 
 function __chief_get_default_editor() {
@@ -312,7 +416,7 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   file           Path to the file to edit (required)
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
-  --vscode, -v   Use VSCode editor (requires 'code' command)
+  --vscode, -v   Use GUI editor (Cursor if available, else VSCode 'code'; config: CHIEF_CFG_EDITOR_GUI_CMD)
   -?, --help     Show this help message
 
 ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
@@ -324,7 +428,7 @@ ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME ~/.bashrc                    # Edit bashrc with configured editor
-  $FUNCNAME ~/.bashrc --vscode           # Edit bashrc with VSCode
+  $FUNCNAME ~/.bashrc --vscode           # Edit bashrc with Cursor/VSCode
   $FUNCNAME /path/to/script.sh           # Edit any shell script
   $FUNCNAME /etc/hosts                   # Edit system files (with sudo)
 
@@ -379,10 +483,9 @@ function __chief_edit_file() {
   # Choose editor based on option and availability
   local editor_cmd
   if [[ "$editor_option" == "vscode" ]]; then
-    if __chief_has_vscode; then
-      editor_cmd="code --wait"
-    else
-      echo -e "${CHIEF_COLOR_YELLOW}Warning: VSCode 'code' command not found. Falling back to default editor.${CHIEF_NO_COLOR}"
+    editor_cmd="$(__chief_get_gui_editor)"
+    if [[ -z "$editor_cmd" ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}Warning: No GUI editor found (tried CHIEF_CFG_EDITOR_GUI_CMD, cursor, code). Falling back to default editor.${CHIEF_NO_COLOR}"
       editor_cmd="$(__chief_get_default_editor)"
     fi
   else
@@ -405,7 +508,7 @@ function __chief_edit_file() {
       __chief_load_file ${file}
     else
       if [[ $3 == 'reload' ]]; then
-        __chief_load_library --verbose  
+        __chief_load_library --verbose
       fi
     fi
 
@@ -506,6 +609,41 @@ __chief_backup_local_plugins() {
   return 0
 }
 
+# Discover portable team secrets under the configured plugins directory (sets CHIEF_SECRETS_FILE; no output).
+function __chief_discover_shared_secrets_file() {
+  local dir_base secrets_path
+  if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" && -n ${CHIEF_CFG_PLUGINS_GIT_PATH:-} ]]; then
+    dir_base="${CHIEF_CFG_PLUGINS_PATH}/${CHIEF_CFG_PLUGINS_GIT_PATH}"
+  else
+    dir_base="${CHIEF_CFG_PLUGINS_PATH:-}"
+  fi
+  secrets_path=""
+  if [[ -n "$dir_base" && -f "${dir_base}/.chief_shared-secrets" ]]; then
+    secrets_path="${dir_base}/.chief_shared-secrets"
+  elif [[ -n "$dir_base" && -f "${dir_base}/.chief_shared-vault" ]]; then
+    secrets_path="${dir_base}/.chief_shared-vault"
+  fi
+  if [[ -n "$secrets_path" ]]; then
+    export CHIEF_SECRETS_FILE="$secrets_path"
+  else
+    unset CHIEF_SECRETS_FILE
+  fi
+}
+
+# End of load: one-line hint if a portable secrets file exists (still requires secrets_file-load).
+function __chief_print_shared_secrets_summary() {
+  local verbose_flag="$1"
+  [[ -n "${CHIEF_SECRETS_FILE:-}" && -f "${CHIEF_SECRETS_FILE}" ]] || return 0
+  local prefix base_msg legacy_note=""
+  prefix="$(__chief_get_command_prefix)"
+  base_msg="The core ${CHIEF_COLOR_CYAN}secrets${CHIEF_NO_COLOR} plugin auto-detected a shared vault file under your plugins tree (not applied to this shell yet). Run ${CHIEF_COLOR_CYAN}${prefix}secrets_file-load${CHIEF_NO_COLOR} to load; see ${CHIEF_COLOR_CYAN}${prefix}help${CHIEF_NO_COLOR} for details."
+  if [[ "${CHIEF_SECRETS_FILE##*/}" == ".chief_shared-vault" ]] && [[ -z "${CHIEF_SECRETS_WARNED_LEGACY_DISCOVERY:-}" ]]; then
+    export CHIEF_SECRETS_WARNED_LEGACY_DISCOVERY=1
+    legacy_note="${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} rename .chief_shared-vault → .chief_shared-secrets when you can. "
+  fi
+  __chief_framework_print "${legacy_note}${base_msg}" "$verbose_flag"
+}
+
 __chief_load_remote_plugins() {
   # Usage: __chief_load_remote_plugins [--verbose] [--force] [--explicit]
   # 
@@ -566,7 +704,7 @@ __chief_load_remote_plugins() {
   # If the git path isn't set Or path doesn't exist Or it is empty.
   elif [[ -z ${CHIEF_CFG_PLUGINS_PATH} ]] || [[ ! -d ${CHIEF_CFG_PLUGINS_PATH} ]] || [[ -z "$(ls -A ${CHIEF_CFG_PLUGINS_PATH})" ]]; then
     if chief.etc_ask-yes-or-no "Your Chief plugins directory is empty/doesn't exist, do you want to run the update now?
-You can run 'chief.plugins_update' anytime or set CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=true"; then
+You can run 'chief.plugins-update' anytime or set CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=true"; then
       good_to_load=true
     fi  
   fi
@@ -638,51 +776,151 @@ CHIEF_CFG_PLUGINS_GIT_PATH=${CHIEF_CFG_PLUGINS_GIT_PATH}"
     # Check if plugins directory is empty.
     # Only show warning when verbose is enabled and hints are disabled
     if [[ $(__chief_get_plugins) == "" ]] && ! ${CHIEF_CFG_HINTS} && ${CHIEF_CFG_VERBOSE}; then
-      echo -e "${CHIEF_COLOR_YELLOW}Warning: Remote plugins are not set to auto-update (CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false). Run ${CHIEF_COLOR_CYAN}chief.plugins_update${CHIEF_COLOR_YELLOW} to update.${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_YELLOW}Warning: Remote plugins are not set to auto-update (CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false). Run ${CHIEF_COLOR_CYAN}chief.plugins-update${CHIEF_COLOR_YELLOW} to update.${CHIEF_NO_COLOR}"
     fi
   fi
-  # Check for team vault file in plugins repository
-  local vault_path
-  if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" && -n ${CHIEF_CFG_PLUGINS_GIT_PATH} ]]; then
-    vault_path="${CHIEF_CFG_PLUGINS_PATH}/${CHIEF_CFG_PLUGINS_GIT_PATH}/.chief_shared-vault"
-  else
-    vault_path="${CHIEF_CFG_PLUGINS_PATH}/.chief_shared-vault"
-  fi
-  
-  if [[ -f "$vault_path" ]]; then
-    export CHIEF_SECRETS_FILE="$vault_path"
-    __chief_print "Found vault file: $vault_path" "$1"
-    __chief_print "Use 'chief.vault_file-load' to load portable secrets" "$1"
-  fi
+  __chief_discover_shared_secrets_file
 
   # Load plugins from the remote repository.
   __chief_load_plugins 'user' "$1"
 }
 
+# Returns 0 if the given plugin is disabled (should not load), 1 if enabled.
+# Usage: __chief_plugin_disabled <module> <plugin_name>
+#   module: 'core' or 'user'
+#   plugin_name: e.g. 'git', 'bc'
+# Normalize disabled list: accept comma- or space-separated; output space-separated.
+function __chief_plugin_normalize_disabled_list() {
+  echo "$1" | tr ',' ' ' | xargs
+}
+
+# Format plugin list for display: pipe- or space-separated -> comma-space separated (consistent everywhere).
+function __chief_format_plugin_list() {
+  local list="$1"
+  [[ -z "$list" ]] && echo "" && return
+  echo "$list" | tr '|' ' ' | xargs | sed 's/ /, /g'
+}
+
+# Returns 0 if <name> is in <list> (comma- or space-separated, case-insensitive).
+# Usage: __chief_plugin_in_list <name> <list>
+function __chief_plugin_in_list() {
+  local n list
+  n=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+  list="$(__chief_plugin_normalize_disabled_list "$2")"
+  list=" $(echo "$list" | tr '[:upper:]' '[:lower:]') "
+  [[ -n "$n" && "$list" == *" $n "* ]]
+}
+
+function __chief_plugin_disabled() {
+  local module="$1"
+  local name="$2"
+  local list=""
+  [[ -z "$name" ]] && return 1
+  if [[ "$module" == 'contrib' ]]; then
+    # Contrib plugins are all opt-in: off unless listed in CHIEF_CFG_PLUGINS_ENABLED_CONTRIB.
+    __chief_plugin_in_list "$name" "${CHIEF_CFG_PLUGINS_ENABLED_CONTRIB:-}" && return 1
+    return 0
+  fi
+  if [[ "$module" == 'core' ]]; then
+    list="${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}"
+  elif [[ "$module" == 'user' ]]; then
+    list="${CHIEF_CFG_PLUGINS_DISABLED_USER:-}"
+  else
+    return 1
+  fi
+  __chief_plugin_in_list "$name" "$list"
+}
+
+# Update disabled-plugins list in config: add or remove a name. Persists and reloads.
+# Usage: __chief_plugin_enable_disable <module> <plugin_name> <enable|disable>
+function __chief_plugin_enable_disable() {
+  local module="$1"
+  local name="$2"
+  local action="$3"
+  local config_key list current new_value
+  name=$(echo "$name" | tr '[:upper:]' '[:lower:]')
+
+  # Contrib plugins are tracked in an ENABLED list (they're all off by default).
+  if [[ "$module" == 'contrib' ]]; then
+    if [[ ! -f "${CHIEF_PLUGINS_CONTRIB}/${name}${CHIEF_PLUGIN_SUFFIX}" ]]; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} no contrib plugin named ${CHIEF_COLOR_CYAN}${name}${CHIEF_NO_COLOR} (available: $(__chief_format_plugin_list "$(__chief_get_contrib_plugins all)"))" >&2
+      return 1
+    fi
+    current="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_ENABLED_CONTRIB:-}")"
+    if [[ "$action" == "enable" ]]; then
+      if ! __chief_plugin_disabled contrib "$name"; then
+        echo -e "${CHIEF_COLOR_YELLOW}Plugin ${CHIEF_COLOR_CYAN}${name}${CHIEF_NO_COLOR} is already enabled."
+        return 0
+      fi
+      new_value="$(echo "$current $name" | tr ' ' '\n' | sort -u | grep -v '^$' | tr '\n' ' ' | xargs)"
+    else
+      if __chief_plugin_disabled contrib "$name"; then
+        echo -e "${CHIEF_COLOR_YELLOW}Plugin ${CHIEF_COLOR_CYAN}${name}${CHIEF_NO_COLOR} is already disabled."
+        return 0
+      fi
+      new_value=$(echo "$current" | tr ' ' '\n' | grep -v "^$" | grep -v "^${name}$" | tr '\n' ' ')
+      new_value="$(echo "$new_value" | xargs)"
+    fi
+    chief.config-set --yes plugins_enabled_contrib "$new_value"
+    return
+  fi
+
+  if [[ "$module" == 'core' ]]; then
+    config_key="plugins_disabled_core"
+    current="${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}"
+  elif [[ "$module" == 'user' ]]; then
+    config_key="plugins_disabled_user"
+    current="${CHIEF_CFG_PLUGINS_DISABLED_USER:-}"
+  else
+    echo -e "${CHIEF_COLOR_RED}Error: module must be 'core', 'contrib' or 'user'${CHIEF_NO_COLOR}" >&2
+    return 1
+  fi
+  current="$(__chief_plugin_normalize_disabled_list "$current")"
+  if [[ "$action" == "disable" ]]; then
+    if __chief_plugin_disabled "$module" "$name"; then
+      echo -e "${CHIEF_COLOR_YELLOW}Plugin ${CHIEF_COLOR_CYAN}${name}${CHIEF_NO_COLOR} is already disabled."
+      return 0
+    fi
+    new_value="$(echo "$current $name" | tr ' ' '\n' | sort -u | grep -v '^$' | tr '\n' ' ' | xargs)"
+  else
+    if ! __chief_plugin_disabled "$module" "$name"; then
+      echo -e "${CHIEF_COLOR_YELLOW}Plugin ${CHIEF_COLOR_CYAN}${name}${CHIEF_NO_COLOR} is already enabled."
+      return 0
+    fi
+    new_value=$(echo "$current" | tr ' ' '\n' | grep -v "^$" | grep -v "^${name}$" | tr '\n' ' ')
+    new_value="$(echo "$new_value" | xargs)"
+  fi
+  chief.config-set --yes "$config_key" "$new_value"
+}
+
 # Source the library/plugin module passed.
 function __chief_load_plugins() {
-  # Usage: __chief_load_plugins <plug-in module> (user/core) 
-  # 
+  # Usage: __chief_load_plugins <plug-in module> (user/core)
+  #
   # Developer usage: Loads plugins from the user or core directory
   # - Checks if the plugin module is valid
   # - Sets the directory path based on the module
-  # - Loads plugins from the directory
+  # - Loads plugins from the directory (respects CHIEF_CFG_PLUGINS_DISABLED_*)
   #
   # Arguments:
   #   module - The plugin module to load (user/core)
   #
   # Options:
   #   --verbose - Display detailed loading information
-  __chief_print "Loading Chief ${1}-plugins..." "$2"
-
   local plugin_file
   local plugin_name
   local dir_path
   local load_flag
+  local loaded_list=""
+  local disabled_list=""
 
   load_flag=false # Default to false, unless plugin switch is defined.
   if [[ $1 == 'core' ]]; then
     dir_path=${CHIEF_PLUGINS_CORE}
+    load_flag=true
+  elif [[ $1 == 'contrib' ]]; then
+    # Always scanned; each contrib plugin is off unless enabled (see __chief_plugin_disabled).
+    dir_path=${CHIEF_PLUGINS_CONTRIB}
     load_flag=true
   elif [[ $1 == 'user' ]]; then
     # For local plugins, use CHIEF_CFG_PLUGINS_PATH directly
@@ -696,14 +934,14 @@ function __chief_load_plugins() {
       load_flag=true
     fi
   else
-    __chief_print "   plugins: ${1} is not a valid plug-in module." "$2"
+    __chief_framework_print "plugins: ${1} is not a valid plug-in module." "$2"
     return 1
   fi
 
   local plugins=() # Array to hold plugin names
   local sorted_plugins=() # Array to hold sorted plugin names
   if ! ${load_flag}; then
-    __chief_print "   plugins: ${1} not enabled." "$2"
+    __chief_framework_print "plugins: ${1} not enabled." "$2"
   else
     # Check for existence of plugin folder requested
     if [[ -d ${dir_path} ]]; then
@@ -714,31 +952,46 @@ function __chief_load_plugins() {
       # Sort the plugins alphabetically
       sorted_plugins=($(printf '%s\n' "${plugins[@]}"|sort))
 
-      # Loop through sorted plugins and print them
       for plugin in "${sorted_plugins[@]}"; do
         plugin_file=${plugin##*/}
         plugin_name=${plugin_file%%_*}
 
+        if __chief_plugin_disabled "$1" "$plugin_name"; then
+          [[ -n ${disabled_list} ]] && disabled_list+=", "
+          disabled_list+="${CHIEF_COLOR_YELLOW}${plugin_name}${CHIEF_NO_COLOR}"
+          continue
+        fi
         if [[ -f ${plugin} ]]; then
+          [[ -n ${loaded_list} ]] && loaded_list+=", "
+          loaded_list+="${CHIEF_COLOR_GREEN}${plugin_name}${CHIEF_NO_COLOR}"
           __chief_load_file "${plugin}" # Apply alias and source the plugin
-          __chief_print "   plugin: ${plugin_name} loaded." "$2"
         fi
       done
+
+      # One summary line: loaded names + disabled (plugin stdout may appear above this line)
+      local summary_line=""
+      if [[ -n ${loaded_list} ]]; then
+        summary_line+="${loaded_list}"
+      fi
+      if [[ -n ${disabled_list} ]]; then
+        [[ -n ${summary_line} ]] && summary_line+=" · "
+        summary_line+="off: ${disabled_list}"
+      fi
+      if [[ -z ${summary_line} ]]; then
+        summary_line="${CHIEF_COLOR_YELLOW}(no plugins)${CHIEF_NO_COLOR}"
+      fi
+      __chief_framework_print "${1}: ${summary_line}" "$2"
     else
-      __chief_print "   $1 plugins directory does not exist." "$2"
+      __chief_framework_print "$1 plugins directory does not exist." "$2"
     fi
   fi
 }
 
+# Returns user plugins only (from CHIEF_CFG_PLUGINS_PATH). See __chief_get_core_plugins for built-in.
 __chief_get_plugins() {
   # Usage: __chief_get_plugins
-  # 
-  # Developer usage: Generates a list of plugins as a string separated by '|'
-  # - Used internally to display the list of plugins in the banner, hints, and chief.plugin help text
-  # - Accounts for new plugins that are created once the terminal is already started
   #
-  # Returns:
-  #   A string of plugin names separated by '|'
+  # Returns: A string of user plugin names separated by '|'
   local plugin_file
   local plugin_name
   local dir_path
@@ -762,10 +1015,11 @@ __chief_get_plugins() {
     # Sort the plugins alphabetically
     sorted_plugins=($(printf '%s\n' "${plugins[@]}"|sort))
 
-    # Loop through sorted plugins and print them
+    # Loop through sorted plugins and print them (only enabled)
     for plugin in "${sorted_plugins[@]}"; do
       plugin_file=${plugin##*/}
       plugin_name=${plugin_file%%_*}
+      __chief_plugin_disabled 'user' "$plugin_name" && continue
       plugin_list_str="$plugin_list_str|$plugin_name" # Append plugin name
     done
     plugin_list_str=$(echo ${plugin_list_str#?}) # Trim first character
@@ -773,30 +1027,225 @@ __chief_get_plugins() {
   echo "${plugin_list_str}" # Return the plugin list string
 }
 
+# Returns core (built-in) plugin names from Chief's libs/core/plugins. Only enabled (not disabled) plugins.
+__chief_get_core_plugins() {
+  # Usage: __chief_get_core_plugins
+  #
+  # Returns: A string of core plugin names separated by '|'
+  local plugin_file
+  local plugin_name
+  local plugin_list_str
+  local dir_path="${CHIEF_PLUGINS_CORE}"
+
+  local plugins=()
+  local sorted_plugins=()
+
+  if [[ -d ${dir_path} ]]; then
+    for plugin in "${dir_path}/"*"${CHIEF_PLUGIN_SUFFIX}"; do
+      [[ -f ${plugin} ]] && plugins+=("${plugin}")
+    done
+    sorted_plugins=($(printf '%s\n' "${plugins[@]}"|sort))
+    for plugin in "${sorted_plugins[@]}"; do
+      plugin_file=${plugin##*/}
+      plugin_name=${plugin_file%%_*}
+      __chief_plugin_disabled 'core' "$plugin_name" && continue
+      plugin_list_str="$plugin_list_str|$plugin_name"
+    done
+    plugin_list_str=$(echo ${plugin_list_str#?})
+  fi
+  echo "${plugin_list_str}"
+}
+
+# Returns contrib plugin names from libs/contrib/plugins, '|'-separated.
+# Usage: __chief_get_contrib_plugins [enabled|disabled|all]   (default: enabled)
+__chief_get_contrib_plugins() {
+  local want="${1:-enabled}" plugin plugin_file plugin_name out=""
+  [[ -d ${CHIEF_PLUGINS_CONTRIB} ]] || return 0
+  for plugin in "${CHIEF_PLUGINS_CONTRIB}/"*"${CHIEF_PLUGIN_SUFFIX}"; do
+    [[ -f ${plugin} ]] || continue
+    plugin_file=${plugin##*/}
+    plugin_name=${plugin_file%%_*}
+    if [[ $want == all ]]; then
+      out+="|${plugin_name}"
+    elif __chief_plugin_disabled 'contrib' "$plugin_name"; then
+      [[ $want == disabled ]] && out+="|${plugin_name}"
+    else
+      [[ $want == enabled ]] && out+="|${plugin_name}"
+    fi
+  done
+  echo "${out#|}"
+}
+
+# Returns core plugin names that are OFF (in CHIEF_CFG_PLUGINS_DISABLED_CORE). Space-separated.
+__chief_get_core_plugins_disabled() {
+  local plugin plugin_file plugin_name out=""
+  [[ -d ${CHIEF_PLUGINS_CORE} ]] || return 0
+  for plugin in "${CHIEF_PLUGINS_CORE}/"*"${CHIEF_PLUGIN_SUFFIX}"; do
+    [[ -f ${plugin} ]] || continue
+    plugin_file=${plugin##*/}
+    plugin_name=${plugin_file%%_*}
+    __chief_plugin_disabled 'core' "$plugin_name" || continue
+    out+=" ${plugin_name}"
+  done
+  echo "${out# }"
+}
+
+# True if absolute $2 is $1 or inside $1 (path prefix with boundary).
+__chief_path_is_under_or_equal() {
+  local base="$1"
+  local path="$2"
+  base="${base%/}"
+  path="${path%/}"
+  [[ "$path" == "$base" ]] && return 0
+  [[ "$path" == "${base}/"* ]]
+}
+
+# Echo a relative path from directory $1 to existing path $2 (for ln -sf targets in repos).
+# Both sides are resolved to physical paths (symlinked directories followed), because the kernel
+# resolves a relative symlink target from the link's physical directory, not its logical path.
+# Returns 0 on success; 1 if paths are unrelated (e.g. different volume roots — caller uses absolute).
+__chief_relpath_from_dir_to_path() {
+  local from_dir="$1"
+  local to_path="$2"
+  local from_abs to_abs to_dir to_base
+  [[ -d "$from_dir" ]] || return 1
+  from_abs="$(cd "$from_dir" && pwd -P)" || return 1
+  to_dir="$(dirname "$to_path")"
+  to_base="$(basename "$to_path")"
+  [[ -e "$to_path" ]] || return 1
+  to_abs="$(cd "$to_dir" && pwd -P)/$to_base" || return 1
+  from_abs="${from_abs%/}"
+  to_abs="${to_abs%/}"
+
+  if __chief_path_is_under_or_equal "$from_abs" "$to_abs"; then
+    if [[ "$to_abs" == "$from_abs" ]]; then
+      echo "."
+    else
+      echo "${to_abs#"${from_abs}/"}"
+    fi
+    return 0
+  fi
+
+  local up=""
+  while ! __chief_path_is_under_or_equal "$from_abs" "$to_abs"; do
+    local parent
+    parent="$(dirname "$from_abs")"
+    if [[ "$parent" == "$from_abs" ]]; then
+      return 1
+    fi
+    from_abs="$parent"
+    up="../${up}"
+  done
+
+  if [[ "$to_abs" == "$from_abs" ]]; then
+    printf '%s\n' "$up"
+    return 0
+  fi
+  printf '%s%s\n' "$up" "${to_abs#"${from_abs}/"}"
+  return 0
+}
+
 # Edit a plugin file and reload into memory if changed.
 #   Note, will only succeed if plug-in is enabled in settings.
-# Usage: __chief_edit_plugin <plug-in name>
+# Usage: __chief_edit_plugin <plug-in name> [editor_option] [existing_file_path]
 function __chief_edit_plugin() {
-  # Usage: __chief_edit_plugin <plugin_name> [editor_option]
+  # Usage: __chief_edit_plugin <plugin_name> [editor_option] [existing_file_path]
   # Arguments:
   #   plugin_name - Name of the plugin to edit
   #   editor_option - Optional: 'vscode' to use VSCode, otherwise uses default editor
+  #   existing_file_path - Optional: path to existing script; creates a symlink at the plugin path
+  #     instead of a new file. Prefers a relative symlink target when the script is under the same
+  #     directory tree as the plugin dir (portable for git). Otherwise uses an absolute target.
   local plugin_name
   local plugin_file
   local editor_option=${2}
+  local existing_file="${3}"
+
+  # Normal case: plugin name is first argument
+  plugin_name=$(__chief_lower "${1}")
+
+  # If first arg looks like an absolute path and no third arg, treat as existing file and derive plugin name (handles old parsing)
+  if [[ -z "$existing_file" && "$1" == /* ]]; then
+    if [[ -f "$1" ]]; then
+      existing_file="$1"
+      plugin_name=$(__chief_lower "$(basename "$1" .sh)")
+      plugin_name=${plugin_name%_chief-plugin}
+    fi
+  fi
 
   # Check if plugins are enabled.
   if [[ -z ${CHIEF_CFG_PLUGINS_PATH} ]]; then
     echo "Chief plugins are not enabled."
     return
   fi
-
-  plugin_name=$(__chief_lower ${1})
   # Use same logic as __chief_load_plugins for consistency
   if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" && -n ${CHIEF_CFG_PLUGINS_GIT_PATH} ]]; then
     plugin_file="${CHIEF_CFG_PLUGINS_PATH}/${CHIEF_CFG_PLUGINS_GIT_PATH}/${plugin_name}${CHIEF_PLUGIN_SUFFIX}"
   else
     plugin_file="${CHIEF_CFG_PLUGINS_PATH}/${plugin_name}${CHIEF_PLUGIN_SUFFIX}"
+  fi
+
+  # Symlink mode: third parameter is path to existing file → symlink at plugin path (relative target when portable)
+  if [[ -n "$existing_file" ]]; then
+    local existing_abs
+    if command -v realpath >/dev/null 2>&1; then
+      existing_abs="$(realpath "$existing_file" 2>/dev/null)" || existing_abs=""
+    fi
+    if [[ -z "$existing_abs" ]]; then
+      # Portable fallback: resolve to absolute path
+      if [[ -d "$(dirname "$existing_file")" ]]; then
+        existing_abs="$(cd "$(dirname "$existing_file")" && pwd -P)/$(basename "$existing_file")"
+      else
+        existing_abs="$existing_file"
+      fi
+    fi
+    if [[ ! -f "$existing_abs" ]]; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Target file does not exist: $existing_file"
+      return 1
+    fi
+    if [[ -f "$plugin_file" && ! -L "$plugin_file" ]]; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Plugin file already exists as a regular file: $plugin_file"
+      echo -e "${CHIEF_COLOR_YELLOW}Remove or rename it first to create a symlink.${CHIEF_NO_COLOR}"
+      return 1
+    fi
+    if ! mkdir -p "$(dirname "$plugin_file")"; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unable to create plugin directory."
+      return 1
+    fi
+    local link_target="$existing_abs"
+    local link_dir
+    link_dir="$(dirname "$plugin_file")"
+    local rel_target=""
+    local plugins_root_abs=""
+    plugins_root_abs="$(cd "${CHIEF_CFG_PLUGINS_PATH}" 2>/dev/null && pwd -P)" || plugins_root_abs=""
+    # Relative target only when the script lives inside the plugins tree (portable for git clones).
+    # Anything outside it would need ../../.. hops that depend on this machine's layout, so use absolute.
+    if [[ -n "$plugins_root_abs" ]] && __chief_path_is_under_or_equal "$plugins_root_abs" "$existing_abs" \
+      && rel_target="$(__chief_relpath_from_dir_to_path "$link_dir" "$existing_abs")"; then
+      link_target="$rel_target"
+      echo -e "${CHIEF_COLOR_BLUE}Using relative symlink (portable for git / other machines).${CHIEF_NO_COLOR}"
+    else
+      echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} Target is outside the plugins directory; using absolute symlink (not portable if committed to a repo)."
+    fi
+    if ln -sf "$link_target" "$plugin_file"; then
+      # Safety net: never leave a dangling link. If a relative target doesn't resolve, fall back to absolute.
+      if [[ ! -e "$plugin_file" && "$link_target" != "$existing_abs" ]]; then
+        echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} Relative target did not resolve; using absolute target instead."
+        link_target="$existing_abs"
+        ln -sf "$link_target" "$plugin_file"
+      fi
+      if [[ ! -e "$plugin_file" ]]; then
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Symlink does not resolve: ${plugin_file} → ${link_target}"
+        rm -f "$plugin_file"
+        return 1
+      fi
+      echo -e "${CHIEF_COLOR_GREEN}Symlink created:${CHIEF_NO_COLOR} ${plugin_file} → ${link_target}"
+      echo -e "${CHIEF_COLOR_BLUE}Plugin will load on next Chief reload. Edit with:${CHIEF_NO_COLOR} chief.plugin $plugin_name"
+    else
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Failed to create symlink: $plugin_file"
+      return 1
+    fi
+    return
   fi
 
   # Check if the plugin file exists, if not, prompt to create it.
@@ -854,7 +1303,14 @@ function __chief.banner {
     alias_status=""
   fi
 
-  if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]]; then
+  # Per-line visibility: hide the right-side label while preserving the ASCII art.
+  # Any value other than an explicit "false" is treated as enabled (default: shown).
+  local show_plugins="${CHIEF_CFG_BANNER_SHOW_PLUGINS:-true}"
+  local show_tracking="${CHIEF_CFG_BANNER_SHOW_TRACKING:-true}"
+
+  if [[ "${show_plugins}" == "false" ]]; then
+    git_status=""
+  elif [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]]; then
     if $CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE; then
       git_status="plugins: ${CHIEF_COLOR_CYAN}git [auto-update ${CHIEF_COLOR_GREEN}enabled]"
     else
@@ -865,7 +1321,9 @@ function __chief.banner {
   fi
 
   # Show connection status and branch tracking
-  if __chief_is_disconnected_mode; then
+  if [[ "${show_tracking}" == "false" ]]; then
+    branch_status=""
+  elif __chief_is_disconnected_mode; then
     branch_status="mode: ${CHIEF_COLOR_RED}disconnected ${CHIEF_COLOR_YELLOW}(no git)${CHIEF_NO_COLOR}"
   else
     local update_branch="${CHIEF_CFG_UPDATE_BRANCH:-main}"
@@ -908,45 +1366,54 @@ function __chief.hints_text() {
     # If plugins are not set to auto-update, display a message.
     if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]] && ! ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE}; then   
       echo -e "${CHIEF_COLOR_GREEN}${cmd_prefix}[tab]${CHIEF_NO_COLOR} for available commands."
-      echo -e "${CHIEF_COLOR_GREEN}${cmd_prefix}plugins_update${CHIEF_NO_COLOR} to update/load plugins. | ${CHIEF_COLOR_GREEN}${cmd_prefix}update${CHIEF_NO_COLOR} to update Chief."
+      echo -e "${CHIEF_COLOR_GREEN}${cmd_prefix}plugins-update${CHIEF_NO_COLOR} to update/load plugins. | ${CHIEF_COLOR_GREEN}${cmd_prefix}update${CHIEF_NO_COLOR} to update Chief."
     else
       echo -e "${CHIEF_COLOR_GREEN}${cmd_prefix}[tab]${CHIEF_NO_COLOR} for available commands. | ${CHIEF_COLOR_GREEN}${cmd_prefix}update${CHIEF_NO_COLOR} to update Chief.${CHIEF_NO_COLOR}"
     fi
-    local plugin_list=$(__chief_get_plugins)
-    if [[ ${plugin_list} != "" ]]; then
-      echo -e "${CHIEF_COLOR_GREEN}Plugins loaded: ${CHIEF_COLOR_CYAN}${plugin_list}${CHIEF_NO_COLOR}"
+    local user_plugin_list=$(__chief_get_plugins)
+    if [[ ${user_plugin_list} != "" ]]; then
+      echo -e "${CHIEF_COLOR_GREEN}User plugins: ${CHIEF_COLOR_CYAN}${user_plugin_list}${CHIEF_NO_COLOR}"
     fi
     # Show branch tracking status (only if not already shown in banner)
     if $show_tracking; then
       local update_branch="${CHIEF_CFG_UPDATE_BRANCH:-main}"
       if [[ "${update_branch}" == "dev" ]]; then
-        echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_YELLOW}${update_branch}${CHIEF_COLOR_RED} (bleeding-edge)${CHIEF_COLOR_CYAN} branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch main${CHIEF_COLOR_CYAN} for stable${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_YELLOW}${update_branch}${CHIEF_COLOR_RED} (bleeding-edge)${CHIEF_COLOR_CYAN} branch | ${CHIEF_COLOR_GREEN}chief.config-set update_branch main${CHIEF_COLOR_CYAN} for stable${CHIEF_NO_COLOR}"
       elif [[ "${update_branch}" == "main" ]]; then
-        echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_GREEN}${update_branch}${CHIEF_COLOR_CYAN} (stable) branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch dev${CHIEF_COLOR_CYAN} for latest features${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_GREEN}${update_branch}${CHIEF_COLOR_CYAN} (stable) branch | ${CHIEF_COLOR_GREEN}chief.config-set update_branch dev${CHIEF_COLOR_CYAN} for latest features${CHIEF_NO_COLOR}"
       else
-        echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_CYAN}${update_branch}${CHIEF_COLOR_YELLOW} (custom)${CHIEF_COLOR_CYAN} branch | ${CHIEF_COLOR_GREEN}chief.config_set update_branch main${CHIEF_COLOR_CYAN} for stable${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_CYAN}${update_branch}${CHIEF_COLOR_YELLOW} (custom)${CHIEF_COLOR_CYAN} branch | ${CHIEF_COLOR_GREEN}chief.config-set update_branch main${CHIEF_COLOR_CYAN} for stable${CHIEF_NO_COLOR}"
       fi
     fi
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Essential Commands:${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit configuration file | ${CHIEF_COLOR_GREEN}chief.config_set <option> <value>${CHIEF_NO_COLOR} to set config directly
-    - ${CHIEF_COLOR_GREEN}chief.config_update${CHIEF_NO_COLOR} to update config with new template options"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config${CHIEF_NO_COLOR} to edit configuration file | ${CHIEF_COLOR_GREEN}chief.config-set <option> <value>${CHIEF_NO_COLOR} to set config directly
+    - ${CHIEF_COLOR_GREEN}chief.config-update${CHIEF_NO_COLOR} to update config with new template options"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.help${CHIEF_NO_COLOR} for comprehensive help | ${CHIEF_COLOR_GREEN}chief.help --compact${CHIEF_NO_COLOR} for quick reference"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.whereis <name>${CHIEF_NO_COLOR} to find any function/alias location"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.vault_*${CHIEF_NO_COLOR} to encrypt/decrypt secrets (requires ansible-vault)"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.secrets_*${CHIEF_NO_COLOR} to encrypt/decrypt secrets file (ansible-vault or gpg) | ${CHIEF_COLOR_GREEN}chief.vault_*${CHIEF_NO_COLOR} for HashiCorp Vault read/write"
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Quick Customization:${CHIEF_NO_COLOR}"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set prompt true${CHIEF_NO_COLOR} for git-aware prompt | ${CHIEF_COLOR_GREEN}chief.git_legend${CHIEF_NO_COLOR} for colors"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set multiline_prompt true${CHIEF_NO_COLOR} for multi-line prompt"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set short_path true${CHIEF_NO_COLOR} for compact directory paths"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.config_set --list${CHIEF_NO_COLOR} to see all available configuration options"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config-set prompt true${CHIEF_NO_COLOR} for git-aware prompt | ${CHIEF_COLOR_GREEN}chief.git_legend${CHIEF_NO_COLOR} for colors"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config-set multiline_prompt true${CHIEF_NO_COLOR} for multi-line prompt"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config-set short_path true${CHIEF_NO_COLOR} for compact directory paths"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.config-set --list${CHIEF_NO_COLOR} to see all available configuration options"
     echo ""
     echo -e "${CHIEF_COLOR_YELLOW}Plugin Management:${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin [name]${CHIEF_NO_COLOR} to create/edit plugins | ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR} to list"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin status${CHIEF_NO_COLOR} to see enabled/disabled plugins"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugins_root${CHIEF_NO_COLOR} to navigate to plugins directory"
+    local _core_dis _user_dis _c_fmt _u_fmt
+    _core_dis="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}")"
+    _user_dis="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"
+    if [[ -n "$_core_dis" ]] || [[ -n "$_user_dis" ]]; then
+      _c_fmt="$(__chief_format_plugin_list "${_core_dis:-}")"
+      _u_fmt="$(__chief_format_plugin_list "${_user_dis:-}")"
+      echo -e "- ${CHIEF_COLOR_YELLOW}Disabled:${CHIEF_NO_COLOR} ${CHIEF_COLOR_CYAN}core:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}${_c_fmt:-<none>}${CHIEF_NO_COLOR}; ${CHIEF_COLOR_CYAN}user:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}${_u_fmt:-<none>}${CHIEF_NO_COLOR}"
+    fi
     echo ""
     if [[ ${1} != '--verbose' ]]; then
-      echo -e "${CHIEF_COLOR_CYAN}** Run ${CHIEF_COLOR_GREEN}chief.config_set hints=false${CHIEF_COLOR_CYAN} to disable these hints. **${CHIEF_NO_COLOR}"
+      echo -e "${CHIEF_COLOR_CYAN}** Run ${CHIEF_COLOR_GREEN}chief.config-set hints=false${CHIEF_COLOR_CYAN} to disable these hints. **${CHIEF_NO_COLOR}"
       echo ""
     fi
   else
@@ -1056,6 +1523,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
       echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}help config${CHIEF_NO_COLOR}    - Configuration options"
       echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}help --compact${CHIEF_NO_COLOR} - Quick reference"
       echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}hints${CHIEF_NO_COLOR}          - Quick tips and workflow"
+      echo -e "• ${CHIEF_COLOR_GREEN}${cmd_prefix}status${CHIEF_NO_COLOR}         - Banner + stats (incl. disabled plugins)"
       echo
       echo -e "${CHIEF_COLOR_CYAN}Quick start: ${CHIEF_COLOR_GREEN}${cmd_prefix}[tab][tab]${CHIEF_NO_COLOR} to see all commands"
       echo
@@ -1076,9 +1544,38 @@ function __chief.info() {
   echo -e "${CHIEF_COLOR_CYAN}${CHIEF_REPO}${CHIEF_NO_COLOR}"
 }
 
+# Show Chief status (banner + stats including enabled/disabled plugins)
+function chief.status() {
+  __chief.banner
+  echo
+  __chief_show_chief_stats
+  case "$(__chief_dev_tools_state)" in
+    active)  echo -e "${CHIEF_COLOR_MAGENTA}Dev tools:${CHIEF_NO_COLOR} active (chief.release_status, chief.release_prepare, chief.release_publish)" ;;
+    branch)  echo -e "${CHIEF_COLOR_MAGENTA}Dev tools:${CHIEF_NO_COLOR} on, but inactive: ${CHIEF_PATH} is not on the dev branch (they only load on dev)" ;;
+    missing) echo -e "${CHIEF_COLOR_MAGENTA}Dev tools:${CHIEF_NO_COLOR} on, but this checkout has no libs/dev (release archive?)" ;;
+  esac
+}
+
+# Directory Chief loads keys from: CHIEF_CFG_SSH_KEYS_PATH if set, otherwise ~/.ssh.
+function __chief_ssh_keys_path() {
+  echo "${CHIEF_CFG_SSH_KEYS_PATH:-$HOME/.ssh}"
+}
+
+# Should Chief load SSH keys at start-up / reload? CHIEF_CFG_SSH_LOAD_KEYS=true|false.
+# Configs from before that switch existed don't have it: there, a set CHIEF_CFG_SSH_KEYS_PATH
+# meant "auto-load", so keep honoring that.
+function __chief_ssh_autoload_on() {
+  if [[ -n "${CHIEF_CFG_SSH_LOAD_KEYS:-}" ]]; then
+    [[ "${CHIEF_CFG_SSH_LOAD_KEYS}" == true ]]
+    return
+  fi
+  [[ -n "${CHIEF_CFG_SSH_KEYS_PATH:-}" ]]
+}
 
 function __chief_load_ssh_keys() {
-  __chief_print "Loading SSH keys from: ${CHIEF_CFG_SSH_KEYS_PATH}..." "$1"
+  local keys_path
+  keys_path="$(__chief_ssh_keys_path)"
+  __chief_print "Loading SSH keys from: ${keys_path}..." "$1"
 
 
   # Platform-specific SSH setup
@@ -1110,9 +1607,9 @@ function __chief_load_ssh_keys() {
     load="/usr/bin/ssh-add"
   fi
 
-  # Validate that CHIEF_CFG_SSH_KEYS_PATH exists
-  if [[ ! -d "${CHIEF_CFG_SSH_KEYS_PATH}" ]]; then
-    __chief_print "SSH keys directory does not exist: ${CHIEF_CFG_SSH_KEYS_PATH}" "$1"
+  # Validate that the keys directory exists
+  if [[ ! -d "${keys_path}" ]]; then
+    __chief_print "SSH keys directory does not exist: ${keys_path}" "$1"
     return 1
   fi
 
@@ -1127,7 +1624,7 @@ function __chief_load_ssh_keys() {
   fi
   
   # 1. Load keys with .key extension (Chief's preferred naming)
-  for ssh_key in "${CHIEF_CFG_SSH_KEYS_PATH}"/*.key; do
+  for ssh_key in "${keys_path}"/*.key; do
     # Check if glob matched actual files
     if [[ -f "${ssh_key}" ]]; then
       local key_name=$(basename "$ssh_key")
@@ -1161,7 +1658,7 @@ function __chief_load_ssh_keys() {
   done
   
   # 2. Load keys with .private extension (legacy support)
-  for ssh_key in "${CHIEF_CFG_SSH_KEYS_PATH}"/*.private; do
+  for ssh_key in "${keys_path}"/*.private; do
     # Check if glob matched actual files
     if [[ -f "${ssh_key}" ]]; then
       local key_name=$(basename "$ssh_key")
@@ -1196,13 +1693,21 @@ function __chief_load_ssh_keys() {
   # Report results
   if [[ ${key_count} -eq 0 ]]; then
     if [[ "$verbose_mode" == true ]]; then
-      __chief_print "No SSH keys found in ${CHIEF_CFG_SSH_KEYS_PATH}" "$1"
+      __chief_print "No SSH keys found in ${keys_path}" "$1"
       __chief_print "Supported file patterns: *.key, *.private" "$1"
     fi
   else
     if [[ "$verbose_mode" == true ]]; then
       __chief_print "Loaded ${key_count} SSH key(s): ${loaded_keys[*]}" "$1"
     fi
+  fi
+
+  # Too many keys in the agent can exhaust the server's MaxAuthTries; explain the fix.
+  # Explicit loads (--verbose) always show it; start-up shows it once per machine.
+  if [[ "${1}" == '--verbose' ]]; then
+    __chief_ssh_key_limit_hint "$(__chief_ssh_agent_key_count)" --always
+  else
+    __chief_ssh_key_limit_hint "$(__chief_ssh_agent_key_count)"
   fi
 }
 
@@ -1211,13 +1716,24 @@ function __chief_build_git_prompt() {
   # Usage: PROMPT_COMMAND='__chief_build_git_prompt'
   # Needed because PROMPT_COMMAND doesn't 'echo -e' and this also fixes the nasty
   # wrapping bug when the prompt is colorized and a VE is activated.
-  # Note: Using \[ \] sequences for non-printing characters in prompts
-  local P_BLUE='\[\033[0;34m\]'
-  local P_CYAN='\[\033[0;36m\]'
-  local P_GREEN='\[\033[0;32m\]'
-  local P_MAGENTA='\[\033[0;35m\]'
-  local P_YELLOW='\[\033[1;33m\]'
-  local P_NO_COLOR='\[\033[0m\]'
+  # Note: Using \[ \] sequences for non-printing characters in prompts;
+  # colors follow the same TTY / TERM / NO_COLOR rules as CHIEF_COLOR_*.
+  local P_BLUE P_CYAN P_GREEN P_MAGENTA P_YELLOW P_NO_COLOR
+  if ${CHIEF_CFG_COLORED_PROMPT}; then
+    P_BLUE="\[${CHIEF_COLOR_BLUE}\]"
+    P_CYAN="\[${CHIEF_COLOR_CYAN}\]"
+    P_GREEN="\[${CHIEF_COLOR_GREEN}\]"
+    P_MAGENTA="\[${CHIEF_COLOR_MAGENTA}\]"
+    P_YELLOW="\[${CHIEF_COLOR_YELLOW}\]"
+    P_NO_COLOR="\[${CHIEF_NO_COLOR}\]"
+  else
+    P_BLUE=''
+    P_CYAN=''
+    P_GREEN=''
+    P_MAGENTA=''
+    P_YELLOW=''
+    P_NO_COLOR=''
+  fi
 
   local ve_name=''
   if [[ ! -z ${VIRTUAL_ENV} ]]; then
@@ -1298,6 +1814,10 @@ function __chief_check_for_updates (){
 # TEXT COLOR VARIABLES
 ########################################################################
 
+# ANSI SGR colors (no tput): emit only when stdout is a color-capable TTY.
+# Honors NO_COLOR (https://no-color.org/). Set CHIEF_FORCE_COLOR to a non-empty
+# value to enable sequences when stdout is not a TTY (e.g. scripted demos).
+
 # Color guide from Stack Overflow
 # https://stackoverflow.com/questions/5947742/how-to-change-the-output-color-of-echo-in-linux
 
@@ -1313,15 +1833,42 @@ function __chief_check_for_updates (){
 #Cyan         0;36     Light Cyan    1;36
 #Light Gray   0;37     White         1;37
 
-export CHIEF_COLOR_RED='\033[0;31m'
-export CHIEF_COLOR_BLUE='\033[0;34m'
-export CHIEF_COLOR_CYAN='\033[0;36m'
-export CHIEF_COLOR_GREEN='\033[0;32m'
-export CHIEF_COLOR_MAGENTA='\033[0;35m'
-export CHIEF_COLOR_ORANGE='\033[0;33m'
-export CHIEF_COLOR_YELLOW='\033[1;33m'
-export CHIEF_TEXT_BLINK='\033[5m'
-export CHIEF_NO_COLOR='\033[0m' # Reset color/style
+__chief_stdout_color_ok() {
+  [[ -z "${NO_COLOR:-}" ]] || return 1
+  [[ -n "${CHIEF_FORCE_COLOR:-}" ]] && return 0
+  [[ -t 1 && -n "${TERM:-}" && "${TERM}" != dumb ]]
+}
+
+if __chief_stdout_color_ok; then
+  export CHIEF_COLOR_RED='\033[0;31m'
+  export CHIEF_COLOR_BLUE='\033[0;34m'
+  export CHIEF_COLOR_CYAN='\033[0;36m'
+  export CHIEF_COLOR_GREEN='\033[0;32m'
+  export CHIEF_COLOR_MAGENTA='\033[0;35m'
+  export CHIEF_COLOR_ORANGE='\033[0;33m'
+  export CHIEF_COLOR_YELLOW='\033[1;33m'
+  export CHIEF_TEXT_BLINK='\033[5m'
+  export CHIEF_NO_COLOR='\033[0m'
+else
+  export CHIEF_COLOR_RED=''
+  export CHIEF_COLOR_BLUE=''
+  export CHIEF_COLOR_CYAN=''
+  export CHIEF_COLOR_GREEN=''
+  export CHIEF_COLOR_MAGENTA=''
+  export CHIEF_COLOR_ORANGE=''
+  export CHIEF_COLOR_YELLOW=''
+  export CHIEF_TEXT_BLINK=''
+  export CHIEF_NO_COLOR=''
+fi
+
+# Gutter for framework status during load (lines without this prefix may be plugin output). Word "Chief" is reserved for rare bookends (e.g. chief.reload).
+export CHIEF_FRAMEWORK_MSG_PREFIX="${CHIEF_COLOR_CYAN}│${CHIEF_NO_COLOR} "
+
+function __chief_framework_print() {
+  if ${CHIEF_CFG_VERBOSE} || [[ "${2}" == '--verbose' ]]; then
+    echo -e "${CHIEF_FRAMEWORK_MSG_PREFIX}${1}"
+  fi
+}
 
 # PLATFORM-SPECIFIC SYMBOLS
 ########################################################################
@@ -1408,6 +1955,288 @@ function __chief_print_info(){
   echo -e "${CHIEF_COLOR_CYAN}$1${CHIEF_NO_COLOR}"
 }
 
+# STEP PROGRESS (live task list)
+########################################################################
+# Shared progress UI for multi-step Chief commands. Every step is listed up front and
+# updated as the command runs:
+#   ✓ done   ⠋ running   · pending   ↷ skipped   ✗ failed   ○ would (dry run)   ? waiting for an answer
+# In a terminal the list redraws in place. When stdout is not a terminal (pipe, file, CI),
+# NO_COLOR is set, or CHIEF_STEPS_PLAIN=1, it prints one plain line per finished step.
+#
+# Usage (internal, for Chief commands):
+#   __chief_steps_begin "Title" "Step one" "Step two" ...
+#   __chief_steps_start [detail]            mark the next step as running
+#   __chief_steps_tick [detail]             advance the spinner (polling loops)
+#   __chief_steps_done [detail]             ✓ the current step
+#   __chief_steps_skip [reason]             ↷ the current step (already done / not needed)
+#   __chief_steps_would [detail]            ○ the current step (dry run)
+#   __chief_steps_fail "reason" [hint...]   ✗ the current step, print reason and hints; returns 1
+#   __chief_steps_exec <command> [args...]  run a step's command with a spinner; output goes to
+#                                           $__CHIEF_STEPS_LOG and is shown if it fails
+#   __chief_steps_ask "Question?" [preview] pause on the current step for y/N; 0 = yes.
+#                                           CHIEF_STEPS_ASSUME_YES=1 answers yes without asking.
+#   __chief_steps_note "text"               add a line under the list that stays (e.g. problems found)
+#   __chief_steps_end ["Summary title" [line...]]  finish the list and print a summary
+# Steps are taken in order; each start/done/skip/would/fail call applies to the current step.
+
+__CHIEF_STEPS_NAMES=()
+__CHIEF_STEPS_STATE=()
+__CHIEF_STEPS_DETAIL=()
+__CHIEF_STEPS_CUR=-1
+__CHIEF_STEPS_ROWS=0
+__CHIEF_STEPS_LIVE=false
+__CHIEF_STEPS_FRAME=0
+__CHIEF_STEPS_COLS=80
+__CHIEF_STEPS_FOOTER=""
+__CHIEF_STEPS_NOTES=""
+__CHIEF_STEPS_LOG=""
+
+function __chief_steps_cur_state() {
+  ((__CHIEF_STEPS_CUR >= 0)) && echo "${__CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]}"
+}
+
+# Current terminal width (the real one, not a possibly stale $COLUMNS) into __CHIEF_STEPS_COLS.
+function __chief_steps_width() {
+  local size cols=""
+  size="$(stty size </dev/tty 2>/dev/null)" && cols="${size##* }"
+  [[ "$cols" =~ ^[0-9]+$ && "$cols" -gt 0 ]] || cols="${COLUMNS:-}"
+  [[ "$cols" =~ ^[0-9]+$ && "$cols" -gt 0 ]] || cols="$(tput cols 2>/dev/null)"
+  [[ "$cols" =~ ^[0-9]+$ && "$cols" -gt 0 ]] || cols=80
+  __CHIEF_STEPS_COLS="$cols"
+}
+
+# Cut text so a line never wraps: every line is exactly one terminal row, which is what makes
+# the in-place redraw exact (wrapped lines used to throw the count off and duplicate lines).
+# ${#} counts characters in a UTF-8 locale and bytes otherwise; both are >= the display width.
+function __chief_steps_fit() { # <text> <max>
+  local text="$1" max="$2"
+  ((max < 4)) && max=4
+  if ((${#text} > max)); then echo "${text:0:max-3}..."; else echo "$text"; fi
+}
+
+function __chief_steps_live_ok() {
+  [[ -z "${CHIEF_STEPS_PLAIN:-}" && -z "${NO_COLOR:-}" ]] || return 1
+  [[ -t 1 && -n "${TERM:-}" && "${TERM}" != dumb ]]
+}
+
+function __chief_steps_begin() {
+  local title="$1"; shift
+  __CHIEF_STEPS_NAMES=("$@")
+  __CHIEF_STEPS_STATE=()
+  __CHIEF_STEPS_DETAIL=()
+  local i
+  for ((i = 0; i < ${#__CHIEF_STEPS_NAMES[@]}; i++)); do
+    __CHIEF_STEPS_STATE[i]="pending"
+    __CHIEF_STEPS_DETAIL[i]=""
+  done
+  __CHIEF_STEPS_CUR=-1
+  __CHIEF_STEPS_ROWS=0
+  __CHIEF_STEPS_FRAME=0
+  __CHIEF_STEPS_FOOTER=""
+  __CHIEF_STEPS_NOTES=""
+  __CHIEF_STEPS_LOG="${TMPDIR:-/tmp}/chief-steps.$$.log"
+  : > "$__CHIEF_STEPS_LOG" 2>/dev/null
+  __CHIEF_STEPS_LIVE=false
+  if __chief_steps_live_ok; then
+    __CHIEF_STEPS_LIVE=true
+    __chief_steps_width
+  fi
+  [[ -n "$title" ]] && echo -e "${CHIEF_COLOR_CYAN}${title}${CHIEF_NO_COLOR}\n"
+  __chief_steps_draw
+}
+
+# Build step i's line into __CHIEF_STEPS_LINE (colored) and __CHIEF_STEPS_PLAIN (no color).
+function __chief_steps_line() {
+  local i="$1" sym color text
+  local frames=(⠋ ⠙ ⠹ ⠸ ⠼ ⠴ ⠦ ⠧ ⠇ ⠏)
+  local name="${__CHIEF_STEPS_NAMES[i]}" detail="${__CHIEF_STEPS_DETAIL[i]}"
+  case "${__CHIEF_STEPS_STATE[i]}" in
+    done)    sym="✓"; color="$CHIEF_COLOR_GREEN" ;;
+    running) sym="${frames[__CHIEF_STEPS_FRAME % 10]}"; color="$CHIEF_COLOR_CYAN" ;;
+    skip)    sym="↷"; color="$CHIEF_COLOR_YELLOW" ;;
+    fail)    sym="✗"; color="$CHIEF_COLOR_RED" ;;
+    would)   sym="○"; color="$CHIEF_COLOR_BLUE" ;;
+    ask)     sym="?"; color="$CHIEF_COLOR_YELLOW" ;;
+    *)       sym="·"; color="" ;;
+  esac
+  text="$name"
+  case "${__CHIEF_STEPS_STATE[i]}" in
+    fail)    [[ -n "$detail" ]] && text+=": $detail" ;;
+    would)   text="Would: $name"; [[ -n "$detail" ]] && text+=" ($detail)" ;;
+    running) [[ -n "$detail" ]] && text+=" ($detail)"; text+="..." ;;
+    *)       [[ -n "$detail" ]] && text+=" ($detail)" ;;
+  esac
+  $__CHIEF_STEPS_LIVE && text="$(__chief_steps_fit "$text" $((__CHIEF_STEPS_COLS - 5)))"
+  __CHIEF_STEPS_PLAIN="  $sym $text"
+  __CHIEF_STEPS_LINE="  ${color}${sym}${CHIEF_NO_COLOR} $text"
+}
+
+# Redraw the whole list in place (terminal mode only). Every printed line is cut to the
+# terminal width, so the block is exactly as many rows as lines and moving back up is exact.
+function __chief_steps_draw() {
+  $__CHIEF_STEPS_LIVE || return 0
+  ((__CHIEF_STEPS_ROWS > 0)) && printf '\033[%dA' "$__CHIEF_STEPS_ROWS"
+  printf '\r\033[J'
+  local i rows=0 line plain c
+  for ((i = 0; i < ${#__CHIEF_STEPS_NAMES[@]}; i++)); do
+    __chief_steps_line "$i"
+    printf '%b\n' "$__CHIEF_STEPS_LINE"
+    rows=$((rows + 1))
+  done
+  local extra="${__CHIEF_STEPS_NOTES}"
+  [[ -n "$__CHIEF_STEPS_FOOTER" ]] && extra+="${extra:+\n}${__CHIEF_STEPS_FOOTER}"
+  if [[ -n "$extra" ]]; then
+    while IFS= read -r line; do
+      # Measure without color codes; if it has to be cut, print it uncolored.
+      plain="$line"
+      for c in "$CHIEF_COLOR_RED" "$CHIEF_COLOR_GREEN" "$CHIEF_COLOR_YELLOW" "$CHIEF_COLOR_CYAN" \
+               "$CHIEF_COLOR_BLUE" "$CHIEF_COLOR_MAGENTA" "$CHIEF_NO_COLOR"; do
+        [[ -n "$c" ]] && plain="${plain//"$(printf '%b' "$c")"/}"
+      done
+      if ((${#plain} > __CHIEF_STEPS_COLS - 1)); then
+        printf '%s\n' "$(__chief_steps_fit "$plain" $((__CHIEF_STEPS_COLS - 1)))"
+      else
+        printf '%s\n' "$line"
+      fi
+      rows=$((rows + 1))
+    done < <(printf '%b\n' "$extra")
+  fi
+  __CHIEF_STEPS_ROWS=$rows
+}
+
+# Set the current step's state; in plain mode print it once when it finishes.
+function __chief_steps_set() {
+  local state="$1" detail="$2"
+  ((__CHIEF_STEPS_CUR >= 0)) || return 0
+  __CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]="$state"
+  __CHIEF_STEPS_DETAIL[__CHIEF_STEPS_CUR]="$detail"
+  if $__CHIEF_STEPS_LIVE; then
+    __chief_steps_width
+    __chief_steps_draw
+  elif [[ "$state" != running && "$state" != ask ]]; then
+    __chief_steps_line "$__CHIEF_STEPS_CUR"
+    printf '%b\n' "$__CHIEF_STEPS_LINE"
+  fi
+}
+
+function __chief_steps_start() {
+  ((__CHIEF_STEPS_CUR < ${#__CHIEF_STEPS_NAMES[@]} - 1)) && __CHIEF_STEPS_CUR=$((__CHIEF_STEPS_CUR + 1))
+  __chief_steps_set running "$1"
+}
+
+function __chief_steps_tick() {
+  __CHIEF_STEPS_FRAME=$((__CHIEF_STEPS_FRAME + 1))
+  [[ $# -gt 0 && $__CHIEF_STEPS_CUR -ge 0 ]] && __CHIEF_STEPS_DETAIL[__CHIEF_STEPS_CUR]="$1"
+  __chief_steps_draw
+}
+
+function __chief_steps_done()  { __chief_steps_set done "$1"; }
+
+function __chief_steps_note() {
+  __CHIEF_STEPS_NOTES+="${__CHIEF_STEPS_NOTES:+\n}$1"
+  if $__CHIEF_STEPS_LIVE; then __chief_steps_draw; else echo -e "$1"; fi
+}
+function __chief_steps_skip()  { __chief_steps_set skip "$1"; }
+
+function __chief_steps_would() {
+  # A dry-run step may be marked without being started first.
+  [[ "$(__chief_steps_cur_state)" == running ]] || __CHIEF_STEPS_CUR=$((__CHIEF_STEPS_CUR + 1))
+  __chief_steps_set would "$1"
+}
+
+function __chief_steps_fail() {
+  local reason="$1"; shift
+  __chief_steps_set fail "$reason"
+  __CHIEF_STEPS_ROWS=0
+  # The list line may have been cut to fit; the full reason matters, so show it below.
+  if $__CHIEF_STEPS_LIVE && ((${#reason} + ${#__CHIEF_STEPS_NAMES[__CHIEF_STEPS_CUR]} + 7 > __CHIEF_STEPS_COLS)); then
+    echo -e "    ${CHIEF_COLOR_RED}${reason}${CHIEF_NO_COLOR}"
+  fi
+  local hint
+  for hint in "$@"; do
+    echo -e "    $hint"
+  done
+  return 1
+}
+
+function __chief_steps_exec() {
+  local rc pid monitor=false
+  : > "$__CHIEF_STEPS_LOG" 2>/dev/null
+  [[ "$(__chief_steps_cur_state)" == running ]] || __chief_steps_start
+  if $__CHIEF_STEPS_LIVE; then
+    # Job-control notices ("[1] 1234", "Done") would break the redraw.
+    [[ $- == *m* ]] && monitor=true && set +m
+    # Run external commands in their own session, without the terminal: anything they write
+    # straight to /dev/tty would land between redraws and shift the list (duplicated lines).
+    # Shell functions (e.g. git push wrappers) keep the terminal so auth prompts still work.
+    local -a runner=()
+    if [[ "$(type -t "$1")" == file ]] && command -v perl >/dev/null 2>&1; then
+      runner=(perl -MPOSIX -e 'POSIX::setsid(); exec @ARGV or die "cannot run $ARGV[0]: $!\n"' --)
+    fi
+    ${runner[@]+"${runner[@]}"} "$@" >>"$__CHIEF_STEPS_LOG" 2>&1 </dev/null &
+    pid=$!
+    while kill -0 "$pid" 2>/dev/null; do
+      __chief_steps_tick
+      sleep 0.1
+    done
+    wait "$pid"; rc=$?
+    $monitor && set -m
+  else
+    "$@" >>"$__CHIEF_STEPS_LOG" 2>&1 </dev/null; rc=$?
+  fi
+  return $rc
+}
+
+# Show the tail of the step log, indented (used after a failed step).
+function __chief_steps_show_log() {
+  [[ -s "$__CHIEF_STEPS_LOG" ]] || return 0
+  tail -n "${1:-15}" "$__CHIEF_STEPS_LOG" | sed 's/^/      /'
+}
+
+function __chief_steps_ask() {
+  local question="$1" preview="${2:-}" answer
+  if [[ "${CHIEF_STEPS_ASSUME_YES:-}" == 1 ]]; then
+    return 0
+  fi
+  if [[ ! -t 0 ]]; then
+    __chief_steps_fail "needs confirmation" "No terminal to ask \"$question\"; re-run with --yes to confirm."
+    return 1
+  fi
+  ((__CHIEF_STEPS_CUR >= 0)) || __CHIEF_STEPS_CUR=0
+  local prev_state="${__CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]}"
+  __CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]="ask"
+  if $__CHIEF_STEPS_LIVE; then
+    # The question is part of the redrawn block (cut to fit); the answer is typed on the
+    # line below it, which adds exactly one row.
+    __chief_steps_width
+    # Shorten the question, never the [y/N] after it.
+    __CHIEF_STEPS_FOOTER="${preview}${preview:+\n}  ? $(__chief_steps_fit "$question" $((__CHIEF_STEPS_COLS - 11))) [y/N]"
+    __chief_steps_draw
+    read -r answer
+    __CHIEF_STEPS_ROWS=$((__CHIEF_STEPS_ROWS + 1))
+    __CHIEF_STEPS_FOOTER=""
+  else
+    [[ -n "$preview" ]] && printf '%b\n' "$preview"
+    read -r -p "  ? ${question} [y/N] " answer
+  fi
+  __CHIEF_STEPS_STATE[__CHIEF_STEPS_CUR]="$prev_state"
+  __chief_steps_draw
+  [[ "$answer" =~ ^[Yy]([Ee][Ss])?$ ]]
+}
+
+function __chief_steps_end() {
+  local title="${1:-}"; shift
+  __CHIEF_STEPS_ROWS=0
+  [[ -n "$__CHIEF_STEPS_LOG" ]] && rm -f "$__CHIEF_STEPS_LOG" 2>/dev/null
+  [[ -z "$title" ]] && return 0
+  echo
+  echo -e "${CHIEF_COLOR_GREEN}${title}${CHIEF_NO_COLOR}"
+  local line
+  for line in "$@"; do
+    echo -e "  $line"
+  done
+}
+
 # MAIN FUNCTIONS
 ########################################################################
 
@@ -1428,15 +2257,21 @@ Change directory (cd) into the Chief utility root installation directory."
   echo -e "${CHIEF_COLOR_GREEN}Changed directory to CHIEF_PATH=${CHIEF_PATH}.${CHIEF_NO_COLOR}"
 }
 
-function chief.ssh_load_keys() {
+function chief.ssh_load-keys() {
   local USAGE="Usage: $FUNCNAME
 
-Load SSH keys from CHIEF_CFG_SSH_KEYS_PATH defined in the Chief configuration.
+Load SSH keys from ~/.ssh (or CHIEF_CFG_SSH_KEYS_PATH if set) into ssh-agent.
+To load them automatically at start-up: chief.config-set ssh_load_keys true
 Supported key file patterns:
 - *.key (Chief preferred naming)
 - *.private (legacy support)
 This supports RSA, ed25519, and other key types. Symlinks are allowed for selective loading.
 Note: Standard SSH keys (id_rsa, id_ed25519, etc.) are automatically used by SSH clients and don't need to be loaded.
+
+Many keys: SSH servers count every key offered and disconnect after MaxAuthTries (often 3-6), so with
+${CHIEF_SSH_KEYS_WARN_AT}+ keys loaded the right one may never be tried (\"Too many authentication failures\").
+Pin a key to each host so ssh offers only that key: chief.ssh_host-key <host> <key>
+Check which hosts are pinned: chief.ssh_status
 "
 
   if [[ $1 == "-?" ]]; then
@@ -1444,12 +2279,6 @@ Note: Standard SSH keys (id_rsa, id_ed25519, etc.) are automatically used by SSH
     return
   fi
 
-  if [[ -z ${CHIEF_CFG_SSH_KEYS_PATH}  ]]; then
-    echo -e "${CHIEF_COLOR_RED}Error: CHIEF_CFG_SSH_KEYS_PATH is not set in ${CHIEF_CONFIG}. Please set it to the path where your SSH keys are stored.${CHIEF_NO_COLOR}"
-    echo -e "${CHIEF_COLOR_YELLOW}Note: Keys must end with '.key' extension (supports RSA, ed25519, etc.)${CHIEF_NO_COLOR}"
-    echo "${USAGE}"
-    return 1
-  fi
   chief.etc_spinner "Loading SSH keys..." "__chief_load_ssh_keys --verbose" tmp_out
   echo -e "${tmp_out}"
 }
@@ -1515,13 +2344,284 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     echo -e "${CHIEF_COLOR_YELLOW}Troubleshooting:${CHIEF_NO_COLOR}"
     echo "• Try: eval \$(ssh-agent) && ssh-add"
     echo "• Or reload Chief: chief.reload"
-    if [[ -n "${CHIEF_CFG_SSH_KEYS_PATH}" ]]; then
-      echo "• Or load Chief keys: chief.ssh_load_keys"
+    echo "• Or load Chief keys: chief.ssh_load-keys"
+  fi
+
+  # Key-limit check: many agent keys + hosts that don't pin a key
+  local agent_keys cfg missing
+  agent_keys=$(__chief_ssh_agent_key_count)
+  cfg="${CHIEF_SSH_CONFIG:-$HOME/.ssh/config}"
+  echo
+  echo -e "${CHIEF_COLOR_BLUE}Key pinning (${cfg}):${CHIEF_NO_COLOR}"
+  # Only matters when many keys are in the agent; stay quiet otherwise.
+  if [[ "$agent_keys" -lt "${CHIEF_SSH_KEYS_WARN_AT}" ]]; then
+    echo -e "${CHIEF_COLOR_GREEN}${agent_keys} key(s) in ssh-agent: under the limit, nothing to pin.${CHIEF_NO_COLOR}"
+    return 0
+  fi
+  if [[ ! -f "$cfg" ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}No ssh config file.${CHIEF_NO_COLOR} Pin a key to a host with: chief.ssh_host-key <host> <key>"
+  else
+    missing=$(__chief_ssh_hosts_without_identitiesonly "$cfg")
+    if [[ "$missing" == "__ALL__" ]]; then
+      echo -e "${CHIEF_COLOR_GREEN}All hosts use IdentitiesOnly (set under Host *).${CHIEF_NO_COLOR}"
+    elif [[ -z "$missing" ]]; then
+      echo -e "${CHIEF_COLOR_GREEN}Every named host pins its key (IdentitiesOnly yes).${CHIEF_NO_COLOR}"
+    else
+      echo -e "Hosts without ${CHIEF_COLOR_CYAN}IdentitiesOnly yes${CHIEF_NO_COLOR} (ssh may offer every agent key):"
+      echo "$missing" | sed 's/^/  • /'
+      echo -e "Fix one with: ${CHIEF_COLOR_GREEN}chief.ssh_host-key <host> <key>${CHIEF_NO_COLOR}   (preview with --dry-run)"
+      __chief_ssh_key_names_line
     fi
   fi
 }
 
-function chief.plugins_update() {
+# SSH servers count every key the client offers as one authentication attempt and disconnect
+# after MaxAuthTries (OpenSSH default 6; many servers use fewer). With this many keys in the
+# agent, the right key may never be offered ("Too many authentication failures").
+CHIEF_SSH_KEYS_WARN_AT=3
+
+# Number of identities currently in ssh-agent (0 if none or no agent).
+function __chief_ssh_agent_key_count() {
+  local out
+  out=$(ssh-add -l 2>/dev/null) || { echo 0; return; }
+  [[ -z "$out" || "$out" == "The agent has no identities."* ]] && { echo 0; return; }
+  echo "$out" | grep -c .
+}
+
+# Explain the key-limit problem and the fix when many keys are loaded.
+# Usage: __chief_ssh_key_limit_hint <key_count> [--always]
+#   Without --always the hint is shown once per machine (marker under XDG state dir).
+function __chief_ssh_key_limit_hint() {
+  local count="${1:-0}"
+  [[ "$count" -ge "${CHIEF_SSH_KEYS_WARN_AT}" ]] || return 0
+  local marker="${XDG_STATE_HOME:-$HOME/.local/state}/chief/ssh-key-limit-hint-shown"
+  if [[ "$2" != "--always" ]]; then
+    [[ -f "$marker" ]] && return 0
+    mkdir -p "$(dirname "$marker")" 2>/dev/null && touch "$marker" 2>/dev/null
+  fi
+  echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} ${count} keys are loaded in ssh-agent. Servers may stop before the right one is tried"
+  echo -e "(\"Too many authentication failures\"). Pin one key per host:"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.ssh_status${CHIEF_NO_COLOR}                  list hosts that don't pin a key"
+  echo -e "  ${CHIEF_COLOR_GREEN}chief.ssh_host-key <host> <key>${CHIEF_NO_COLOR}   pin one (add --dry-run to preview)"
+  __chief_ssh_key_names_line
+}
+
+# Print the key names chief.ssh_host-key accepts (from the keys directory), if any.
+function __chief_ssh_key_names_line() {
+  local dir f names=""
+  dir="$(__chief_ssh_keys_path)"
+  [[ -n "$dir" && -d "$dir" ]] || return 0
+  for f in "$dir"/*.key; do
+    [[ -e "$f" ]] || continue
+    f="${f##*/}"; names="${names:+$names, }${f%.key}"
+  done
+  [[ -n "$names" ]] && echo -e "  Your keys: ${CHIEF_COLOR_CYAN}${names}${CHIEF_NO_COLOR}"
+  return 0
+}
+
+# Print hosts from an ssh config that don't set "IdentitiesOnly yes" (one per line).
+# Wildcard patterns are skipped. Prints "__ALL__" if "Host *" sets IdentitiesOnly yes.
+# Usage: __chief_ssh_hosts_without_identitiesonly [config_file]
+function __chief_ssh_hosts_without_identitiesonly() {
+  local cfg="${1:-${CHIEF_SSH_CONFIG:-$HOME/.ssh/config}}"
+  [[ -f "$cfg" ]] || return 0
+  awk '
+    function flush() {
+      if (in_host) {
+        if (star && only) { global = 1 }
+        else if (!star && !only) { for (i = 1; i <= nh; i++) missing[++nm] = hosts[i] }
+      }
+      in_host = 0; nh = 0; only = 0; star = 0
+    }
+    {
+      line = $0; sub(/#.*/, "", line)
+      if (line ~ /^[ \t]*$/) next
+      kw = tolower(line); sub(/^[ \t]*/, "", kw); split(kw, parts, /[ \t=]+/)
+      if (parts[1] == "host" || parts[1] == "match") {
+        flush()
+        if (parts[1] == "host") {
+          in_host = 1
+          n = split(line, toks, /[ \t=]+/)
+          for (i = 1; i <= n; i++) {
+            t = toks[i]; if (t == "" || tolower(t) == "host") continue
+            if (t == "*") star = 1
+            else if (t !~ /[*?!]/) hosts[++nh] = t
+          }
+        }
+        next
+      }
+      if (parts[1] == "identitiesonly" && tolower(parts[2]) == "yes") only = 1
+    }
+    END {
+      flush()
+      if (global) { print "__ALL__"; exit }
+      for (i = 1; i <= nm; i++) print missing[i]
+    }' "$cfg"
+}
+
+# Pin a key to a host in ~/.ssh/config (IdentityFile + IdentitiesOnly yes).
+function chief.ssh_host-key() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <host> <key> [--dry-run] [--yes]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Tell ssh which key to use for a host, so it only offers that key. Adds (or updates) the host's
+block in ~/.ssh/config with:
+    IdentityFile <key>
+    IdentitiesOnly yes
+
+${CHIEF_COLOR_BLUE}Why:${CHIEF_NO_COLOR}
+SSH servers count every key the client offers and disconnect after MaxAuthTries (often 3-6).
+With several keys in ssh-agent, the right key may never be tried (\"Too many authentication
+failures\"). With IdentitiesOnly, ssh offers only the pinned key; the agent still unlocks it.
+
+${CHIEF_COLOR_GREEN}Arguments:${CHIEF_NO_COLOR}
+  host   Host name as you type it in ssh/git (e.g. github.com, my-server)
+  key    Path to a private key, or a key name in ~/.ssh or CHIEF_CFG_SSH_KEYS_PATH (github, github.key)
+
+${CHIEF_COLOR_GREEN}Options:${CHIEF_NO_COLOR}
+  --dry-run   Show the block that would be written; change nothing
+  --yes, -y   Don't ask for confirmation
+  -?, --help  Show this help
+
+${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
+- Existing IdentityFile/IdentitiesOnly lines in that host's block are replaced; other lines are kept.
+- A new block goes before the first Host/Match line, where ssh reads specific hosts first.
+- Refuses Host lines that list several hosts (edit those by hand).
+- Backs up the config first (<config>.chief-backup.<timestamp>).
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME github.com github --dry-run
+  $FUNCNAME github.com ~/.ssh/keys/github.key
+  $FUNCNAME my-server work -y
+"
+  local host="" key="" dry_run=false assume_yes=false
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      -\?|--help) echo -e "${USAGE}"; return 0 ;;
+      --dry-run) dry_run=true ;;
+      --yes|-y) assume_yes=true ;;
+      -*) echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} unknown option: $1" >&2; return 1 ;;
+      *) if [[ -z "$host" ]]; then host="$1"; elif [[ -z "$key" ]]; then key="$1"; else
+           echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} too many arguments" >&2; return 1; fi ;;
+    esac
+    shift
+  done
+  if [[ -z "$host" || -z "$key" ]]; then
+    echo -e "${USAGE}"; return 1
+  fi
+  if [[ "$host" =~ [[:space:],] ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} host must be a single name: $host" >&2; return 1
+  fi
+
+  # Resolve the key: a path, or a name in the keys directory (with or without .key)
+  local key_path=""
+  local candidate
+  for candidate in "${key/#\~/$HOME}" \
+                   "$(__chief_ssh_keys_path)/$key" \
+                   "$(__chief_ssh_keys_path)/$key.key"; do
+    if [[ -n "$candidate" && -f "$candidate" ]]; then key_path="$candidate"; break; fi
+  done
+  if [[ -z "$key_path" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} key not found: $key" >&2
+    echo "Looked for it as a path and in $(__chief_ssh_keys_path)" >&2
+    return 1
+  fi
+  [[ "$key_path" != /* ]] && key_path="$(cd "$(dirname "$key_path")" && pwd)/$(basename "$key_path")"
+  local id_path="$key_path"
+  [[ "$id_path" == "$HOME"/* ]] && id_path="~${id_path#$HOME}"
+
+  local cfg="${CHIEF_SSH_CONFIG:-$HOME/.ssh/config}"
+  local lines=() l
+  if [[ -f "$cfg" ]]; then
+    while IFS= read -r l || [[ -n "$l" ]]; do lines+=("$l"); done < "$cfg"
+  fi
+
+  # Find the host's block and the first Host/Match line
+  local n=${#lines[@]} i host_idx=-1 first_block=-1 kw rest tok
+  for ((i = 0; i < n; i++)); do
+    l="${lines[i]%%#*}"
+    read -r kw rest <<< "${l//=/ }"
+    kw=$(echo "$kw" | tr '[:upper:]' '[:lower:]')
+    [[ "$kw" == "host" || "$kw" == "match" ]] || continue
+    [[ $first_block -lt 0 ]] && first_block=$i
+    [[ "$kw" == "host" ]] || continue
+    local toks=()
+    read -r -a toks <<< "$rest"
+    for tok in "${toks[@]}"; do
+      if [[ "$tok" == "$host" ]]; then
+        if [[ ${#toks[@]} -gt 1 ]]; then
+          echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} line $((i + 1)) of $cfg covers several hosts: ${lines[i]}" >&2
+          echo "Edit it by hand, or give $host its own Host block." >&2
+          return 1
+        fi
+        host_idx=$i
+      fi
+    done
+  done
+
+  local new=() replaced=0 in_block=false action
+  local pinned=("    IdentityFile ${id_path}" "    IdentitiesOnly yes")
+  if [[ $host_idx -ge 0 ]]; then
+    action="Update the existing 'Host ${host}' block (line $((host_idx + 1)))"
+    for ((i = 0; i < n; i++)); do
+      l="${lines[i]}"
+      if [[ $i -eq $host_idx ]]; then
+        new+=("$l" "${pinned[@]}"); in_block=true; continue
+      fi
+      if $in_block; then
+        read -r kw rest <<< "${l%%#*}"
+        kw=$(echo "${kw%%=*}" | tr '[:upper:]' '[:lower:]')
+        if [[ "$kw" == "host" || "$kw" == "match" ]]; then
+          in_block=false
+        elif [[ "$kw" == "identityfile" || "$kw" == "identitiesonly" ]]; then
+          ((replaced++)); continue
+        fi
+      fi
+      new+=("$l")
+    done
+  else
+    local block=("Host ${host}" "${pinned[@]}" "")
+    if [[ $first_block -ge 0 ]]; then
+      action="Add a 'Host ${host}' block before line $((first_block + 1))"
+      for ((i = 0; i < n; i++)); do
+        [[ $i -eq $first_block ]] && new+=("${block[@]}")
+        new+=("${lines[i]}")
+      done
+    else
+      action="Add a 'Host ${host}' block at the end"
+      new=("${lines[@]}")
+      [[ $n -gt 0 && -n "${lines[n - 1]}" ]] && new+=("")
+      new+=("${block[@]:0:3}")
+    fi
+  fi
+
+  echo -e "${CHIEF_COLOR_BLUE}${action} in ${cfg}:${CHIEF_NO_COLOR}"
+  printf '  %s\n' "Host ${host}" "${pinned[@]}"
+  [[ $replaced -gt 0 ]] && echo -e "  ${CHIEF_COLOR_YELLOW}(replaces ${replaced} existing IdentityFile/IdentitiesOnly line(s))${CHIEF_NO_COLOR}"
+  if $dry_run; then
+    echo -e "${CHIEF_COLOR_CYAN}Dry run: nothing changed.${CHIEF_NO_COLOR}"
+    return 0
+  fi
+  if ! $assume_yes; then
+    local confirm
+    echo -en "${CHIEF_COLOR_YELLOW}Write this to ${cfg}? (y/n [n]): ${CHIEF_NO_COLOR}"
+    read -r confirm
+    [[ "$confirm" == "y" || "$confirm" == "Y" ]] || { echo "Cancelled."; return 0; }
+  fi
+
+  mkdir -p "$(dirname "$cfg")" && chmod 700 "$(dirname "$cfg")" 2>/dev/null
+  if [[ -f "$cfg" ]]; then
+    local backup="${cfg}.chief-backup.$(date +%Y%m%d_%H%M%S)"
+    cp -p "$cfg" "$backup" || { echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} could not back up $cfg" >&2; return 1; }
+    echo -e "Backup: ${backup}"
+  fi
+  local tmp="${cfg}.chief-tmp.$$"
+  printf '%s\n' "${new[@]}" > "$tmp" && chmod 600 "$tmp" && mv -f "$tmp" "$cfg" || {
+    rm -f "$tmp"; echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} could not write $cfg" >&2; return 1; }
+  echo -e "${CHIEF_SYMBOL_CHECK:-✓} ${host} now uses only ${id_path}"
+}
+
+function chief.plugins-update() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--force]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
@@ -1706,7 +2806,7 @@ You can also manually update by running git pull in the Chief directory.
         echo -e "${CHIEF_COLOR_RED}Error: Branch '${TARGET_BRANCH}' does not exist in remote repository${CHIEF_NO_COLOR}"
         echo -e "${CHIEF_COLOR_CYAN}Available remote branches:${CHIEF_NO_COLOR}"
         git ls-remote --heads origin | sed 's|.*refs/heads/||' | sed 's/^/  /'
-        echo -e "${CHIEF_COLOR_YELLOW}Try: chief.config_set update_branch <valid_branch_name>${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_COLOR_YELLOW}Try: chief.config-set update_branch <valid_branch_name>${CHIEF_NO_COLOR}"
         cd - > /dev/null 2>&1
         return 1
       fi
@@ -1756,12 +2856,21 @@ You can also manually update by running git pull in the Chief directory.
         cd - > /dev/null 2>&1
         return 1
       }
-      
+      local template_changed=false
+      git diff --name-only ORIG_HEAD HEAD 2>/dev/null | grep -q 'templates/chief_config_template.sh' && template_changed=true
+
       # Reload Chief to reflect the branch change and updates
       echo -e "${CHIEF_COLOR_BLUE}Reloading Chief to reflect branch change and updates...${CHIEF_NO_COLOR}"
       chief.reload
       cd - > /dev/null 2>&1
       echo -e "${CHIEF_COLOR_GREEN}Updated Chief to [${CHIEF_VERSION}] from ${TARGET_BRANCH} branch.${CHIEF_NO_COLOR}"
+      if $template_changed; then
+        echo ""
+        echo -e "${CHIEF_COLOR_CYAN}Config template changed. Run ${CHIEF_COLOR_GREEN}chief.config-update${CHIEF_COLOR_CYAN} to add new options to your config.${CHIEF_NO_COLOR}"
+        if chief.etc_ask-yes-or-no "Run chief.config-update now?"; then
+          chief.config-update
+        fi
+      fi
       return 0
     else
       echo -e "${CHIEF_COLOR_YELLOW}Branch switch cancelled. Continuing with update check on current branch.${CHIEF_NO_COLOR}"
@@ -1809,7 +2918,7 @@ You can also manually update by running git pull in the Chief directory.
           echo -e "${CHIEF_COLOR_RED}Error: Branch '${TARGET_BRANCH}' does not exist in remote repository${CHIEF_NO_COLOR}"
           echo -e "${CHIEF_COLOR_CYAN}Available remote branches:${CHIEF_NO_COLOR}"
           git ls-remote --heads origin | sed 's|.*refs/heads/||' | sed 's/^/  /'
-          echo -e "${CHIEF_COLOR_YELLOW}Try: chief.config_set update_branch <valid_branch_name>${CHIEF_NO_COLOR}"
+          echo -e "${CHIEF_COLOR_YELLOW}Try: chief.config-set update_branch <valid_branch_name>${CHIEF_NO_COLOR}"
           return 1
         fi
         echo -e "${CHIEF_COLOR_GREEN}✓ Branch ${TARGET_BRANCH} found remotely${CHIEF_NO_COLOR}"
@@ -1856,10 +2965,19 @@ You can also manually update by running git pull in the Chief directory.
         echo -e "${CHIEF_COLOR_RED}Error: Failed to pull updates from ${TARGET_BRANCH} branch${CHIEF_NO_COLOR}"
         return 1
       }
-      
+      local template_changed=false
+      git diff --name-only ORIG_HEAD HEAD 2>/dev/null | grep -q 'templates/chief_config_template.sh' && template_changed=true
+
       chief.reload
       cd - > /dev/null 2>&1
       echo -e "${CHIEF_COLOR_GREEN}Updated Chief to [${CHIEF_VERSION}] from ${TARGET_BRANCH} branch.${CHIEF_NO_COLOR}"
+      if $template_changed; then
+        echo ""
+        echo -e "${CHIEF_COLOR_CYAN}Config template changed. Run ${CHIEF_COLOR_GREEN}chief.config-update${CHIEF_COLOR_CYAN} to add new options to your config.${CHIEF_NO_COLOR}"
+        if chief.etc_ask-yes-or-no "Run chief.config-update now?"; then
+          chief.config-update
+        fi
+      fi
     else
       echo -e "${CHIEF_COLOR_YELLOW}Update skipped.${CHIEF_NO_COLOR}"
     fi
@@ -1919,11 +3037,14 @@ Edit Chief's configuration file with automatic reload on changes.
 
 ${CHIEF_COLOR_GREEN}Configuration Options:${CHIEF_NO_COLOR}
 - CHIEF_CFG_BANNER: Show startup banner
+- CHIEF_CFG_BANNER_SHOW_PLUGINS: Show 'plugins:' line in banner (requires BANNER=true)
+- CHIEF_CFG_BANNER_SHOW_TRACKING: Show 'tracking:' line in banner (requires BANNER=true)
+- CHIEF_CFG_BASH_WARN: Warn at start-up when running on Bash older than 4.0 (default true)
 - CHIEF_CFG_PROMPT: Use Chief's custom prompt
 - CHIEF_CFG_GIT_PROMPT: Git-aware prompt features
 - CHIEF_CFG_MULTILINE_PROMPT: Enable multiline prompt
 - CHIEF_CFG_PLUGINS_TYPE: 'local' or 'remote' plugins
-- CHIEF_CFG_SSH_KEYS_PATH: Auto-load SSH keys path (keys must end in .key)
+- CHIEF_CFG_SSH_LOAD_KEYS: Auto-load SSH keys at start-up (from ~/.ssh or CHIEF_CFG_SSH_KEYS_PATH)
 - And many more...
 
 ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
@@ -1973,6 +3094,9 @@ ${CHIEF_COLOR_GREEN}Input Formats:${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
   BANNER                    Show/hide startup banner (true/false)
+  BANNER_SHOW_PLUGINS       Show/hide 'plugins:' line in banner (true/false; banner must be on)
+  BANNER_SHOW_TRACKING      Show/hide 'tracking:' line in banner (true/false; banner must be on)
+  BASH_WARN                 Warn at start-up if Bash is older than 4.0 (true/false)
   HINTS                     Show/hide startup hints (true/false)
   VERBOSE                   Enable verbose output (true/false)
   AUTOCHECK_UPDATES         Auto-check for updates (true/false)
@@ -1985,6 +3109,10 @@ ${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
   PLUGINS_PATH              Local plugin directory (also remote repo clone location)
   PLUGINS_GIT_PATH          [Remote only] Relative path within repo (empty = repo root)
   PLUGINS_GIT_AUTOUPDATE    Auto-update remote plugins (true/false)
+  PLUGINS_DISABLED_CORE     Space-separated list of core plugins to skip (e.g. \"ssl secrets vault\");
+  PLUGINS_DISABLED_USER     Space-separated list of user plugins to skip (e.g. \"lab workmac\");
+  PLUGINS_ENABLED_CONTRIB   Space-separated list of contrib plugins to load (e.g. \"cg\"); use chief.plugin enable contrib.<name>
+  CG_HELPER_FUNCTIONS       [cg contrib plugin] Path to .helper_functions.sh in your local customer-success clone
   PROMPT                    Enable/disable Chief prompt (true/false)
   COLORED_PROMPT            Enable colored prompts (true/false)
   GIT_PROMPT                Show git status in prompt (true/false)
@@ -2532,6 +3660,13 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
         user_value="${user_vars[$var_name]}"
       fi
       
+      # Upgrade: before CHIEF_CFG_SSH_LOAD_KEYS existed, setting CHIEF_CFG_SSH_KEYS_PATH meant
+      # "auto-load keys". Keep that behavior instead of the template's default (false).
+      if [[ -z "$user_value" && "$var_name" == "CHIEF_CFG_SSH_LOAD_KEYS" && -n "${user_vars[CHIEF_CFG_SSH_KEYS_PATH]:-}" ]]; then
+        user_value="true"
+        echo "# Set on upgrade: this config already auto-loaded keys from CHIEF_CFG_SSH_KEYS_PATH"
+      fi
+
       # Use template default if no user value
       if [[ -z "$user_value" ]]; then
         user_value="$var_value"
@@ -2662,19 +3797,33 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
 }
 
 function chief.plugin() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [OPTIONS] [plugin_name]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [OPTIONS] [plugin_name] [existing_file_path]
+       $FUNCNAME enable <name>         Enable a user plugin (e.g. bc, lab)
+       $FUNCNAME enable core.<name>    Enable a core plugin (e.g. core.ssl)
+       $FUNCNAME disable <name>        Disable a user plugin (e.g. bc, lab)
+       $FUNCNAME disable core.<name>   Disable a core plugin (e.g. core.ssl)
+       $FUNCNAME enable contrib.<name> Enable a contrib plugin (off by default; e.g. contrib.cg)
+       $FUNCNAME disable contrib.<name> Disable a contrib plugin
+       $FUNCNAME status                Show enabled/disabled for core and user plugins
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Edit a Chief plugin file with automatic reload on changes.
+Enable/disable core or user plugins so they are skipped when Chief loads.
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
-  plugin_name  Name of plugin to edit (without _chief-plugin.sh suffix)
+  plugin_name         Name of plugin to edit (without _chief-plugin.sh suffix)
+  existing_file_path  Optional: path to an existing script; Chief creates <name>_chief-plugin.sh
+                      as a symlink to that file (same as manual ln -s into the plugins dir).
+                      Symlink targets are relative when the script lives under the same directory
+                      tree as the plugin file (portable for git / remote plugin repos). If no
+                      relative path exists (e.g. target outside the tree or another volume),
+                      Chief uses an absolute target and warns that committing it is not portable.
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
-  --code, --vscode  Use VSCode editor (requires 'code' command)
+  --code, --vscode  Use GUI editor (Cursor if available, else VSCode; set CHIEF_CFG_EDITOR_GUI_CMD to override)
   -?, --help      Show this help
 
-${CHIEF_COLOR_GREEN}Available Plugins:${CHIEF_NO_COLOR}
+${CHIEF_COLOR_GREEN}User plugins:${CHIEF_NO_COLOR} ${CHIEF_COLOR_BLUE}(editable; core built-in plugins: cf.help plugins)${CHIEF_NO_COLOR}
 $(__chief_get_plugins)
 
 ${CHIEF_COLOR_MAGENTA}Plugin Naming Convention:${CHIEF_NO_COLOR}
@@ -2684,21 +3833,101 @@ ${CHIEF_COLOR_MAGENTA}Plugin Naming Convention:${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME                    # Edit default plugin
+  $FUNCNAME enable bc          # Enable user plugin bc
+  $FUNCNAME disable core.ssl   # Disable core plugin ssl
+  $FUNCNAME status             # List enabled/disabled plugins
   $FUNCNAME mytools            # Edit mytools_chief-plugin.sh
-  $FUNCNAME --code aws         # Edit aws_chief-plugin.sh with VSCode
-  $FUNCNAME --vscode mytools   # Edit mytools_chief-plugin.sh with VSCode
+  $FUNCNAME pl /path/to/pl.sh  # Symlink existing script as pl_chief-plugin.sh (relative if portable)
+  $FUNCNAME --code default     # Edit default_chief-plugin.sh with Cursor/VSCode
 
 ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
 - Opens in your configured editor (respects CHIEF_CFG_DEFAULT_EDITOR_PATH, \$EDITOR)
-- VSCode support with --code/--vscode flag
+- Cursor/VSCode support with --code/--vscode flag (Cursor preferred if in PATH)
 - Automatically reloads plugin on save
-- Creates new plugin if it doesn't exist
+- Creates new plugin from template if the plugin file does not exist yet
+- Symlink mode (two arguments): installs a plugin symlink so Chief loads your existing script.
+  For team or dotfiles repos, keep the script inside the same checkout as the plugins path so the
+  symlink target is stored as a relative path (works after clone on another machine). Targets
+  outside that tree use an absolute path; Chief warns that those links are host-specific.
 "
 
-  # Parse arguments
+  # --- Enable/disable/status subcommands (no options before the subcommand) ---
+  if [[ $# -gt 0 ]]; then
+    local subcmd=$(echo "$1" | tr '[:upper:]' '[:lower:]')
+    case "$subcmd" in
+      enable)
+        shift
+        if [[ -z "$1" ]]; then
+          echo -e "${CHIEF_COLOR_RED}Error: ${CHIEF_NO_COLOR}chief.plugin enable requires a plugin name (e.g. bc or core.ssl)"
+          return 1
+        fi
+        local name="$1"
+        local module="user"
+        if [[ "$name" == core.* ]]; then
+          module="core"
+          name="${name#core.}"
+        elif [[ "$name" == contrib.* ]]; then
+          module="contrib"
+          name="${name#contrib.}"
+        fi
+        __chief_plugin_enable_disable "$module" "$name" "enable"
+        return
+        ;;
+      disable)
+        shift
+        if [[ -z "$1" ]]; then
+          echo -e "${CHIEF_COLOR_RED}Error: ${CHIEF_NO_COLOR}chief.plugin disable requires a plugin name (e.g. bc or core.ssl)"
+          return 1
+        fi
+        local name="$1"
+        local module="user"
+        if [[ "$name" == core.* ]]; then
+          module="core"
+          name="${name#core.}"
+        elif [[ "$name" == contrib.* ]]; then
+          module="contrib"
+          name="${name#contrib.}"
+        fi
+        __chief_plugin_enable_disable "$module" "$name" "disable"
+        return
+        ;;
+      status|list)
+        shift
+        local core_all core_disabled user_all user_disabled c_fmt cdis_fmt u_fmt udis_fmt
+        core_all=$(__chief_get_core_plugins)
+        user_all=$(__chief_get_plugins)
+        core_disabled="$(__chief_get_core_plugins_disabled)"
+        user_disabled="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"
+        c_fmt="$(__chief_format_plugin_list "${core_all:-}")"
+        cdis_fmt="$(__chief_format_plugin_list "${core_disabled:-}")"
+        u_fmt="$(__chief_format_plugin_list "${user_all:-}")"
+        udis_fmt="$(__chief_format_plugin_list "${user_disabled:-}")"
+        echo -e "${CHIEF_COLOR_GREEN}Core (built-in):${CHIEF_NO_COLOR}"
+        echo -e "  Enabled:  ${CHIEF_COLOR_CYAN}${c_fmt:-<none>}${CHIEF_NO_COLOR}"
+        echo -e "  Disabled: ${CHIEF_COLOR_YELLOW}${cdis_fmt:-<none>}${CHIEF_NO_COLOR}"
+        echo
+        local k_fmt kdis_fmt
+        k_fmt="$(__chief_format_plugin_list "$(__chief_get_contrib_plugins enabled)")"
+        kdis_fmt="$(__chief_format_plugin_list "$(__chief_get_contrib_plugins disabled)")"
+        echo -e "${CHIEF_COLOR_GREEN}Contrib (shipped, off by default):${CHIEF_NO_COLOR}"
+        echo -e "  Enabled:  ${CHIEF_COLOR_CYAN}${k_fmt:-<none>}${CHIEF_NO_COLOR}"
+        echo -e "  Disabled: ${CHIEF_COLOR_YELLOW}${kdis_fmt:-<none>}${CHIEF_NO_COLOR}"
+        echo
+        echo -e "${CHIEF_COLOR_GREEN}User plugins:${CHIEF_NO_COLOR}"
+        echo -e "  Enabled:  ${CHIEF_COLOR_CYAN}${u_fmt:-<none>}${CHIEF_NO_COLOR}"
+        echo -e "  Disabled: ${CHIEF_COLOR_YELLOW}${udis_fmt:-<none>}${CHIEF_NO_COLOR}"
+        echo
+        echo -e "${CHIEF_COLOR_BLUE}Use ${CHIEF_NO_COLOR}chief.plugin enable|disable <name>${CHIEF_COLOR_BLUE} or ${CHIEF_NO_COLOR}core.<name>${CHIEF_COLOR_BLUE} (e.g. bc, core.ssl, contrib.cg). Config updated; Chief reloads.${CHIEF_NO_COLOR}"
+        return
+        ;;
+    esac
+  fi
+
+  # Parse arguments for edit flow
   local use_vscode=""
   local plugin_name=""
-  
+  local existing_path=""
+
   while [[ $# -gt 0 ]]; do
     case $1 in
       -\?|--help)
@@ -2717,6 +3946,10 @@ ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
       *)
         plugin_name="$1"
         shift
+        if [[ $# -gt 0 && $1 != -* ]]; then
+          existing_path="$1"
+          shift
+        fi
         ;;
     esac
   done
@@ -2726,7 +3959,7 @@ ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
     plugin_name="default"
   fi
 
-  __chief_edit_plugin "$plugin_name" "$use_vscode"
+  __chief_edit_plugin "$plugin_name" "$use_vscode" "$existing_path"
 }
 
 function chief.bash_profile() {
@@ -2989,31 +4222,54 @@ Restart your terminal session for a complete reset.
     return
   fi
 
-  echo -e "${CHIEF_COLOR_BLUE}Reloading Chief environment...${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_CYAN}Chief${CHIEF_NO_COLOR} — ${CHIEF_COLOR_BLUE}reloading…${CHIEF_NO_COLOR}"
   __chief_load_library --verbose
   
   # Reload SSH keys if configured
-  if [[ ! -z ${CHIEF_CFG_SSH_KEYS_PATH} ]] && ([[ ${PLATFORM} == "MacOS" ]] || [[ $(uname) == "Linux" ]]); then
-    echo -e "${CHIEF_COLOR_BLUE}Reloading SSH keys...${CHIEF_NO_COLOR}"
+  if __chief_ssh_autoload_on && ([[ ${PLATFORM} == "MacOS" ]] || [[ $(uname) == "Linux" ]]); then
+    echo -e "${CHIEF_FRAMEWORK_MSG_PREFIX}${CHIEF_COLOR_BLUE}reloading SSH keys…${CHIEF_NO_COLOR}"
     __chief_load_ssh_keys --verbose
   fi
   
-  echo -e "${CHIEF_COLOR_GREEN}Chief environment reloaded successfully${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_CYAN}Chief${CHIEF_NO_COLOR} — ${CHIEF_COLOR_GREEN}ready.${CHIEF_NO_COLOR}"
 }
 
 # Show Chief statistics and status
 function __chief_show_chief_stats() {
   local total_functions=$(compgen -A function | grep "^chief\." | wc -l | tr -d ' ')
-  local loaded_plugins=$(__chief_get_plugins)
-  local plugin_count=0
-  
-  if [[ -n "$loaded_plugins" ]]; then
-    plugin_count=$(echo "$loaded_plugins" | tr ',' '\n' | wc -l | tr -d ' ')
+  local core_plugins=$(__chief_get_core_plugins)
+  local user_plugins=$(__chief_get_plugins)
+  local core_count=0
+  local user_count=0
+  local core_disabled user_disabled
+
+  if [[ -n "$core_plugins" ]]; then
+    core_count=$(echo "$core_plugins" | tr '|' '\n' | wc -l | tr -d ' ')
   fi
-  
+  if [[ -n "$user_plugins" ]]; then
+    user_count=$(echo "$user_plugins" | tr '|' '\n' | wc -l | tr -d ' ')
+  fi
+
+  core_disabled="$(__chief_get_core_plugins_disabled)"
+  user_disabled="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"
+  local contrib_on contrib_off
+  contrib_on="$(__chief_get_contrib_plugins enabled)"
+  contrib_off="$(__chief_get_contrib_plugins disabled)"
+
   echo -e "${CHIEF_COLOR_BLUE}Chief Status:${CHIEF_NO_COLOR}"
   echo -e "• Functions available: ${CHIEF_COLOR_CYAN}$total_functions${CHIEF_NO_COLOR}"
-  echo -e "• Plugins loaded: ${CHIEF_COLOR_CYAN}$plugin_count${CHIEF_NO_COLOR} ($loaded_plugins)"
+  echo -e "• Core (built-in): ${CHIEF_COLOR_CYAN}$core_count${CHIEF_NO_COLOR} ($(__chief_format_plugin_list "$core_plugins"))"
+  local kon_fmt koff_fmt
+  kon_fmt="$(__chief_format_plugin_list "$contrib_on")"
+  koff_fmt="$(__chief_format_plugin_list "$contrib_off")"
+  echo -e "• Contrib: ${CHIEF_COLOR_CYAN}on:${CHIEF_NO_COLOR} ${kon_fmt:-<none>}; ${CHIEF_COLOR_CYAN}off:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}${koff_fmt:-<none>}${CHIEF_NO_COLOR}"
+  echo -e "• User plugins: ${CHIEF_COLOR_CYAN}$user_count${CHIEF_NO_COLOR} ($(__chief_format_plugin_list "$user_plugins"))"
+  if [[ -n "$core_disabled" ]] || [[ -n "$user_disabled" ]]; then
+    local cdis_fmt udis_fmt
+    cdis_fmt="$(__chief_format_plugin_list "${core_disabled:-}")"
+    udis_fmt="$(__chief_format_plugin_list "${user_disabled:-}")"
+    echo -e "• Disabled plugins: ${CHIEF_COLOR_CYAN}core:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}${cdis_fmt:-<none>}${CHIEF_NO_COLOR}; ${CHIEF_COLOR_CYAN}user:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}${udis_fmt:-<none>}${CHIEF_NO_COLOR} ${CHIEF_COLOR_CYAN}(chief.plugin status)${CHIEF_NO_COLOR}"
+  fi
   echo -e "• Configuration: ${CHIEF_COLOR_CYAN}$CHIEF_CONFIG${CHIEF_NO_COLOR}"
 }
 
@@ -3039,9 +4295,10 @@ function __chief_show_core_commands() {
   echo -e "${CHIEF_COLOR_CYAN}Plugin Management:${CHIEF_NO_COLOR}"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}plugins-root${CHIEF_NO_COLOR}   Navigate to plugins directory"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin${CHIEF_NO_COLOR}        Create/edit plugins"
-  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin -?${CHIEF_NO_COLOR}     List available plugins"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin -?${CHIEF_NO_COLOR}     List available plugins | ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin status${CHIEF_NO_COLOR} enabled/disabled"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Utilities:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}status${CHIEF_NO_COLOR}        Show Chief status (banner + stats, including disabled plugins)"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}whereis${CHIEF_NO_COLOR}       Find aliases, functions, and variables"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}hints${CHIEF_NO_COLOR}         Show quick tips and workflow"
   echo
@@ -3054,21 +4311,53 @@ function __chief_show_plugin_help() {
   echo -e "${CHIEF_COLOR_YELLOW}Plugin Management:${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR} All commands below should be prefixed with ${CHIEF_COLOR_GREEN}${cmd_prefix}${CHIEF_NO_COLOR}"
   echo
-  echo -e "${CHIEF_COLOR_CYAN}Plugin Commands:${CHIEF_NO_COLOR}"
-  echo -e "  ${CHIEF_COLOR_GREEN}plugins${CHIEF_NO_COLOR}              Navigate to plugins directory"
-  echo -e "  ${CHIEF_COLOR_GREEN}plugin${CHIEF_NO_COLOR}               Edit default plugin"
-  echo -e "  ${CHIEF_COLOR_GREEN}plugin <name>${CHIEF_NO_COLOR}        Create/edit named plugin"
-  echo -e "  ${CHIEF_COLOR_GREEN}plugin -?${CHIEF_NO_COLOR}            List all plugins"
+  echo -e "${CHIEF_COLOR_MAGENTA}Core vs User plugins:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}Core (built-in)${CHIEF_NO_COLOR}  — Part of Chief; loaded from \$CHIEF_PATH/libs/core/plugins. Not editable via ${cmd_prefix}plugin."
+  echo -e "  ${CHIEF_COLOR_GREEN}Contrib${CHIEF_NO_COLOR}          — Shipped with Chief in \$CHIEF_PATH/libs/contrib/plugins; off until ${cmd_prefix}plugin enable contrib.<name>."
+  echo -e "  ${CHIEF_COLOR_GREEN}User plugins${CHIEF_NO_COLOR}     — Your plugins from CHIEF_CFG_PLUGINS_PATH; editable via ${cmd_prefix}plugin."
   echo
-  
-  local loaded_plugins=$(__chief_get_plugins)
-  if [[ -n "$loaded_plugins" ]]; then
-    echo -e "${CHIEF_COLOR_CYAN}Currently Loaded Plugins:${CHIEF_NO_COLOR}"
-    echo -e "  ${CHIEF_COLOR_CYAN}$loaded_plugins${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_CYAN}Plugin Commands:${CHIEF_NO_COLOR}"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugins${CHIEF_NO_COLOR}              Navigate to plugins directory (user plugins only)"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin${CHIEF_NO_COLOR}               Edit default plugin"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin <name>${CHIEF_NO_COLOR}        Create/edit named user plugin"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin enable [core.|contrib.]<name>${CHIEF_NO_COLOR}   Enable a plugin (load on reload)"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin disable [core.|contrib.]<name>${CHIEF_NO_COLOR}  Disable a plugin (skip loading)"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin status${CHIEF_NO_COLOR}         Show enabled/disabled plugins"
+  echo -e "  ${CHIEF_COLOR_GREEN}plugin -?${CHIEF_NO_COLOR}            List user plugins"
+  echo
+
+  local core_plugins=$(__chief_get_core_plugins)
+  local user_plugins=$(__chief_get_plugins)
+  local core_disabled user_disabled contrib_on
+  core_disabled="$(__chief_get_core_plugins_disabled)"
+  user_disabled="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"
+  contrib_on="$(__chief_get_contrib_plugins enabled)"
+  if [[ -n "$core_plugins" ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}Core (built-in):${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_CYAN}$(__chief_format_plugin_list "$core_plugins")${CHIEF_NO_COLOR}"
     echo
   fi
-  
-  echo -e "${CHIEF_COLOR_CYAN}Available Plugin Functions:${CHIEF_NO_COLOR}"
+  if [[ -n "$contrib_on" ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}Contrib (enabled):${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_CYAN}$(__chief_format_plugin_list "$contrib_on")${CHIEF_NO_COLOR}"
+    echo
+  fi
+  if [[ -n "$user_plugins" ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}User plugins (loaded):${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_CYAN}$(__chief_format_plugin_list "$user_plugins")${CHIEF_NO_COLOR}"
+    echo
+  fi
+  if [[ -n "$core_disabled" ]] || [[ -n "$user_disabled" ]]; then
+    local cdis_fmt udis_fmt
+    cdis_fmt="$(__chief_format_plugin_list "${core_disabled:-}")"
+    udis_fmt="$(__chief_format_plugin_list "${user_disabled:-}")"
+    echo -e "${CHIEF_COLOR_YELLOW}Disabled plugins (skipped on load):${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_CYAN}Core:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}${cdis_fmt:-<none>}${CHIEF_NO_COLOR}  |  ${CHIEF_COLOR_CYAN}User:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}${udis_fmt:-<none>}${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_CYAN}chief.plugin status${CHIEF_NO_COLOR} for full list | ${CHIEF_COLOR_GREEN}chief.plugin enable [core.]<name>${CHIEF_NO_COLOR} to re-enable"
+    echo
+  fi
+
+  echo -e "${CHIEF_COLOR_CYAN}Core plugin functions:${CHIEF_NO_COLOR} ${CHIEF_COLOR_BLUE}(from built-in plugins above)${CHIEF_NO_COLOR}"
   
   # Check for each plugin category and show organized functions
   local found_plugins=false
@@ -3088,9 +4377,14 @@ function __chief_show_plugin_help() {
     found_plugins=true
   fi
   
+  if compgen -A function | grep -q "^chief\.secrets_"; then
+    echo -e "  ${CHIEF_COLOR_GREEN}Secrets Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(ansible-vault or gpg)${CHIEF_NO_COLOR}"
+    echo "    secrets_file-edit, secrets_file-load"
+    found_plugins=true
+  fi
   if compgen -A function | grep -q "^chief\.vault_"; then
-    echo -e "  ${CHIEF_COLOR_GREEN}Vault Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(requires ansible-vault)${CHIEF_NO_COLOR}"
-    echo "    vault_file-edit, vault_file-load"
+    echo -e "  ${CHIEF_COLOR_GREEN}Vault Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(HashiCorp Vault CLI)${CHIEF_NO_COLOR}"
+    echo "    vault_read-secret, vault_write-secret, vault_list-secrets"
     found_plugins=true
   fi
   
@@ -3102,7 +4396,7 @@ function __chief_show_plugin_help() {
   
   if compgen -A function | grep -q "^chief\.ssh_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}SSH Plugin:${CHIEF_NO_COLOR}"
-    echo "    ssh_create-keypair, ssh_get-publickey, ssh_rm-host, ssh_load_keys"
+    echo "    ssh_create-keypair, ssh_get-publickey, ssh_rm-host, ssh_load-keys"
     found_plugins=true
   fi
   
@@ -3124,22 +4418,22 @@ function __chief_show_plugin_help() {
     echo -e "  ${CHIEF_COLOR_GREEN}Utilities Plugin:${CHIEF_NO_COLOR}"
     echo "    etc_ask-yes-or-no, etc_spinner, etc_prompt, etc_mount-share"
     echo "    etc_isvalid-ip, etc_broadcast, etc_at-run, etc_folder-diff"
-    echo "    etc_shared-term_create, etc_shared-term_connect, etc_chmod-f, etc_chmod-d"
+    echo "    etc_shared-term-create, etc_shared-term-connect, etc_chmod-f, etc_chmod-d"
     echo "    etc_create-bootusb, etc_copy-dotfiles, etc_create-cipher, type-writer"
     found_plugins=true
   fi
   
   if [[ "$found_plugins" == false ]]; then
-    echo -e "  ${CHIEF_COLOR_YELLOW}No plugin functions loaded yet${CHIEF_NO_COLOR}"
+    echo -e "  ${CHIEF_COLOR_YELLOW}No core plugin functions loaded yet${CHIEF_NO_COLOR}"
     echo
-    echo -e "${CHIEF_COLOR_BLUE}To get started:${CHIEF_NO_COLOR}"
-    echo -e "  • Run ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin -?${CHIEF_NO_COLOR} to see available plugins"
-    echo -e "  • Create your first plugin: ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin mytools${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_BLUE}User plugins:${CHIEF_NO_COLOR}"
+    echo -e "  • Run ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin -?${CHIEF_NO_COLOR} to see your user plugins"
+    echo -e "  • Create your first user plugin: ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin mytools${CHIEF_NO_COLOR}"
   fi
-  
+
   echo
-  echo -e "${CHIEF_COLOR_BLUE}Plugin Development:${CHIEF_NO_COLOR}"
-  echo -e "• Plugin location: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS_PATH:-~/.chief_plugins}${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_BLUE}User plugin development:${CHIEF_NO_COLOR}"
+  echo -e "• User plugin location: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_PLUGINS_PATH:-~/.chief_plugins}${CHIEF_NO_COLOR}"
   echo -e "• Template: ${CHIEF_COLOR_CYAN}${CHIEF_DEFAULT_PLUGIN_TEMPLATE}${CHIEF_NO_COLOR}"
   echo -e "• Edit config: ${CHIEF_COLOR_GREEN}${cmd_prefix}config${CHIEF_NO_COLOR} to set CHIEF_CFG_PLUGINS_PATH"
 }
@@ -3157,8 +4451,11 @@ function __chief_show_configuration_help() {
   echo
   
   echo -e "${CHIEF_COLOR_CYAN}Display & Interface:${CHIEF_NO_COLOR}"
-  echo -e "  ${CHIEF_COLOR_GREEN}BANNER${CHIEF_NO_COLOR}               Show/hide startup banner (true/false)"
-  echo -e "  ${CHIEF_COLOR_GREEN}HINTS${CHIEF_NO_COLOR}                Show/hide startup hints (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}BANNER${CHIEF_NO_COLOR}                 Show/hide startup banner (true/false)"
+  echo -e "    ${CHIEF_COLOR_GREEN}BANNER_SHOW_PLUGINS${CHIEF_NO_COLOR}  Show 'plugins:' line in banner (true/false; banner must be on)"
+  echo -e "    ${CHIEF_COLOR_GREEN}BANNER_SHOW_TRACKING${CHIEF_NO_COLOR} Show 'tracking:' line in banner (true/false; banner must be on)"
+  echo -e "  ${CHIEF_COLOR_GREEN}BASH_WARN${CHIEF_NO_COLOR}              Warn at start-up if Bash is older than 4.0 (true/false)"
+  echo -e "  ${CHIEF_COLOR_GREEN}HINTS${CHIEF_NO_COLOR}                  Show/hide startup hints (true/false)"
   echo -e "  ${CHIEF_COLOR_GREEN}VERBOSE${CHIEF_NO_COLOR}              Enable verbose output (true/false)"
   echo -e "  ${CHIEF_COLOR_GREEN}COLORED_LS${CHIEF_NO_COLOR}           Enable colored ls output (true/false)"
   echo -e "  ${CHIEF_COLOR_GREEN}CONFIG_SET_INTERACTIVE${CHIEF_NO_COLOR} Enable confirmation prompts for config_set (true/false)"
@@ -3213,7 +4510,7 @@ function __chief_show_configuration_help() {
   echo -e "• Edit config file: ${CHIEF_COLOR_GREEN}${cmd_prefix}config${CHIEF_NO_COLOR}"
   echo -e "• Set config directly: ${CHIEF_COLOR_GREEN}${cmd_prefix}config_set <option> <value>${CHIEF_NO_COLOR}"
   echo -e "• List all config vars: ${CHIEF_COLOR_GREEN}${cmd_prefix}config_set --list${CHIEF_NO_COLOR}"
-  echo -e "• Update config with latest options: ${CHIEF_COLOR_GREEN}${cmd_prefix}config_update${CHIEF_NO_COLOR}"
+  echo -e "• Update config with latest options: ${CHIEF_COLOR_GREEN}${cmd_prefix}config-update${CHIEF_NO_COLOR}"
   echo -e "• View current config: ${CHIEF_COLOR_GREEN}cat $CHIEF_CONFIG${CHIEF_NO_COLOR}"
   echo -e "• Reload after changes: ${CHIEF_COLOR_GREEN}${cmd_prefix}reload${CHIEF_NO_COLOR}"
   echo -e "• Test prompt: ${CHIEF_COLOR_GREEN}${cmd_prefix}git.legend${CHIEF_NO_COLOR} (if git prompt enabled)"
@@ -3232,58 +4529,47 @@ function __chief_show_compact_reference() {
   echo -e "${CHIEF_COLOR_BLUE}Note:${CHIEF_NO_COLOR} All commands below should be prefixed with ${CHIEF_COLOR_GREEN}${cmd_prefix}${CHIEF_NO_COLOR}"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Core Commands:${CHIEF_NO_COLOR}"
-  echo "  config, config_set, reload, update, uninstall, whereis, hints, help"
+  echo "  config, config_set, reload, update, uninstall, status, whereis, hints, help"
   echo
   echo -e "${CHIEF_COLOR_CYAN}File Editors:${CHIEF_NO_COLOR}"
   echo "  edit-file, bash_profile, bashrc, profile"
   echo
   echo -e "${CHIEF_COLOR_CYAN}Plugin Management:${CHIEF_NO_COLOR}"
-  echo "  plugin [name], plugins_root (navigate), plugin -? (list)"
+  echo "  plugin [name], plugins_root (navigate), plugin -? (list), plugin status (enabled/disabled)"
   echo
-  
-  # Show loaded plugin categories
-  local loaded_plugins=$(__chief_get_plugins)
-  if [[ -n "$loaded_plugins" ]]; then
-    echo -e "${CHIEF_COLOR_CYAN}Loaded Plugins:${CHIEF_NO_COLOR}"
-    
-    # Check for common plugin types and show them organized
-    local plugin_categories=()
-    
-    if compgen -A function | grep -q "^chief\.git\."; then
-      plugin_categories+=("git (git.branch, git.commit, git.clone, git.legend)")
-    fi
-    
-    if compgen -A function | grep -q "^chief\.vault"; then
-      plugin_categories+=("vault (vault.file-edit, vault.file-load) *requires ansible-vault")
-    fi
-    
-    if compgen -A function | grep -q "^chief\.ssh"; then
-      plugin_categories+=("ssh (ssh.create_keypair, ssh.get_publickey)")
-    fi
-    
-    if compgen -A function | grep -q "^chief\.python"; then
-      plugin_categories+=("python (python.create_ve, python.start_ve, python.stop_ve)")
-    fi
-    
-    if compgen -A function | grep -q "^chief\.oc\."; then
-      plugin_categories+=("oc (oc.login, oc.clusters) *requires OpenShift CLI")
-    fi
-    
-    if compgen -A function | grep -q "^chief\.etc"; then
-      plugin_categories+=("etc (etc.folder_sync, etc.ask_yes_or_no, etc.spinner, etc.prompt)")
-    fi
-    
-    if [[ ${#plugin_categories[@]} -gt 0 ]]; then
-      for category in "${plugin_categories[@]}"; do
-        echo "  $category"
-      done
-    else
-      echo "  $loaded_plugins"
-    fi
+
+  # Show core (built-in) and user plugin lists
+  local core_list=$(__chief_get_core_plugins)
+  local user_list=$(__chief_get_plugins)
+  local core_disabled_compact user_disabled_compact
+  core_disabled_compact="$(__chief_get_core_plugins_disabled)"
+  user_disabled_compact="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"
+  if [[ -n "$core_list" ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}Core (built-in):${CHIEF_NO_COLOR}"
+    echo "  $(__chief_format_plugin_list "$core_list")"
     echo
-  else
+  fi
+  local contrib_list=$(__chief_get_contrib_plugins enabled)
+  if [[ -n "$contrib_list" ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}Contrib (enabled):${CHIEF_NO_COLOR}"
+    echo "  $(__chief_format_plugin_list "$contrib_list")"
+    echo
+  fi
+  if [[ -n "$user_list" ]]; then
+    echo -e "${CHIEF_COLOR_CYAN}User plugins:${CHIEF_NO_COLOR}"
+    echo "  $(__chief_format_plugin_list "$user_list")"
+    echo
+  fi
+  if [[ -n "$core_disabled_compact" ]] || [[ -n "$user_disabled_compact" ]]; then
+    local cdis_fmt udis_fmt
+    cdis_fmt="$(__chief_format_plugin_list "${core_disabled_compact:-}")"
+    udis_fmt="$(__chief_format_plugin_list "${user_disabled_compact:-}")"
+    echo -e "${CHIEF_COLOR_YELLOW}Disabled (skipped):${CHIEF_NO_COLOR} ${CHIEF_COLOR_CYAN}core:${CHIEF_NO_COLOR} ${cdis_fmt:-<none>}; ${CHIEF_COLOR_CYAN}user:${CHIEF_NO_COLOR} ${udis_fmt:-<none>}"
+    echo
+  fi
+  if [[ -z "$core_list" && -z "$user_list" ]]; then
     echo -e "${CHIEF_COLOR_CYAN}Plugins:${CHIEF_NO_COLOR}"
-    echo "  No plugins loaded yet - try '${cmd_prefix}plugin -?' to see available"
+    echo "  No user plugins loaded - try '${cmd_prefix}plugin -?' to see/create user plugins; core: ${cmd_prefix}help plugins"
     echo
   fi
   
@@ -3415,7 +4701,7 @@ ${CHIEF_COLOR_BLUE}Output Features:${CHIEF_NO_COLOR}
     if [[ -d "$dir" ]]; then
       while IFS= read -r -d '' file; do
         search_files+=("$file")
-      done < <(find "$dir" -name "*.sh" -o -name "*.bash" -type f -print0 2>/dev/null)
+      done < <(find -L "$dir" \( -name "*.sh" -o -name "*.bash" \) -type f -print0 2>/dev/null)
     fi
   done
   
@@ -3428,7 +4714,7 @@ ${CHIEF_COLOR_BLUE}Output Features:${CHIEF_NO_COLOR}
   if [[ -d "${CHIEF_PATH}/libs/core/plugins" ]]; then
     while IFS= read -r -d '' file; do
       search_files+=("$file")
-    done < <(find "${CHIEF_PATH}/libs/core/plugins" -name "*.sh" -type f -print0 2>/dev/null)
+    done < <(find -L "${CHIEF_PATH}/libs/core/plugins" -name "*.sh" -type f -print0 2>/dev/null)
   fi
   
   # User plugins
@@ -3440,11 +4726,13 @@ ${CHIEF_COLOR_BLUE}Output Features:${CHIEF_NO_COLOR}
     configured_plugin_dir=${CHIEF_CFG_PLUGINS_PATH}
   fi
   
+  # find -L: follow symlinks, so plugins linked in with `chief.plugin <name> <file>` (and
+  # plugin dirs that are themselves symlinks) are searched; -type f then tests the link target.
   for plugin_dir in "${configured_plugin_dir}" ~/.chief_plugins ~/.local/share/chief/plugins; do
     if [[ -n "$plugin_dir" && -d "$plugin_dir" ]]; then
       while IFS= read -r -d '' file; do
         search_files+=("$file")
-      done < <(find "$plugin_dir" -name "*.sh" -type f -print0 2>/dev/null)
+      done < <(find -L "$plugin_dir" -name "*.sh" -type f -print0 2>/dev/null)
     fi
   done
 
@@ -3457,8 +4745,8 @@ ${CHIEF_COLOR_BLUE}Output Features:${CHIEF_NO_COLOR}
     if [[ -f "$file" && -r "$file" ]]; then
       local matches
       # Search for: export VAR=, VAR=, function VAR(), VAR(), alias VAR=
-      matches=$(grep -n -E "(^|[[:space:]])(export[[:space:]]+${name}[=[:space:]]|${name}[[:space:]]*=|function[[:space:]]+${name}[[:space:]]*\\(|${name}[[:space:]]*\\(|alias[[:space:]]+${name}[=[:space:]])" "$file" 2>/dev/null)
-      
+      matches=$(grep -n -E "(^|[[:space:]])(export[[:space:]]+${name}[=[:space:]]|${name}[[:space:]]*=|function[[:space:]]+${name}[[:space:]]*\\(|${name}[[:space:]]*\\(|alias[[:space:]]+${name}[=[:space:]])" "$file" 2>/dev/null | grep -v -E '^[0-9]+:[[:space:]]*#')
+
       if [[ -n "$matches" ]]; then
         echo -e "${CHIEF_COLOR_GREEN}Found in:${CHIEF_NO_COLOR} $file"
         while IFS=: read -r line_num line_content; do
@@ -3522,783 +4810,6 @@ ${CHIEF_COLOR_BLUE}Output Features:${CHIEF_NO_COLOR}
     
     if ! $is_var && ! $is_func && ! $is_alias; then
       echo -e "${CHIEF_COLOR_YELLOW}Found in files but not currently loaded${CHIEF_NO_COLOR}"
-    fi
-  fi
-}
-
-########################################################################
-# DEVELOPMENT FUNCTIONS - NOT FOR USER USE
-########################################################################
-
-# INTERNAL: Version bump function for Chief development
-function __chief.bump() {
-  local usage="Usage: $FUNCNAME <new_version> [--dry-run] [--backup]
-
-${CHIEF_COLOR_RED}WARNING: DEVELOPMENT FUNCTION ONLY${CHIEF_NO_COLOR}
-This function is for Chief developers only and modifies core files.
-
-Arguments:
-  new_version    Version to bump to (e.g., v4.0, v4.0.0) - MUST start with 'v'
-                 OR use special keywords: 'release' or 'next-dev [target_version]'
-
-Options:
-  --dry-run     Show what would be changed without making changes
-  --backup      Create backup files before modifying (default: no backups)
-  --skip-tests  Skip test validation (NOT recommended for releases)
-  
-Examples:
-  $FUNCNAME v4.0 --dry-run           # Preview changes
-  $FUNCNAME v4.0.0                   # Bump version (no backups)
-  $FUNCNAME v4.0.0 --backup          # Bump version with backups
-  $FUNCNAME v4.1.0                   # Standard semantic version
-  
-  # For dev workflow:
-  $FUNCNAME release                   # Convert v3.0.4-dev → v3.0.4 for release
-  $FUNCNAME release --dry-run         # Preview release conversion
-  $FUNCNAME release --skip-tests      # Emergency release without test validation (NOT recommended)
-  $FUNCNAME next-dev                  # Convert v3.0.4 → v3.0.5-dev for next development cycle
-  $FUNCNAME next-dev v3.1.1           # Convert v3.1.0 → v3.1.1-dev for patch development cycle
-  $FUNCNAME next-dev --dry-run        # Preview next dev cycle setup
-  
-Note: This function only handles version updates. Create GitHub releases manually for tagging and publishing."
-
-  # Parse arguments
-  local new_version=""
-  local target_version=""
-  local dry_run=false
-  local create_backups=false
-  local skip_tests=false
-  local positional_args=()
-  
-  while [[ $# -gt 0 ]]; do
-    case $1 in
-      --help|-h)
-        echo -e "$usage"
-        return 0
-        ;;
-      --dry-run)
-        dry_run=true
-        shift
-        ;;
-      --backup)
-        create_backups=true
-        shift
-        ;;
-      --skip-tests)
-        skip_tests=true
-        shift
-        ;;
-      -*)
-        __chief_print_error "Unknown option: $1"
-        echo -e "$usage"
-        return 1
-        ;;
-      *)
-        positional_args+=("$1")
-        shift
-        ;;
-    esac
-  done
-  
-  # Handle positional arguments
-  if [[ ${#positional_args[@]} -eq 0 ]]; then
-    __chief_print_error "New version is required"
-    echo -e "$usage"
-    return 1
-  elif [[ ${#positional_args[@]} -eq 1 ]]; then
-    new_version="${positional_args[0]}"
-  elif [[ ${#positional_args[@]} -eq 2 && "${positional_args[0]}" == "next-dev" ]]; then
-    new_version="${positional_args[0]}"
-    target_version="${positional_args[1]}"
-  else
-    __chief_print_error "Too many arguments"
-    echo -e "$usage"
-    return 1
-  fi
-  
-  
-  # Get current version early for keyword processing
-  local current_version="$CHIEF_VERSION"
-  
-  # Handle special keywords
-  if [[ "$new_version" == "release" ]]; then
-    if [[ "$current_version" =~ ^(v[0-9]+\.[0-9]+(\.[0-9]+)?)-dev$ ]]; then
-      new_version="${BASH_REMATCH[1]}"
-      __chief_print_info "Release mode: Converting $current_version → $new_version"
-    else
-      __chief_print_error "Current version ($current_version) is not a -dev version"
-      return 1
-    fi
-  elif [[ "$new_version" == "next-dev" ]]; then
-    # Allow both release versions (v3.1.1) and dev versions (v3.1.1-dev) for next-dev workflow
-    if [[ "$current_version" =~ ^v([0-9]+)\.([0-9]+)(\.([0-9]+))?(-dev)?$ ]]; then
-      local major="${BASH_REMATCH[1]}"
-      local minor="${BASH_REMATCH[2]}"
-      local patch="${BASH_REMATCH[4]:-0}"
-      
-      if [[ -n "$target_version" ]]; then
-        # Use provided target version
-        if [[ ! "$target_version" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?$ ]]; then
-          __chief_print_error "Invalid target version format: $target_version"
-          __chief_print_error "Expected format: v4.0 or v4.0.0 (must be prefixed with 'v')"
-          return 1
-        fi
-        new_version="${target_version}-dev"
-        __chief_print_info "Next dev mode: Converting $current_version → $new_version (custom target)"
-      else
-        # Auto-increment minor version for next development cycle
-        ((minor++))
-        new_version="v${major}.${minor}.0-dev"
-        __chief_print_info "Next dev mode: Converting $current_version → $new_version (auto-increment)"
-      fi
-    else
-      __chief_print_error "Current version ($current_version) is not a valid release version"
-      return 1
-    fi
-  fi
-  
-  # Validate version format (MUST be prefixed with 'v')
-  # Accept v4.0, v4.0.0 formats, and -dev versions for development workflow
-  if [[ ! "$new_version" =~ ^v[0-9]+\.[0-9]+(\.[0-9]+)?(-dev)?$ ]]; then
-    __chief_print_error "Invalid version format: $new_version"
-    __chief_print_error "Expected format: v4.0 or v4.0.0 (must be prefixed with 'v'), optionally with -dev suffix"
-    return 1
-  fi
-  
-  # Normalize to full semantic version (add .0 if missing patch version)
-  if [[ "$new_version" =~ ^v[0-9]+\.[0-9]+$ ]]; then
-    new_version="${new_version}.0"
-  fi
-  
-  # Test validation for releases only
-  local is_release_workflow=false
-  local is_next_dev_workflow=false
-  
-  if [[ "${positional_args[0]}" == "release" ]] || [[ ! "$new_version" =~ -dev$ ]]; then
-    is_release_workflow=true
-  elif [[ "${positional_args[0]}" == "next-dev" ]]; then
-    is_next_dev_workflow=true
-  fi
-  
-  # Only run tests for release workflows (next-dev skips tests since it follows a successful release)
-  if ! $dry_run && ! $skip_tests && $is_release_workflow; then
-    local test_script="${CHIEF_PATH}/tests/run-tests.sh"
-    
-    if [[ -f "$test_script" ]]; then
-      __chief_print_info "Running test suite (required for releases)..."
-      
-      if ! "$test_script"; then
-        __chief_print_error "Test suite failed!"
-        __chief_print_error "Cannot proceed with release while tests are failing."
-        __chief_print_info "Fix failing tests or use --skip-tests (NOT recommended)"
-        return 1
-      else
-        __chief_print_success "All tests passed! ✅"
-        echo ""
-      fi
-    else
-      __chief_print_warn "Test suite not found at: $test_script"
-      __chief_print_warn "Proceeding without test validation (not recommended)"
-    fi
-  elif $skip_tests && $is_release_workflow; then
-    __chief_print_warn "⚠️  SKIPPING TESTS FOR RELEASE - THIS IS DANGEROUS!"
-    __chief_print_warn "Release versions should always pass tests before deployment."
-    echo ""
-  elif $is_next_dev_workflow; then
-    __chief_print_info "Skipping tests for next-dev (tests passed in previous release cycle)"
-    echo ""
-  fi
-  
-  # Set version file path
-  local version_file="${CHIEF_PATH}/VERSION"
-  
-  __chief_print_info "Chief Development Version Bump"
-  __chief_print_info "Current version: $current_version"
-  __chief_print_info "New version: $new_version"
-  __chief_print_info "Dry run: $dry_run"
-  echo ""
-  
-  # Check if versions are the same  
-  if [[ "$current_version" == "$new_version" ]]; then
-    __chief_print_warn "Version is already $new_version"
-    if ! $dry_run; then
-      __chief_print_info "Re-applying version to ensure consistency..."
-    fi
-  fi
-  
-  # Files to update with version references
-  local files_to_update=(
-    "${CHIEF_PATH}/VERSION"
-    "${CHIEF_PATH}/README.md"
-    "${CHIEF_PATH}/docs/index.md"
-    "${CHIEF_PATH}/docs/getting-started.md"
-  )
-  
-  # Special handling for next-dev workflow
-  local is_next_dev=false
-  if [[ "${positional_args[0]}" == "next-dev" ]]; then
-    is_next_dev=true
-    
-    # Note: Using release-notes structure instead of UPDATES file
-    if ! $dry_run; then
-      __chief_print_info "Using release-notes structure for version tracking"
-      
-      # Update configuration for development workflow
-      local config_file="${CHIEF_CONFIG}"
-      if [[ -f "$config_file" ]]; then
-        # Update UPDATE_BRANCH to dev for development workflow
-        if grep -q "^CHIEF_CFG_UPDATE_BRANCH=" "$config_file"; then
-          sed -i.tmp_config 's/^CHIEF_CFG_UPDATE_BRANCH=.*/CHIEF_CFG_UPDATE_BRANCH="dev"/' "$config_file"
-          rm -f "${config_file}.tmp_config" 2>/dev/null
-          __chief_print_info "Updated CHIEF_CFG_UPDATE_BRANCH to 'dev' for development workflow"
-        else
-          echo 'CHIEF_CFG_UPDATE_BRANCH="dev"' >> "$config_file"
-          __chief_print_info "Added CHIEF_CFG_UPDATE_BRANCH='dev' to configuration"
-        fi
-      fi
-      
-      # Release notes will be managed manually in release-notes/ directory
-    elif $dry_run; then
-      __chief_print_info "Would update CHIEF_CFG_UPDATE_BRANCH to 'dev' for development workflow"
-    fi
-    
-    # Create version-specific release notes file  
-    local release_notes_dir="${CHIEF_PATH}/release-notes"
-    local release_notes_file="${release_notes_dir}/${new_version}.md"
-    
-    if ! $dry_run; then
-      # Ensure release-notes directory exists
-      mkdir -p "$release_notes_dir"
-      
-      # Create new release notes file if it doesn't exist
-      if [[ ! -f "$release_notes_file" ]]; then
-        __chief_print_info "Creating new release notes: release-notes/${new_version}.md"
-        
-        cat > "$release_notes_file" << EOF
-# Chief ${new_version} Release Notes
-
-## 🚀 What's New
-
-### 🔧 Version ${new_version} Development
-
-- Ready for development work on ${new_version}
-
-## 📋 Upgrade Notes
-
-### For Developers
-
-- This is a development version - features and changes will be documented as they are implemented
-
----
-
-**Full details**: See [release-notes](../release-notes/) directory for complete changelog and version history.
-EOF
-      else
-        __chief_print_info "Release notes file already exists: release-notes/${new_version}.md"
-      fi
-    fi
-    
-    if $dry_run; then
-      __chief_print_info "Would create new release notes file: release-notes/${new_version}.md"
-    fi
-  fi
-
-  # Special handling for release workflow - transform dev release notes to final
-  if $is_release_workflow && [[ "${positional_args[0]}" == "release" ]]; then
-    # Update configuration for release workflow
-    if ! $dry_run; then
-      local config_file="${CHIEF_CONFIG}"
-      if [[ -f "$config_file" ]]; then
-        # Update UPDATE_BRANCH to main for release workflow
-        if grep -q "^CHIEF_CFG_UPDATE_BRANCH=" "$config_file"; then
-          sed -i.tmp_config 's/^CHIEF_CFG_UPDATE_BRANCH=.*/CHIEF_CFG_UPDATE_BRANCH="main"/' "$config_file"
-          rm -f "${config_file}.tmp_config" 2>/dev/null
-          __chief_print_info "Updated CHIEF_CFG_UPDATE_BRANCH to 'main' for stable release tracking"
-        else
-          echo 'CHIEF_CFG_UPDATE_BRANCH="main"' >> "$config_file"
-          __chief_print_info "Added CHIEF_CFG_UPDATE_BRANCH='main' to configuration"
-        fi
-      fi
-    elif $dry_run; then
-      __chief_print_info "Would update CHIEF_CFG_UPDATE_BRANCH to 'main' for stable release tracking"
-    fi
-    
-    local release_notes_dir="${CHIEF_PATH}/release-notes"
-    local dev_release_notes="${release_notes_dir}/${new_version}-dev.md"
-    local final_release_notes="${release_notes_dir}/${new_version}.md"
-    
-    if [[ -f "$dev_release_notes" ]]; then
-      if ! $dry_run; then
-        __chief_print_info "Transforming development release notes to final release..."
-        __chief_print_info "  ${new_version}-dev.md → ${new_version}.md"
-        
-        # Transform the content: remove -dev references and update status
-        # First, ensure we have content to work with
-        if [[ ! -s "$dev_release_notes" ]]; then
-          __chief_print_warn "Development release notes file is empty: $dev_release_notes"
-          __chief_print_info "Creating basic release notes template..."
-          
-          cat > "$final_release_notes" << EOF
-# Chief ${new_version} Release Notes
-
-## 🚀 What's New in ${new_version}
-
-### 🔧 Version ${new_version} Release
-
-- Release version ${new_version}
-
-## 📋 Upgrade Notes
-
-### For Users
-
-- This is a release version
-
----
-
-**Status:** Released  
-**Release Date:** ${new_version}  
-**Breaking Changes:** TBD  
-**New Features:** TBD
-EOF
-        else
-          # Transform the content with more flexible patterns
-          # Apply patterns in order that works with transformations
-          sed -e 's/## 🚀 What'\''s New$/## 🚀 What'\''s New in '"${new_version}"'/g' \
-              -e 's/## 🚀 What'\''s New in Development/## 🚀 What'\''s New in '"${new_version}"'/g' \
-              -e 's/### 🔧 Version '"${new_version}"'-dev Development/### 🔧 Version '"${new_version}"' Release/g' \
-              -e 's/- Ready for development work on '"${new_version}"'-dev/- Release version '"${new_version}"'/g' \
-              -e 's/\*\*Status:\*\* Development in progress/\*\*Status:\*\* Released/g' \
-              -e 's/\*\*Target Release:\*\* '"${new_version}"'/\*\*Release Date:\*\* '"${new_version}"'/g' \
-              -e "s/${new_version}-dev/${new_version}/g" \
-              "$dev_release_notes" > "$final_release_notes"
-        fi
-        
-        # Remove the development version file
-        rm "$dev_release_notes"
-        __chief_print_success "Release notes updated for ${new_version} release"
-      else
-        __chief_print_info "Would transform: ${new_version}-dev.md → ${new_version}.md"
-        __chief_print_info "Would update content to reflect released status"
-      fi
-    elif [[ ! -f "$final_release_notes" ]]; then
-      if ! $dry_run; then
-        __chief_print_warn "No development release notes found at: ${dev_release_notes}"
-        __chief_print_info "Creating basic release notes for ${new_version}..."
-        
-        mkdir -p "$release_notes_dir"
-        cat > "$final_release_notes" << EOF
-# Chief ${new_version} Release Notes
-
-## 🚀 What's New in ${new_version}
-
-### 🔧 Version ${new_version} Release
-
-- Release version ${new_version}
-
-## 📋 Upgrade Notes
-
-### For Users
-
-- This is a release version
-
----
-
-**Status:** Released  
-**Release Date:** ${new_version}  
-**Breaking Changes:** TBD  
-**New Features:** TBD
-EOF
-        __chief_print_info "Created basic release notes: release-notes/${new_version}.md"
-      else
-        __chief_print_info "Would create basic release notes: release-notes/${new_version}.md"
-      fi
-    else
-      __chief_print_info "Final release notes already exist: release-notes/${new_version}.md"
-    fi
-  fi
-
-  # Update each file
-  local updated_count=0
-  for file in "${files_to_update[@]}"; do
-    if [[ ! -f "$file" ]]; then
-      __chief_print_warn "File not found, skipping: $(basename "$file")"
-      continue
-    fi
-    
-    # Note: No special UPDATES handling needed - using release-notes structure
-    
-    # Check if file already has the new version (both regular and badge formats)
-    # Handle badge URL encoding with proper shields.io format: label-message-color
-    local badge_current=""
-    
-    # For Download Release badge: should always show the latest stable version
-    local download_release_version=""
-    if [[ "${positional_args[0]}" == "next-dev" ]]; then
-      # For next-dev: Download Release shows the current stable version (remove -dev from current)
-      download_release_version="${current_version%-dev}"
-    elif [[ "${positional_args[0]}" == "release" ]]; then
-      # For release: Download Release shows the new release version
-      download_release_version="${new_version}"
-    else
-      # Default case
-      download_release_version="${new_version}"
-    fi
-    
-    local badge_new_encoded="${download_release_version//-/--}"  # Double dashes for shields.io
-    local badge_new="Download%20Release-${badge_new_encoded}"
-    
-    # For badge_current: determine what the current Download Release badge should contain
-    local current_download_release_version=""
-    if [[ "${positional_args[0]}" == "release" ]]; then
-      # For release: current badge might show dev version, will change to release version
-      current_download_release_version="${current_version%-dev}"  # Strip -dev to get stable version
-    elif [[ "${positional_args[0]}" == "next-dev" ]]; then
-      # For next-dev: current badge shows stable version, should continue showing stable version
-      current_download_release_version="${current_version%-dev}"  # Strip -dev to get stable version
-    else
-      # Default case
-      current_download_release_version="${current_version}"
-    fi
-    
-    local badge_current_encoded="${current_download_release_version//-/--}"  # Double dashes for shields.io
-    badge_current="Download%20Release-${badge_current_encoded}"
-    
-    # Handle dev badge updates for two-badge structure
-    local dev_badge_current=""
-    local dev_badge_new=""
-    
-    # For release workflow: v3.1.1-dev → v3.1.1, dev badge should show next dev version  
-    if [[ "${positional_args[0]}" == "release" && "$current_version" =~ ^v([0-9]+)\.([0-9]+)\.([0-9]+)-dev$ ]]; then
-      local major="${BASH_REMATCH[1]}"
-      local minor="${BASH_REMATCH[2]}"
-      local patch="${BASH_REMATCH[3]}"
-      # Next development cycle: increment minor version for next dev
-      ((minor++))
-      local current_encoded="${current_version//-/--}"  # Double dashes for shields.io
-      dev_badge_current="Dev%20Branch-${current_encoded}"
-      dev_badge_new="Dev%20Branch-v${major}.${minor}.0"
-    # For next-dev workflow: v3.1.1 → v3.1.2-dev, dev badge should show the new dev version
-    elif [[ "${positional_args[0]}" == "next-dev" ]]; then
-      # Current version would be release version, new version would be dev version
-      dev_badge_current="Dev%20Branch-.*"  # Pattern to match any current dev badge
-      local dev_badge_new_encoded="${new_version//-/--}"  # Double dashes for shields.io
-      dev_badge_new="Dev%20Branch-${dev_badge_new_encoded}"
-    fi
-    
-    # Check if file already has the new version (check version first, then badges if they exist)
-    local has_new_version=false
-    local has_badges=false
-    local badge_needs_update=false
-    
-    if grep -q "$new_version" "$file" 2>/dev/null; then
-      has_new_version=true
-    fi
-    
-    # Check if file has badges at all
-    if grep -q "shields\.io\|badge" "$file" 2>/dev/null; then
-      has_badges=true
-      # If it has badges, check if they need updating
-      if ! grep -q "$badge_new" "$file" 2>/dev/null; then
-        badge_needs_update=true
-      fi
-    fi
-    
-    # For README.md, also check content structure for dev vs release versions
-    local readme_content_correct=true
-    if [[ "$(basename "$file")" == "README.md" ]]; then
-      if [[ "${positional_args[0]}" == "next-dev" ]]; then
-        # For next-dev, README should have dev content structure
-        if ! grep -q "# 🚀 Chief (Development Version)" "$file" 2>/dev/null; then
-          readme_content_correct=false
-        elif ! grep -q "Warning.*development branch" "$file" 2>/dev/null; then
-          readme_content_correct=false
-        elif ! grep -q "Quick Install (Development Version)" "$file" 2>/dev/null; then
-          readme_content_correct=false
-        fi
-      elif [[ "${positional_args[0]}" == "release" ]]; then
-        # For release, README should have release content structure
-        if ! grep -q "^# 🚀 Chief$" "$file" 2>/dev/null; then
-          readme_content_correct=false
-        elif grep -q "Warning.*development branch" "$file" 2>/dev/null; then
-          readme_content_correct=false
-        elif ! grep -q "^## ⚡ Quick Install$" "$file" 2>/dev/null; then
-          readme_content_correct=false
-        fi
-      fi
-    fi
-    
-    # File is up to date if version is correct AND (no badges OR badges are correct) AND README content is correct
-    if $has_new_version && (! $has_badges || ! $badge_needs_update) && $readme_content_correct; then
-      __chief_print_info "$(basename "$file"): Already up to date ($new_version)"
-      continue
-    fi
-    
-    if $dry_run; then
-      local changes=""
-      if grep -q "$current_version" "$file" 2>/dev/null; then
-        changes="version"
-      fi
-      if grep -q "$badge_current" "$file" 2>/dev/null; then
-        if [[ -n "$changes" ]]; then
-          changes="$changes + badges"
-        else
-          changes="badges"
-        fi
-      fi
-      
-      # Check for dev badge changes
-      if [[ -n "$dev_badge_current" && -n "$dev_badge_new" ]]; then
-        if [[ "$dev_badge_current" == *".*"* ]]; then
-          # Pattern matching - check if file has any dev badge
-          if grep -q "Dev%20Branch-.*" "$file" 2>/dev/null; then
-            if [[ -n "$changes" ]]; then
-              changes="$changes + dev badges"
-            else
-              changes="dev badges"
-            fi
-          fi
-        else
-          # Exact match
-          if grep -q "$dev_badge_current" "$file" 2>/dev/null; then
-            if [[ -n "$changes" ]]; then
-              changes="$changes + dev badges"
-            else
-              changes="dev badges"
-            fi
-          fi
-        fi
-      fi
-      __chief_print_info "$(basename "$file"): Would update $changes ($current_version → $new_version)"
-      continue
-    fi
-    
-    # Create backup if requested
-    if $create_backups; then
-      cp "$file" "${file}.backup.$(date +%s)"
-    fi
-    
-    # Perform replacements (both regular version and badge URLs)
-    local success=true
-    
-    # Handle stable badge first (before general version replacement)
-    if [[ "$(basename "$file")" == "README.md" ]]; then
-      if [[ "${positional_args[0]}" == "next-dev" ]]; then
-        # For next-dev: stable badge should show the current stable version (remove -dev from current)
-        local stable_version="${current_version%-dev}"  # Get stable version from current version
-        if ! sed -i.tmp_stable "s|Stable-[^-]*-green|Stable-${stable_version}-green|g" "$file" 2>/dev/null; then
-          success=false
-        fi
-      elif [[ "${positional_args[0]}" == "release" ]]; then
-        # For release: stable badge should show new release version
-        if ! sed -i.tmp_stable "s|Stable-[^-]*\(-dev\)\?-green|Stable-${new_version}-green|g" "$file" 2>/dev/null; then
-          success=false
-        fi
-      fi
-    fi
-    
-    # Update regular version references
-    if $success && ! sed -i.tmp1 "s/${current_version}/${new_version}/g" "$file" 2>/dev/null; then
-      success=false
-    fi
-    
-    # Update badge URL-encoded versions - improved to handle -dev suffix variations
-    if $success; then
-      # Try exact replacement first
-      if ! sed -i.tmp2 "s/${badge_current}/${badge_new}/g" "$file" 2>/dev/null; then
-        # If that fails, try a more flexible pattern-based replacement
-        if [[ "${positional_args[0]}" == "next-dev" ]]; then
-          # For next-dev, try pattern matching for old format
-          if ! sed -i.tmp2 "s|Download%20Release-[^-]*\(--dev\)\?|${badge_new}|g" "$file" 2>/dev/null; then
-            success=false
-          fi
-        elif [[ "${positional_args[0]}" == "release" ]]; then
-          # For release, try pattern matching for old format
-          if ! sed -i.tmp2 "s|Download%20Release-[^-]*\(--dev\)\?|${badge_new}|g" "$file" 2>/dev/null; then
-            success=false
-          fi
-        else
-          success=false
-        fi
-      fi
-    fi
-    
-    # Update dev badge if we have dev badge changes
-    if $success && [[ -n "$dev_badge_current" && -n "$dev_badge_new" ]]; then
-      # Check if dev badge exists in file
-      local dev_badge_exists=false
-      if grep -q "Dev%20Branch-" "$file" 2>/dev/null; then
-        dev_badge_exists=true
-      fi
-      
-      if $dev_badge_exists; then
-        # Update existing dev badge
-        if [[ "$dev_badge_current" == *".*"* ]]; then
-          # Use regex replacement for pattern matching - prevent --dev accumulation
-          if ! sed -i.tmp_dev "s|Dev%20Branch-[^-]*\(--dev\)*|${dev_badge_new}|g" "$file" 2>/dev/null; then
-            success=false
-          fi
-        else
-          # Use exact string replacement
-          if ! sed -i.tmp_dev "s/${dev_badge_current}/${dev_badge_new}/g" "$file" 2>/dev/null; then
-            success=false
-          fi
-        fi
-      else
-        # Add dev badge if it doesn't exist (for next-dev workflow in README.md)
-        if [[ "${positional_args[0]}" == "next-dev" && "$(basename "$file")" == "README.md" ]]; then
-          # Insert dev badge after the release badge - fixed pattern for shields.io format
-          if ! sed -i.tmp_dev "s|\(Download%20Release-[^-]*\(--dev\)\?[^]]*\)]\([^)]*\))\(.*\)Documentation|\1]\3) [![Dev Branch](https://img.shields.io/badge/${dev_badge_new}-orange.svg?style=social)](https://github.com/randyoyarzabal/chief/tree/dev)\4Documentation|g" "$file" 2>/dev/null; then
-            success=false
-          fi
-        fi
-      fi
-    fi
-    
-    # For release bumps (not next-dev), remove "(Unreleased)" markers
-    if $success && [[ "${positional_args[0]}" == "release" ]]; then
-      # Handle different unreleased patterns
-      if ! sed -i.tmp3 "s/## Unreleased (${new_version})/## ${new_version}/g" "$file" 2>/dev/null; then
-        success=false
-      fi
-      if $success && ! sed -i.tmp4 "s/# Chief ${new_version} Release Notes (Unreleased)/# Chief ${new_version} Release Notes/g" "$file" 2>/dev/null; then
-        success=false
-      fi
-    fi
-    
-    # Handle README.md content changes for dev vs release versions
-    if $success && [[ "$(basename "$file")" == "README.md" ]]; then
-      if [[ "${positional_args[0]}" == "release" ]]; then
-        # RELEASE: Remove dev-specific content from README
-        # 1. Remove "(Development Version)" from title
-        if ! sed -i.tmp5 "s/# 🚀 Chief (Development Version)/# 🚀 Chief/g" "$file" 2>/dev/null; then
-          success=false
-        fi
-        
-        # 2. Remove warning box (multi-line pattern)
-        if $success; then
-          # Use perl for multi-line replacement to remove the warning block
-          if ! perl -i -pe 'BEGIN{undef $/;} s/\n> ⚠️ \*\*Warning\*\*: This is the development branch.*?\[main branch\]\(.*?\)\.\n//smg' "$file" 2>/dev/null; then
-            success=false
-          fi
-        fi
-        
-        # 3. Simplify installation section
-        if $success; then
-          # Replace development install section with simple install
-          if ! sed -i.tmp6 's/## ⚡ Quick Install (Development Version)/## ⚡ Quick Install/g' "$file" 2>/dev/null; then
-            success=false
-          fi
-          
-          # Remove the dev install block and stable alternative, keep only main install
-          if $success; then
-            # Use perl to replace the complex install section
-            perl -i -pe 'BEGIN{undef $/;} s/```bash\n# Install development version \(may be unstable\)\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/dev\/tools\/install\.sh\)"\n```\n\n\*\*For stable release\*\*, use:\n```bash\n# Install stable version from main branch\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install\.sh\)"\n```/```bash\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install\.sh\)"\n```/smg' "$file" 2>/dev/null || success=false
-          fi
-        fi
-        
-      elif [[ "${positional_args[0]}" == "next-dev" ]]; then
-        # NEXT-DEV: Add dev-specific content to README
-        # 1. Add "(Development Version)" to title
-        if ! sed -i.tmp5 "s/# 🚀 Chief$/# 🚀 Chief (Development Version)/g" "$file" 2>/dev/null; then
-          success=false
-        fi
-        
-        # 2. Add warning box after title (only if it doesn't exist)
-        if $success; then
-          # Check if warning box already exists
-          if ! grep -q "Warning.*development branch" "$file" 2>/dev/null; then
-            # Insert warning after the title and description
-            if ! sed -i.tmp6 '/^\*\*Bash Plugin Manager & Terminal Enhancement Tool\*\*$/a\\n> ⚠️ **Warning**: This is the development branch. Features may be unstable. For stable releases, use the [main branch](https://github.com/randyoyarzabal/chief/tree/main).' "$file" 2>/dev/null; then
-              success=false
-            fi
-          fi
-        fi
-        
-        # 3. Expand installation section
-        if $success; then
-          # Update install section title
-          if ! sed -i.tmp7 's/## ⚡ Quick Install$/## ⚡ Quick Install (Development Version)/g' "$file" 2>/dev/null; then
-            success=false
-          fi
-          
-          # Replace simple install with dev install section
-          if $success; then
-            # This is complex, so use perl for multi-line replacement
-            perl -i -pe 'BEGIN{undef $/;} s/```bash\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install\.sh\)"\n```/```bash\n# Install development version (may be unstable)\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/dev\/tools\/install\.sh\)"\n```\n\n**For stable release**, use:\n```bash\n# Install stable version from main branch\nbash -c "\$\(curl -fsSL https:\/\/raw\.githubusercontent\.com\/randyoyarzabal\/chief\/refs\/heads\/main\/tools\/install\.sh\)"\n```/smg' "$file" 2>/dev/null || success=false
-          fi
-        fi
-      fi
-    fi
-    
-    if $success; then
-      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp5" "${file}.tmp6" "${file}.tmp7" "${file}.tmp_dev" "${file}.tmp_stable" 2>/dev/null
-      if [[ "$(basename "$file")" == "README.md" ]]; then
-        __chief_print_success "$(basename "$file"): Updated $current_version → $new_version (including badges and content structure)"
-      else
-        __chief_print_success "$(basename "$file"): Updated $current_version → $new_version (including badges)"
-      fi
-      ((updated_count++))
-    else
-      # Restore backup on failure if it exists
-      if $create_backups; then
-        local backup_file="${file}.backup.$(date +%s)"
-        if [[ -f "$backup_file" ]]; then
-          mv "$backup_file" "$file" 2>/dev/null
-        fi
-      fi
-      rm -f "${file}.tmp1" "${file}.tmp2" "${file}.tmp3" "${file}.tmp4" "${file}.tmp5" "${file}.tmp6" "${file}.tmp7" "${file}.tmp_dev" "${file}.tmp_stable" 2>/dev/null
-      __chief_print_error "$(basename "$file"): Failed to update"
-      return 1
-    fi
-  done
-  
-  
-  # Summary
-  echo ""
-  if $dry_run; then
-    __chief_print_info "Dry run completed. No files were modified."
-    __chief_print_info "Run without --dry-run to apply changes."
-  else
-    __chief_print_success "Version bump completed: $current_version → $new_version"
-    __chief_print_info "Files updated: $updated_count"
-    
-    # Clean up old backups (keep only the 3 most recent) - only if backups were created
-    if $create_backups; then
-      local backup_files
-      backup_files=$(find "${CHIEF_PATH}" -name "*.backup.*" -type f 2>/dev/null | sort)
-      if [[ -n "$backup_files" ]]; then
-        local total_backups
-        total_backups=$(echo "$backup_files" | wc -l | tr -d ' ')
-        if [[ "$total_backups" -gt 3 ]]; then
-          local files_to_delete=$((total_backups - 3))
-          echo "$backup_files" | head -n "$files_to_delete" | xargs rm -f 2>/dev/null || true
-          __chief_print_info "Cleaned up old backup files (kept 3 most recent)"
-        fi
-      fi
-    fi
-    
-    # Different next steps for dev vs release versions
-    if [[ "$new_version" =~ -dev$ ]]; then
-      __chief_print_info "📋 Next steps for development version ($new_version):"
-      __chief_print_info "  1. ✅ Ready for development work on $new_version"
-      __chief_print_info "  2. 📄 README.md converted to dev format (added warnings/dev structure)"
-      __chief_print_info "  3. 🔄 Update branch set to 'dev' (will track development updates)"
-      __chief_print_info "  4. When ready to release, run: __chief.bump release"
-    else
-      __chief_print_info "🚀 Release version ready ($new_version):"
-      __chief_print_info "  📝 Badges now show release version (no -dev suffix)"
-      __chief_print_info "  📄 README.md converted to release format (removed dev warnings/structure)"
-      __chief_print_info "  🔄 Update branch set to 'main' (will track stable releases)"
-      __chief_print_info "  📋 Next steps to publish release:"
-      __chief_print_info "  1. 🔄 Create PR: dev → main (for release)"
-      __chief_print_info "  2. 📦 Create GitHub release from tag for publishing"
-      __chief_print_info ""
-      __chief_print_info "📋 Copy-paste for GitHub release description:"
-      __chief_print_info "────────────────────────────────────────────────────"
-      __chief_print_info "See [$new_version release notes](https://github.com/randyoyarzabal/chief/blob/main/release-notes/$new_version.md)"
-      __chief_print_info "────────────────────────────────────────────────────"
-      __chief_print_info ""
-      __chief_print_info "  7. 🔄 Run: __chief.bump next-dev (to start next development cycle)"
     fi
   fi
 }
