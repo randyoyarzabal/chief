@@ -25,6 +25,13 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 
 **That's it!** Restart your terminal and start using Chief.
 
+**Switching an existing install** between stable and development is just a checkout; Chief follows the branch it's on (`auto`, the default) and the banner's `tracking:` line shows it:
+
+```bash
+git -C ~/.chief switch dev    # or: main
+chief.update
+```
+
 ### Disconnected Installation
 
 For environments without git connectivity:

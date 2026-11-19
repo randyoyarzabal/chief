@@ -315,23 +315,25 @@ setup_config() {
     echo -e "${YELLOW}INFO: Configuration file already exists at $CHIEF_CONFIG${NC}"
   fi
 
-  # Update config to match the installed branch if not default (skip for local installs)
-  if ! $LOCAL_INSTALL && [[ "$CHIEF_INSTALL_GIT_BRANCH" != "main" ]]; then
-    echo -e "${CYAN}Updating configuration to track ${CHIEF_INSTALL_GIT_BRANCH} branch...${NC}"
-    if grep -q "CHIEF_CFG_UPDATE_BRANCH=" "$CHIEF_CONFIG"; then
-      # Update existing setting
-      if sed -i.bak "s/CHIEF_CFG_UPDATE_BRANCH=.*/CHIEF_CFG_UPDATE_BRANCH=\"${CHIEF_INSTALL_GIT_BRANCH}\"/" "$CHIEF_CONFIG" 2>/dev/null; then
-        rm -f "$CHIEF_CONFIG.bak" 2>/dev/null
-        echo -e "${GREEN}SUCCESS: Configuration updated to track ${CHIEF_INSTALL_GIT_BRANCH} branch${NC}"
-      else
-        echo -e "${YELLOW}WARNING: Could not update branch tracking in config file${NC}"
+  # Follow the installed branch automatically: "auto" tracks whatever branch the checkout is
+  # on (skip for local installs). New configs already have it from the template.
+  if ! $LOCAL_INSTALL; then
+    if grep -q "^CHIEF_CFG_UPDATE_BRANCH=" "$CHIEF_CONFIG"; then
+      if ! grep -q '^CHIEF_CFG_UPDATE_BRANCH="auto"' "$CHIEF_CONFIG" && [[ "$CHIEF_INSTALL_GIT_BRANCH" != "main" ]]; then
+        # An existing config pinned elsewhere: follow the branch just installed instead.
+        if sed -i.bak 's/^CHIEF_CFG_UPDATE_BRANCH=.*/CHIEF_CFG_UPDATE_BRANCH="auto"/' "$CHIEF_CONFIG" 2>/dev/null; then
+          rm -f "$CHIEF_CONFIG.bak" 2>/dev/null
+          echo -e "${GREEN}SUCCESS: Configuration now follows the installed branch (${CHIEF_INSTALL_GIT_BRANCH}) automatically${NC}"
+        else
+          echo -e "${YELLOW}WARNING: Could not update branch tracking in config file${NC}"
+        fi
       fi
     else
-      # Add setting if it doesn't exist (for older config files)
+      # Older config files without the setting
       echo "" >> "$CHIEF_CONFIG"
-      echo "# Branch tracking configuration (added by installer)" >> "$CHIEF_CONFIG"
-      echo "CHIEF_CFG_UPDATE_BRANCH=\"${CHIEF_INSTALL_GIT_BRANCH}\"" >> "$CHIEF_CONFIG"
-      echo -e "${GREEN}SUCCESS: Added branch tracking configuration (${CHIEF_INSTALL_GIT_BRANCH})${NC}"
+      echo "# Branch tracking: \"auto\" follows the branch Chief's checkout is on (added by installer)" >> "$CHIEF_CONFIG"
+      echo 'CHIEF_CFG_UPDATE_BRANCH="auto"' >> "$CHIEF_CONFIG"
+      echo -e "${GREEN}SUCCESS: Added branch tracking (auto: follows ${CHIEF_INSTALL_GIT_BRANCH})${NC}"
     fi
   elif $LOCAL_INSTALL; then
     echo -e "${CYAN}Disconnected installation: Setting stable branch configuration${NC}"

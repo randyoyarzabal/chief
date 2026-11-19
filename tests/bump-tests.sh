@@ -152,7 +152,7 @@ test_release_bump() {
     else
         log_error "dev release notes file still present"
     fi
-    assert_contains     "$copy/config.sh" 'CHIEF_CFG_UPDATE_BRANCH="main"'   "config untouched by release (template default kept)"
+    assert_contains     "$copy/config.sh" 'CHIEF_CFG_UPDATE_BRANCH="auto"'   "config untouched by release (template default kept)"
     [[ ${CHIEF_TEST_VERBOSE:-0} -eq 1 ]] && echo "    badges: $(badges "$copy/README.md")"
     echo ""
 }

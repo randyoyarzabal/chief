@@ -310,17 +310,23 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 
 ### Branch Tracking
 
-Chief supports tracking any valid Git branch for updates:
+By default (`auto`), Chief updates from whatever branch its own checkout is on, so switching between stable and development is just a checkout. The banner's `tracking:` line shows which branch, marked `auto`.
 
 ```bash
-# Track stable releases (default)
-chief.config-set update_branch main
-
-# Track development features (⚠ use with caution)  
-chief.config-set update_branch dev
-
-# Update to your configured branch
+# Switch to development features (⚠ may be unstable), then update
+git -C ~/.chief switch dev
 chief.update
+
+# Back to stable releases
+git -C ~/.chief switch main
+chief.update
+```
+
+To pin a branch instead, so `chief.update` offers to move the checkout back to it if it ever differs:
+
+```bash
+chief.config-set update_branch main   # or dev, or any branch
+chief.config-set update_branch auto   # back to following the checkout
 ```
 
 **What `chief.config_update` does:**

@@ -174,6 +174,25 @@ function __chief_load_library() {
   __chief_framework_print "library reloaded." "$1"
 }
 
+# Is CHIEF_CFG_UPDATE_BRANCH in auto mode? Empty or "auto" = follow the checkout.
+function __chief_update_branch_auto() {
+  [[ -z "${CHIEF_CFG_UPDATE_BRANCH:-}" || "${CHIEF_CFG_UPDATE_BRANCH}" == auto ]]
+}
+
+# The branch Chief updates from. Auto mode (the default): whatever branch Chief's own checkout
+# is on, so switching between dev and main is just "git -C ~/.chief switch dev" (or main) with
+# no config change. On a tag or detached HEAD there's no branch to follow, so: main.
+# A branch name in CHIEF_CFG_UPDATE_BRANCH pins it instead (and chief.update offers to switch).
+function __chief_update_branch() {
+  if __chief_update_branch_auto; then
+    local branch
+    branch="$(git -C "${CHIEF_PATH}" symbolic-ref --short -q HEAD 2>/dev/null)"
+    echo "${branch:-main}"
+  else
+    echo "${CHIEF_CFG_UPDATE_BRANCH}"
+  fi
+}
+
 function __chief_dev_tools_state() {
   # Usage: __chief_dev_tools_state
   #
@@ -1326,13 +1345,15 @@ function __chief.banner {
   elif __chief_is_disconnected_mode; then
     branch_status="mode: ${CHIEF_COLOR_RED}disconnected ${CHIEF_COLOR_YELLOW}(no git)${CHIEF_NO_COLOR}"
   else
-    local update_branch="${CHIEF_CFG_UPDATE_BRANCH:-main}"
+    local update_branch auto_tag=""
+    update_branch="$(__chief_update_branch)"
+    __chief_update_branch_auto && auto_tag=", auto"
     if [[ "${update_branch}" == "dev" ]]; then
-      branch_status="tracking: ${CHIEF_COLOR_YELLOW}${update_branch} ${CHIEF_COLOR_RED}(bleeding-edge)${CHIEF_NO_COLOR}"
+      branch_status="tracking: ${CHIEF_COLOR_YELLOW}${update_branch} ${CHIEF_COLOR_RED}(bleeding-edge${auto_tag})${CHIEF_NO_COLOR}"
     elif [[ "${update_branch}" == "main" ]]; then
-      branch_status="tracking: ${CHIEF_COLOR_GREEN}${update_branch} ${CHIEF_COLOR_CYAN}(stable)${CHIEF_NO_COLOR}"
+      branch_status="tracking: ${CHIEF_COLOR_GREEN}${update_branch} ${CHIEF_COLOR_CYAN}(stable${auto_tag})${CHIEF_NO_COLOR}"
     else
-      branch_status="tracking: ${CHIEF_COLOR_CYAN}${update_branch} ${CHIEF_COLOR_YELLOW}(custom)${CHIEF_NO_COLOR}"
+      branch_status="tracking: ${CHIEF_COLOR_CYAN}${update_branch} ${CHIEF_COLOR_YELLOW}(custom${auto_tag})${CHIEF_NO_COLOR}"
     fi
   fi
 
@@ -1376,8 +1397,14 @@ function __chief.hints_text() {
     fi
     # Show branch tracking status (only if not already shown in banner)
     if $show_tracking; then
-      local update_branch="${CHIEF_CFG_UPDATE_BRANCH:-main}"
-      if [[ "${update_branch}" == "dev" ]]; then
+      local update_branch
+      update_branch="$(__chief_update_branch)"
+      if __chief_update_branch_auto; then
+        # Auto mode: switching is a checkout away; no config change needed.
+        local other=main
+        [[ "${update_branch}" == "main" ]] && other=dev
+        echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_GREEN}${update_branch}${CHIEF_COLOR_CYAN} (auto: follows ${CHIEF_PATH}) | switch: ${CHIEF_COLOR_GREEN}git -C ${CHIEF_PATH} switch ${other}${CHIEF_NO_COLOR}"
+      elif [[ "${update_branch}" == "dev" ]]; then
         echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_YELLOW}${update_branch}${CHIEF_COLOR_RED} (bleeding-edge)${CHIEF_COLOR_CYAN} branch | ${CHIEF_COLOR_GREEN}chief.config-set update_branch main${CHIEF_COLOR_CYAN} for stable${CHIEF_NO_COLOR}"
       elif [[ "${update_branch}" == "main" ]]; then
         echo -e "${CHIEF_COLOR_CYAN}Tracking: ${CHIEF_COLOR_GREEN}${update_branch}${CHIEF_COLOR_CYAN} (stable) branch | ${CHIEF_COLOR_GREEN}chief.config-set update_branch dev${CHIEF_COLOR_CYAN} for latest features${CHIEF_NO_COLOR}"
@@ -1788,8 +1815,9 @@ function __chief_check_for_updates (){
   cd ${CHIEF_PATH}
   local CHANGE_MSG="${CHIEF_COLOR_GREEN}**Chief updates available**${CHIEF_NO_COLOR}"
 
-  # Get target branch from config, default to main if not set
-  local TARGET_BRANCH="${CHIEF_CFG_UPDATE_BRANCH:-main}"
+  # Branch to update from: the configured pin, or (auto) the checkout's own branch
+  local TARGET_BRANCH
+  TARGET_BRANCH="$(__chief_update_branch)"
   
   # Get local branch name
   local LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
@@ -2750,10 +2778,10 @@ ${CHIEF_COLOR_GREEN}Features:${CHIEF_NO_COLOR}
 - Pulls latest changes from Chief repository
 - Automatically reloads environment after update
 - Preserves your personal configuration and plugins
-- Tracks configured branch (CHIEF_CFG_UPDATE_BRANCH)
+- Follows the branch your Chief checkout is on (auto), or a pinned CHIEF_CFG_UPDATE_BRANCH
 
 ${CHIEF_COLOR_BLUE}Update Process:${CHIEF_NO_COLOR}
-1. Check for available updates on configured branch
+1. Check for available updates on the tracked branch
 2. Prompt for user confirmation
 3. Switch to target branch if needed (main/dev)
 4. Pull latest Chief version from target branch
@@ -2767,9 +2795,10 @@ ${CHIEF_COLOR_MAGENTA}Safety Features:${CHIEF_NO_COLOR}
 - Requires explicit user confirmation
 
 ${CHIEF_COLOR_CYAN}Branch Configuration:${CHIEF_NO_COLOR}
-- Set CHIEF_CFG_UPDATE_BRANCH=\"main\" for stable releases
-- Set CHIEF_CFG_UPDATE_BRANCH=\"dev\" for bleeding-edge features  
-- Set CHIEF_CFG_UPDATE_BRANCH=\"custom-branch\" for specific versions
+- Default \"auto\": follow whatever branch \$CHIEF_PATH is checked out on. Switch with
+  git -C \$CHIEF_PATH switch dev   (or main); no config change needed
+- Pin instead: CHIEF_CFG_UPDATE_BRANCH=\"main\" (stable), \"dev\" (bleeding-edge),
+  or \"custom-branch\"; chief.update then offers to switch the checkout to it
 - WARNING: non-main branches may contain unstable features
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
@@ -2806,7 +2835,9 @@ You can also manually update by running git pull in the Chief directory.
   
   # Check if we need to switch branches first (regardless of updates)
   cd "${CHIEF_PATH}"
-  local TARGET_BRANCH="${CHIEF_CFG_UPDATE_BRANCH:-main}"
+  # Pinned: offer to switch when the checkout differs. Auto: the checkout's branch is the target.
+  local TARGET_BRANCH
+  TARGET_BRANCH="$(__chief_update_branch)"
   local LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
   
   if [[ ${LOCAL_BRANCH} != ${TARGET_BRANCH} ]]; then
@@ -2921,7 +2952,8 @@ You can also manually update by running git pull in the Chief directory.
       echo "Proceeding..."
       
       # We're already in CHIEF_PATH and on the correct branch
-      local TARGET_BRANCH="${CHIEF_CFG_UPDATE_BRANCH:-main}"
+      local TARGET_BRANCH
+      TARGET_BRANCH="$(__chief_update_branch)"
       local LOCAL_BRANCH=$(git rev-parse --abbrev-ref HEAD)
       
       # Switch to target branch if different from current branch

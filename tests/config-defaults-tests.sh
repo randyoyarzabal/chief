@@ -7,6 +7,7 @@
 #     the template ships aws/openshift/vault disabled, older configs keep them on.
 #   - SSH keys: CHIEF_CFG_SSH_LOAD_KEYS switches auto-load; the keys path defaults to ~/.ssh;
 #     older configs that only set CHIEF_CFG_SSH_KEYS_PATH keep auto-loading.
+#   - Update branch: "auto" (default) follows the checkout's branch; a name pins it.
 ########################################################################
 
 set -uo pipefail
@@ -44,6 +45,30 @@ expect "switch on: auto-load"                    0 'CHIEF_CFG_SSH_LOAD_KEYS=true
 expect "switch off wins over a set path"         1 'CHIEF_CFG_SSH_LOAD_KEYS=false; CHIEF_CFG_SSH_KEYS_PATH=/tmp/k' "__chief_ssh_autoload_on"
 expect "older config with only a path: auto-load" 0 'CHIEF_CFG_SSH_KEYS_PATH=/tmp/k' "__chief_ssh_autoload_on"
 expect "older config with neither: no auto-load" 1 "" "__chief_ssh_autoload_on"
+
+# Update branch: "auto" follows the checkout; a branch name pins it.
+REPO="$(mktemp -d "${TMPDIR:-/tmp}/chief-branch-test.XXXXXX")"
+cp "$PROJECT_ROOT/VERSION" "$REPO/VERSION"
+(cd "$REPO" && git init -q -b main && git -c user.name=t -c user.email=t@e -c commit.gpgsign=false add -A \
+   && git -c user.name=t -c user.email=t@e -c commit.gpgsign=false commit -qm base && git branch dev) >/dev/null 2>&1
+branch_is() { # <label> <checkout> <config-value|-unset-> <expected>
+    local label="$1" ref="$2" cfg="$3" want="$4" got
+    git -C "$REPO" checkout -q "$ref" 2>/dev/null
+    got="$(CHIEF_PATH="$REPO" bash -c '
+        source "'"$PROJECT_ROOT"'/libs/core/chief_library.sh" >/dev/null 2>&1
+        if [[ "$1" == -unset- ]]; then unset CHIEF_CFG_UPDATE_BRANCH; else CHIEF_CFG_UPDATE_BRANCH="$1"; fi
+        __chief_update_branch' _ "$cfg" 2>/dev/null)"
+    if [[ "$got" == "$want" ]]; then echo -e "${GREEN}[PASS]${NC} $label"; PASS=$((PASS + 1))
+    else echo -e "${RED}[FAIL]${NC} $label (got '$got', wanted '$want')"; FAIL=$((FAIL + 1)); fi
+}
+branch_is "auto follows dev checkout"        dev  auto     dev
+branch_is "auto follows main checkout"       main auto     main
+branch_is "empty setting means auto"         dev  ""       dev
+branch_is "unset setting means auto"         dev  -unset-  dev
+branch_is "pinned main wins over checkout"   dev  main     main
+branch_is "detached checkout falls back to main" "$(git -C "$REPO" rev-parse HEAD)" auto main
+rm -rf "$REPO"
+expect "template: update branch is auto"   0 "$TEMPLATE" '[[ "$CHIEF_CFG_UPDATE_BRANCH" == auto ]]'
 
 echo "Passed: $PASS  Failed: $FAIL"
 [[ $FAIL -eq 0 ]]

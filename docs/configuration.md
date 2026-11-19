@@ -73,7 +73,7 @@ chief.config-set config_set_interactive false
 | `CHIEF_CFG_SSH_KEYS_PATH` | _unset_ (`~/.ssh`) | Optional: a different directory to load keys from |
 | `CHIEF_CFG_ALIAS` | _unset_ | Create short alias (e.g., `"cf"`) |
 | `CHIEF_CFG_AUTOCHECK_UPDATES` | `false` | Check for updates on startup |
-| `CHIEF_CFG_UPDATE_BRANCH` | `"main"` | Branch to track for updates: any valid Git branch (⚠ non-main may be unstable) |
+| `CHIEF_CFG_UPDATE_BRANCH` | `"auto"` | Branch to update from. `auto`: whatever branch `$CHIEF_PATH` is checked out on (switch with `git -C ~/.chief switch dev` / `main`; tag or detached HEAD → `main`). A branch name pins it (⚠ non-main may be unstable) |
 
 ### Environment Variables
 

@@ -42,14 +42,14 @@ CHIEF_CFG_AUTOCHECK_UPDATES=false
 # UPDATE CONFIGURATION
 ####################################
 
-# Branch to track for Chief updates. Can be any valid Git branch name.
-# Common options: "main" (stable release), "dev" (bleeding-edge), or custom branches.
-# When set to "main", Chief will track the stable release branch.
-# When set to "dev", Chief will track the development branch with bleeding-edge features.
-# Custom branches can be used for specific versions or team-specific branches.
-# WARNING: Non-main branches may contain unstable features and should be used with caution.
-# This setting affects both automatic update checks and manual updates via chief.update.
-CHIEF_CFG_UPDATE_BRANCH="main"
+# Branch Chief updates from (manual chief.update and the automatic update check).
+# "auto" (default): follow whatever branch Chief's own checkout ($CHIEF_PATH) is on. To move
+#   between stable and bleeding-edge, just switch the checkout; the banner shows which:
+#     git -C "$CHIEF_PATH" switch dev     (or: main)
+#   On a tag or detached HEAD there's no branch to follow, so "main" is used.
+# A branch name pins it instead: "main" (stable), "dev" (bleeding-edge, may be unstable),
+#   or any other branch. chief.update then offers to switch the checkout to that branch.
+CHIEF_CFG_UPDATE_BRANCH="auto"
 
 # PLUG-INS CONFIGURATION
 ####################################
