@@ -2012,7 +2012,8 @@ Display a spinning progress indicator while a command executes in the background
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   message         Text to display alongside the spinner
   command         Command to execute in the background
-  output_variable Name of variable to store command output
+  output_variable Name of a variable (no \$) that receives everything the command printed,
+                  e.g. result; read it afterwards as \$result
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   --legacy        Original look: \"message [|]\" turning through | / - \\\\

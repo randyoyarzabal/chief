@@ -357,7 +357,7 @@ Chief has two progress helpers, both in the core library (always loaded), and bo
 
 #### One command: `chief.etc_spinner` / `__chief_spin`
 
-Runs a command with a spinner, then clears the line. `chief.etc_spinner` is the documented command (in the `etc` plugin); `__chief_spin` is the core function behind it, with the same arguments. Use `__chief_spin` in a plugin that must work even when someone turns the `etc` plugin off. Everything the command printed (stdout and stderr) goes into the variable you name, and the command's exit code is returned.
+Runs a command with a spinner, then clears the line. Arguments: the message to show, the command (as one string), and the **name** of a variable, without `$`, that receives everything the command printed (read it afterwards as `$name`). `chief.etc_spinner` is the documented command (in the `etc` plugin); `__chief_spin` is the core function behind it, with the same arguments. Use `__chief_spin` in a plugin that must work even when someone turns the `etc` plugin off. Everything the command printed (stdout and stderr) goes into the variable you name, and the command's exit code is returned.
 
 ```bash
 function myproject.sync() {
@@ -374,7 +374,7 @@ function myproject.sync() {
 `--legacy` gives the original look, `Syncing files... [|]` turning through `| / - \`:
 
 ```bash
-chief.etc_spinner --legacy "Syncing files..." "rsync -a src/ dst/" output
+chief.etc_spinner --legacy "Syncing files..." "rsync -a src/ dst/" output   # then: echo "$output"
 ```
 
 The command runs in a subshell, so variables it sets don't reach your function; read what you need from its output.
