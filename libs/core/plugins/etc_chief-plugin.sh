@@ -2005,6 +2005,7 @@ ${CHIEF_COLOR_BLUE}Speed Guide:${CHIEF_NO_COLOR}
 
 function chief.etc_spinner() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--legacy] <message> <command> <output_variable>
+  e.g. $FUNCNAME \"Fetching...\" \"git fetch\" result; echo \"\$result\"
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Display a spinning progress indicator while a command executes in the background.
