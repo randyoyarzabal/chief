@@ -1362,6 +1362,18 @@ function __chief.banner {
   echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${git_status}${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${branch_status}${CHIEF_NO_COLOR}"
   echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
+  __chief_stale_hint
+}
+
+# Did Chief's files change since this shell loaded them (a manual branch switch, git pull,
+# or an update from another terminal)? Compare the loaded version with the VERSION file on
+# disk and, if they differ, say how to catch up. Shown under the banner (chief.help,
+# chief.status, start-up); silent when they match.
+function __chief_stale_hint() {
+  local on_disk
+  on_disk="$(grep -o 'CHIEF_VERSION="[^"]*"' "${CHIEF_PATH}/VERSION" 2>/dev/null | head -1 | cut -d'"' -f2)"
+  [[ -n "$on_disk" && -n "${CHIEF_VERSION:-}" && "$on_disk" != "$CHIEF_VERSION" ]] || return 0
+  echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} ${CHIEF_PATH} is now ${on_disk}, but this shell loaded ${CHIEF_VERSION}. Run: ${CHIEF_COLOR_GREEN}chief.reload${CHIEF_NO_COLOR}"
 }
 
 # Display "hints" text and dynamically display alias if necessary.

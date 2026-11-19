@@ -313,14 +313,18 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 By default (`auto`), Chief updates from whatever branch its own checkout is on, so switching between stable and development is just a checkout. The banner's `tracking:` line shows which branch, marked `auto`.
 
 ```bash
-# Switch to development features (⚠ may be unstable), then update
+# Switch to development features (⚠ may be unstable), load them, then update
 git -C ~/.chief switch dev
+chief.reload
 chief.update
 
 # Back to stable releases
 git -C ~/.chief switch main
+chief.reload
 chief.update
 ```
+
+Switching the checkout changes the files, not what's loaded in a running shell, so run `chief.reload` (or open a new terminal). If Chief's files changed since your shell loaded them (a branch switch, a `git pull`, an update from another terminal), the banner says so: *"~/.chief is now v3.2.0, but this shell loaded v3.2.1-dev. Run: chief.reload"*.
 
 To pin a branch instead, so `chief.update` offers to move the checkout back to it if it ever differs:
 

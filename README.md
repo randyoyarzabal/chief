@@ -29,8 +29,11 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 
 ```bash
 git -C ~/.chief switch dev    # or: main
-chief.update
+chief.reload                  # load the switched files into this shell
+chief.update                  # optional: pull the latest of that branch
 ```
+
+If you forget to reload, the banner (start-up, `chief.help`, `chief.status`) points it out.
 
 ### Disconnected Installation
 

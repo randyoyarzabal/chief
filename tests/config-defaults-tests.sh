@@ -70,5 +70,23 @@ branch_is "detached checkout falls back to main" "$(git -C "$REPO" rev-parse HEA
 rm -rf "$REPO"
 expect "template: update branch is auto"   0 "$TEMPLATE" '[[ "$CHIEF_CFG_UPDATE_BRANCH" == auto ]]'
 
+# Stale-version hint: the banner notes when the files on disk changed since Chief loaded.
+STALE="$(mktemp -d "${TMPDIR:-/tmp}/chief-stale-test.XXXXXX")"
+cp "$PROJECT_ROOT/VERSION" "$STALE/VERSION"
+stale_out() { # <loaded-version> -> hint output
+    CHIEF_PATH="$STALE" bash -c '
+        source "'"$PROJECT_ROOT"'/libs/core/chief_library.sh" >/dev/null 2>&1
+        CHIEF_VERSION="$1"; __chief_stale_hint' _ "$1" 2>/dev/null
+}
+on_disk="$(grep -o 'CHIEF_VERSION="[^"]*"' "$STALE/VERSION" | cut -d'"' -f2)"
+check_out() { # <label> <expect-hint:yes|no> <output>
+    if [[ "$2" == yes && "$3" == *"chief.reload"* ]] || [[ "$2" == no && -z "$3" ]]; then
+        echo -e "${GREEN}[PASS]${NC} $1"; PASS=$((PASS + 1))
+    else echo -e "${RED}[FAIL]${NC} $1 (output: '$3')"; FAIL=$((FAIL + 1)); fi
+}
+check_out "stale hint when disk version differs" yes "$(stale_out v0.0.1)"
+check_out "no hint when versions match"          no  "$(stale_out "$on_disk")"
+rm -rf "$STALE"
+
 echo "Passed: $PASS  Failed: $FAIL"
 [[ $FAIL -eq 0 ]]
