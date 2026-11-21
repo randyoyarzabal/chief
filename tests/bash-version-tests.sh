@@ -68,6 +68,35 @@ else
   fail "expected CHIEF_CFG_BASH_WARN=false to silence the warning; got: $out"
 fi
 
+# Full chief.sh load under a simulated Bash 3, in a real non-interactive or
+# interactive shell. $1 = "-c" (non-interactive) or "-ic" (interactive).
+run_load() {
+  local cfg
+  cfg="$(mktemp)"
+  printf 'CHIEF_CFG_BANNER=false\nCHIEF_CFG_HINTS=false\nCHIEF_CFG_SSH_LOAD_KEYS=false\nCHIEF_CFG_AUTOCHECK_UPDATES=false\nCHIEF_CFG_PLUGINS_TYPE=local\nCHIEF_CFG_PLUGINS_PATH=%s\n' "$(mktemp -d)" >"$cfg"
+  NO_COLOR=1 CHIEF_PATH="$PROJECT_ROOT" CHIEF_CONFIG="$cfg" CHIEF_TEST_BASH_VERSINFO_MAJOR=3 \
+    bash --norc --noprofile "$1" '
+      source "$CHIEF_PATH/chief.sh"
+      type -t chief.help >/dev/null && echo "core=yes"
+      type -t chief.git_commit >/dev/null && echo "plugins=yes" || echo "plugins=no"
+    ' 2>&1 </dev/null
+  rm -f "$cfg"
+}
+
+out="$(run_load -c)"
+if ! grep -q "Chief needs Bash 4.0+" <<<"$out" && grep -q "core=yes" <<<"$out" && grep -q "plugins=no" <<<"$out"; then
+  pass "non-interactive Bash 3: core library only, no warning, no plugins"
+else
+  fail "expected quiet core-only load in non-interactive Bash 3; got: $out"
+fi
+
+out="$(run_load -ic)"
+if grep -q "Chief needs Bash 4.0+" <<<"$out" && grep -q "plugins=yes" <<<"$out"; then
+  pass "interactive Bash 3: warns and still loads plugins"
+else
+  fail "expected warning and plugins in interactive Bash 3; got: $out"
+fi
+
 echo ""
 echo "Bash version tests: ${PASSED} passed, ${FAILED} failed"
 [[ $FAILED -eq 0 ]]

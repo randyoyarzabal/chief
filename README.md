@@ -163,13 +163,13 @@ Core SSH helpers (always available):
 - `chief.ssh_status` - Show agent keys; with 3 or more keys loaded, lists hosts that don't pin a key
 - `chief.ssh_host-key <host> <key>` - Pin one key to a host in `~/.ssh/config` (`IdentityFile` + `IdentitiesOnly yes`), so many loaded keys don't trigger "Too many authentication failures"
 
-### System Utilities Plugin (18 functions)
+### System Utilities Plugin (17 functions)
 
 - `chief.etc_create-bootusb` - Create bootable USB drives safely
 - `chief.etc_folder-sync` - Professional rsync-based directory synchronization  
 - `chief.etc_copy-dotfiles` - Copy configuration files with backup support
-- `chief.etc_shared_term_*` - Create and manage shared tmux sessions
-- `chief.etc_chmod_*` - Enhanced file permission management
+- `chief.etc_shared-term-create` / `-connect` - Create and join shared tmux sessions
+- `chief.etc_chmod-f` / `-d` - Enhanced file permission management
 - `chief.etc_mount-share` - Network share mounting utilities
 - File comparison, IP validation, system prompts, and more...
 
@@ -178,7 +178,7 @@ Core SSH helpers (always available):
 - `chief.git_init` - Initially commit current directory to a repository
 - `chief.git_clone` - Enhanced git cloning with safety checks
 - `chief.git_commit` - Streamlined pull, commit, and push workflow (large-file warning; pull failures warn and continue)
-- `chief.git_reset_*` - Safe reset operations with dry-run support
+- `chief.git_reset-soft` / `-hard` - Safe reset operations with dry-run support
 - `chief.git_branch` - Advanced branch management
 - `chief.git_config-user` - Quick user configuration setup
 - Complete workflow support: tagging, amending, credential caching, URL management

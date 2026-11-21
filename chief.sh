@@ -66,6 +66,15 @@ if [[ $1 == "--lib-only" ]]; then
   return 0
 fi
 
+# Bash < 4 in a non-interactive shell (scripts, editors, AI tools running macOS's
+# /bin/bash 3.2 with `bash -c`): plugins can fail there with "declare: -A" errors,
+# and re-exec'ing a newer Bash would drop the command being run. So load only the
+# core library (as with --lib-only), quietly: no warning, banner, plugins or SSH keys.
+# Interactive shells keep the warning below, which explains how to switch Bash.
+if (( ${CHIEF_TEST_BASH_VERSINFO_MAJOR:-${BASH_VERSINFO[0]:-0}} < 4 )) && [[ $- != *i* ]]; then
+  return 0
+fi
+
 # Warn (once, before plugins load) if running on Bash < 4, e.g. the macOS system bash.
 __chief_check_bash_version
 

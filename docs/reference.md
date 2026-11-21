@@ -63,7 +63,7 @@ chief.plugin mytools
 
 ```bash
 # View current configuration
-chief.config_show
+grep "^CHIEF_CFG_" "$CHIEF_CONFIG"
 
 # Set configuration values
 chief.config-set PROMPT true
@@ -73,8 +73,8 @@ chief.config-set default_editor_path "vim"
 chief.config
 
 # Update config with new features (after upgrade)
-chief.config_update
-chief.config_update --dry-run
+chief.config-update
+chief.config-update --dry-run
 
 # Reload Chief after changes
 chief.reload
@@ -104,7 +104,7 @@ chief.help plugins            # Show plugin-provided commands
 
 # Plugin management
 chief.plugins-update          # Update remote plugins (if configured)
-chief.plugins_root             # Navigate to plugins directory
+chief.plugins-root             # Navigate to plugins directory
 ```
 
 #### `chief.plugin` symlink mode (portable plugin links)
@@ -126,8 +126,8 @@ chief.update
 # Check for updates
 chief.update --check
 
-# Version information
-chief.version
+# Version, plugins and their enabled state
+chief.status
 
 # Uninstall Chief
 chief.uninstall
@@ -236,7 +236,7 @@ chief.etc_chmod-d <permissions> [directory]
     -n, --dry-run          Show what would be changed without making changes
 
 # Dotfiles Management
-chief.etc_copy_dotfiles <source_directory> <destination_directory> [options]
+chief.etc_copy-dotfiles <source_directory> <destination_directory> [options]
   Options:
     -v, --verbose           Show each file being copied
     -n, --dry-run          Show what would be copied without making changes
@@ -244,16 +244,16 @@ chief.etc_copy_dotfiles <source_directory> <destination_directory> [options]
     -b, --backup           Create backups of existing files (.bak extension)
 
 # Bootable Media Creation
-chief.etc_create_bootusb <iso_file> <disk_number> [options]
+chief.etc_create-bootusb <iso_file> <disk_number> [options]
   Options:
     -f, --force             Skip confirmations (use with extreme caution)
     -k, --keep              Keep temporary conversion file
 
 # Network and Storage
-chief.etc_mount_share <share_path> <mount_path> <username>
+chief.etc_mount-share <share_path> <mount_path> <username>
 
 # Scheduling and Automation
-chief.etc_at_run <time> <command>
+chief.etc_at-run <time> <command>
 chief.etc_broadcast <message>
 
 # Terminal Collaboration
@@ -261,12 +261,12 @@ chief.etc_shared-term-create <session_name>
 chief.etc_shared-term-connect <session_name>
 
 # Utilities
-chief.etc_create_cipher [file_path] [--force]
-chief.etc_folder_diff <folder1> <folder2>
-chief.etc_isvalid_ip <ip_address>
-chief.etc_ask_yes_or_no <message>
+chief.etc_create-cipher [file_path] [--force]
+chief.etc_folder-diff <folder1> <folder2>
+chief.etc_isvalid-ip <ip_address>
+chief.etc_ask-yes-or-no <message>
 chief.etc_prompt <prompt_message>
-chief.type_writer <message> [delay_seconds]
+chief.type-writer <message> [delay_seconds]
 chief.etc_spinner <message> <command> <output_variable>
 ```
 
@@ -281,7 +281,7 @@ chief.oc_login <cluster_name> [options]
     -i                      Skip TLS verification (insecure)
 
 # Certificate Management
-chief.oc_approve_csrs [options]
+chief.oc_approve-csrs [options]
   Options:
     -a, --all               Approve all pending CSRs without confirmation
     -l, --list              List pending CSRs without approving
@@ -289,13 +289,13 @@ chief.oc_approve_csrs [options]
     -n, --dry-run          Show what would be approved without making changes
 
 # Resource Management
-chief.oc_show_stuck_resources <namespace> [options]
+chief.oc_show-stuck-resources <namespace> [options]
   Options:
     --fix                   Automatically remove finalizers from terminating resources
     --dry-run              Show what would be fixed without making changes
 
 # Namespace Management
-chief.oc_delete_stuck_ns <namespace> [options]
+chief.oc_delete-stuck-ns <namespace> [options]
   Options:
     --dry-run              Show what would be done without making changes
     --no-confirm           Skip confirmation prompts (dangerous)
@@ -366,7 +366,7 @@ function devops.deploy() {
             kubectl apply -f k8s/staging/
             ;;
         production)
-            if chief.etc_confirm "Deploy to PRODUCTION?"; then
+            if chief.etc_ask-yes-or-no "Deploy to PRODUCTION?"; then
                 kubectl apply -f k8s/production/
             fi
             ;;
@@ -543,7 +543,7 @@ chief.reload
 bash -n ~/.chief_config.sh
 
 # View current configuration
-chief.config_show
+grep "^CHIEF_CFG_" "$CHIEF_CONFIG"
 ```
 
 #### Q: Secrets file or Vault functions not working
@@ -595,7 +595,7 @@ ls ~/chief_plugins/*_chief-plugin.sh
 bash -n ~/chief_plugins/myplugin_chief-plugin.sh
 
 # Check plugin path configuration
-chief.config_show | grep PLUGINS_PATH
+grep PLUGINS_PATH "$CHIEF_CONFIG"
 
 # Reload plugins
 chief.reload

@@ -115,7 +115,7 @@ chief.status
 
 ```bash
 # View current configuration
-chief.config_show
+grep "^CHIEF_CFG_" "$CHIEF_CONFIG"
 
 # Set configuration options
 chief.config-set PROMPT true
@@ -128,7 +128,7 @@ export CHIEF_HOST="my-server"  # Override hostname in prompt
 chief.config
 
 # Update configuration with new features
-chief.config_update
+chief.config-update
 ```
 
 ### Discovery and Navigation
@@ -229,8 +229,8 @@ chief.config-set MULTILINE_PROMPT true
 # Git-aware prompts (when enabled)
 # Shows: user@host:~/project (main*) $
 
-# SSH key auto-loading
-# Automatically loads ~/.ssh/*.key files
+# SSH key auto-loading (opt-in: chief.config-set ssh_load_keys true)
+# Loads *.key files from ~/.ssh (or CHIEF_CFG_SSH_KEYS_PATH) at start-up
 
 # Better colors and formatting
 # Consistent color scheme across tools
@@ -240,43 +240,52 @@ chief.config-set MULTILINE_PROMPT true
 
 ```bash
 # Git utilities (git_chief-plugin.sh)
-git.branch_clean              # Clean merged branches
-git.uncommitted               # Find uncommitted changes
+chief.git_init <repo_url>     # First commit of the current directory to a new repo
+chief.git_commit              # Pull, commit, push (warns on large files; -f skips)
+chief.git_reset-hard -n       # Preview a hard reset (dry run)
 
 # Secrets plugin (encrypted file): create/edit and load into shell
 chief.secrets_file-edit         # Create/edit encrypted secrets file (Ansible Vault or GPG)
 chief.secrets_file-load         # Load secrets into shell
 
-# Vault plugin (HashiCorp Vault): read/write/list KV secrets
+# Vault plugin (HashiCorp Vault; off by default): read/write/list KV secrets
 chief.vault_read-secret         # Read secret from HashiCorp Vault KV
 chief.vault_write-secret        # Write secret to HashiCorp Vault KV
 chief.vault_list-secrets        # List keys or paths in Vault KV
 
-# SSH utilities (ssh_chief-plugin.sh)
-ssh.key_add                   # Add SSH keys to agent
-ssh.agent_status              # Check SSH agent status
+# SSH utilities
+chief.ssh_load-keys           # Load your keys into ssh-agent
+chief.ssh_status              # Agent keys; with 3+ keys, hosts that don't pin a key
+chief.ssh_host-key <host> <key>  # Pin one key to a host in ~/.ssh/config
+chief.ssh_create-keypair      # Generate an SSH key pair
+chief.ssh_get-publickey       # Show a key's public key
+chief.ssh_rm-host             # Remove a host from known_hosts
 
 # SSL/TLS utilities (ssl_chief-plugin.sh)
 chief.ssl_create-ca           # Create Certificate Authority
 chief.ssl_create-tls-cert     # Create TLS certificates
+chief.ssl_renew-tls-cert      # Renew a TLS certificate
 chief.ssl_view-cert           # View/analyze certificates
 chief.ssl_get-cert            # Download certificates from servers
 
 # System utilities (etc_chief-plugin.sh)
 chief.etc_chmod-f             # Recursive file permission changes
 chief.etc_chmod-d             # Recursive directory permission changes
-chief.etc_create_bootusb      # Create bootable USB drives
-chief.etc_copy_dotfiles       # Copy hidden files between directories
-chief.etc_create_cipher       # Generate random cipher keys
-chief.etc_mount_share         # Mount SMB/CIFS network shares
+chief.etc_create-bootusb      # Create bootable USB drives
+chief.etc_copy-dotfiles       # Copy hidden files between directories
+chief.etc_create-cipher       # Generate random cipher keys
+chief.etc_mount-share         # Mount SMB/CIFS network shares
+chief.etc_shared-term-create  # Start a shared tmux session
+chief.etc_shared-term-connect # Join a shared tmux session
 chief.etc_spinner             # Progress spinner for long operations
-chief.etc_ask_yes_or_no       # Interactive yes/no prompts
+chief.etc_ask-yes-or-no       # Interactive yes/no prompts
 
-# OpenShift utilities (openshift_chief-plugin.sh)
+# OpenShift utilities (openshift_chief-plugin.sh; off by default)
 chief.oc_login                # Login to OpenShift with Vault integration
-chief.oc_approve_csrs         # Approve Certificate Signing Requests
-chief.oc_show_stuck_resources # Show and fix stuck resources
-chief.oc_delete_stuck_ns      # Force delete stuck namespaces
+chief.oc_status               # Status report across clusters found in Vault
+chief.oc_approve-csrs         # Approve Certificate Signing Requests
+chief.oc_show-stuck-resources # Show and fix stuck resources
+chief.oc_delete-stuck-ns      # Force delete stuck namespaces
 ```
 
 ---
@@ -355,18 +364,18 @@ chief.etc_chmod-d 750 /secure/path       # Restricted access
 
 ```bash
 # Copy hidden files between directories
-chief.etc_copy_dotfiles ~/backup ~/
-chief.etc_copy_dotfiles -v /etc/skel ~/newuser  # Verbose
-chief.etc_copy_dotfiles -b -f ~/old ~/current   # Force with backup
+chief.etc_copy-dotfiles ~/backup ~/
+chief.etc_copy-dotfiles -v /etc/skel ~/newuser  # Verbose
+chief.etc_copy-dotfiles -b -f ~/old ~/current   # Force with backup
 ```
 
 #### Bootable Media Creation
 
 ```bash
 # Create bootable USB drive (macOS/Linux)
-chief.etc_create_bootusb ubuntu.iso 2          # disk2 on macOS
-chief.etc_create_bootusb -n ubuntu.iso 2       # Dry-run: SAFE preview
-chief.etc_create_bootusb -k installer.iso 3    # Keep temp files
+chief.etc_create-bootusb ubuntu.iso 2          # disk2 on macOS
+chief.etc_create-bootusb -n ubuntu.iso 2       # Dry-run: SAFE preview
+chief.etc_create-bootusb -k installer.iso 3    # Keep temp files
 ```
 
 **⚠ Safety First**: Always use `-n` flag first to preview what will happen before creating bootable media, as this operation completely erases the target drive.
@@ -375,15 +384,15 @@ chief.etc_create_bootusb -k installer.iso 3    # Keep temp files
 
 ```bash
 # Mount SMB/CIFS network shares
-chief.etc_mount_share //server/shared /mnt/shared john
+chief.etc_mount-share //server/shared /mnt/shared john
 
 # Create shared terminal sessions
 chief.etc_shared-term-create dev-session
 chief.etc_shared-term-connect dev-session
 
 # Schedule commands to run later
-chief.etc_at_run "now + 10 minutes" "echo 'Reminder!'"
-chief.etc_at_run "2:30pm" "backup_script.sh"
+chief.etc_at-run "now + 10 minutes" "echo 'Reminder!'"
+chief.etc_at-run "2:30pm" "backup_script.sh"
 ```
 
 ### OpenShift Container Platform Management
@@ -404,19 +413,19 @@ chief.oc_login hub -i             # Skip TLS verification
 
 ```bash
 # Approve pending Certificate Signing Requests
-chief.oc_approve_csrs             # Interactive approval
-chief.oc_approve_csrs -l          # List pending CSRs
-chief.oc_approve_csrs -a          # Approve all pending
-chief.oc_approve_csrs -f "node-"  # Filter by pattern
+chief.oc_approve-csrs             # Interactive approval
+chief.oc_approve-csrs -l          # List pending CSRs
+chief.oc_approve-csrs -a          # Approve all pending
+chief.oc_approve-csrs -f "node-"  # Filter by pattern
 
 # Diagnose stuck resources
-chief.oc_show_stuck_resources my-namespace
-chief.oc_show_stuck_resources production --dry-run
-chief.oc_show_stuck_resources dev-environment --fix
+chief.oc_show-stuck-resources my-namespace
+chief.oc_show-stuck-resources production --dry-run
+chief.oc_show-stuck-resources dev-environment --fix
 
 # Force delete stuck namespaces
-chief.oc_delete_stuck_ns stuck-namespace --dry-run
-chief.oc_delete_stuck_ns broken-ns
+chief.oc_delete-stuck-ns stuck-namespace --dry-run
+chief.oc_delete-stuck-ns broken-ns
 ```
 
 #### Vault Integration Configuration
@@ -482,7 +491,7 @@ chief.plugin mytools
 
 ```bash
 # View current configuration
-chief.config_show
+grep "^CHIEF_CFG_" "$CHIEF_CONFIG"
 
 # Set configuration values
 chief.config-set PROMPT true
@@ -492,8 +501,8 @@ chief.config-set default_editor_path "vim"
 chief.config
 
 # Update config with new features (after upgrade)
-chief.config_update
-chief.config_update --dry-run
+chief.config-update
+chief.config-update --dry-run
 
 # Reload Chief after changes
 chief.reload
@@ -518,7 +527,7 @@ chief.help plugins            # Show plugin-provided commands
 
 # Plugin management
 chief.plugins-update          # Update remote plugins (if configured)
-chief.plugins_root             # Navigate to plugins directory
+chief.plugins-root             # Navigate to plugins directory
 ```
 
 #### `chief.plugin` symlink mode
@@ -697,7 +706,7 @@ ls ~/chief_plugins/*_chief-plugin.sh
 bash -n ~/chief_plugins/myplugin_chief-plugin.sh
 
 # Check plugin path configuration
-chief.config_show | grep PLUGINS_PATH
+grep PLUGINS_PATH "$CHIEF_CONFIG"
 ```
 
 #### Q: SSH keys not auto-loading
@@ -720,7 +729,7 @@ chief.config
 
 - Run `chief.help` for the built-in help system
 - Use `chief.help --search <term>` to find specific commands
-- Check configuration with `chief.config_show`
+- Check configuration with `chief.status` (summary) or `chief.config` (edit)
 - Find function definitions with `chief.whereis <function>`
 - [Open an issue](https://github.com/randyoyarzabal/chief/issues) on GitHub for bugs
 

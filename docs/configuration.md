@@ -41,8 +41,8 @@ chief.config-set colored_ls=true      # Sets CHIEF_CFG_COLORED_LS=true (prompts 
 chief.config-set --list
 
 # Update configuration with new template options (perfect for upgrades)
-chief.config_update                   # Add missing options, handle renames, preserve customizations
-chief.config_update --dry-run         # Preview changes without applying them
+chief.config-update                   # Add missing options, handle renames, preserve customizations
+chief.config-update --dry-run         # Preview changes without applying them
 
 # Disable interactive prompts globally
 chief.config-set config_set_interactive false
@@ -60,6 +60,10 @@ chief.config-set config_set_interactive false
 | `CHIEF_CFG_BANNER_SHOW_PLUGINS` | `true` | Show the `plugins:` line in the banner (requires `CHIEF_CFG_BANNER=true`) |
 | `CHIEF_CFG_BANNER_SHOW_TRACKING` | `true` | Show the `tracking:` line in the banner (requires `CHIEF_CFG_BANNER=true`) |
 | `CHIEF_CFG_HINTS` | `true` | Display helpful tips on startup |
+| `CHIEF_CFG_VERBOSE` | `false` | Show output while plugins and SSH keys load at start-up |
+| `CHIEF_CFG_BASH_WARN` | `true` | Warn at start-up when Chief runs under Bash older than 4.0 (e.g. macOS's system Bash 3.2) and show how to fix it. Silence with `chief.config-set -y BASH_WARN=false`. Non-interactive shells on old Bash load only the core library, with no warning |
+| `CHIEF_CFG_DEFAULT_EDITOR_PATH` | _unset_ | Editor for Chief's edit commands (configs, plugins, bash files). Unset: `$EDITOR`, then `vim`, then `vi`. Example: `chief.config-set default_editor_path "vim"` |
+| `CHIEF_CFG_EDITOR_GUI_CMD` | _unset_ | Editor used with `--code` / `--vscode` (e.g. `chief.plugin mytools --code`). Unset: `cursor --wait` if Cursor is installed, else `code --wait` |
 | `CHIEF_CFG_PROMPT` | `false` | Use Chief's custom prompt (keep disabled if using Oh My Bash/Starship) |
 | `CHIEF_CFG_COLORED_PROMPT` | `true` | Colorize the prompt |
 | `CHIEF_CFG_GIT_PROMPT` | `true` | Git-aware prompt features |
@@ -73,6 +77,8 @@ chief.config-set config_set_interactive false
 | `CHIEF_CFG_SSH_KEYS_PATH` | _unset_ (`~/.ssh`) | Optional: a different directory to load keys from |
 | `CHIEF_CFG_ALIAS` | _unset_ | Create short alias (e.g., `"cf"`) |
 | `CHIEF_CFG_AUTOCHECK_UPDATES` | `false` | Check for updates on startup |
+| `CHIEF_CFG_GIT_COMMIT_WARN_MB` | `50` | `chief.git_commit` warns before committing staged files larger than this many MB (skip the check with `-f`) |
+| `CHIEF_CFG_DEV_TOOLS` | `false` | Maintainers only: load the release commands (`chief.release_status`, `chief.release_prepare`, `chief.release_publish`). Takes effect only when Chief's own checkout is on the `dev` branch |
 | `CHIEF_CFG_UPDATE_BRANCH` | `"auto"` | Branch to update from. `auto`: whatever branch `$CHIEF_PATH` is checked out on (switch with `git -C ~/.chief switch dev` / `main`; tag or detached HEAD → `main`). A branch name pins it (⚠ non-main may be unstable) |
 
 ### Environment Variables
@@ -104,6 +110,7 @@ CHIEF_HOST="dev-box" bash
 | `CHIEF_CFG_PLUGINS_PATH` | Local plugin directory (also remote repo clone location) |
 | `CHIEF_CFG_PLUGINS_GIT_PATH` | [Remote only] Relative path within repo containing plugins (empty = repo root) |
 | `CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE` | Auto-update plugins on startup (with local changes protection) |
+| `CHIEF_CFG_PLUGIN_TEMPLATE` | Starting template for new plugins created with `chief.plugin <name>` (default: `${CHIEF_PATH}/templates/chief_plugin_template.sh`) |
 | `CHIEF_CFG_PLUGINS_DISABLED_CORE` | Comma- or space-separated list of **core** plugin names to skip loading. New installs: `"aws openshift vault"` (they need extra tools or accounts). Empty = all core plugins enabled. |
 | `CHIEF_CFG_PLUGINS_DISABLED_USER` | Comma- or space-separated list of **user** plugin names to skip loading (e.g. `bc,lab` or `bc lab`). Empty = all user plugins enabled. |
 | `CHIEF_CFG_PLUGINS_ENABLED_CONTRIB` | Comma- or space-separated list of **contrib** plugins to load (e.g. `cg`). Contrib plugins are off unless listed here. Managed by `chief.plugin enable\|disable contrib.<name>`. |
@@ -574,8 +581,8 @@ chief.config-set autocheck_updates true
 ### Common Configuration Issues
 
 ```bash
-# Check current configuration
-chief.config_show
+# Show the settings in your config
+grep "^CHIEF_CFG_" ~/.chief_config.sh
 
 # Reset configuration to defaults
 cp ~/.chief/templates/chief_config_template.sh ~/.chief_config.sh
@@ -584,7 +591,7 @@ cp ~/.chief/templates/chief_config_template.sh ~/.chief_config.sh
 bash -n ~/.chief_config.sh
 
 # Update configuration after upgrade
-chief.config_update
+chief.config-update
 ```
 
 ### Plugin Sync Issues

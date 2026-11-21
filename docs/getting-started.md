@@ -135,6 +135,8 @@ echo $BASH_VERSION
 Changing your login shell with `chsh -s /opt/homebrew/bin/bash` also works, but requires adding that path to `/etc/shells` first.
 To silence the start-up warning: `chief.config-set -y BASH_WARN=false`.
 
+**Non-interactive shells** (scripts, editors and AI coding tools that run `/bin/bash -c ...`) can't switch Bash: re-running a newer Bash would drop the command they were asked to run. So when Chief is loaded by Bash older than 4.0 in a non-interactive shell, it loads only its core library, quietly: no warning, banner, plugins or SSH keys, and no `declare` errors. Scripts that need Chief's plugins should start with `#!/usr/bin/env bash` and have Homebrew's Bash first in `PATH` (`brew shellenv` does this).
+
 ### Check Your Environment
 
 ```bash
@@ -198,7 +200,7 @@ After restarting your terminal:
 chief.help
 
 # See your current configuration
-chief.config_show
+grep "^CHIEF_CFG_" "$CHIEF_CONFIG"
 ```
 
 ### 2. Explore Basic Commands
@@ -297,8 +299,8 @@ chief.config-set SHORT_PATH false
 
 ```bash
 # Update Chief with automatic config reconciliation
-chief.config_update                   # Updates config with new options
-chief.config_update --dry-run         # Preview changes before applying
+chief.config-update                   # Updates config with new options
+chief.config-update --dry-run         # Preview changes before applying
 ```
 
 ### Manual Reinstall
@@ -333,7 +335,7 @@ chief.config-set update_branch main   # or dev, or any branch
 chief.config-set update_branch auto   # back to following the checkout
 ```
 
-**What `chief.config_update` does:**
+**What `chief.config-update` does:**
 
 - ✓ **Adds new features** - Automatically adds new configuration options
 - ✓ **Handles renames** - Seamlessly migrates renamed variables

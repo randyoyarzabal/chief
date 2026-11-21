@@ -1441,7 +1441,7 @@ function __chief.hints_text() {
     echo -e "${CHIEF_COLOR_YELLOW}Plugin Management:${CHIEF_NO_COLOR}"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin [name]${CHIEF_NO_COLOR} to create/edit plugins | ${CHIEF_COLOR_GREEN}chief.plugin -?${CHIEF_NO_COLOR} to list"
     echo -e "- ${CHIEF_COLOR_GREEN}chief.plugin status${CHIEF_NO_COLOR} to see enabled/disabled plugins"
-    echo -e "- ${CHIEF_COLOR_GREEN}chief.plugins_root${CHIEF_NO_COLOR} to navigate to plugins directory"
+    echo -e "- ${CHIEF_COLOR_GREEN}chief.plugins-root${CHIEF_NO_COLOR} to navigate to plugins directory"
     local _core_dis _user_dis _c_fmt _u_fmt
     _core_dis="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_CORE:-}")"
     _user_dis="$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")"

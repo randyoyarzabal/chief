@@ -99,6 +99,8 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 
 - `chief.help` - Interactive help system with plugin browsing
 - `chief.whereis <function>` - Find any function across all plugins
+- `chief.status` - Banner plus a health summary (functions, plugins, enabled/disabled)
+- `chief.plugin enable|disable|status` - Turn core, user and contrib plugins on or off
 - `chief.plugins-*` - Plugin management and discovery tools
 
 ### **Secrets Plugin** (2 functions)
@@ -106,13 +108,13 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.secrets_file-edit` - Edit encrypted secrets file (Ansible Vault or GPG)
 - `chief.secrets_file-load` - Load encrypted environment variables into shell
 
-### **Vault Plugin (HashiCorp)** (3 functions)
+### **Vault Plugin (HashiCorp)** (3 functions, off by default)
 
 - `chief.vault_read-secret` - Read secret from HashiCorp Vault KV
 - `chief.vault_write-secret` - Write secret to HashiCorp Vault KV
 - `chief.vault_list-secrets` - List keys or paths in HashiCorp Vault KV
 
-### **OpenShift/Kubernetes Plugin** (9 functions)
+### **OpenShift/Kubernetes Plugin** (10 functions, off by default)
 
 - `chief.oc_get-all-objects` - Comprehensive resource discovery with filtering
 - `chief.oc_clean-olm` - OLM cleanup with selective targeting
@@ -123,8 +125,9 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.oc_login` - Enhanced login with context management
 - `chief.oc_vault-kubeadmin` - Display kubeadmin credentials from Vault
 - `chief.oc_whoami` - Show current user, API server, and console information
+- `chief.oc_status` - Status report across the clusters found in Vault
 
-### **SSL/TLS Plugin** (4 functions)
+### **SSL/TLS Plugin** (5 functions)
 
 - `chief.ssl_create-ca` - Create certificate authorities with minimal setup
 - `chief.ssl_create-tls-cert` - Generate TLS certificates signed by your CA
@@ -132,19 +135,22 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.ssl_view-cert` - Analyze certificates with multiple display options
 - `chief.ssl_get-cert` - Download certificates from remote servers
 
-### **SSH Plugin** (3 functions)
+### **SSH Plugin**
 
+- `chief.ssh_load-keys` - Load your keys into ssh-agent (auto-load at start-up is opt-in)
+- `chief.ssh_status` - Agent keys; with 3 or more loaded, lists hosts that don't pin a key
+- `chief.ssh_host-key` - Pin one key to a host so many loaded keys don't cause "Too many authentication failures"
 - `chief.ssh_create-keypair` - Generate SSH key pairs with best practices
 - `chief.ssh_get-publickey` - Extract and display public keys
 - `chief.ssh_rm-host` - Clean known_hosts entries safely
 
-### **System Utilities Plugin** (18 functions)
+### **System Utilities Plugin** (17 functions)
 
 - `chief.etc_create-bootusb` - Create bootable USB drives safely
 - `chief.etc_folder-sync` - Professional rsync-based directory synchronization  
 - `chief.etc_copy-dotfiles` - Copy configuration files with backup support
-- `chief.etc_shared_term_*` - Create and manage shared tmux sessions
-- `chief.etc_chmod_*` - Enhanced file permission management
+- `chief.etc_shared-term-create` / `-connect` - Create and join shared tmux sessions
+- `chief.etc_chmod-f` / `-d` - Enhanced file permission management
 - `chief.etc_mount-share` - Network share mounting utilities
 - File comparison, IP validation, system prompts, and more...
 
@@ -152,8 +158,8 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 
 - `chief.git_init` - Initially commit current directory to a repository
 - `chief.git_clone` - Enhanced git cloning with safety checks
-- `chief.git_commit` - Streamlined commit workflow
-- `chief.git_reset_*` - Safe reset operations with dry-run support
+- `chief.git_commit` - Streamlined pull, commit, and push (warns on large files)
+- `chief.git_reset-soft` / `-hard` - Safe reset operations with dry-run support
 - `chief.git_branch` - Advanced branch management
 - `chief.git_config-user` - Quick user configuration setup
 - Complete workflow support: tagging, amending, credential caching, URL management
@@ -165,10 +171,12 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.python_stop-ve` - Deactivate environments
 - `chief.python_ve-dep` - Install dependencies from requirements.txt
 
-### **AWS Plugin** (2 functions)
+### **AWS Plugin** (2 functions, off by default)
 
 - `chief.aws_set-role` - Switch between AWS IAM roles
 - `chief.aws_export-creds` - Export AWS credentials to environment
+
+The AWS, OpenShift and Vault plugins need extra tools or accounts, so new installs start with them off. Turn one on with `chief.plugin enable core.aws` (or `core.openshift`, `core.vault`). Optional **contrib** plugins (such as `cg`) ship with Chief and are also off until you run `chief.plugin enable contrib.<name>`.
 
 ## Safety First: Dry-Run Examples
 

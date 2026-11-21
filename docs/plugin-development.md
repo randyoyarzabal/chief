@@ -73,29 +73,29 @@ chief.etc_chmod-d 755                  # Directory permissions
 chief.etc_chmod-f -n 644               # Dry-run preview
 
 # Dotfiles and Configuration Management
-chief.etc_copy_dotfiles ~/backup ~/    # Copy hidden files
-chief.etc_copy_dotfiles -v /etc/skel ~/newuser # Verbose copy
-chief.etc_copy_dotfiles -b -f ~/old ~/current  # Force with backup
+chief.etc_copy-dotfiles ~/backup ~/    # Copy hidden files
+chief.etc_copy-dotfiles -v /etc/skel ~/newuser # Verbose copy
+chief.etc_copy-dotfiles -b -f ~/old ~/current  # Force with backup
 
 # System Utilities
-chief.etc_create_bootusb ubuntu.iso 2  # Create bootable USB drive
-chief.etc_mount_share //server/shared /mnt/shared john # Mount SMB share
-chief.etc_create_cipher ~/.cipher_key  # Generate encryption key
+chief.etc_create-bootusb ubuntu.iso 2  # Create bootable USB drive
+chief.etc_mount-share //server/shared /mnt/shared john # Mount SMB share
+chief.etc_create-cipher ~/.cipher_key  # Generate encryption key
 
 # Network and Collaboration Tools
 chief.etc_shared-term-create dev-session    # Create shared terminal
 chief.etc_shared-term-connect dev-session   # Connect to shared terminal
-chief.etc_at_run "now + 10 minutes" "backup.sh" # Schedule commands
+chief.etc_at-run "now + 10 minutes" "backup.sh" # Schedule commands
 
 # Interactive Utilities
-chief.etc_ask_yes_or_no "Continue?"    # Yes/no prompts
+chief.etc_ask-yes-or-no "Continue?"    # Yes/no prompts
 chief.etc_prompt "Enter username"      # Input prompts
 chief.etc_spinner "Processing..." "long_command" result_var # Progress spinner
-chief.type_writer "Hello World!" 0.1   # Typewriter effect
+chief.type-writer "Hello World!" 0.1   # Typewriter effect
 
 # System Information and Validation
-chief.etc_isvalid_ip "192.168.1.1"     # IP address validation
-chief.etc_folder_diff ~/v1.0 ~/v2.0    # Directory comparison
+chief.etc_isvalid-ip "192.168.1.1"     # IP address validation
+chief.etc_folder-diff ~/v1.0 ~/v2.0    # Directory comparison
 chief.etc_broadcast "System maintenance starting" # Broadcast message
 ```
 
@@ -111,36 +111,36 @@ chief.oc_login hub -ka                 # Kubeadmin password from Vault
 chief.oc_login hub -i                  # Skip TLS verification
 
 # Certificate Signing Request Management
-chief.oc_approve_csrs                  # Interactive CSR approval
-chief.oc_approve_csrs -l               # List pending CSRs
-chief.oc_approve_csrs -a               # Approve all pending CSRs
-chief.oc_approve_csrs -f "node-"       # Filter CSRs by pattern
-chief.oc_approve_csrs -n               # Dry-run mode
+chief.oc_approve-csrs                  # Interactive CSR approval
+chief.oc_approve-csrs -l               # List pending CSRs
+chief.oc_approve-csrs -a               # Approve all pending CSRs
+chief.oc_approve-csrs -f "node-"       # Filter CSRs by pattern
+chief.oc_approve-csrs -n               # Dry-run mode
 
 # Resource Troubleshooting
-chief.oc_show_stuck_resources my-namespace           # Show stuck resources
-chief.oc_show_stuck_resources production --dry-run   # Preview fixes
-chief.oc_show_stuck_resources dev-environment --fix  # Fix stuck resources
+chief.oc_show-stuck-resources my-namespace           # Show stuck resources
+chief.oc_show-stuck-resources production --dry-run   # Preview fixes
+chief.oc_show-stuck-resources dev-environment --fix  # Fix stuck resources
 
 # Namespace Management
-chief.oc_delete_stuck_ns stuck-namespace --dry-run   # Preview namespace deletion
-chief.oc_delete_stuck_ns broken-ns                   # Force delete stuck namespace
+chief.oc_delete-stuck-ns stuck-namespace --dry-run   # Preview namespace deletion
+chief.oc_delete-stuck-ns broken-ns                   # Force delete stuck namespace
 ```
 
 ### Traditional Plugin Examples
 
 ```bash
 # Git operations
-chief.git_branch_cleanup    # Remove merged branches
-chief.git_commit_stats     # Show commit statistics
+chief.git_update           # Pull, push and sync tags
+chief.git_delete-branch    # Delete a branch locally and on the remote
 
 # SSH management
 chief.ssh_load-keys        # Load SSH keys
-chief.ssh_test_connection  # Test SSH connections
+chief.ssh_status           # Agent keys and hosts that need a pinned key
 
 # AWS helpers  
-chief.aws_profile_switch   # Switch AWS profiles
-chief.aws_s3_sync         # S3 synchronization
+chief.aws_set-role         # Switch AWS IAM roles (plugin off by default)
+chief.aws_export-creds     # Export AWS credentials to the environment
 
 # Secrets plugin (encrypted file)
 chief.secrets_file-edit         # Create/edit encrypted secrets file (Ansible Vault or GPG)
@@ -327,7 +327,7 @@ Create interactive functions using Chief's built-in utilities:
 ```bash
 function myproject.interactive_deploy() {
     # Use Chief's confirmation utility
-    if chief.etc_confirm "Deploy to production?"; then
+    if chief.etc_ask-yes-or-no "Deploy to production?"; then
         echo "Deploying..."
         myproject.deploy production
     else
@@ -473,7 +473,7 @@ function devops.deploy() {
             kubectl apply -f "k8s/staging/${app_name}.yaml"
             ;;
         production)
-            if chief.etc_confirm "Deploy ${app_name} to PRODUCTION?"; then
+            if chief.etc_ask-yes-or-no "Deploy ${app_name} to PRODUCTION?"; then
                 kubectl apply -f "k8s/production/${app_name}.yaml"
             fi
             ;;
