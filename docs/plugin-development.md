@@ -181,6 +181,8 @@ Chief writes `teamtools_chief-plugin.sh` in your configured plugins directory po
 
 After changing or recreating links, commit the `*_chief-plugin.sh` symlink as usual. On Windows, ensure your Git client can create/checkout symlinks if you rely on this workflow.
 
+**Links whose target is missing on a machine:** a plugin symlink can point into a checkout that only some machines have (for example a link into a sibling repo that exists on your laptop but not on servers). Chief skips such a plugin without failing the load. Interactive shells show a yellow warning naming the plugin and its link target, and `chief.reload` lists it as `missing:`. If the plugin is meant to be absent on that machine, disable it there (`chief.plugin disable <name>`, or `CHIEF_CFG_PLUGINS_DISABLED_USER` in that machine's config) and the warning goes away.
+
 ### Plugin Template
 
 When you create a new plugin, Chief provides this template:
