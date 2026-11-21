@@ -316,6 +316,51 @@ test_python_dependencies() {
     fi
 }
 
+# A user plugin that is a symlink to a missing file (e.g. a link into a checkout
+# that only exists on some machines) must not stop Chief loading. Interactive
+# shells get a yellow warning with the disable command; non-interactive shells
+# stay quiet; disabling the plugin silences the warning.
+test_missing_link_plugin() {
+    local dir="$TEMP_DIR/missing-link"
+    local plugins="$dir/plugins"
+    mkdir -p "$plugins"
+    printf 'function zzok.hello() { echo hi; }\n' > "$plugins/zzok_chief-plugin.sh"
+    ln -sf ../not-here/zzgone_chief-plugin.sh "$plugins/zzgone_chief-plugin.sh"
+
+    # $1 = shell flag (-c or -ic), $2 = CHIEF_CFG_PLUGINS_DISABLED_USER value
+    _load() {
+        local cfg="$dir/config.sh"
+        printf 'CHIEF_CFG_BANNER=false\nCHIEF_CFG_HINTS=false\nCHIEF_CFG_SSH_LOAD_KEYS=false\nCHIEF_CFG_AUTOCHECK_UPDATES=false\nCHIEF_CFG_PLUGINS_TYPE=local\nCHIEF_CFG_PLUGINS_PATH=%s\nCHIEF_CFG_PLUGINS_DISABLED_USER="%s"\n' "$plugins" "$2" > "$cfg"
+        NO_COLOR=1 CHIEF_PATH="$PROJECT_ROOT" CHIEF_CONFIG="$cfg" \
+            "$BASH" --norc --noprofile "$1" 'source "$CHIEF_PATH/chief.sh"; type -t zzok.hello >/dev/null && echo "ok-loaded"' 2>&1 </dev/null
+    }
+
+    local out
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
+    out="$(_load -ic "")"
+    if grep -q "ok-loaded" <<<"$out" && grep -q "plugin 'zzgone' is a link to a file that isn't here" <<<"$out" && grep -q "chief.plugin disable zzgone" <<<"$out"; then
+        log_success "Missing-link plugin: interactive shell warns and Chief still loads"
+    else
+        log_error "Missing-link plugin: expected warning and a full load; got: $out"
+    fi
+
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
+    out="$(_load -c "")"
+    if grep -q "ok-loaded" <<<"$out" && ! grep -q "isn't here" <<<"$out"; then
+        log_success "Missing-link plugin: non-interactive shell loads quietly"
+    else
+        log_error "Missing-link plugin: expected a quiet full load; got: $out"
+    fi
+
+    TOTAL_TESTS=$((TOTAL_TESTS + 1))
+    out="$(_load -ic "zzgone")"
+    if grep -q "ok-loaded" <<<"$out" && ! grep -q "isn't here" <<<"$out"; then
+        log_success "Missing-link plugin: disabling it silences the warning"
+    else
+        log_error "Missing-link plugin: expected no warning once disabled; got: $out"
+    fi
+}
+
 # Main execution
 main() {
     echo -e "${CYAN}========================================${NC}"
@@ -364,7 +409,10 @@ main() {
     
     # Test Python dependencies if applicable
     test_python_dependencies
-    
+
+    # A plugin symlink with a missing target warns but never blocks loading
+    test_missing_link_plugin
+
     echo ""
     echo -e "${CYAN}========================================${NC}"
     echo -e "${CYAN}         PLUGIN TEST SUMMARY${NC}"

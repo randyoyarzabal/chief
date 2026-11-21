@@ -932,6 +932,7 @@ function __chief_load_plugins() {
   local load_flag
   local loaded_list=""
   local disabled_list=""
+  local missing_list=""
 
   load_flag=false # Default to false, unless plugin switch is defined.
   if [[ $1 == 'core' ]]; then
@@ -980,6 +981,20 @@ function __chief_load_plugins() {
           disabled_list+="${CHIEF_COLOR_YELLOW}${plugin_name}${CHIEF_NO_COLOR}"
           continue
         fi
+        # A plugin that is a symlink to a file that isn't there (e.g. a link into a
+        # checkout that only exists on some machines). Skip it without failing the
+        # load, and warn in interactive shells; disabling the plugin marks it as
+        # intended and silences the warning (the disabled check above runs first).
+        if [[ -L ${plugin} && ! -e ${plugin} ]]; then
+          [[ -n ${missing_list} ]] && missing_list+=", "
+          missing_list+="${CHIEF_COLOR_YELLOW}${plugin_name}${CHIEF_NO_COLOR}"
+          if [[ $- == *i* ]]; then
+            local disable_name="${plugin_name}"
+            [[ $1 != 'user' ]] && disable_name="${1}.${plugin_name}"
+            echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} plugin '${plugin_name}' is a link to a file that isn't here ($(readlink "${plugin}")); skipped. If that's intended, silence this with: ${CHIEF_COLOR_CYAN}chief.plugin disable ${disable_name}${CHIEF_NO_COLOR}" >&2
+          fi
+          continue
+        fi
         if [[ -f ${plugin} ]]; then
           [[ -n ${loaded_list} ]] && loaded_list+=", "
           loaded_list+="${CHIEF_COLOR_GREEN}${plugin_name}${CHIEF_NO_COLOR}"
@@ -995,6 +1010,10 @@ function __chief_load_plugins() {
       if [[ -n ${disabled_list} ]]; then
         [[ -n ${summary_line} ]] && summary_line+=" · "
         summary_line+="off: ${disabled_list}"
+      fi
+      if [[ -n ${missing_list} ]]; then
+        [[ -n ${summary_line} ]] && summary_line+=" · "
+        summary_line+="missing: ${missing_list}"
       fi
       if [[ -z ${summary_line} ]]; then
         summary_line="${CHIEF_COLOR_YELLOW}(no plugins)${CHIEF_NO_COLOR}"

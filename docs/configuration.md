@@ -297,6 +297,8 @@ Chief creates `mytools_chief-plugin.sh` in the plugins directory as a symlink to
 
 For **remote or shared repositories**, symlink targets must not be machine-specific. When the existing file lives under the **same directory tree** as the plugin symlink (both paths inside the same clone), Chief creates a **relative** symlink so `git clone` on another laptop or server still resolves the link. If the file is outside that tree (for example only under your home directory), Chief falls back to an **absolute** path and warns you—those links break for teammates unless they share the same layout. Prefer keeping linked scripts inside the repo, or add a real `*_chief-plugin.sh` file in the repo.
 
+**Links whose target is missing on a machine:** a plugin symlink can point into a checkout that only some machines have (for example a link into a sibling repo that exists on your laptop but not on servers). Chief skips such a plugin without failing the load. Interactive shells show a yellow warning naming the plugin and its link target, and `chief.reload` lists it as `missing:`. If the plugin is meant to be absent on that machine, disable it there (`chief.plugin disable <name>`, or `CHIEF_CFG_PLUGINS_DISABLED_USER` in that machine's config) and the warning goes away.
+
 Use `chief.plugin -?` for full help, including enable/disable and editor options.
 
 ### Two Setup Scenarios
