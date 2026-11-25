@@ -183,6 +183,14 @@ if command -v gpg >/dev/null 2>&1; then
     "$( [[ "$out" == *"n=3 team=1 mine=1 host=1"* && "$out" != *"Success"* ]]; echo $?)" "$out"
   check "Start-up load: recorded as 'at start-up (CHIEF_CFG_SECRETS_LOAD)'" \
     "$( [[ "$out" == *"|at start-up (CHIEF_CFG_SECRETS_LOAD)|"* ]]; echo $?)" "$out"
+  check "Start-up load: quiet without verbose (no 'Secrets loaded' line)" \
+    "$( [[ "$out" != *"Secrets loaded:"* ]]; echo $?)" "$out"
+  echo 'CHIEF_CFG_VERBOSE=true' >> "$HOMEA/.chief_config.sh"
+  out="$(env -i PATH="$PATH" TERM=dumb NO_COLOR=1 HOME="$HOMEA" USER=alice GNUPGHOME="$GNUPGHOME" CHIEF_PATH="$PROJECT_ROOT" CHIEF_CONFIG="$HOMEA/.chief_config.sh" "${SENV[@]}" \
+    "$BASH" --norc --noprofile -ic 'source "$CHIEF_PATH/chief.sh" 2>/dev/null; for f in "${!CHIEF_SECRETS_LOADED[@]}"; do echo "rec=${CHIEF_SECRETS_LOADED[$f]}"; done' </dev/null 2>&1)"
+  check "Start-up load: verbose names the files by layer, and doesn't mark them silent" \
+    "$( [[ "$out" == *"Secrets loaded: team ("*"personal ("*"this host ("* && "$out" == *"|no"* && "$out" != *"|yes"* ]]; echo $?)" "$out"
+  write_cfg "$HOMEA"; echo 'CHIEF_CFG_SECRETS_LOAD=true' >> "$HOMEA/.chief_config.sh"
   out="$(start "$HOMEA" -c "$report" "${SENV[@]}")"
   check "Start-up load: true doesn't load in a non-interactive shell" "$( [[ "$out" == *"n=0 "* ]]; echo $?)" "$out"
   # saved: a file without a saved password is skipped with a note, never prompted for.

@@ -695,7 +695,7 @@ chief.config-set secrets_load true # then remove any chief.secrets_file-load lin
 - **Why two settings:** loading in non-interactive shells puts your secrets in the environment of every script and tool that starts Chief, AI tools included. Keep it off unless scripts on that host need them.
 - **`saved`** never stops a new terminal at a password prompt: a file with no saved password gets a one-line note saying how to load it, and the others still load.
 - **Per host:** they're ordinary settings, so they can go in shared settings with `chief.host_is`, for example `if chief.host_is 'build-*'; then CHIEF_CFG_SECRETS_LOAD_NONINTERACTIVE=true; fi`.
-- **Visible:** `chief.status` lists each file as loaded `at start-up (CHIEF_CFG_SECRETS_LOAD)`.
+- **Visible:** it loads quietly; with `CHIEF_CFG_VERBOSE=true`, start-up prints `Secrets loaded: team (…), this host (…)`. Either way the banner says `secrets: loaded`, and `chief.status` lists each file as loaded `at start-up (CHIEF_CFG_SECRETS_LOAD)`.
 - They apply when a terminal starts. After changing them, open a new terminal, or run `chief.secrets_file-load` in this one.
 
 ### Vault plugin: HashiCorp Vault KV
