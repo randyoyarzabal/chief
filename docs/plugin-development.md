@@ -146,6 +146,7 @@ chief.aws_export-creds     # Export AWS credentials to the environment
 chief.secrets_file-edit         # Create/edit encrypted secrets file (Ansible Vault or GPG)
 chief.secrets_file-edit --load  # Create/edit and auto-load secrets
 chief.secrets_file-load         # Load secrets into environment
+chief.secrets_password-save     # Save the password so loading does not prompt
 
 # Vault plugin (HashiCorp Vault KV)
 chief.vault_read-secret         # Read secret from Vault

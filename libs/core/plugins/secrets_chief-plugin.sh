@@ -179,8 +179,26 @@ function __chief_secrets_read_new_password() {
 # The current password comes from ANSIBLE_VAULT_PASSWORD_FILE / CHIEF_SECRETS_PASSWORD_FILE
 # or a prompt; the new one from new_password_file or a prompt (twice). On any failure the
 # original file is left untouched.
+# After a re-key, keep a saved password in step: replace it with the new one when known
+# (<new_pw> non-empty), otherwise remove it, since it no longer opens the file.
+# Usage: __chief_secrets_rekey_update_saved <secrets_file> <saved_where> [new_pw]
+function __chief_secrets_rekey_update_saved() {
+  local file="$1" where="$2" new_pw="$3"
+  [[ -z "$where" ]] && return 0
+  if [[ -n "$new_pw" ]] && __chief_secrets_store_put "$file" "$where" <<<"$new_pw"; then
+    echo -e "${CHIEF_COLOR_GREEN}Saved password updated${CHIEF_NO_COLOR} (${where} store)."
+  else
+    __chief_secrets_store_del "$file" >/dev/null 2>&1
+    echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} The saved password was out of date and has been removed. Save the new one with ${CHIEF_COLOR_CYAN}chief.secrets_password-save $file${CHIEF_NO_COLOR}."
+  fi
+}
+
 function __chief_secrets_rekey() {
-  local secrets_file="$1" new_pw_file="$2" det
+  local secrets_file="$1" new_pw_file="$2" det saved_where new_known=""
+  saved_where="$(__chief_secrets_store_where "$secrets_file")"
+  if [[ -n "$new_pw_file" && -f "$new_pw_file" ]]; then
+    IFS= read -r new_known < "$new_pw_file"
+  fi
   if [[ -n "$new_pw_file" && ! -f "$new_pw_file" ]]; then
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} New password file not found: $new_pw_file" >&2
     return 1
@@ -199,19 +217,26 @@ function __chief_secrets_rekey() {
     # ansible-vault reads the current password from ANSIBLE_VAULT_PASSWORD_FILE when set and
     # otherwise prompts; it prompts (twice) for the new one unless a file is given. Its output
     # stays visible (prompts) and is also captured to explain a failure.
-    local errf args=(rekey)
+    local errf spw args=(rekey)
     [[ -n "$new_pw_file" ]] && args+=(--new-vault-password-file "$new_pw_file")
+    spw="$(__chief_secrets_saved_password_for "$secrets_file" ansible)"
     errf="$(mktemp)"
-    if ! ansible-vault "${args[@]}" "$secrets_file" 2> >(tee "$errf" >&2); then
+    if ! __chief_secrets_ansible_vault "$spw" "${args[@]}" "$secrets_file" 2> >(tee "$errf" >&2); then
       __chief_secrets_ansible_report "$errf" rekey
+      [[ -n "$spw" ]] && __chief_secrets_saved_password_hint "$secrets_file"
+      unset spw new_known
       rm -f "$errf"
       return 1
     fi
+    unset spw
     rm -f "$errf"
     echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file re-keyed (ansible-vault): $secrets_file"
     if [[ -n "${ANSIBLE_VAULT_PASSWORD_FILE:-}" ]]; then
       echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} ANSIBLE_VAULT_PASSWORD_FILE ($ANSIBLE_VAULT_PASSWORD_FILE) still holds the old password. Update it, or loading this file will fail."
     fi
+    # ansible-vault prompted for the new password itself unless a file gave it.
+    __chief_secrets_rekey_update_saved "$secrets_file" "$saved_where" "$new_known"
+    unset new_known
     return 0
   fi
 
@@ -220,12 +245,18 @@ function __chief_secrets_rekey() {
   # and swap it in only after both steps succeed.
   __chief_secrets_require_gpg || return 1
   local old_pass="" new_pass="" dec_pw enc_pw out errd erre mode
+  local from_saved=false
   if [[ -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" ]] && [[ -f "$CHIEF_SECRETS_PASSWORD_FILE" ]]; then
     dec_pw=(--passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE")
   else
-    echo -e "${CHIEF_COLOR_CYAN}Current GPG password:${CHIEF_NO_COLOR}" >&2
-    read -rs old_pass </dev/tty 2>/dev/null || read -rs old_pass
-    echo >&2
+    old_pass="$(__chief_secrets_saved_password_for "$secrets_file" gpg)"
+    if [[ -n "$old_pass" ]]; then
+      from_saved=true
+    else
+      echo -e "${CHIEF_COLOR_CYAN}Current GPG password:${CHIEF_NO_COLOR}" >&2
+      read -rs old_pass </dev/tty 2>/dev/null || read -rs old_pass
+      echo >&2
+    fi
     dec_pw=(--passphrase-fd 3)
   fi
   if [[ -n "$new_pw_file" ]]; then
@@ -245,16 +276,21 @@ function __chief_secrets_rekey() {
   gpg --batch "${dec_pw[@]}" --decrypt "$secrets_file" 2>"$errd" 3<<<"$old_pass" \
     | gpg --batch --yes --armor "${enc_pw[@]}" --symmetric --cipher-algo AES256 -o "$out" 2>"$erre" 4<<<"$new_pass"
   local rcs=("${PIPESTATUS[@]}")
-  unset old_pass new_pass
+  unset old_pass
+  [[ -n "$new_pass" ]] && new_known="$new_pass"
+  unset new_pass
   if [[ ${rcs[0]} -ne 0 ]]; then
     __chief_secrets_gpg_report "$errd" decrypt
+    $from_saved && __chief_secrets_saved_password_hint "$secrets_file"
     echo -e "${CHIEF_COLOR_YELLOW}Nothing changed.${CHIEF_NO_COLOR}" >&2
+    unset new_known
     rm -f "$out" "$errd" "$erre"
     return 1
   fi
   if [[ ${rcs[1]} -ne 0 ]]; then
     __chief_secrets_gpg_report "$erre" encrypt
     echo -e "${CHIEF_COLOR_YELLOW}Nothing changed.${CHIEF_NO_COLOR}" >&2
+    unset new_known
     rm -f "$out" "$errd" "$erre"
     return 1
   fi
@@ -269,6 +305,8 @@ function __chief_secrets_rekey() {
   if [[ -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" ]] && [[ -f "$CHIEF_SECRETS_PASSWORD_FILE" ]]; then
     echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} CHIEF_SECRETS_PASSWORD_FILE ($CHIEF_SECRETS_PASSWORD_FILE) still holds the old password. Update it, or loading this file will fail."
   fi
+  __chief_secrets_rekey_update_saved "$secrets_file" "$saved_where" "$new_known"
+  unset new_known
   return 0
 }
 
@@ -288,9 +326,11 @@ Content is decrypted → edited → re-encrypted. Load means decrypt → source 
 ${CHIEF_COLOR_GREEN}Backends:${CHIEF_NO_COLOR}
 - ansible-vault (ansible-core 2.9+), gpg (symmetric AES256). Backend chosen when creating; auto-detected when editing.
 
-${CHIEF_COLOR_GREEN}Password (optional file):${CHIEF_NO_COLOR}
-- Ansible Vault: ANSIBLE_VAULT_PASSWORD_FILE or prompt
-- GPG:           CHIEF_SECRETS_PASSWORD_FILE or prompt
+${CHIEF_COLOR_GREEN}Password (first match wins):${CHIEF_NO_COLOR}
+1. Password file: ANSIBLE_VAULT_PASSWORD_FILE (Ansible Vault) or CHIEF_SECRETS_PASSWORD_FILE (GPG)
+2. Saved password: macOS Keychain, Linux keyring, or obfuscated file
+   (save it with chief.secrets_password-save; check with chief.secrets_password-status)
+3. Prompt
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   [secrets-file]  Optional path (default: \$CHIEF_SECRETS_FILE)
@@ -431,10 +471,15 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
       echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} ansible-vault required. Install ansible-core."
       return 1
     fi
-    ansible-vault edit "$secrets_file" || {
+    local spw
+    spw="$(__chief_secrets_saved_password_for "$secrets_file" ansible)"
+    __chief_secrets_ansible_vault "$spw" edit "$secrets_file" || {
       echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} ansible-vault edit failed (see ansible-vault output above): $secrets_file" >&2
+      [[ -n "$spw" ]] && __chief_secrets_saved_password_hint "$secrets_file"
+      unset spw
       return 1
     }
+    unset spw
   else
     __chief_secrets_require_gpg || return 1
     local tmpf errf editor gpg_pass
@@ -448,12 +493,19 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
         return 1
       }
     else
-      echo -e "${CHIEF_COLOR_CYAN}GPG password:${CHIEF_NO_COLOR}" >&2
-      read -rs gpg_pass </dev/tty 2>/dev/null || read -rs gpg_pass
-      echo >&2
+      local from_saved=false
+      gpg_pass="$(__chief_secrets_saved_password_for "$secrets_file" gpg)"
+      if [[ -n "$gpg_pass" ]]; then
+        from_saved=true
+      else
+        echo -e "${CHIEF_COLOR_CYAN}GPG password:${CHIEF_NO_COLOR}" >&2
+        read -rs gpg_pass </dev/tty 2>/dev/null || read -rs gpg_pass
+        echo >&2
+      fi
       gpg --batch --passphrase-fd 0 --decrypt "$secrets_file" > "$tmpf" 2>"$errf" <<< "$gpg_pass" || {
         unset gpg_pass
         __chief_secrets_gpg_report "$errf" decrypt
+        $from_saved && __chief_secrets_saved_password_hint "$secrets_file"
         rm -f "$tmpf" "$errf"
         return 1
       }
@@ -487,6 +539,377 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 }
 
+########################################################################
+# Stored passwords: OS keychain, or an obfuscated file as a fallback
+########################################################################
+# Saved only interactively (chief.secrets_password-save), then used by load/edit/rekey so
+# you aren't prompted. Order everywhere: explicit password file env var > stored > prompt.
+#   macOS:  Keychain (security). The password reaches `security -i` on stdin, never argv.
+#   Linux:  desktop keyring via secret-tool (libsecret), when a keyring service is running.
+#   Else:   ~/.chief_secrets-store/<id>, AES-256 with a random key file kept next to it.
+#           That is obfuscation, not protection from someone who can read your account.
+# Entries are keyed by the secrets file's absolute path.
+# Test hooks: CHIEF_SECRETS_KEYCHAIN (macOS keychain file), CHIEF_SECRETS_STORE_DIR,
+#             CHIEF_SECRETS_NO_KEYCHAIN=1 (pretend no keychain).
+
+CHIEF_SECRETS_STORE_SERVICE="chief-secrets"
+
+# Absolute path of a secrets file (the key for stored passwords).
+function __chief_secrets_abs_path() {
+  local f="$1"
+  if [[ "$f" != /* ]]; then
+    f="$(realpath "$f" 2>/dev/null || echo "$(pwd)/$f")"
+  fi
+  echo "$f"
+}
+
+# Which OS keychain is usable: "macos", "linux" or "" (none).
+function __chief_secrets_keychain_kind() {
+  [[ "${CHIEF_SECRETS_NO_KEYCHAIN:-}" == "1" ]] && return 0
+  if [[ "$(uname -s)" == "Darwin" ]] && command -v security >/dev/null 2>&1; then
+    echo "macos"
+    return 0
+  fi
+  if command -v secret-tool >/dev/null 2>&1; then
+    # A lookup that finds nothing exits 1 quietly; without a keyring service it prints an error.
+    local err
+    err="$(secret-tool lookup service "${CHIEF_SECRETS_STORE_SERVICE}-probe" account probe 2>&1 >/dev/null)"
+    [[ -z "$err" ]] && echo "linux"
+  fi
+}
+
+function __chief_secrets_store_dir() {
+  echo "${CHIEF_SECRETS_STORE_DIR:-$HOME/.chief_secrets-store}"
+}
+
+# Stable file name for a secrets file's entry in the fallback store.
+function __chief_secrets_store_id() {
+  printf '%s' "$1" | openssl dgst -sha256 | awk '{print $NF}'
+}
+
+# Escape a value for a double-quoted argument in `security -i`.
+function __chief_secrets_sec_quote() {
+  local v="${1//\\/\\\\}"
+  printf '%s' "${v//\"/\\\"}"
+}
+
+# Store the password read from stdin for <secrets_file> in <store> (keychain|file).
+function __chief_secrets_store_put() {
+  local file="$1" store="$2" pw kind dir key id
+  IFS= read -r pw
+  if [[ "$store" == "keychain" ]]; then
+    kind="$(__chief_secrets_keychain_kind)"
+    if [[ "$kind" == "macos" ]]; then
+      local kc=""
+      [[ -n "${CHIEF_SECRETS_KEYCHAIN:-}" ]] && kc=" \"$(__chief_secrets_sec_quote "$CHIEF_SECRETS_KEYCHAIN")\""
+      printf 'add-generic-password -U -s "%s" -a "%s" -l "%s" -w "%s"%s\n' \
+        "$CHIEF_SECRETS_STORE_SERVICE" "$(__chief_secrets_sec_quote "$file")" \
+        "$(__chief_secrets_sec_quote "Chief secrets: $file")" "$(__chief_secrets_sec_quote "$pw")" "$kc" \
+        | security -i >/dev/null 2>&1
+    elif [[ "$kind" == "linux" ]]; then
+      printf '%s' "$pw" | secret-tool store --label="Chief secrets: $file" \
+        service "$CHIEF_SECRETS_STORE_SERVICE" account "$file" >/dev/null 2>&1
+    else
+      unset pw
+      return 1
+    fi
+  else
+    command -v openssl >/dev/null 2>&1 || { unset pw; return 1; }
+    dir="$(__chief_secrets_store_dir)"
+    key="$dir/.key"
+    ( umask 077; mkdir -p "$dir" ) || { unset pw; return 1; }
+    chmod 700 "$dir"
+    if [[ ! -s "$key" ]]; then
+      ( umask 077; openssl rand -hex 32 > "$key" ) || { unset pw; return 1; }
+    fi
+    id="$(__chief_secrets_store_id "$file")"
+    ( umask 077; printf '%s\n' "$pw" | openssl enc -aes-256-cbc -pbkdf2 -salt -a -pass "file:$key" -out "$dir/$id" ) || { unset pw; return 1; }
+  fi
+  unset pw
+  # Read it back: `security -i` does not report failures through its exit code.
+  [[ -n "$(__chief_secrets_store_get "$file" "$store")" ]]
+}
+
+# Print the stored password for <secrets_file>; optional <store> limits where to look.
+# Returns 1 when none is stored.
+function __chief_secrets_store_get() {
+  local file="$1" only="${2:-}" kind pw dir id
+  if [[ -z "$only" || "$only" == "keychain" ]]; then
+    kind="$(__chief_secrets_keychain_kind)"
+    if [[ "$kind" == "macos" ]]; then
+      if [[ -n "${CHIEF_SECRETS_KEYCHAIN:-}" ]]; then
+        pw="$(security find-generic-password -s "$CHIEF_SECRETS_STORE_SERVICE" -a "$file" -w "$CHIEF_SECRETS_KEYCHAIN" 2>/dev/null)"
+      else
+        pw="$(security find-generic-password -s "$CHIEF_SECRETS_STORE_SERVICE" -a "$file" -w 2>/dev/null)"
+      fi
+    elif [[ "$kind" == "linux" ]]; then
+      pw="$(secret-tool lookup service "$CHIEF_SECRETS_STORE_SERVICE" account "$file" 2>/dev/null)"
+    fi
+    if [[ -n "$pw" ]]; then
+      printf '%s' "$pw"
+      return 0
+    fi
+  fi
+  if [[ -z "$only" || "$only" == "file" ]]; then
+    dir="$(__chief_secrets_store_dir)"
+    id="$(__chief_secrets_store_id "$file" 2>/dev/null)"
+    if [[ -n "$id" && -f "$dir/$id" && -f "$dir/.key" ]]; then
+      pw="$(openssl enc -d -aes-256-cbc -pbkdf2 -a -pass "file:$dir/.key" -in "$dir/$id" 2>/dev/null)"
+      if [[ -n "$pw" ]]; then
+        printf '%s' "$pw"
+        return 0
+      fi
+    fi
+  fi
+  return 1
+}
+
+# Where a password for <secrets_file> is stored: "keychain", "file" or "" (none).
+function __chief_secrets_store_where() {
+  if __chief_secrets_store_get "$1" keychain >/dev/null; then
+    echo "keychain"
+  elif __chief_secrets_store_get "$1" file >/dev/null; then
+    echo "file"
+  fi
+}
+
+# Remove the stored password for <secrets_file> from every store. Returns 1 if none existed.
+function __chief_secrets_store_del() {
+  local file="$1" kind found=1 dir id
+  kind="$(__chief_secrets_keychain_kind)"
+  if [[ "$kind" == "macos" ]]; then
+    if [[ -n "${CHIEF_SECRETS_KEYCHAIN:-}" ]]; then
+      security delete-generic-password -s "$CHIEF_SECRETS_STORE_SERVICE" -a "$file" "$CHIEF_SECRETS_KEYCHAIN" >/dev/null 2>&1 && found=0
+    else
+      security delete-generic-password -s "$CHIEF_SECRETS_STORE_SERVICE" -a "$file" >/dev/null 2>&1 && found=0
+    fi
+  elif [[ "$kind" == "linux" ]]; then
+    if [[ -n "$(secret-tool lookup service "$CHIEF_SECRETS_STORE_SERVICE" account "$file" 2>/dev/null)" ]]; then
+      secret-tool clear service "$CHIEF_SECRETS_STORE_SERVICE" account "$file" >/dev/null 2>&1 && found=0
+    fi
+  fi
+  dir="$(__chief_secrets_store_dir)"
+  id="$(__chief_secrets_store_id "$file" 2>/dev/null)"
+  if [[ -n "$id" && -f "$dir/$id" ]]; then
+    rm -f "$dir/$id" && found=0
+  fi
+  return $found
+}
+
+# Run ansible-vault <subcommand> [args...]; when <saved_pw> is non-empty, pass it through a
+# pipe (--vault-password-file /dev/fd/N) so it is never written to disk.
+# Usage: __chief_secrets_ansible_vault <saved_pw> <subcommand> [args...]
+function __chief_secrets_ansible_vault() {
+  local spw="$1"
+  shift
+  if [[ -n "$spw" ]]; then
+    ansible-vault "$1" --vault-password-file <(printf '%s\n' "$spw") "${@:2}"
+  else
+    ansible-vault "$@"
+  fi
+}
+
+# The saved password for <secrets_file>, unless the backend's password file env var is set
+# (that one wins). Prints nothing when there is none to use.
+function __chief_secrets_saved_password_for() {
+  local file="$1" det="$2"
+  if [[ "$det" == "ansible" && -n "${ANSIBLE_VAULT_PASSWORD_FILE:-}" ]]; then
+    return 0
+  fi
+  if [[ "$det" == "gpg" && -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" && -f "${CHIEF_SECRETS_PASSWORD_FILE}" ]]; then
+    return 0
+  fi
+  __chief_secrets_store_get "$(__chief_secrets_abs_path "$file")"
+}
+
+function __chief_secrets_saved_password_hint() {
+  echo -e "${CHIEF_COLOR_YELLOW}The saved password didn't work${CHIEF_NO_COLOR} (the file's password may have changed). Save the right one with ${CHIEF_COLOR_CYAN}chief.secrets_password-save $1${CHIEF_NO_COLOR}, or remove it with ${CHIEF_COLOR_CYAN}chief.secrets_password-remove $1${CHIEF_NO_COLOR}." >&2
+}
+
+# Return 0 if the password on stdin decrypts <secrets_file> (either backend).
+function __chief_secrets_check_password() {
+  local file="$1" pw det
+  IFS= read -r pw
+  det="$(__chief_secrets_detect_backend "$file")"
+  if [[ "$det" == "ansible" ]]; then
+    ansible-vault view --vault-password-file <(printf '%s\n' "$pw") "$file" >/dev/null 2>&1
+  elif [[ "$det" == "gpg" ]]; then
+    gpg --batch --quiet --passphrase-fd 3 --decrypt "$file" >/dev/null 2>&1 3<<<"$pw"
+  else
+    return 1
+  fi
+  local rc=$?
+  unset pw
+  return $rc
+}
+
+function chief.secrets_password-save() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [secrets-file] [--store=auto|keychain|file]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Save the password of an encrypted secrets file (Ansible Vault or GPG) so that
+chief.secrets_file-load, chief.secrets_file-edit and --rekey don't prompt for it.
+The password can only be entered at this prompt: never as an argument, environment
+variable or piped input, so it never sits in shell history or a plain-text file.
+It is checked against the file before it is saved.
+
+${CHIEF_COLOR_GREEN}Where it is stored (--store=auto picks the first available):${CHIEF_NO_COLOR}
+- keychain  macOS Keychain, or the Linux desktop keyring (secret-tool / libsecret).
+            Encrypted by the OS and unlocked by your login.
+- file      ~/.chief_secrets-store/ (mode 700), encrypted with a random key kept beside it.
+            ${CHIEF_COLOR_YELLOW}Obfuscation only:${CHIEF_NO_COLOR} keeps it out of casual reads, backups and git,
+            but anyone who can read your account can recover it. Used where there is no keychain
+            (for example headless servers).
+
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  [secrets-file]  Optional path (default: \$CHIEF_SECRETS_FILE)
+  --store=...     auto (default), keychain or file
+
+${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -?, --help      Show this help
+
+${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
+- ANSIBLE_VAULT_PASSWORD_FILE / CHIEF_SECRETS_PASSWORD_FILE, when set, still take precedence.
+- The entry is tied to the file's path; save again after moving or renaming the file.
+- Remove with chief.secrets_password-remove; check with chief.secrets_password-status.
+
+${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
+  $FUNCNAME
+  $FUNCNAME ~/.chief_user-secrets
+  $FUNCNAME ~/chief_plugins/.chief_shared-secrets --store=file
+"
+  local arg secrets_file="" store="auto"
+  for arg in "$@"; do
+    case "$arg" in
+      -\?|--help) echo -e "${USAGE}"; return 0 ;;
+      --store=*) store="${arg#--store=}" ;;
+      *) [[ -z "$secrets_file" ]] && secrets_file="$arg" ;;
+    esac
+  done
+  __chief_secrets_resolve_default
+  secrets_file="$(__chief_secrets_abs_path "${secrets_file:-$CHIEF_SECRETS_FILE}")"
+
+  if [[ ! -f "$secrets_file" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Secrets file does not exist: $secrets_file" >&2
+    return 1
+  fi
+  if [[ -z "$(__chief_secrets_detect_backend "$secrets_file")" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Not a recognized encrypted file (expected Ansible Vault or GPG): $secrets_file" >&2
+    return 1
+  fi
+  case "$store" in
+    auto) [[ -n "$(__chief_secrets_keychain_kind)" ]] && store="keychain" || store="file" ;;
+    keychain)
+      if [[ -z "$(__chief_secrets_keychain_kind)" ]]; then
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} No keychain available here (macOS Keychain, or secret-tool with a running keyring). Use --store=file." >&2
+        return 1
+      fi ;;
+    file) ;;
+    *) echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} --store must be auto, keychain or file." >&2; return 1 ;;
+  esac
+  if [[ "$store" == "file" ]] && ! command -v openssl >/dev/null 2>&1; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} The file store needs openssl, which was not found." >&2
+    return 1
+  fi
+  # Interactive only: read from the terminal, never from stdin.
+  if ! { : </dev/tty; } 2>/dev/null; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} $FUNCNAME needs a terminal; the password can only be typed at its prompt." >&2
+    return 1
+  fi
+
+  local pw
+  echo -e "${CHIEF_COLOR_CYAN}Password for ${secrets_file}:${CHIEF_NO_COLOR}" >&2
+  read -rs pw </dev/tty
+  echo >&2
+  if [[ -z "$pw" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} No password entered. Nothing saved." >&2
+    return 1
+  fi
+  if ! __chief_secrets_check_password "$secrets_file" <<<"$pw"; then
+    unset pw
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} That password doesn't open $secrets_file. Nothing saved." >&2
+    return 1
+  fi
+  if ! __chief_secrets_store_put "$secrets_file" "$store" <<<"$pw"; then
+    unset pw
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Couldn't save the password to the ${store} store." >&2
+    return 1
+  fi
+  unset pw
+  if [[ "$store" == "keychain" ]]; then
+    echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Password saved in the $( [[ "$(__chief_secrets_keychain_kind)" == "macos" ]] && echo "macOS Keychain" || echo "keyring") for $secrets_file."
+  else
+    echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Password saved (obfuscated) in $(__chief_secrets_store_dir) for $secrets_file."
+    echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} This store is obfuscation, not encryption: anyone who can read your account can recover the password."
+  fi
+}
+
+function chief.secrets_password-remove() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [secrets-file]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Remove the saved password of a secrets file from the keychain and the file store.
+Chief prompts for it again afterwards. The secrets file itself is not touched.
+
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  [secrets-file]  Optional path (default: \$CHIEF_SECRETS_FILE)
+"
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
+    echo -e "${USAGE}"
+    return 0
+  fi
+  __chief_secrets_resolve_default
+  local secrets_file
+  secrets_file="$(__chief_secrets_abs_path "${1:-$CHIEF_SECRETS_FILE}")"
+  if __chief_secrets_store_del "$secrets_file"; then
+    echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Saved password removed for $secrets_file."
+  else
+    echo -e "${CHIEF_COLOR_YELLOW}Nothing to remove:${CHIEF_NO_COLOR} no saved password for $secrets_file."
+  fi
+}
+
+function chief.secrets_password-status() {
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [secrets-file]
+
+${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
+Show where Chief will get the password of a secrets file from when loading or editing it:
+a password file environment variable, a saved password (keychain or file), or a prompt.
+
+${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
+  [secrets-file]  Optional path (default: \$CHIEF_SECRETS_FILE)
+"
+  if [[ $1 == "-?" || $1 == "--help" ]]; then
+    echo -e "${USAGE}"
+    return 0
+  fi
+  __chief_secrets_resolve_default
+  local secrets_file det where kind
+  secrets_file="$(__chief_secrets_abs_path "${1:-$CHIEF_SECRETS_FILE}")"
+  echo -e "${CHIEF_COLOR_BLUE}Secrets file:${CHIEF_NO_COLOR} $secrets_file"
+  if [[ ! -f "$secrets_file" ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Not found.${CHIEF_NO_COLOR}"
+    return 1
+  fi
+  det="$(__chief_secrets_detect_backend "$secrets_file")"
+  echo -e "${CHIEF_COLOR_BLUE}Backend:${CHIEF_NO_COLOR}      ${det:-unknown}"
+  kind="$(__chief_secrets_keychain_kind)"
+  echo -e "${CHIEF_COLOR_BLUE}Keychain:${CHIEF_NO_COLOR}     $(case "$kind" in macos) echo "macOS Keychain" ;; linux) echo "Linux keyring (secret-tool)" ;; *) echo "none available (file store is the fallback)" ;; esac)"
+  where="$(__chief_secrets_store_where "$secrets_file")"
+  local source_msg
+  if [[ "$det" == "ansible" && -n "${ANSIBLE_VAULT_PASSWORD_FILE:-}" ]]; then
+    source_msg="ANSIBLE_VAULT_PASSWORD_FILE ($ANSIBLE_VAULT_PASSWORD_FILE)"
+  elif [[ "$det" == "gpg" && -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" && -f "${CHIEF_SECRETS_PASSWORD_FILE}" ]]; then
+    source_msg="CHIEF_SECRETS_PASSWORD_FILE ($CHIEF_SECRETS_PASSWORD_FILE)"
+  elif [[ "$where" == "keychain" ]]; then
+    source_msg="saved password (keychain)"
+  elif [[ "$where" == "file" ]]; then
+    source_msg="saved password (file store, obfuscated)"
+  else
+    source_msg="prompt (save one with: chief.secrets_password-save)"
+  fi
+  echo -e "${CHIEF_COLOR_BLUE}Password from:${CHIEF_NO_COLOR} ${source_msg}"
+}
+
 function chief.secrets_file-load() {
   __chief_secrets_resolve_default
   if [[ -z $CHIEF_SECRETS_FILE ]]; then
@@ -499,9 +922,11 @@ ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Load (decrypt and source) an encrypted Bash secrets file into the current shell.
 Backend is auto-detected from the file (Ansible Vault or GPG); you never specify it for load.
 
-${CHIEF_COLOR_GREEN}Password (optional file):${CHIEF_NO_COLOR}
-- Ansible Vault: ANSIBLE_VAULT_PASSWORD_FILE or prompt
-- GPG:           CHIEF_SECRETS_PASSWORD_FILE or prompt
+${CHIEF_COLOR_GREEN}Password (first match wins):${CHIEF_NO_COLOR}
+1. Password file: ANSIBLE_VAULT_PASSWORD_FILE (Ansible Vault) or CHIEF_SECRETS_PASSWORD_FILE (GPG)
+2. Saved password: macOS Keychain, Linux keyring, or obfuscated file
+   (save it with chief.secrets_password-save; check with chief.secrets_password-status)
+3. Prompt
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   [secrets-file]  Optional path (default: \$CHIEF_SECRETS_FILE)
@@ -539,13 +964,17 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
       return 1
     fi
     # Decrypt first (keeping stderr) so a decrypt failure is not confused with a syntax error in the content.
-    local adec aerrf
+    local adec aerrf spw
+    spw="$(__chief_secrets_saved_password_for "$secrets_file" ansible)"
     aerrf="$(mktemp)"
-    adec="$(ansible-vault view "$secrets_file" 2>"$aerrf")" || {
+    adec="$(__chief_secrets_ansible_vault "$spw" view "$secrets_file" 2>"$aerrf")" || {
       __chief_secrets_ansible_report "$aerrf" decrypt
+      [[ -n "$spw" ]] && __chief_secrets_saved_password_hint "$secrets_file"
+      unset spw
       rm -f "$aerrf"
       return 1
     }
+    unset spw
     rm -f "$aerrf"
     if source <(printf '%s\n' "$adec"); then
       echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file loaded (ansible-vault)."
@@ -555,7 +984,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
     fi
   else
     __chief_secrets_require_gpg || return 1
-    local dec gpg_pass errf
+    local dec gpg_pass errf from_saved=false
     errf="$(mktemp)"
     if [[ -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" ]] && [[ -f "$CHIEF_SECRETS_PASSWORD_FILE" ]]; then
       dec="$(gpg --batch --passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE" --decrypt "$secrets_file" 2>"$errf")" || {
@@ -564,12 +993,18 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
         return 1
       }
     else
-      echo -e "${CHIEF_COLOR_CYAN}GPG password:${CHIEF_NO_COLOR}" >&2
-      read -rs gpg_pass </dev/tty 2>/dev/null || read -rs gpg_pass
-      echo >&2
+      gpg_pass="$(__chief_secrets_saved_password_for "$secrets_file" gpg)"
+      if [[ -n "$gpg_pass" ]]; then
+        from_saved=true
+      else
+        echo -e "${CHIEF_COLOR_CYAN}GPG password:${CHIEF_NO_COLOR}" >&2
+        read -rs gpg_pass </dev/tty 2>/dev/null || read -rs gpg_pass
+        echo >&2
+      fi
       dec="$(gpg --batch --passphrase-fd 0 --decrypt "$secrets_file" 2>"$errf" <<< "$gpg_pass")" || {
         unset gpg_pass
         __chief_secrets_gpg_report "$errf" decrypt
+        $from_saved && __chief_secrets_saved_password_hint "$secrets_file"
         rm -f "$errf"
         return 1
       }

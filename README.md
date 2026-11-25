@@ -116,10 +116,12 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.plugins-*` - Plugin management and discovery tools
 - `chief.plugin enable|disable [core.|contrib.]<name>` - Enable or disable core, contrib or user plugins; `chief.plugin status` shows state
 
-### Secrets Plugin (2 functions)
+### Secrets Plugin (5 functions)
 
 - `chief.secrets_file-edit` - Edit encrypted secrets file (Ansible Vault or GPG)
 - `chief.secrets_file-load` - Load encrypted environment variables into shell
+- `chief.secrets_password-save` - Save a file's password in the macOS Keychain / Linux keyring (or an obfuscated file) so loading doesn't prompt
+- `chief.secrets_password-status` / `chief.secrets_password-remove` - See where the password comes from; forget a saved one
 
 ### Vault Plugin (HashiCorp) (3 functions) — opt-in
 

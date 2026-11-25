@@ -518,7 +518,12 @@ chief.secrets_file-load ~/.my-personal-secrets
 ```
 
 - **Backends**: Ansible Vault (`ansible-vault`) or GPG (symmetric AES256). Use `--backend=gpg` or `--backend=ansible` when creating; backend is auto-detected when editing or loading.
-- **Password (optional)**: To avoid prompts, set a password file. Ansible: `ANSIBLE_VAULT_PASSWORD_FILE`. GPG: `CHIEF_SECRETS_PASSWORD_FILE`. Otherwise you are prompted.
+- **Password**: Chief takes the first of these that's available. Password file env vars (Ansible: `ANSIBLE_VAULT_PASSWORD_FILE`; GPG: `CHIEF_SECRETS_PASSWORD_FILE`), then a saved password, then a prompt.
+- **Saved password (no prompts, no clear-text file)**: `chief.secrets_password-save [file]` asks for the file's password at a prompt (never as an argument, environment variable or piped input), checks that it opens the file, and saves it:
+  - **macOS**: in your login Keychain.
+  - **Linux desktop**: in the keyring through `secret-tool` (libsecret), when a keyring service is running.
+  - **Elsewhere** (for example headless servers): in `~/.chief_secrets-store/` (folder 700), encrypted with a random key kept beside it (600). This is **obfuscation, not protection**: it keeps the password out of casual reads, backups and git, but anyone who can read your account can recover it. Force a store with `--store=keychain` or `--store=file`.
+  - `chief.secrets_password-status [file]` shows where the password will come from; `chief.secrets_password-remove [file]` forgets it. Saved passwords are tied to the file's path, so save again after moving the file. `--rekey` updates a saved GPG password automatically; for Ansible Vault (which asks for the new password itself) it removes the outdated one and tells you to save the new one.
 - **Changing the password (re-key)**: `chief.secrets_file-edit <file> --rekey` changes the password of an existing file without opening the editor, for both backends. It asks for the current password (or reads the password file above), then the new one twice; `--new-password-file=PATH` reads the new one from a file instead. If anything fails, the file is left as it was. Afterwards, update any password file that still holds the old password. For a shared team file, tell your team the new password.
 - **Team secrets**: `CHIEF_CFG_PLUGINS_PATH/.chief_shared-secrets` (shared). Legacy name `.chief_shared-vault` is deprecated.
 - **Personal secrets**: `~/.chief_user-secrets` (or legacy `~/.chief_user-vault`).
