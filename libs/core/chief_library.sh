@@ -1338,56 +1338,160 @@ function __chief_edit_plugin() {
 }
 
 # Display Chief banner
+# Banner indicators: short "label: value" texts shown to the right of the logo, one per logo
+# line, in the order of CHIEF_CFG_BANNER_INDICATORS. Each prints nothing when it has nothing
+# to say (e.g. alias with no alias set), so it takes no line.
+function __chief_banner_indicator() {
+  case "$1" in
+    alias)
+      [[ -n ${CHIEF_CFG_ALIAS:-} ]] && printf '%s' "alias: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_ALIAS}${CHIEF_NO_COLOR}"
+      ;;
+    plugins)
+      # What's loaded (core + contrib + user) and what's turned off, then where user
+      # plugins come from. Auto-update off is a normal choice, so it isn't shown in red.
+      local on=0 off=0 source
+      on=$(( $(__chief_list_count "$(__chief_get_core_plugins)") \
+           + $(__chief_list_count "$(__chief_get_contrib_plugins enabled)") \
+           + $(__chief_list_count "$(__chief_get_plugins)") ))
+      off=$(( $(__chief_list_count "$(__chief_get_core_plugins_disabled)") \
+            + $(__chief_list_count "$(__chief_plugin_normalize_disabled_list "${CHIEF_CFG_PLUGINS_DISABLED_USER:-}")") ))
+      if [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]]; then
+        if ${CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE:-false}; then
+          source="git, ${CHIEF_COLOR_GREEN}auto-update${CHIEF_NO_COLOR}"
+        else
+          source="git, manual update"
+        fi
+      else
+        source="local"
+      fi
+      local counts="${CHIEF_COLOR_CYAN}${on} on${CHIEF_NO_COLOR}"
+      (( off > 0 )) && counts+=", ${off} off"
+      printf '%s' "plugins: ${counts} · ${source}"
+      ;;
+    tracking)
+      if __chief_is_disconnected_mode; then
+        printf '%s' "mode: ${CHIEF_COLOR_RED}disconnected ${CHIEF_COLOR_YELLOW}(no git)${CHIEF_NO_COLOR}"
+      else
+        local update_branch auto_tag=""
+        update_branch="$(__chief_update_branch)"
+        __chief_update_branch_auto && auto_tag=", auto"
+        if [[ "${update_branch}" == "dev" ]]; then
+          printf '%s' "tracking: ${CHIEF_COLOR_YELLOW}${update_branch} ${CHIEF_COLOR_RED}(bleeding-edge${auto_tag})${CHIEF_NO_COLOR}"
+        elif [[ "${update_branch}" == "main" ]]; then
+          printf '%s' "tracking: ${CHIEF_COLOR_GREEN}${update_branch} ${CHIEF_COLOR_CYAN}(stable${auto_tag})${CHIEF_NO_COLOR}"
+        else
+          printf '%s' "tracking: ${CHIEF_COLOR_CYAN}${update_branch} ${CHIEF_COLOR_YELLOW}(custom${auto_tag})${CHIEF_NO_COLOR}"
+        fi
+      fi
+      ;;
+    secrets)
+      __chief_banner_secrets
+      ;;
+  esac
+}
+
+# Count the items in a list separated by "|", "," or spaces. Prints 0 for an empty list.
+function __chief_list_count() {
+  local items
+  read -r -a items <<<"${1//[|,]/ }"
+  echo "${#items[@]}"
+}
+
+# The "secrets" indicator: loaded / loaded (N) / loaded, silent / not loaded. At start-up it
+# says "found" instead: the banner prints before ~/.bash_profile gets a chance to load them.
+# Hidden when the secrets plugin is off, or there's no secrets file and nothing is loaded.
+function __chief_banner_secrets() {
+  declare -F __chief_secrets_loaded_desc >/dev/null || return 0
+  local n=${#CHIEF_SECRETS_LOADED[@]} silent=false f
+  if (( n > 0 )); then
+    for f in "${!CHIEF_SECRETS_LOADED[@]}"; do
+      [[ "${CHIEF_SECRETS_LOADED[$f]##*|}" == "yes" ]] && silent=true
+    done
+    local text="secrets: ${CHIEF_COLOR_GREEN}loaded"
+    (( n > 1 )) && text+=" (${n})"
+    $silent && text+="${CHIEF_NO_COLOR}, ${CHIEF_COLOR_YELLOW}silent"
+    printf '%s' "${text}${CHIEF_NO_COLOR}"
+    return 0
+  fi
+  local file="${CHIEF_SECRETS_FILE:-}"
+  if [[ -z "$file" || ! -f "$file" ]]; then
+    if [[ -f "$HOME/.chief_user-secrets" ]]; then
+      file="$HOME/.chief_user-secrets"
+    elif [[ -f "$HOME/.chief_user-vault" ]]; then
+      file="$HOME/.chief_user-vault"
+    else
+      return 0
+    fi
+  fi
+  if [[ "${__chief_starting:-}" == "1" ]]; then
+    printf '%s' "secrets: ${CHIEF_COLOR_CYAN}found${CHIEF_NO_COLOR}"
+  else
+    printf '%s' "secrets: ${CHIEF_COLOR_CYAN}not loaded${CHIEF_NO_COLOR}"
+  fi
+}
+
 function __chief.banner {
-  local git_status
-  local alias_status
-  local branch_status
+  # Which indicators, in order. Unset: the default list. Set but empty: logo and version only.
+  local list="${CHIEF_CFG_BANNER_INDICATORS-alias plugins tracking secrets}"
+  list="${list//,/ }"
+  # Older configs: an explicit false on the per-line switches still hides that indicator.
+  [[ "${CHIEF_CFG_BANNER_SHOW_PLUGINS:-true}" == "false" ]] && list=" ${list} " && list="${list// plugins / }"
+  [[ "${CHIEF_CFG_BANNER_SHOW_TRACKING:-true}" == "false" ]] && list=" ${list} " && list="${list// tracking / }"
 
-  if [[ -n $CHIEF_CFG_ALIAS ]]; then
-    alias_status="alias: ${CHIEF_COLOR_CYAN}${CHIEF_CFG_ALIAS}"
-  else
-    alias_status=""
-  fi
-
-  # Per-line visibility: hide the right-side label while preserving the ASCII art.
-  # Any value other than an explicit "false" is treated as enabled (default: shown).
-  local show_plugins="${CHIEF_CFG_BANNER_SHOW_PLUGINS:-true}"
-  local show_tracking="${CHIEF_CFG_BANNER_SHOW_TRACKING:-true}"
-
-  if [[ "${show_plugins}" == "false" ]]; then
-    git_status=""
-  elif [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" ]]; then
-    if $CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE; then
-      git_status="plugins: ${CHIEF_COLOR_CYAN}git [auto-update ${CHIEF_COLOR_GREEN}enabled]"
+  # Up to 4 indicators, one per logo line; any beyond that share the last line, joined by " · ".
+  local slots=() name text
+  for name in $list; do
+    text="$(__chief_banner_indicator "$name")"
+    [[ -z "$text" ]] && continue
+    if (( ${#slots[@]} < 4 )); then
+      slots+=("$text")
     else
-      git_status="plugins: ${CHIEF_COLOR_CYAN}git [auto-update ${CHIEF_COLOR_RED}disabled]"
+      slots[3]+=" · ${text}"
     fi
-  else
-    git_status="plugins: ${CHIEF_COLOR_CYAN}local${CHIEF_NO_COLOR}"
+  done
+
+  # CHIEF_CFG_BANNER_STYLE=compact: a 13-column logo (box-drawing characters) that leaves
+  # about 12 more columns for the indicators on narrow screens. Same 4 indicator lines;
+  # the version moves to the first line. Anything else: the full logo (default).
+  if [[ "${CHIEF_CFG_BANNER_STYLE:-full}" == "compact" ]]; then
+    # Pre-padded to the same visual width (printf pads by bytes, not characters).
+    local small=(
+      '┌─┐┬ ┬┬┌─┐┌─┐  '
+      '│  ├─┤│├┤ ├┤   '
+      '└─┘┴ ┴┴└─┘└    '
+      '               '
+    )
+    echo -e "${CHIEF_COLOR_YELLOW}${small[0]}${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
+    # Up to 3 indicator lines here; any beyond share the last one.
+    if (( ${#slots[@]} > 3 )); then
+      slots[2]+=" · ${slots[3]}"
+      unset 'slots[3]'
+    fi
+    local j
+    for j in 0 1 2; do
+      [[ -z "${slots[$j]:-}" && $j -eq 2 ]] && continue
+      echo -e "${CHIEF_COLOR_YELLOW}${small[$((j + 1))]}${CHIEF_NO_COLOR}${slots[$j]:-}${CHIEF_NO_COLOR}"
+    done
+    __chief_stale_hint
+    return 0
   fi
 
-  # Show connection status and branch tracking
-  if [[ "${show_tracking}" == "false" ]]; then
-    branch_status=""
-  elif __chief_is_disconnected_mode; then
-    branch_status="mode: ${CHIEF_COLOR_RED}disconnected ${CHIEF_COLOR_YELLOW}(no git)${CHIEF_NO_COLOR}"
-  else
-    local update_branch auto_tag=""
-    update_branch="$(__chief_update_branch)"
-    __chief_update_branch_auto && auto_tag=", auto"
-    if [[ "${update_branch}" == "dev" ]]; then
-      branch_status="tracking: ${CHIEF_COLOR_YELLOW}${update_branch} ${CHIEF_COLOR_RED}(bleeding-edge${auto_tag})${CHIEF_NO_COLOR}"
-    elif [[ "${update_branch}" == "main" ]]; then
-      branch_status="tracking: ${CHIEF_COLOR_GREEN}${update_branch} ${CHIEF_COLOR_CYAN}(stable${auto_tag})${CHIEF_NO_COLOR}"
-    else
-      branch_status="tracking: ${CHIEF_COLOR_CYAN}${update_branch} ${CHIEF_COLOR_YELLOW}(custom${auto_tag})${CHIEF_NO_COLOR}"
-    fi
-  fi
-
-  echo -e "${CHIEF_COLOR_YELLOW}        __    _      ____${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_YELLOW}  _____/ /_  (_)__  / __/ ${alias_status}${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_YELLOW} / ___/ __ \/ / _ \/ /_  ${git_status}${CHIEF_NO_COLOR}"
-  echo -e "${CHIEF_COLOR_YELLOW}/ /__/ / / / /  __/ __/ ${branch_status}${CHIEF_NO_COLOR}"
+  # Full logo, lines padded to one width so the indicators line up in a single column.
+  local art=(
+    '        __    _      ____'
+    '  _____/ /_  (_)__  / __/'
+    ' / ___/ __ \/ / _ \/ /_'
+    '/ /__/ / / / /  __/ __/'
+  )
+  # Bottom-align: with fewer than 4 indicators they sit next to the logo's body, ending
+  # just above the version line (the long-standing look), not at its top edge.
+  local i pad first=$(( 4 - ${#slots[@]} ))
+  for i in 0 1 2 3; do
+    pad="$(printf '%-26s' "${art[$i]}")"
+    local slot=""
+    (( i >= first )) && slot="${slots[$((i - first))]:-}"
+    echo -e "${CHIEF_COLOR_YELLOW}${pad}${CHIEF_NO_COLOR}${slot}${CHIEF_NO_COLOR}"
+  done
   echo -e "${CHIEF_COLOR_YELLOW}\___/_/ /_/_/\___/_/ ${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
   __chief_stale_hint
 }
@@ -3150,8 +3254,8 @@ Edit Chief's configuration file with automatic reload on changes.
 
 ${CHIEF_COLOR_GREEN}Configuration Options:${CHIEF_NO_COLOR}
 - CHIEF_CFG_BANNER: Show startup banner
-- CHIEF_CFG_BANNER_SHOW_PLUGINS: Show 'plugins:' line in banner (requires BANNER=true)
-- CHIEF_CFG_BANNER_SHOW_TRACKING: Show 'tracking:' line in banner (requires BANNER=true)
+- CHIEF_CFG_BANNER_INDICATORS: Banner status items, in order: alias plugins tracking secrets
+- CHIEF_CFG_BANNER_STYLE: Banner logo: full (default) or compact (narrow screens)
 - CHIEF_CFG_BASH_WARN: Warn at start-up when running on Bash older than 4.0 (default true)
 - CHIEF_CFG_PROMPT: Use Chief's custom prompt
 - CHIEF_CFG_GIT_PROMPT: Git-aware prompt features
@@ -3207,8 +3311,8 @@ ${CHIEF_COLOR_GREEN}Input Formats:${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
   BANNER                    Show/hide startup banner (true/false)
-  BANNER_SHOW_PLUGINS       Show/hide 'plugins:' line in banner (true/false; banner must be on)
-  BANNER_SHOW_TRACKING      Show/hide 'tracking:' line in banner (true/false; banner must be on)
+  BANNER_INDICATORS         Banner status items, in order (e.g. "alias plugins tracking secrets"; "" for none)
+  BANNER_STYLE              Banner logo: full or compact (smaller, for narrow screens)
   BASH_WARN                 Warn at start-up if Bash is older than 4.0 (true/false)
   HINTS                     Show/hide startup hints (true/false)
   VERBOSE                   Enable verbose output (true/false)
@@ -4609,8 +4713,8 @@ function __chief_show_configuration_help() {
   
   echo -e "${CHIEF_COLOR_CYAN}Display & Interface:${CHIEF_NO_COLOR}"
   echo -e "  ${CHIEF_COLOR_GREEN}BANNER${CHIEF_NO_COLOR}                 Show/hide startup banner (true/false)"
-  echo -e "    ${CHIEF_COLOR_GREEN}BANNER_SHOW_PLUGINS${CHIEF_NO_COLOR}  Show 'plugins:' line in banner (true/false; banner must be on)"
-  echo -e "    ${CHIEF_COLOR_GREEN}BANNER_SHOW_TRACKING${CHIEF_NO_COLOR} Show 'tracking:' line in banner (true/false; banner must be on)"
+  echo -e "    ${CHIEF_COLOR_GREEN}BANNER_INDICATORS${CHIEF_NO_COLOR}    Banner status items, in order: alias plugins tracking secrets (\"\" for none)"
+  echo -e "    ${CHIEF_COLOR_GREEN}BANNER_STYLE${CHIEF_NO_COLOR}         Banner logo: full or compact (smaller, for narrow screens)"
   echo -e "  ${CHIEF_COLOR_GREEN}BASH_WARN${CHIEF_NO_COLOR}              Warn at start-up if Bash is older than 4.0 (true/false)"
   echo -e "  ${CHIEF_COLOR_GREEN}HINTS${CHIEF_NO_COLOR}                  Show/hide startup hints (true/false)"
   echo -e "  ${CHIEF_COLOR_GREEN}VERBOSE${CHIEF_NO_COLOR}              Enable verbose output (true/false)"

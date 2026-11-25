@@ -87,9 +87,12 @@ if __chief_ssh_autoload_on && ([[ ${PLATFORM} == "MacOS" ]] || [[ $(uname) == "L
   echo -e "${tmp_out}"
 fi
 
-# Load banner and hints
+# Load banner and hints. __chief_starting tells banner indicators this is start-up (e.g. the
+# secrets indicator says "found", since ~/.bash_profile only loads secrets after this).
 if ${CHIEF_CFG_BANNER}; then
+  __chief_starting=1
   __chief.banner
+  unset __chief_starting
   __chief.hints_text --no-tracking
 fi
 
