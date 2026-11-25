@@ -317,14 +317,167 @@ function __chief_secrets_rekey() {
   return 0
 }
 
+########################################################################
+# Secrets layers: team, personal (both in the shared repo) and this host
+########################################################################
+# chief.secrets_file-load with no file loads every one that exists, in this order (a later file
+# overrides an earlier one when both set the same variable):
+#   team      <shared folder>/.chief_shared-secrets      everyone using the repo (team password)
+#   personal  <shared folder>/users/<CHIEF_CFG_USER>/secrets   follows you; your own password
+#   local     ~/.chief_user-secrets                      this host only; never leaves it
+# The other commands take --team / --personal / --local (or a path), and ask when it's unclear.
+
+# Path of a layer's file (it may not exist yet). Returns 1 when the layer isn't available here.
+function __chief_secrets_layer_file() {
+  local dir
+  case "$1" in
+    team)
+      declare -F __chief_shared_dir >/dev/null || return 1
+      dir="$(__chief_shared_dir)"
+      [[ -n "$dir" ]] || return 1
+      if [[ ! -f "$dir/.chief_shared-secrets" && -f "$dir/.chief_shared-vault" ]]; then
+        printf '%s' "$dir/.chief_shared-vault"
+      else
+        printf '%s' "$dir/.chief_shared-secrets"
+      fi
+      ;;
+    personal)
+      declare -F __chief_user_dir >/dev/null || return 1
+      dir="$(__chief_user_dir)" || return 1
+      [[ -n "$dir" ]] || return 1
+      printf '%s' "$dir/secrets"
+      ;;
+    local)
+      if [[ ! -f "$HOME/.chief_user-secrets" && -f "$HOME/.chief_user-vault" ]]; then
+        printf '%s' "$HOME/.chief_user-vault"
+      else
+        printf '%s' "$HOME/.chief_user-secrets"
+      fi
+      ;;
+    *) return 1 ;;
+  esac
+}
+
+# Why a layer isn't available, for error messages.
+function __chief_secrets_layer_unavailable() {
+  case "$1" in
+    team) echo "no shared plugins folder is configured (see chief.plugins-repo)" ;;
+    personal)
+      if [[ -z "${CHIEF_CFG_USER:-}" ]]; then
+        echo "CHIEF_CFG_USER isn't set (chief.config-set user <name>)"
+      else
+        echo "it needs a shared plugins folder and a valid CHIEF_CFG_USER"
+      fi
+      ;;
+  esac
+}
+
+# "layer<TAB>path" for each secrets file that exists, in load order. A CHIEF_SECRETS_FILE set to
+# some other file is listed last as "custom".
+function __chief_secrets_existing_layers() {
+  local layer f seen="|"
+  for layer in team personal local; do
+    f="$(__chief_secrets_layer_file "$layer")" || continue
+    if [[ -f "$f" && "$seen" != *"|$f|"* ]]; then
+      printf '%s\t%s\n' "$layer" "$f"
+      seen+="$f|"
+    fi
+  done
+  if [[ -n "${CHIEF_SECRETS_FILE:-}" && -f "${CHIEF_SECRETS_FILE}" && "$seen" != *"|${CHIEF_SECRETS_FILE}|"* ]]; then
+    printf '%s\t%s\n' "custom" "$CHIEF_SECRETS_FILE"
+  fi
+}
+
+# Which layer a file belongs to ("team", "personal", "local" or "custom").
+function __chief_secrets_layer_of() {
+  local layer f
+  for layer in team personal local; do
+    f="$(__chief_secrets_layer_file "$layer")" || continue
+    [[ "$f" == "$1" ]] && { echo "$layer"; return 0; }
+  done
+  echo "custom"
+}
+
+# Pick the secrets file a command works on. Usage: __chief_secrets_pick_file <create|existing> [layer]
+# With a layer, its file. Without: the only existing file, or ask (on the terminal) which layer.
+# "create" may pick a layer whose file doesn't exist yet. Prints the path; messages go to stderr.
+function __chief_secrets_pick_file() {
+  local mode="$1" layer="$2" f why
+  if [[ -n "$layer" ]]; then
+    if ! f="$(__chief_secrets_layer_file "$layer")"; then
+      why="$(__chief_secrets_layer_unavailable "$layer")"
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} No ${layer} secrets here: ${why}." >&2
+      return 1
+    fi
+    printf '%s' "$f"
+    return 0
+  fi
+  local lines=() choices=() line
+  while IFS= read -r line; do lines+=("$line"); done < <(__chief_secrets_existing_layers)
+  if [[ "$mode" == "existing" ]]; then
+    if (( ${#lines[@]} == 0 )); then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} No secrets file found (team, personal or this host). Create one with chief.secrets_file-edit." >&2
+      return 1
+    fi
+    if (( ${#lines[@]} == 1 )); then
+      printf '%s' "${lines[0]#*$'\t'}"
+      return 0
+    fi
+    choices=("${lines[@]}")
+  else
+    if (( ${#lines[@]} == 1 )); then
+      printf '%s' "${lines[0]#*$'\t'}"
+      return 0
+    fi
+    for layer in team personal local; do
+      f="$(__chief_secrets_layer_file "$layer")" || continue
+      choices+=("${layer}"$'\t'"${f}")
+    done
+  fi
+  if ! { : </dev/tty; } 2>/dev/null; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Which secrets file? Pass --team, --personal, --local or a path (no terminal to ask on)." >&2
+    return 1
+  fi
+  local i=1 c label reply
+  echo -e "${CHIEF_COLOR_CYAN}Which secrets file?${CHIEF_NO_COLOR}" >&2
+  for c in "${choices[@]}"; do
+    case "${c%%$'\t'*}" in
+      team) label="team (shared with everyone using the repo)" ;;
+      personal) label="personal (follows you to every host)" ;;
+      local) label="this host only" ;;
+      *) label="${c%%$'\t'*}" ;;
+    esac
+    [[ -f "${c#*$'\t'}" ]] || label+=", new"
+    echo -e "  ${i}) ${label}: $(__chief_secrets_tilde "${c#*$'\t'}")" >&2
+    i=$((i + 1))
+  done
+  echo -ne "Choose 1-$(( i - 1 )): " >&2
+  read -r reply </dev/tty
+  if [[ ! "$reply" =~ ^[0-9]+$ ]] || (( reply < 1 || reply >= i )); then
+    echo -e "${CHIEF_COLOR_YELLOW}Cancelled.${CHIEF_NO_COLOR}" >&2
+    return 1
+  fi
+  c="${choices[$((reply - 1))]}"
+  printf '%s' "${c#*$'\t'}"
+}
+
+# After changing a secrets file in the shared repo (team or personal), offer to commit and push.
+function __chief_secrets_offer_commit() {
+  local file="$1" layer
+  layer="$(__chief_secrets_layer_of "$file")"
+  [[ "$layer" == "team" || "$layer" == "personal" ]] || return 0
+  declare -F __chief_repo_offer_commit >/dev/null || return 0
+  __chief_repo_offer_commit "$file" "secrets: update ${layer} secrets"
+}
+
 function chief.secrets_file-edit() {
   __chief_secrets_resolve_default
   if [[ -z $CHIEF_SECRETS_FILE ]]; then
     CHIEF_SECRETS_FILE="$HOME/.chief_user-secrets"
   fi
 
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [secrets-file] [--load] [--backend=gpg|ansible] [-q]
-       $FUNCNAME [secrets-file] --rekey [--new-password-file=PATH] [--load] [-q]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--team|--personal|--local|<file>] [--load] [--backend=gpg|ansible] [-q]
+       $FUNCNAME [--team|--personal|--local|<file>] --rekey [--new-password-file=PATH] [--load] [-q]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Edit/create a Bash shell secrets file (env vars, functions, etc.) encrypted with Ansible Vault or GPG.
@@ -339,8 +492,15 @@ ${CHIEF_COLOR_GREEN}Password (first match wins):${CHIEF_NO_COLOR}
    (save it with chief.secrets_password-save; check with chief.secrets_password-status)
 3. Prompt
 
+${CHIEF_COLOR_GREEN}Which file (you choose; Chief never guesses):${CHIEF_NO_COLOR}
+  --team          <shared folder>/.chief_shared-secrets: everyone using the repo
+  --personal      <shared folder>/users/\$CHIEF_CFG_USER/secrets: follows you to every host
+  --local         ~/.chief_user-secrets: this host only, never leaves it
+  <file>          Any file by path
+  (none)          The only one that exists, or Chief asks which. Editing a team or personal file
+                  offers to commit and push it so your other hosts get it.
+
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
-  [secrets-file]  Optional path (default: \$CHIEF_SECRETS_FILE)
   --load          Load (source) secrets into environment after editing
   --backend=...   For new files only: gpg or ansible (default: gpg if available, else ansible).
                   Once a file exists, backend is auto-detected; do not pass --backend for edit/load.
@@ -355,15 +515,13 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -?, --help      Show this help
 
-${CHIEF_COLOR_MAGENTA}Default file names:${CHIEF_NO_COLOR}
-- Personal: .chief_user-secrets (or legacy .chief_user-vault)
-- Shared:   .chief_shared-secrets (or legacy .chief_shared-vault)
-
-${CHIEF_COLOR_RED}⚠ TEAM:${CHIEF_NO_COLOR} .chief_shared-secrets in team repos is SHARED. Use personal file for private secrets.
+${CHIEF_COLOR_RED}⚠ TEAM:${CHIEF_NO_COLOR} team secrets are readable by everyone using the repo. Personal secrets are in the
+  repo too, so teammates hold a copy of the encrypted file: use a long, unique password for it.
+  Anything too sensitive for that belongs in --local.
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME
-  $FUNCNAME --load
+  $FUNCNAME --personal                  # your secrets, on every host
+  $FUNCNAME --team --load
   $FUNCNAME ~/.my-secrets --backend=gpg
   $FUNCNAME --rekey                     # change the password of \$CHIEF_SECRETS_FILE
   $FUNCNAME ~/.my-secrets --rekey --new-password-file=~/.new-pass
@@ -373,11 +531,14 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     return 0
   fi
 
-  local no_load=true secrets_file="" backend="" rekey=false new_pw_file=""
+  local no_load=true secrets_file="" backend="" rekey=false new_pw_file="" layer=""
   local __chief_secrets_quiet=false
   local arg
   for arg in "$@"; do
     case "$arg" in
+      --team) layer=team ;;
+      --personal) layer=personal ;;
+      --local) layer=local ;;
       --load) no_load=false ;;
       -q|--quiet) __chief_secrets_quiet=true ;;
       --backend=*) backend="${arg#--backend=}" ;;
@@ -388,8 +549,16 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     esac
   done
 
+  if [[ -n "$secrets_file" && -n "$layer" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Give either a file or --${layer}, not both." >&2
+    return 1
+  fi
   if [[ -z "$secrets_file" ]]; then
-    secrets_file="$CHIEF_SECRETS_FILE"
+    if $rekey; then
+      secrets_file="$(__chief_secrets_pick_file existing "$layer")" || return 1
+    else
+      secrets_file="$(__chief_secrets_pick_file create "$layer")" || return 1
+    fi
   fi
 
   # Resolve path
@@ -416,6 +585,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
       return 1
     fi
     __chief_secrets_rekey "$secrets_file" "$new_pw_file" || return 1
+    __chief_secrets_offer_commit "$secrets_file"
     if ! $no_load; then
       if $__chief_secrets_quiet; then chief.secrets_file-load "$secrets_file" --quiet; else chief.secrets_file-load "$secrets_file"; fi
     fi
@@ -439,30 +609,37 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     fi
 
     mkdir -p "$(dirname "$secrets_file")" || { echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Cannot create directory for $secrets_file"; return 1; }
-    local editor="${EDITOR:-vi}"
+    local editor="${EDITOR:-vi}" new_layer
+    new_layer="$(__chief_secrets_layer_of "$secrets_file")"
     __chief_secrets_say "${CHIEF_COLOR_GREEN}Creating new secrets file:${CHIEF_NO_COLOR} $secrets_file (backend: $backend)"
-    $editor "$secrets_file"
-    if [[ ! -f "$secrets_file" ]] || [[ ! -s "$secrets_file" ]]; then
-      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} File not created or empty. Save in editor and retry."
+    if [[ "$new_layer" == "personal" || "$new_layer" == "team" ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} This file goes in the shared repo, so everyone who can read the repo gets a copy of it, encrypted. Use a long, unique password: they can try to guess it offline." >&2
+    fi
+    # Write the plaintext in a private temp file, never next to the encrypted one (in a repo it
+    # could otherwise be committed by accident if anything stopped halfway).
+    local tmpf
+    tmpf="$(mktemp)"
+    $editor "$tmpf"
+    if [[ ! -s "$tmpf" ]]; then
+      rm -f "$tmpf"
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Nothing was saved in the editor. No file created."
       return 1
     fi
     if ! $no_load; then
-      source "$secrets_file" || true
+      source "$tmpf" || true
     fi
     if [[ "$backend" == "ansible" ]]; then
-      ansible-vault encrypt "$secrets_file" || return 1
+      ansible-vault encrypt --output "$secrets_file" "$tmpf" || { rm -f "$tmpf"; return 1; }
     else
-      local tmpf
-      tmpf="$(mktemp)"
-      cat "$secrets_file" > "$tmpf"
       if [[ -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" ]] && [[ -f "$CHIEF_SECRETS_PASSWORD_FILE" ]]; then
-        gpg --batch --yes --armor --passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE" --symmetric --cipher-algo AES256 -o "$secrets_file" "$tmpf" || return 1
+        gpg --batch --yes --armor --passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE" --symmetric --cipher-algo AES256 -o "$secrets_file" "$tmpf" || { rm -f "$tmpf"; return 1; }
       else
-        gpg --yes --armor --symmetric --cipher-algo AES256 -o "$secrets_file" "$tmpf" || return 1
+        gpg --yes --armor --symmetric --cipher-algo AES256 -o "$secrets_file" "$tmpf" || { rm -f "$tmpf"; return 1; }
       fi
-      rm -f "$tmpf"
     fi
+    rm -f "$tmpf"
     __chief_secrets_say "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file created and encrypted."
+    __chief_secrets_offer_commit "$secrets_file"
     if $no_load; then
       __chief_secrets_say "${CHIEF_COLOR_BLUE}Load with:${CHIEF_NO_COLOR} chief.secrets_file-load ${secrets_file:+$secrets_file}"
     fi
@@ -543,6 +720,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     rm -f "$tmpf" "$errf"
   fi
 
+  __chief_secrets_offer_commit "$secrets_file"
   if $no_load; then
     __chief_secrets_say "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file edited (not loaded). Load with: chief.secrets_file-load ${secrets_file:+$secrets_file}"
   else
@@ -755,7 +933,7 @@ function __chief_secrets_check_password() {
 }
 
 function chief.secrets_password-save() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [secrets-file] [--store=auto|keychain|file]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--team|--personal|--local|<file>] [--store=auto|keychain|file]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Save the password of an encrypted secrets file (Ansible Vault or GPG) so that
@@ -789,16 +967,21 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME ~/.chief_user-secrets
   $FUNCNAME ~/chief_plugins/.chief_shared-secrets --store=file
 "
-  local arg secrets_file="" store="auto"
+  local arg secrets_file="" store="auto" layer=""
   for arg in "$@"; do
     case "$arg" in
       -\?|--help) echo -e "${USAGE}"; return 0 ;;
       --store=*) store="${arg#--store=}" ;;
+      --team) layer=team ;;
+      --personal) layer=personal ;;
+      --local) layer=local ;;
       *) [[ -z "$secrets_file" ]] && secrets_file="$arg" ;;
     esac
   done
-  __chief_secrets_resolve_default
-  secrets_file="$(__chief_secrets_abs_path "${secrets_file:-$CHIEF_SECRETS_FILE}")"
+  if [[ -z "$secrets_file" ]]; then
+    secrets_file="$(__chief_secrets_pick_file existing "$layer")" || return 1
+  fi
+  secrets_file="$(__chief_secrets_abs_path "$secrets_file")"
 
   if [[ ! -f "$secrets_file" ]]; then
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Secrets file does not exist: $secrets_file" >&2
@@ -856,7 +1039,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
 }
 
 function chief.secrets_password-remove() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [secrets-file]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--team|--personal|--local|<file>]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Remove the saved password of a secrets file from the keychain and the file store.
@@ -869,9 +1052,19 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
     echo -e "${USAGE}"
     return 0
   fi
-  __chief_secrets_resolve_default
-  local secrets_file
-  secrets_file="$(__chief_secrets_abs_path "${1:-$CHIEF_SECRETS_FILE}")"
+  local secrets_file="" layer="" arg
+  for arg in "$@"; do
+    case "$arg" in
+      --team) layer=team ;;
+      --personal) layer=personal ;;
+      --local) layer=local ;;
+      *) [[ -z "$secrets_file" ]] && secrets_file="$arg" ;;
+    esac
+  done
+  if [[ -z "$secrets_file" ]]; then
+    secrets_file="$(__chief_secrets_pick_file existing "$layer")" || return 1
+  fi
+  secrets_file="$(__chief_secrets_abs_path "$secrets_file")"
   if __chief_secrets_store_del "$secrets_file"; then
     echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Saved password removed for $secrets_file."
   else
@@ -880,11 +1073,12 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
 }
 
 function chief.secrets_password-status() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [secrets-file]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--team|--personal|--local|<file>]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Show where Chief will get the password of a secrets file from when loading or editing it:
 a password file environment variable, a saved password (keychain or file), or a prompt.
+With no file, shows every secrets file that exists (team, personal, this host).
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   [secrets-file]  Optional path (default: \$CHIEF_SECRETS_FILE)
@@ -893,9 +1087,34 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
     echo -e "${USAGE}"
     return 0
   fi
-  __chief_secrets_resolve_default
-  local secrets_file det where kind
-  secrets_file="$(__chief_secrets_abs_path "${1:-$CHIEF_SECRETS_FILE}")"
+  local secrets_file="" det where kind layer="" arg
+  for arg in "$@"; do
+    case "$arg" in
+      --team) layer=team ;;
+      --personal) layer=personal ;;
+      --local) layer=local ;;
+      *) [[ -z "$secrets_file" ]] && secrets_file="$arg" ;;
+    esac
+  done
+  if [[ -z "$secrets_file" && -n "$layer" ]]; then
+    secrets_file="$(__chief_secrets_pick_file existing "$layer")" || return 1
+  fi
+  if [[ -z "$secrets_file" ]]; then
+    local lines=() line first=true
+    while IFS= read -r line; do lines+=("$line"); done < <(__chief_secrets_existing_layers)
+    if (( ${#lines[@]} == 0 )); then
+      echo -e "${CHIEF_COLOR_YELLOW}No secrets file found${CHIEF_NO_COLOR} (team, personal or this host). Create one with chief.secrets_file-edit."
+      return 1
+    fi
+    for line in "${lines[@]}"; do
+      $first || echo
+      first=false
+      echo -e "${CHIEF_COLOR_MAGENTA}[${line%%$'\t'*}]${CHIEF_NO_COLOR}"
+      chief.secrets_password-status "${line#*$'\t'}"
+    done
+    return 0
+  fi
+  secrets_file="$(__chief_secrets_abs_path "$secrets_file")"
   echo -e "${CHIEF_COLOR_BLUE}Secrets file:${CHIEF_NO_COLOR} $secrets_file"
   if [[ ! -f "$secrets_file" ]]; then
     echo -e "${CHIEF_COLOR_YELLOW}Not found.${CHIEF_NO_COLOR}"
@@ -1030,7 +1249,7 @@ function chief.secrets_file-load() {
     CHIEF_SECRETS_FILE="$HOME/.chief_user-secrets"
   fi
 
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [secrets-file] [-q|--quiet]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--team|--personal|--local|<file>] [-q|--quiet]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Load (decrypt and source) an encrypted Bash secrets file into the current shell.
@@ -1043,7 +1262,12 @@ ${CHIEF_COLOR_GREEN}Password (first match wins):${CHIEF_NO_COLOR}
 3. Prompt
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
-  [secrets-file]  Optional path (default: \$CHIEF_SECRETS_FILE)
+  (none)          Load every secrets file that exists, in this order (later ones win when
+                  they set the same variable): team (<shared folder>/.chief_shared-secrets),
+                  personal (<shared folder>/users/\$CHIEF_CFG_USER/secrets), this host
+                  (~/.chief_user-secrets). One failing doesn't stop the others.
+  --team, --personal, --local   Just that one.
+  <file>          Just that file.
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -q, --quiet     No success message (errors and warnings still show).
@@ -1053,15 +1277,38 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
                   whether it was silent.
   -?, --help      Show this help
 "
-  local arg secrets_file="" __chief_secrets_quiet=false
+  local arg secrets_file="" __chief_secrets_quiet=false layer=""
   for arg in "$@"; do
     case "$arg" in
       -\?|--help) echo -e "${USAGE}"; return 0 ;;
       -q|--quiet) __chief_secrets_quiet=true ;;
+      --team) layer=team ;;
+      --personal) layer=personal ;;
+      --local) layer=local ;;
       *) [[ -z "$secrets_file" ]] && secrets_file="$arg" ;;
     esac
   done
-  secrets_file="${secrets_file:-$CHIEF_SECRETS_FILE}"
+  if [[ -z "$secrets_file" && -n "$layer" ]]; then
+    secrets_file="$(__chief_secrets_pick_file existing "$layer")" || return 1
+  fi
+  # No file: load every layer that exists (team, personal, this host), in that order. A failure
+  # in one doesn't stop the others; the return code says whether all of them loaded.
+  if [[ -z "$secrets_file" ]]; then
+    local lines=() line rc=0 qflag=()
+    $__chief_secrets_quiet && qflag=(--quiet)
+    while IFS= read -r line; do lines+=("$line"); done < <(__chief_secrets_existing_layers)
+    if (( ${#lines[@]} == 0 )); then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} No secrets file found (team, personal or this host). Create one with chief.secrets_file-edit."
+      return 1
+    fi
+    for line in "${lines[@]}"; do
+      chief.secrets_file-load "${line#*$'\t'}" "${qflag[@]}" || {
+        rc=1
+        echo -e "${CHIEF_COLOR_YELLOW}Skipped the ${line%%$'\t'*} secrets${CHIEF_NO_COLOR} ($(__chief_secrets_tilde "${line#*$'\t'}")); the others still load." >&2
+      }
+    done
+    return $rc
+  fi
   if [[ "$secrets_file" != /* ]]; then
     secrets_file="$(realpath "$secrets_file" 2>/dev/null || echo "$(pwd)/$secrets_file")"
   fi

@@ -137,6 +137,25 @@ chief.uninstall
 
 ## Built-in Plugin Command Reference
 
+### Shared Repo (team mode)
+
+```bash
+# Adopt a shared plugins repo on this host (clone, point the config, set your user)
+chief.plugins-repo <git-url> [--path <folder>] [--user <name>] [--branch <b>] [--dir <clone-dir>]
+
+# Edit shared start-up code / settings (--personal: yours in users/<you>/); offer to commit & push
+chief.shared-profile [--personal] [--code]
+chief.shared-config [--personal] [--code]
+
+# In shared files: is this host/account one of these? (host, user@host, wildcards)
+chief.host_is <pattern> [pattern...]
+
+# In a shared profile: run a command at the end of start-up (after plugins load)
+chief.on_startup <command> [args...]
+```
+
+New installs: `tools/install.sh --repo <url> --repo-path <folder> --user <name>`. See [Shared repo](configuration.html#shared-repo-the-same-chief-everywhere).
+
 ### Secrets Plugin (encrypted file)
 
 Encrypted Bash secrets file (env vars, functions). Backends: Ansible Vault or GPG. Use `chief.secrets_file-edit -?` and `chief.secrets_file-load -?` for full help.
@@ -155,8 +174,8 @@ chief.secrets_file-edit [secrets-file] --rekey [--new-password-file=PATH] [--loa
     --rekey         Asks for the current password, then the new one twice
     --new-password-file=PATH  Read the new password from PATH instead of prompting
 
-# Load secrets into current shell (-q: no success message; errors still show)
-chief.secrets_file-load [secrets-file] [-q|--quiet]
+# Load secrets (no file: team AND personal AND this host, all that exist; -q: no success message)
+chief.secrets_file-load [--team|--personal|--local|<file>] [-q|--quiet]
 ```
 
 Where the password comes from (first match wins):

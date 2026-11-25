@@ -81,6 +81,9 @@ __chief_check_bash_version
 # Load core libraries (including plugins) for full interactive mode
 __chief_load_library
 
+# With a shared repo, CHIEF_CFG_USER is required: warn (interactive shells) if it's missing.
+__chief_user_check
+
 # Load SSH keys at start-up if enabled (CHIEF_CFG_SSH_LOAD_KEYS)
 if __chief_ssh_autoload_on && ([[ ${PLATFORM} == "MacOS" ]] || [[ $(uname) == "Linux" ]]); then
   __chief_spin "Loading SSH keys..." "__chief_load_ssh_keys" tmp_out
@@ -164,3 +167,6 @@ if ${CHIEF_CFG_PROMPT}; then
     PROMPT_COMMAND='__chief_build_git_prompt'
   fi
 fi
+
+# Last: run what the team/personal profile queued with chief.on_startup (once per shell).
+__chief_run_on_startup
