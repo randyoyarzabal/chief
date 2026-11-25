@@ -4213,6 +4213,23 @@ function __chief_config_layer_note() {
   echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} ${var} is also set in the shared repo's $(IFS=';'; echo "${where[*]}" | sed 's/;/ and /'), which take precedence over this host's config. Change it there to change it everywhere."
 }
 
+# Settings the shared repo's settings files set (shared, and personal in a team repo), one name
+# per line; lines inside chief.host_is blocks count too. Local-only settings are left out: the
+# shared files can't set those. Used by chief.config-update, so an option that's set there
+# isn't reported as missing from this host's config.
+function __chief_config_layer_vars() {
+  local dir user_dir f
+  dir="$(__chief_shared_dir)"
+  [[ -n "$dir" && -d "$dir" ]] || return 0
+  user_dir="$(__chief_user_dir 2>/dev/null)"
+  for f in "$dir/.chief_shared-config.sh" ${user_dir:+"$user_dir/config.sh"}; do
+    [[ -f "$f" ]] || continue
+    sed -nE 's/^[[:space:]]*(export[[:space:]]+)?(CHIEF_CFG_[A-Za-z0-9_]+)=.*/\2/p' "$f"
+  done | sort -u | while IFS= read -r f; do
+    [[ " ${CHIEF_LOCAL_ONLY_SETTINGS} " == *" ${f} "* ]] || echo "$f"
+  done
+}
+
 # Return 0 for settings that chief.config-set's reload (__chief_load_library) can't apply:
 # chief.sh applies them once, at shell start-up (the prompt, ls colors, the banner, hints,
 # the update check), and SSH keys load only at start-up or via chief.reload. config-set skips
@@ -4495,14 +4512,27 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     user_status["$var_name"]="$status"
   done <<< "$user_options"
 
+  # Options the shared settings set (chief.shared-config) aren't missing here: those win over
+  # this file anyway. They're reported, not added.
+  declare -A layer_vars=()
+  local layer_var
+  while IFS= read -r layer_var; do
+    [[ -n "$layer_var" ]] && layer_vars["$layer_var"]=1
+  done < <(__chief_config_layer_vars)
+
   # Find changes needed
   local changes_needed=false
   local -a new_options=()
   local -a renamed_options=()
+  local -a layer_options=()
   
   # Check for new options in template
   for template_var in "${!template_vars[@]}"; do
     if [[ -z "${user_vars[$template_var]:-}" ]]; then
+      if [[ -n "${layer_vars[$template_var]:-}" ]]; then
+        layer_options+=("$template_var")
+        continue
+      fi
       new_options+=("$template_var")
       changes_needed=true
     fi
@@ -4526,6 +4556,11 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   if [[ ${#renamed_options[@]} -gt 0 ]]; then
     echo -e "\n${CHIEF_COLOR_YELLOW}Options to be renamed:${CHIEF_NO_COLOR}"
     printf '  • %s\n' "${renamed_options[@]}"
+  fi
+
+  if [[ ${#layer_options[@]} -gt 0 ]]; then
+    echo -e "\n${CHIEF_COLOR_BLUE}Set in the shared settings (chief.shared-config), so not needed here:${CHIEF_NO_COLOR}"
+    printf '  • %s\n' $(printf '%s\n' "${layer_options[@]}" | sort)
   fi
 
   if ! $changes_needed && ! $force_update; then
@@ -4600,6 +4635,14 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
         echo "# Set on upgrade: this config already auto-loaded keys from CHIEF_CFG_SSH_KEYS_PATH"
       fi
 
+      # Not in this file but set in the shared settings: keep the template's line, commented,
+      # and say where it comes from.
+      local from_layer=false
+      if [[ -z "$user_value" && -n "${layer_vars[$var_name]:-}" ]]; then
+        from_layer=true
+        echo "# Set in the shared settings (chief.shared-config), which win over this file."
+      fi
+
       # Use template default if no user value
       if [[ -z "$user_value" ]]; then
         user_value="$var_value"
@@ -4607,6 +4650,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
       
       # Determine if should be commented
       local comment_prefix=""
+      $from_layer && comment_prefix="#"
       local check_var="$var_name"
       
       # For renamed variables, check the old variable's status

@@ -355,8 +355,11 @@ Then open a new terminal. On each host, save your secrets passwords once with `c
 Settings apply in this order, later ones winning: this host's `~/.chief_config.sh` (defaults, plus where the repo is), then the shared `.chief_shared-config.sh`, then your `users/<you>/config.sh` (team repo). Edit them with `chief.shared-config` and `chief.shared-config --personal`; both offer to commit and push when you changed something.
 
 - **Host exceptions** go inside the shared files: `if chief.host_is my-laptop; then CHIEF_CFG_PROMPT=false; fi`.
-- **Where the repo is** (`CHIEF_CFG_PLUGINS_*`) and **`CHIEF_CFG_USER`** always come from each host's own config. The repo can't redirect itself.
+- **Shared wins:** a setting in `.chief_shared-config.sh` overrides the same setting in every host's `~/.chief_config.sh`, including one you change there with `chief.config-set`. For a value that should differ on one host, put a `chief.host_is` block in the shared file, or leave the setting out of it.
+- **Where the repo is** (`CHIEF_CFG_PLUGINS_TYPE`, `_PATH`, `_GIT_REPO`, `_GIT_BRANCH`, `_GIT_PATH`) and **`CHIEF_CFG_USER`** always come from each host's own config. The repo can't redirect itself. Other `CHIEF_CFG_PLUGINS_*` settings, such as the disabled-plugin lists, can be shared.
+- **`CHIEF_CFG_BASH_WARN`** is read before the shared settings apply (Chief checks the Bash version first), so set it in each host's own config.
 - `chief.config-set` warns when the setting you change is also set in the shared layers, since those take precedence.
+- `chief.config-update` doesn't add an option that the shared settings set. It lists it as "Set in the shared settings", and on a rewrite keeps the template's line commented, with a note saying so. So a host config can leave out what the shared file covers.
 
 ### Profile: a shared `~/.bash_profile`
 
