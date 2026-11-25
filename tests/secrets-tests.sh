@@ -322,10 +322,10 @@ if command -v gpg >/dev/null 2>&1; then
     fail "Load record across reload / password-status; got: $out"
   fi
 
-  # Banner "secrets" indicator: found at start-up, loaded/silent afterwards.
-  out="$(run_chief CHIEF_SECRETS_FILE="$r" -- "__chief_starting=1 __chief_banner_secrets; echo; __chief_banner_secrets; echo; CHIEF_SECRETS_PASSWORD_FILE='$WORK/old.pass' source '$WORK/profile.sh'; __chief_banner_secrets")"
-  if [[ "$(sed -n 1p <<<"$out")" == "secrets: found" && "$(sed -n 2p <<<"$out")" == "secrets: not loaded" && "$(sed -n 3p <<<"$out")" == "secrets: loaded, silent" ]]; then
-    pass "Banner secrets indicator: found at start-up, not loaded, then loaded, silent"
+  # Banner "secrets" indicator: absent at start-up (can't know yet), then not loaded / loaded, silent.
+  out="$(run_chief CHIEF_SECRETS_FILE="$r" -- "printf '[%s]' \"\$(__chief_starting=1 __chief_banner_secrets)\"; echo; __chief_banner_secrets; echo; CHIEF_SECRETS_PASSWORD_FILE='$WORK/old.pass' source '$WORK/profile.sh'; __chief_banner_secrets")"
+  if [[ "$(sed -n 1p <<<"$out")" == "[]" && "$(sed -n 2p <<<"$out")" == "secrets: not loaded" && "$(sed -n 3p <<<"$out")" == "secrets: loaded, silent" ]]; then
+    pass "Banner secrets indicator: absent at start-up, then not loaded, then loaded, silent"
   else
     fail "Banner secrets indicator; got: $out"
   fi

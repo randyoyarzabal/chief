@@ -1397,10 +1397,12 @@ function __chief_list_count() {
   echo "${#items[@]}"
 }
 
-# The "secrets" indicator: loaded / loaded (N) / loaded, silent / not loaded. At start-up it
-# says "found" instead: the banner prints before ~/.bash_profile gets a chance to load them.
-# Hidden when the secrets plugin is off, or there's no secrets file and nothing is loaded.
+# The "secrets" indicator: loaded / loaded (N) / loaded, silent / not loaded.
+# Hidden in the start-up banner: it prints before ~/.bash_profile loads secrets, so it can't
+# know yet (anything it said would be a guess). chief.status / chief.help show the real state.
+# Also hidden when the secrets plugin is off, or there's no secrets file and nothing is loaded.
 function __chief_banner_secrets() {
+  [[ "${__chief_starting:-}" == "1" ]] && return 0
   declare -F __chief_secrets_loaded_desc >/dev/null || return 0
   local n=${#CHIEF_SECRETS_LOADED[@]} silent=false f
   if (( n > 0 )); then
@@ -1423,11 +1425,7 @@ function __chief_banner_secrets() {
       return 0
     fi
   fi
-  if [[ "${__chief_starting:-}" == "1" ]]; then
-    printf '%s' "secrets: ${CHIEF_COLOR_CYAN}found${CHIEF_NO_COLOR}"
-  else
-    printf '%s' "secrets: ${CHIEF_COLOR_CYAN}not loaded${CHIEF_NO_COLOR}"
-  fi
+  printf '%s' "secrets: ${CHIEF_COLOR_CYAN}not loaded${CHIEF_NO_COLOR}"
 }
 
 function __chief.banner {

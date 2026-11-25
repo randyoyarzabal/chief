@@ -197,7 +197,7 @@ chief.config-set banner_style compact                   # smaller logo
 | `alias` | `alias: cf` | Your `CHIEF_CFG_ALIAS` (only when set) |
 | `plugins` | `plugins: 22 on, 4 off · git, manual update` | Plugins loaded and turned off (core, contrib, user), and where user plugins come from |
 | `tracking` | `tracking: dev (bleeding-edge, auto)` | The branch Chief updates from |
-| `secrets` | `secrets: loaded, silent` | Secrets in this shell: `loaded`, `loaded (2)`, `loaded, silent` (loaded with `--quiet`), `not loaded`. At start-up it says `found`, because `~/.bash_profile` loads secrets after the banner prints. `chief.status` shows the details |
+| `secrets` | `secrets: loaded, silent` | Secrets in this shell: `loaded`, `loaded (2)`, `loaded, silent` (loaded with `--quiet`) or `not loaded`. Left out of the start-up banner, which prints before `~/.bash_profile` loads secrets and so can't know yet; `chief.status` and `chief.help` show it, and `chief.status` has the details |
 
 The banner keeps its size. Indicators fill the logo's lines (4 in the full style, 3 in the compact one), with any extras sharing the last line after a ` · `. An indicator with nothing to show takes no line.
 
