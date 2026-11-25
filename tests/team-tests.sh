@@ -151,6 +151,16 @@ out="$(start "$HOMEA" -c 'chief.config-set -y hints false')"
 check "config-set: says when the shared settings also set it (and take precedence)" \
   "$( [[ "$out" == *"also set in the shared repo's shared settings"* ]]; echo $?)" "$out"
 
+# --- chief.config-update and the shared settings ------------------------
+# alice's personal settings set CHIEF_CFG_BANNER_INDICATORS; this host's config doesn't have it.
+out="$(echo n | env -i PATH="$PATH" TERM=dumb NO_COLOR=1 HOME="$HOMEA" USER=alice CHIEF_PATH="$PROJECT_ROOT" CHIEF_CONFIG="$HOMEA/.chief_config.sh" \
+  "$BASH" --norc --noprofile -c 'source "$CHIEF_PATH/chief.sh" --lib-only >/dev/null 2>&1; CHIEF_CFG_CONFIG_UPDATE_BACKUP=false chief.config-update' 2>&1)"
+newpart="$(sed -n '/New options to be added/,/Set in the shared settings/p' <<<"$out")"
+check "config-update: an option the shared/personal settings set isn't 'new'; it's listed as set there" \
+  "$( [[ "$out" == *"Set in the shared settings (chief.shared-config), so not needed here:"*"CHIEF_CFG_BANNER_INDICATORS"* && "$newpart" != *"CHIEF_CFG_BANNER_INDICATORS"* ]]; echo $?)" "$out"
+check "config-update: local-only settings in the shared file don't count (PLUGINS_PATH)" \
+  "$( [[ "$(sed -n '/Set in the shared settings/,$p' <<<"$out")" != *"CHIEF_CFG_PLUGINS_PATH"* ]]; echo $?)" "$out"
+
 # --- Layered secrets ---------------------------------------------------
 if command -v gpg >/dev/null 2>&1; then
   printf 'teampass\n' > "$WORK/team.pass"; printf 'mypass\n' > "$WORK/my.pass"
