@@ -65,8 +65,8 @@ chief.plugins-repo git@github.com:yourusername/my-plugins.git --path bash/plugin
 ### Then, once per host (optional)
 
 ```bash
-chief.secrets_password-save   # save the secrets password once, so new shells don't prompt
-chief.secrets_file-load       # load every secrets file that exists (shared and this host's)
+chief.secrets_password-save       # save the secrets password once, so new shells don't prompt
+chief.config-set secrets_load true  # load every secrets file that exists in each new terminal
 ```
 
 ### What goes in the repo

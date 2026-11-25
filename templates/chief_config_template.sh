@@ -239,6 +239,21 @@ CHIEF_CFG_SSH_LOAD_KEYS=false
 # Where the keys are. Optional: Chief uses ~/.ssh unless you set a different directory here.
 #CHIEF_CFG_SSH_KEYS_PATH="$HOME/.ssh"
 
+# Load your encrypted secrets at start-up, instead of a chief.secrets_file-load line in
+# ~/.bash_profile. Loads every secrets file that exists (team, personal, this host), quietly.
+#   false  don't (default)
+#   true   in interactive shells: use the saved password, else prompt for it
+#   saved  in interactive shells: only files with a saved password; never prompts
+# Save a file's password once with: chief.secrets_password-save
+# Turn on with: chief.config-set secrets_load true   (or per host in shared settings)
+CHIEF_CFG_SECRETS_LOAD=false
+
+# Also load them in non-interactive shells (scripts, editors, AI tools): saved passwords only,
+# never prompts, no output. Off by default: with it on, every script and tool that starts Chief
+# gets your secrets in its environment. Turn on only where scripts need them, e.g. per host:
+#   if chief.host_is 'build-*'; then CHIEF_CFG_SECRETS_LOAD_NONINTERACTIVE=true; fi
+CHIEF_CFG_SECRETS_LOAD_NONINTERACTIVE=false
+
 # If you want to create a custom alias for the chief command, you can do so here.
 # By default it is set to "chief.*", but you can change it to something else.
 # Keep in mind that this will only add an alias, so chief.* commands will still work.

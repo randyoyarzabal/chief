@@ -837,12 +837,13 @@ Run a command once, at the end of Chief's start-up (after plugins load), not on 
 Use it in .chief_shared-profile.sh or users/<you>/profile.sh for actions that need plugin
 commands: those profiles run before plugins load, so the commands don't exist yet there.
 Called after start-up, it runs the command right away.
+(For secrets, use the CHIEF_CFG_SECRETS_LOAD setting instead: chief.secrets_file-load -?)
 
 ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   One argument is run as shell code; several are run as one command with those arguments.
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  $FUNCNAME chief.secrets_file-load --quiet
+  $FUNCNAME my_plugin.connect --quiet
   $FUNCNAME \"[[ \\\$- == *i* ]] && curl -s 'wttr.in/?0uq'\"
 "
   if [[ $# -eq 0 || $1 == "-?" || $1 == "--help" ]]; then
@@ -1013,7 +1014,7 @@ function __chief_shared_file() {
 #   Only for one login (any host):       if chief.host_is 'deploy@*'; then ...; fi
 #   Everywhere EXCEPT some hosts:        if ! chief.host_is my-laptop; then ...; fi   (! negates)
 #   (No @ = a host name; with @ = login@host. Wildcards * ?. See chief.host_is -?)
-#   Commands from plugins (not loaded    chief.on_startup chief.secrets_file-load --quiet
+#   Commands from plugins (not loaded    chief.on_startup my_plugin.connect
 #   yet here), run at the end of start-up:
 #
 # This is code that runs as you on every host. Anyone who can push to the repo can change it.
@@ -3888,6 +3889,7 @@ ${CHIEF_COLOR_GREEN}Configuration Options:${CHIEF_NO_COLOR}
 - CHIEF_CFG_MULTILINE_PROMPT: Enable multiline prompt
 - CHIEF_CFG_PLUGINS_TYPE: 'local' or 'remote' plugins
 - CHIEF_CFG_SSH_LOAD_KEYS: Auto-load SSH keys at start-up (from ~/.ssh or CHIEF_CFG_SSH_KEYS_PATH)
+- CHIEF_CFG_SECRETS_LOAD: Load secrets at start-up: false (default), true or saved (never prompts)
 - And many more...
 
 ${CHIEF_COLOR_BLUE}Features:${CHIEF_NO_COLOR}
@@ -3987,6 +3989,7 @@ ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
 - Applied only when a terminal starts, so they need a new terminal: PROMPT, COLORED_PROMPT,
   GIT_PROMPT, SHORT_PATH, COLORED_LS, plus the start-up-only BANNER, HINTS,
   AUTOCHECK_UPDATES, BASH_WARN. SSH_LOAD_KEYS/SSH_KEYS_PATH: run chief.ssh_load-keys.
+  SECRETS_LOAD/SECRETS_LOAD_NONINTERACTIVE: run chief.secrets_file-load.
   For these Chief skips the reload (it couldn't apply them) and prints a Note instead.
 - Reports previous and new values for each change
 "
@@ -4218,6 +4221,7 @@ function __chief_config_reload_cant_apply() {
     CHIEF_CFG_PROMPT|CHIEF_CFG_COLORED_PROMPT|CHIEF_CFG_GIT_PROMPT|CHIEF_CFG_SHORT_PATH|CHIEF_CFG_COLORED_LS) return 0 ;;
     CHIEF_CFG_BANNER|CHIEF_CFG_HINTS|CHIEF_CFG_AUTOCHECK_UPDATES|CHIEF_CFG_BASH_WARN) return 0 ;;
     CHIEF_CFG_SSH_LOAD_KEYS|CHIEF_CFG_SSH_KEYS_PATH) return 0 ;;
+    CHIEF_CFG_SECRETS_LOAD|CHIEF_CFG_SECRETS_LOAD_NONINTERACTIVE) return 0 ;;
   esac
   return 1
 }
@@ -4235,6 +4239,8 @@ function __chief_config_restart_note() {
       note="$1 only matters when a terminal starts, so no reload was needed. You'll see the change in the next new terminal." ;;
     CHIEF_CFG_SSH_LOAD_KEYS|CHIEF_CFG_SSH_KEYS_PATH)
       note="$1 is used when a terminal starts and by chief.reload, so no reload was done now. To load keys now, run: chief.ssh_load-keys" ;;
+    CHIEF_CFG_SECRETS_LOAD|CHIEF_CFG_SECRETS_LOAD_NONINTERACTIVE)
+      note="$1 is used when a terminal starts, so no reload was done now. To load secrets in this terminal, run: chief.secrets_file-load. If ~/.bash_profile also loads them, remove that line." ;;
   esac
   [[ -n "$note" ]] && echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} ${note}"
   return 0

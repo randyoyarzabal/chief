@@ -90,6 +90,12 @@ if __chief_ssh_autoload_on && ([[ ${PLATFORM} == "MacOS" ]] || [[ $(uname) == "L
   echo -e "${tmp_out}"
 fi
 
+# Load secrets at start-up if enabled (CHIEF_CFG_SECRETS_LOAD; for scripts and tools,
+# CHIEF_CFG_SECRETS_LOAD_NONINTERACTIVE). Before the banner, so its secrets indicator shows it.
+if declare -F __chief_secrets_autoload >/dev/null; then
+  __chief_secrets_autoload
+fi
+
 # Load banner and hints. __chief_starting tells banner indicators this is start-up (e.g. the
 # secrets indicator says "found", since ~/.bash_profile only loads secrets after this).
 if ${CHIEF_CFG_BANNER}; then

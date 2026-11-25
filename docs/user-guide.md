@@ -248,6 +248,7 @@ chief.git_reset-hard -n       # Preview a hard reset (dry run)
 chief.secrets_file-edit         # Create/edit encrypted secrets file (Ansible Vault or GPG)
 chief.secrets_file-edit --rekey # Change its password (both backends), without editing
 chief.secrets_file-load         # Load secrets into shell (-q / --quiet: no success message)
+chief.config-set secrets_load true  # Load them in every new terminal (no ~/.bash_profile line)
 chief.secrets_password-save     # Save its password (Keychain / keyring / obfuscated file); no more prompts
 chief.secrets_file-edit --personal  # Your secrets in the shared repo (also --team, --local)
 

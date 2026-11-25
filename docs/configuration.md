@@ -197,7 +197,7 @@ chief.config-set banner_style compact                   # smaller logo
 | `alias` | `alias: cf` | Your `CHIEF_CFG_ALIAS` (only when set) |
 | `plugins` | `plugins: 22 on, 4 off · git, manual update` | Plugins loaded and turned off (core, contrib, user), and where user plugins come from |
 | `tracking` | `tracking: dev (bleeding-edge, auto)` | The branch Chief updates from |
-| `secrets` | `secrets: loaded, silent` | Secrets in this shell: `loaded`, `loaded (2)`, `loaded, silent` (loaded with `--quiet`), `not loaded`. At start-up it says `found`, because `~/.bash_profile` loads secrets after the banner prints. `chief.status` shows the details |
+| `secrets` | `secrets: loaded, silent` | Secrets in this shell: `loaded`, `loaded (2)`, `loaded, silent` (loaded with `--quiet`), `not loaded`. At start-up it says `loaded` when `CHIEF_CFG_SECRETS_LOAD` loaded them, otherwise `found`, because a `chief.secrets_file-load` line in `~/.bash_profile` runs after the banner prints. `chief.status` shows the details |
 
 The banner keeps its size. Indicators fill the logo's lines (4 in the full style, 3 in the compact one), with any extras sharing the last line after a ` · `. An indicator with nothing to show takes no line.
 
@@ -359,8 +359,9 @@ Settings apply in this order, later ones winning: this host's `~/.chief_config.s
 - Order: team, then yours, then each host's `~/.bash_profile`. Lines after `source …/chief.sh` there can override both.
 - **Commands from plugins** aren't loaded yet at that point, so queue them with `chief.on_startup`. It runs at the end of start-up:
   ```bash
-  chief.on_startup chief.secrets_file-load --quiet
+  chief.on_startup my_plugin.connect --quiet
   ```
+  For secrets you don't need this: set `CHIEF_CFG_SECRETS_LOAD` (see [Load secrets at start-up](#load-secrets-at-start-up)).
 - **Host- or login-specific lines** go in a `chief.host_is` block. See [Host and login checks](#host-and-login-checks) below.
 
 **What stays in `~/.bash_profile`:** Chief's own lines (`CHIEF_PATH`, `CHIEF_CONFIG`, `source …/chief.sh`), anything Chief needs before it starts (such as `CHIEF_HOST`), and anything you don't want in git. Host-specific lines can live either there or in the shared profile under `chief.host_is`. In the repo they're versioned and come back automatically on a replacement machine.
@@ -396,7 +397,7 @@ if chief.host_is my-laptop; then export BACKUP_DIR=~/backups; fi          # one 
 if chief.host_is 'build-*' build-db; then alias ll='ls -alF'; fi           # a group of machines
 if chief.host_is 'deploy@*'; then export PATH="/opt/deploy/bin:$PATH"; fi  # one account, any host
 if ! chief.host_is build-01; then export PROXY=off; fi                     # everywhere except build-01
-if ! chief.host_is 'root@*'; then chief.on_startup chief.secrets_file-load --quiet; fi  # not as root
+if ! chief.host_is 'root@*'; then CHIEF_CFG_SECRETS_LOAD=true; fi                # (shared settings) not as root
 ```
 
 ### Secrets: team AND personal AND this host
@@ -653,10 +654,13 @@ chief.secrets_file-edit ~/.my-personal-secrets
 
 # Load secrets into shell (decrypt and source)
 chief.secrets_file-load .chief_shared-secrets
-# ...without the "Success" line, e.g. in ~/.bash_profile (errors still show)
+# ...without the "Success" line (errors still show)
 chief.secrets_file-load --quiet
 
-# See what this shell loaded, how (manually / by a start-up file) and whether silently
+# Load them in every new terminal (instead of a line in ~/.bash_profile)
+chief.config-set secrets_load true
+
+# See what this shell loaded, how (manually / at start-up / by a start-up file) and whether silently
 chief.status
 chief.secrets_password-status
 chief.secrets_file-load ~/.my-personal-secrets
@@ -673,6 +677,26 @@ chief.secrets_file-load ~/.my-personal-secrets
 - **Layers**: with a shared repo there are team, personal and host secrets, and `chief.secrets_file-load` loads all that exist. See [Shared repo: Secrets](#secrets-team-and-personal-and-this-host).
 - **Team secrets**: `CHIEF_CFG_PLUGINS_PATH/.chief_shared-secrets` (shared). Legacy name `.chief_shared-vault` is deprecated.
 - **Personal secrets**: `~/.chief_user-secrets` (or legacy `~/.chief_user-vault`).
+
+### Load secrets at start-up
+
+Instead of a `chief.secrets_file-load` line in `~/.bash_profile`, let Chief load them. It loads every secrets file that exists (team, personal, this host), quietly, after plugins load and before the banner, so the banner's secrets indicator shows `loaded`.
+
+| Setting | Values | Shells |
+|---|---|---|
+| `CHIEF_CFG_SECRETS_LOAD` | `false` (default) · `true`: the saved password, else a prompt · `saved`: only files with a saved password; never prompts | interactive (a terminal you type in) |
+| `CHIEF_CFG_SECRETS_LOAD_NONINTERACTIVE` | `false` (default) · `true`: files with a saved password only, never prompts, no output | non-interactive (scripts, editors, AI tools) |
+
+```bash
+chief.secrets_password-save        # once per host, so start-up doesn't prompt
+chief.config-set secrets_load true # then remove any chief.secrets_file-load line from ~/.bash_profile
+```
+
+- **Why two settings:** loading in non-interactive shells puts your secrets in the environment of every script and tool that starts Chief, AI tools included. Keep it off unless scripts on that host need them.
+- **`saved`** never stops a new terminal at a password prompt: a file with no saved password gets a one-line note saying how to load it, and the others still load.
+- **Per host:** they're ordinary settings, so they can go in shared settings with `chief.host_is`, for example `if chief.host_is 'build-*'; then CHIEF_CFG_SECRETS_LOAD_NONINTERACTIVE=true; fi`.
+- **Visible:** `chief.status` lists each file as loaded `at start-up (CHIEF_CFG_SECRETS_LOAD)`.
+- They apply when a terminal starts. After changing them, open a new terminal, or run `chief.secrets_file-load` in this one.
 
 ### Vault plugin: HashiCorp Vault KV
 
