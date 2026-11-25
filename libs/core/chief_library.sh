@@ -1031,8 +1031,9 @@ EOF
 #
 # Host exceptions:  if chief.host_is my-laptop; then CHIEF_CFG_PROMPT=false; fi
 # All hosts except:  if ! chief.host_is my-laptop; then CHIEF_CFG_PROMPT=true; fi   (! negates)
-# Always from each host's own config (can't be set here): where the repo is (CHIEF_CFG_PLUGINS_*)
-# and CHIEF_CFG_USER.
+# Always from each host's own config (can't be set here): where the repo is (CHIEF_CFG_PLUGINS_TYPE,
+# _PATH, _GIT_REPO, _GIT_BRANCH, _GIT_PATH) and CHIEF_CFG_USER. CHIEF_CFG_BASH_WARN is read before
+# this file, so set it in each host's config too.
 
 EOF
     fi
