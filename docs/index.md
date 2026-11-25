@@ -78,7 +78,7 @@ chief.secrets_file-load       # load every secrets file that exists (shared and 
 | `.chief_shared-profile.sh` | start-up code, like a shared `~/.bash_profile` (`chief.shared-profile`) |
 | `.chief_shared-secrets` | encrypted secrets (`chief.secrets_file-edit --team`) |
 
-Host- or login-specific lines go inside those files with `chief.host_is`, for example `if chief.host_is my-laptop; then ...; fi` or `if chief.host_is 'deploy@*'; then ...; fi`.
+Host- or login-specific lines go inside those files with `chief.host_is`, for example `if chief.host_is my-laptop; then ...; fi` or `if chief.host_is 'deploy@*'; then ...; fi`; negate with `!`: `if ! chief.host_is my-laptop; then ...; fi`.
 
 **Sharing the repo with a team?** Each person gets a `users/<name>/` folder for their own settings, profile and secrets (the `--personal` commands create it), and sets `CHIEF_CFG_USER` to that name on each host they use (`--user <name>` when onboarding). A repo only you use doesn't need either.
 

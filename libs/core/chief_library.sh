@@ -786,6 +786,8 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   if $FUNCNAME my-laptop; then export BACKUP_DIR=~/backups; fi      # a machine
   if $FUNCNAME 'build-*' build-db; then alias ll='ls -alF'; fi       # a group of machines
   if $FUNCNAME 'deploy@*'; then export PATH=\"/opt/deploy/bin:\$PATH\"; fi  # an account
+  if ! $FUNCNAME build-01; then alias deploy='echo not here'; fi    # NOT on build-01 (! negates)
+  if ! $FUNCNAME 'build-*' 'root@*'; then ...; fi                     # on none of these
 
 This host: $(__chief_host_name)  (as $(__chief_host_login)@$(__chief_host_name))
 "
@@ -1009,6 +1011,7 @@ function __chief_shared_file() {
 #   Exports, PATH, aliases, functions:   put them here.
 #   Only on some hosts:                  if chief.host_is my-laptop 'build-*'; then ...; fi
 #   Only for one login (any host):       if chief.host_is 'deploy@*'; then ...; fi
+#   Everywhere EXCEPT some hosts:        if ! chief.host_is my-laptop; then ...; fi   (! negates)
 #   (No @ = a host name; with @ = login@host. Wildcards * ?. See chief.host_is -?)
 #   Commands from plugins (not loaded    chief.on_startup chief.secrets_file-load --quiet
 #   yet here), run at the end of start-up:
@@ -1026,6 +1029,7 @@ EOF
 #CHIEF_CFG_MULTILINE_PROMPT=true
 #
 # Host exceptions:  if chief.host_is my-laptop; then CHIEF_CFG_PROMPT=false; fi
+# All hosts except:  if ! chief.host_is my-laptop; then CHIEF_CFG_PROMPT=true; fi   (! negates)
 # Always from each host's own config (can't be set here): where the repo is (CHIEF_CFG_PLUGINS_*)
 # and CHIEF_CFG_USER.
 
