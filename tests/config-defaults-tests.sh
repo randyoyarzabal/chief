@@ -132,7 +132,7 @@ bcheck "banner: legacy BANNER_SHOW_PLUGINS=false still hides plugins" "$( [[ "$o
 out="$(banner_out CHIEF_CFG_ALIAS=cf CHIEF_CFG_BANNER_INDICATORS="alias plugins tracking plugins tracking")"
 bcheck "banner: 5 indicators still 5 lines, extras share the last line" "$( [[ $(wc -l <<<"$out") -eq 5 && "$(sed -n 1p <<<"$out")" == *"alias: cf"* && "$(sed -n 4p <<<"$out")" == *"plugins:"*" · "*"tracking:"* ]]; echo $?)"
 out="$(banner_out CHIEF_CFG_BANNER_STYLE=compact)"
-bcheck "banner compact: small logo, version on the first line" "$( [[ "$(head -1 <<<"$out")" == *"┌─┐"*"v"* && "$out" == *"plugins:"* && $(wc -l <<<"$out") -le 4 ]]; echo $?)"
+bcheck "banner compact: small logo, indicators beside it, version under it" "$( [[ "$(head -1 <<<"$out")" == *"┌─┐"* && "$out" == *"plugins:"* && "$(tail -1 <<<"$out")" == v* && $(wc -l <<<"$out") -eq 4 ]]; echo $?)"
 
 echo "Passed: $PASS  Failed: $FAIL"
 [[ $FAIL -eq 0 ]]

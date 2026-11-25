@@ -1451,27 +1451,27 @@ function __chief.banner {
   done
 
   # CHIEF_CFG_BANNER_STYLE=compact: a 13-column logo (box-drawing characters) that leaves
-  # about 12 more columns for the indicators on narrow screens. Same 4 indicator lines;
-  # the version moves to the first line. Anything else: the full logo (default).
+  # about 12 more columns for the indicators on narrow screens. Indicators sit beside the
+  # 3 logo lines (bottom-aligned, extras sharing the last line) and the version goes under
+  # the logo, using the space below it. Anything else: the full logo (default).
   if [[ "${CHIEF_CFG_BANNER_STYLE:-full}" == "compact" ]]; then
     # Pre-padded to the same visual width (printf pads by bytes, not characters).
     local small=(
       '┌─┐┬ ┬┬┌─┐┌─┐  '
       '│  ├─┤│├┤ ├┤   '
       '└─┘┴ ┴┴└─┘└    '
-      '               '
     )
-    echo -e "${CHIEF_COLOR_YELLOW}${small[0]}${CHIEF_NO_COLOR}${CHIEF_VERSION} [${PLATFORM}]"
-    # Up to 3 indicator lines here; any beyond share the last one.
     if (( ${#slots[@]} > 3 )); then
       slots[2]+=" · ${slots[3]}"
       unset 'slots[3]'
     fi
-    local j
+    local j cfirst=$(( 3 - ${#slots[@]} ))
     for j in 0 1 2; do
-      [[ -z "${slots[$j]:-}" && $j -eq 2 ]] && continue
-      echo -e "${CHIEF_COLOR_YELLOW}${small[$((j + 1))]}${CHIEF_NO_COLOR}${slots[$j]:-}${CHIEF_NO_COLOR}"
+      local cslot=""
+      (( j >= cfirst )) && cslot="${slots[$((j - cfirst))]:-}"
+      echo -e "${CHIEF_COLOR_YELLOW}${small[$j]}${CHIEF_NO_COLOR}${cslot}${CHIEF_NO_COLOR}"
     done
+    echo -e "${CHIEF_VERSION} [${PLATFORM}]"
     __chief_stale_hint
     return 0
   fi

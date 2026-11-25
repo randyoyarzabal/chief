@@ -207,10 +207,10 @@ The banner keeps its size. Indicators fill the logo's lines (4 in the full style
 / /__/ / / / /  __/ __/   secrets: loaded, silent
 \___/_/ /_/_/\___/_/ v3.2.1-dev [MacOS]
 
-┌─┐┬ ┬┬┌─┐┌─┐  v3.2.1-dev [MacOS]
-│  ├─┤│├┤ ├┤   plugins: 22 on, 4 off · git, manual update
-└─┘┴ ┴┴└─┘└    tracking: dev (bleeding-edge, auto)
-               secrets: loaded, silent
+┌─┐┬ ┬┬┌─┐┌─┐  plugins: 22 on, 4 off · git, manual update
+│  ├─┤│├┤ ├┤   tracking: dev (bleeding-edge, auto)
+└─┘┴ ┴┴└─┘└    secrets: loaded, silent
+v3.2.1-dev [MacOS]
 ```
 
 Older configs that set `CHIEF_CFG_BANNER_SHOW_PLUGINS=false` or `CHIEF_CFG_BANNER_SHOW_TRACKING=false` still hide those indicators.
