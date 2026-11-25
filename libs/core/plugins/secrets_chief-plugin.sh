@@ -953,7 +953,7 @@ function __chief_secrets_tilde() {
 
 # How the current load was started, from the call stack:
 #   "manually"                         typed at the prompt
-#   "automatically, from <file>"       a start-up file or script (e.g. ~/.bash_profile)
+#   "automatically from <file>"        a start-up file or script (e.g. ~/.bash_profile)
 #   "by <function> (<file>)"           another (non-Chief) function, e.g. in a plugin
 #   "by secrets_file-edit --load"
 # Chief's own functions are skipped by name (with CHIEF_CFG_ALIAS they come from a temp file).
@@ -972,7 +972,7 @@ function __chief_secrets_load_origin() {
     fi
     if [[ "$fn" == "source" || "$fn" == "main" ]]; then
       if [[ -n "$src" ]]; then
-        echo "automatically, from $(__chief_secrets_tilde "$src")"
+        echo "automatically from $(__chief_secrets_tilde "$src")"
         return
       fi
       continue
@@ -995,8 +995,13 @@ function __chief_secrets_loaded_desc() {
   local entry="${CHIEF_SECRETS_LOADED[$1]:-}" t backend origin pw quiet desc
   [[ -z "$entry" ]] && return 1
   IFS='|' read -r t backend origin pw quiet <<<"$entry"
-  desc="loaded ${origin} at ${t} (${backend}; password from ${pw})"
-  [[ "$quiet" == "yes" ]] && desc+=", ${CHIEF_COLOR_YELLOW}silently (--quiet)${CHIEF_NO_COLOR}"
+  # Short password source: "saved password (keychain)" -> "keychain", "(file)" -> "file store".
+  case "$pw" in
+    "saved password (keychain)") pw="keychain" ;;
+    "saved password (file)") pw="file store" ;;
+  esac
+  desc="loaded ${origin} at ${t} · ${backend} · password: ${pw}"
+  [[ "$quiet" == "yes" ]] && desc+=" · ${CHIEF_COLOR_YELLOW}silent (--quiet)${CHIEF_NO_COLOR}"
   printf '%s' "$desc"
 }
 
@@ -1012,8 +1017,10 @@ function __chief_secrets_loaded_report() {
     return 0
   fi
   echo -e "${CHIEF_COLOR_MAGENTA}Secrets:${CHIEF_NO_COLOR} ${n} file(s) loaded in this shell"
+  # Path and details on separate lines, so it stays readable on narrow screens.
   for f in "${!CHIEF_SECRETS_LOADED[@]}"; do
-    echo -e "  $(__chief_secrets_tilde "$f"): $(__chief_secrets_loaded_desc "$f")"
+    echo -e "  $(__chief_secrets_tilde "$f")"
+    echo -e "    $(__chief_secrets_loaded_desc "$f")"
   done
 }
 

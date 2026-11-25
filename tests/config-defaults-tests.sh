@@ -111,5 +111,28 @@ if [[ "$out" == *"chief.ssh_load-keys"* && "$out" != *"Reloading Chief configura
 else echo -e "${RED}[FAIL]${NC} config-set ssh_load_keys (output: '$out')"; FAIL=$((FAIL + 1)); fi
 rm -rf "$CFGDIR"
 
+# Banner indicators: which, in what order, how many lines, and the compact style.
+banner_out() { # <env assignments...> -> banner text (no color)
+    env NO_COLOR=1 CHIEF_PATH="$PROJECT_ROOT" CHIEF_CFG_PLUGINS_TYPE=remote CHIEF_CFG_PLUGINS_GIT_AUTOUPDATE=false "$@" bash -c '
+        source "$CHIEF_PATH/libs/core/chief_library.sh" >/dev/null 2>&1; __chief.banner' </dev/null 2>/dev/null
+}
+bcheck() { # <label> <0|1 result>
+    if [[ "$2" == 0 ]]; then echo -e "${GREEN}[PASS]${NC} $1"; PASS=$((PASS + 1))
+    else echo -e "${RED}[FAIL]${NC} $1"; FAIL=$((FAIL + 1)); fi
+}
+out="$(banner_out)"
+bcheck "banner default: plugins then tracking, 5 lines" "$( [[ "$out" == *"plugins:"*"tracking:"* && $(wc -l <<<"$out") -eq 5 ]]; echo $?)"
+bcheck "banner plugins: counts and 'manual update', no red 'disabled'" "$( grep -q 'plugins: [0-9]* on.* · git, manual update' <<<"$out" && ! grep -q 'disabled' <<<"$out"; echo $?)"
+out="$(banner_out CHIEF_CFG_BANNER_INDICATORS="tracking")"
+bcheck "banner indicators=tracking: no plugins line" "$( [[ "$out" == *"tracking:"* && "$out" != *"plugins:"* ]]; echo $?)"
+out="$(banner_out CHIEF_CFG_BANNER_INDICATORS="")"
+bcheck "banner indicators empty: logo and version only" "$( [[ "$out" != *"plugins:"* && "$out" != *"tracking:"* && $(wc -l <<<"$out") -eq 5 ]]; echo $?)"
+out="$(banner_out CHIEF_CFG_BANNER_SHOW_PLUGINS=false)"
+bcheck "banner: legacy BANNER_SHOW_PLUGINS=false still hides plugins" "$( [[ "$out" != *"plugins:"* && "$out" == *"tracking:"* ]]; echo $?)"
+out="$(banner_out CHIEF_CFG_ALIAS=cf CHIEF_CFG_BANNER_INDICATORS="alias plugins tracking plugins tracking")"
+bcheck "banner: 5 indicators still 5 lines, extras share the last line" "$( [[ $(wc -l <<<"$out") -eq 5 && "$(sed -n 1p <<<"$out")" == *"alias: cf"* && "$(sed -n 4p <<<"$out")" == *"plugins:"*" · "*"tracking:"* ]]; echo $?)"
+out="$(banner_out CHIEF_CFG_BANNER_STYLE=compact)"
+bcheck "banner compact: small logo, indicators beside it, version under it" "$( [[ "$(head -1 <<<"$out")" == *"┌─┐"* && "$out" == *"plugins:"* && "$(tail -1 <<<"$out")" == v* && $(wc -l <<<"$out") -eq 4 ]]; echo $?)"
+
 echo "Passed: $PASS  Failed: $FAIL"
 [[ $FAIL -eq 0 ]]

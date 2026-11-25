@@ -66,8 +66,8 @@ chief.config-set config_set_interactive false
 | Configuration | Default | Description |
 |---------------|---------|-------------|
 | `CHIEF_CFG_BANNER` | `true` | Show startup banner |
-| `CHIEF_CFG_BANNER_SHOW_PLUGINS` | `true` | Show the `plugins:` line in the banner (requires `CHIEF_CFG_BANNER=true`) |
-| `CHIEF_CFG_BANNER_SHOW_TRACKING` | `true` | Show the `tracking:` line in the banner (requires `CHIEF_CFG_BANNER=true`) |
+| `CHIEF_CFG_BANNER_INDICATORS` | `"alias plugins tracking secrets"` | Status items to the right of the banner logo, in order (space- or comma-separated; `""` for none). See [Banner indicators](#banner-indicators) |
+| `CHIEF_CFG_BANNER_STYLE` | `"full"` | Banner logo: `full` (classic) or `compact` (a 3-line, 13-column logo that leaves more room on narrow screens) |
 | `CHIEF_CFG_HINTS` | `true` | Display helpful tips on startup |
 | `CHIEF_CFG_VERBOSE` | `false` | Show output while plugins and SSH keys load at start-up |
 | `CHIEF_CFG_BASH_WARN` | `true` | Warn at start-up when Chief runs under Bash older than 4.0 (e.g. macOS's system Bash 3.2) and show how to fix it. Silence with `chief.config-set -y BASH_WARN=false`. Non-interactive shells on old Bash load only the core library, with no warning |
@@ -181,6 +181,39 @@ chief.plugin status               # Contrib plugins are listed in their own sect
 ---
 
 ## Advanced Features
+
+### Banner indicators
+
+The banner shows short status items to the right of the logo. Choose which ones and their order with `CHIEF_CFG_BANNER_INDICATORS`, and pick a smaller logo for narrow screens with `CHIEF_CFG_BANNER_STYLE`:
+
+```bash
+chief.config-set banner_indicators "tracking secrets"   # just these two, in this order
+chief.config-set banner_indicators ""                   # logo and version only
+chief.config-set banner_style compact                   # smaller logo
+```
+
+| Indicator | Example | Shows |
+|-----------|---------|-------|
+| `alias` | `alias: cf` | Your `CHIEF_CFG_ALIAS` (only when set) |
+| `plugins` | `plugins: 22 on, 4 off · git, manual update` | Plugins loaded and turned off (core, contrib, user), and where user plugins come from |
+| `tracking` | `tracking: dev (bleeding-edge, auto)` | The branch Chief updates from |
+| `secrets` | `secrets: loaded, silent` | Secrets in this shell: `loaded`, `loaded (2)`, `loaded, silent` (loaded with `--quiet`), `not loaded`. At start-up it says `found`, because `~/.bash_profile` loads secrets after the banner prints. `chief.status` shows the details |
+
+The banner keeps its size. Indicators fill the logo's lines (4 in the full style, 3 in the compact one), with any extras sharing the last line after a ` · `. An indicator with nothing to show takes no line.
+
+```
+  _____/ /_  (_)__  / __/ plugins: 22 on, 4 off · git, manual update
+ / ___/ __ \/ / _ \/ /_   tracking: dev (bleeding-edge, auto)
+/ /__/ / / / /  __/ __/   secrets: loaded, silent
+\___/_/ /_/_/\___/_/ v3.2.1-dev [MacOS]
+
+┌─┐┬ ┬┬┌─┐┌─┐  plugins: 22 on, 4 off · git, manual update
+│  ├─┤│├┤ ├┤   tracking: dev (bleeding-edge, auto)
+└─┘┴ ┴┴└─┘└    secrets: loaded, silent
+v3.2.1-dev [MacOS]
+```
+
+Older configs that set `CHIEF_CFG_BANNER_SHOW_PLUGINS=false` or `CHIEF_CFG_BANNER_SHOW_TRACKING=false` still hide those indicators.
 
 ### SSH Key Auto-loading
 

@@ -302,14 +302,14 @@ if command -v gpg >/dev/null 2>&1; then
 
   out="$(run_chief CHIEF_SECRETS_PASSWORD_FILE="$WORK/old.pass" -- "__chief_secrets_loaded_report; chief.secrets_file-load '$r' >/dev/null; __chief_secrets_loaded_report")"
   if grep -q "none loaded in this shell" <<<"$out" && grep -q "1 file(s) loaded" <<<"$out" \
-     && grep -q "loaded manually at" <<<"$out" && grep -q "password from CHIEF_SECRETS_PASSWORD_FILE" <<<"$out"; then
+     && grep -q "loaded manually at" <<<"$out" && grep -q "password: CHIEF_SECRETS_PASSWORD_FILE" <<<"$out"; then
     pass "Load record: a load typed at the prompt shows as manual, with its password source"
   else
     fail "Load record (manual); got: $out"
   fi
 
   out="$(run_chief CHIEF_SECRETS_PASSWORD_FILE="$WORK/old.pass" -- "source '$WORK/profile.sh'; __chief_secrets_loaded_report")"
-  if grep -q "loaded automatically, from .*profile.sh" <<<"$out" && grep -q "silently (--quiet)" <<<"$out"; then
+  if grep -q "loaded automatically from .*profile.sh" <<<"$out" && grep -q "silent (--quiet)" <<<"$out"; then
     pass "Load record: a quiet load from a start-up file shows as automatic and silent"
   else
     fail "Load record (start-up file, quiet); got: $out"
@@ -322,8 +322,16 @@ if command -v gpg >/dev/null 2>&1; then
     fail "Load record across reload / password-status; got: $out"
   fi
 
+  # Banner "secrets" indicator: found at start-up, loaded/silent afterwards.
+  out="$(run_chief CHIEF_SECRETS_FILE="$r" -- "__chief_starting=1 __chief_banner_secrets; echo; __chief_banner_secrets; echo; CHIEF_SECRETS_PASSWORD_FILE='$WORK/old.pass' source '$WORK/profile.sh'; __chief_banner_secrets")"
+  if [[ "$(sed -n 1p <<<"$out")" == "secrets: found" && "$(sed -n 2p <<<"$out")" == "secrets: not loaded" && "$(sed -n 3p <<<"$out")" == "secrets: loaded, silent" ]]; then
+    pass "Banner secrets indicator: found at start-up, not loaded, then loaded, silent"
+  else
+    fail "Banner secrets indicator; got: $out"
+  fi
+
   out="$(run_chief CHIEF_SECRETS_PASSWORD_FILE="$WORK/old.pass" CHIEF_CFG_BANNER=false -- "source '$WORK/profile.sh'; chief.status")"
-  if grep -q "Secrets: 1 file(s) loaded in this shell" <<<"$out" && grep -q "silently (--quiet)" <<<"$out"; then
+  if grep -q "Secrets: 1 file(s) loaded in this shell" <<<"$out" && grep -q "silent (--quiet)" <<<"$out"; then
     pass "chief.status: lists the loaded secrets file, including a silent load"
   else
     fail "chief.status secrets section; got: $out"

@@ -11,14 +11,25 @@
 # If set to true, will display a banner at start-up.
 CHIEF_CFG_BANNER=true
 
-# Per-line visibility for banner header items. These only take effect when
-# CHIEF_CFG_BANNER=true. Setting either to false hides just that status line's
-# right-side text while keeping the ASCII art unchanged.
+# Banner indicators: short status items shown to the right of the logo, one per line,
+# in this order (space- or comma-separated). Remove a name to hide it; set it to ""
+# for just the logo and version. The banner keeps its size: up to 4 lines (3 in the
+# compact style), and any extra indicators share the last line, joined by " · ".
+# Indicators with nothing to show take no line (e.g. alias when no alias is set).
 #
-# CHIEF_CFG_BANNER_SHOW_PLUGINS:  show the "plugins: ..." line (local / git [auto-update ...])
-# CHIEF_CFG_BANNER_SHOW_TRACKING: show the "tracking: ..." line (branch + channel)
-CHIEF_CFG_BANNER_SHOW_PLUGINS=true
-CHIEF_CFG_BANNER_SHOW_TRACKING=true
+#   alias     alias: cf                                  (only when CHIEF_CFG_ALIAS is set)
+#   plugins   plugins: 22 on, 4 off · git, manual update (loaded/off; where user plugins come from)
+#   tracking  tracking: dev (bleeding-edge, auto)        (the branch Chief updates from)
+#   secrets   secrets: loaded | loaded, silent | not loaded | found (at start-up)
+#             (silent = loaded with --quiet; chief.status shows the details)
+CHIEF_CFG_BANNER_INDICATORS="alias plugins tracking secrets"
+
+# Banner logo: "full" (the classic Chief logo) or "compact" (a 3-line, 13-column logo
+# that leaves more room for the indicators on narrow screens).
+CHIEF_CFG_BANNER_STYLE="full"
+
+# Older configs: CHIEF_CFG_BANNER_SHOW_PLUGINS=false / CHIEF_CFG_BANNER_SHOW_TRACKING=false
+# still hide those indicators; prefer CHIEF_CFG_BANNER_INDICATORS.
 
 # If set to true, will warn at start-up when Chief is loaded by Bash older than 4.0
 # (e.g. the macOS system bash, 3.2) and show how to install/use a newer one.
