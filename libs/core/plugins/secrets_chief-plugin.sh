@@ -1273,6 +1273,8 @@ function __chief_secrets_no_saved_note() {
 #     true   saved passwords only, never prompts, no output at all. Off by default, since it
 #            puts the secrets in the environment of every script and tool that starts Chief.
 # Hosts with no secrets file are skipped silently. Loads are recorded as "at start-up".
+# With CHIEF_CFG_VERBOSE=true (interactive), it says which files it loaded, like the other
+# start-up steps, and those loads aren't marked silent.
 function __chief_secrets_autoload() {
   local mode
   if [[ $- == *i* ]]; then
@@ -1293,10 +1295,29 @@ function __chief_secrets_autoload() {
   [[ "$mode" != "true" ]] && __chief_secrets_saved_only=true
   if [[ "$mode" == "quiet" ]]; then
     chief.secrets_file-load --quiet >/dev/null 2>&1 </dev/null
-  else
-    chief.secrets_file-load --quiet
+    return 0
   fi
+  chief.secrets_file-load --quiet
+  [[ "${CHIEF_CFG_VERBOSE:-false}" == "true" ]] && __chief_secrets_autoload_report
   return 0
+}
+
+# Verbose start-up: one line naming the secrets files loaded at start-up, by layer. Those
+# loads were announced, so their record isn't marked silent (banner: "loaded", not "silent").
+function __chief_secrets_autoload_report() {
+  local line layer f entry done=()
+  while IFS= read -r line; do
+    layer="${line%%$'\t'*}"
+    f="$(__chief_secrets_abs_path "${line#*$'\t'}")"
+    entry="${CHIEF_SECRETS_LOADED[$f]:-}"
+    [[ "$entry" == *"|at start-up (CHIEF_CFG_SECRETS_LOAD)|"* ]] || continue
+    CHIEF_SECRETS_LOADED["$f"]="${entry%|*}|no"
+    [[ "$layer" == "local" ]] && layer="this host"
+    done+=("${layer} ($(__chief_secrets_tilde "$f"))")
+  done < <(__chief_secrets_existing_layers)
+  (( ${#done[@]} > 0 )) || return 0
+  local IFS=';'
+  echo -e "${CHIEF_COLOR_GREEN}Secrets loaded:${CHIEF_NO_COLOR} $(printf '%s' "${done[*]}" | sed 's/;/, /g')"
 }
 
 function chief.secrets_file-load() {
@@ -1340,6 +1361,7 @@ ${CHIEF_COLOR_GREEN}Load at start-up (instead of a line in ~/.bash_profile):${CH
                                   also scripts and tools: saved passwords only, silently.
                                   Off by default: it puts your secrets in every script's environment.
   Turn on with: chief.config-set secrets_load true   (or in shared settings, per host)
+  With CHIEF_CFG_VERBOSE=true, start-up says which files it loaded.
 "
   local arg secrets_file="" __chief_secrets_quiet=false layer=""
   for arg in "$@"; do

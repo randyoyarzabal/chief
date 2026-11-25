@@ -245,6 +245,7 @@ CHIEF_CFG_SSH_LOAD_KEYS=false
 #   true   in interactive shells: use the saved password, else prompt for it
 #   saved  in interactive shells: only files with a saved password; never prompts
 # Save a file's password once with: chief.secrets_password-save
+# Quiet unless CHIEF_CFG_VERBOSE=true, which names the files it loaded; the banner shows it either way.
 # Turn on with: chief.config-set secrets_load true   (or per host in shared settings)
 CHIEF_CFG_SECRETS_LOAD=false
 
