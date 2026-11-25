@@ -171,6 +171,37 @@ if command -v gpg >/dev/null 2>&1; then
     "$( [[ "$out" == *"rc=0 team=1 mine=1 host=1 who=personal"* && "$out" == *"secrets: loaded (3)"* ]]; echo $?)" "$out"
   out="$(start "$HOMEA" -c 'chief.secrets_file-load --personal --quiet; echo "team=${S_TEAM:-} mine=${S_MINE:-}"' CHIEF_SECRETS_NO_KEYCHAIN=1 CHIEF_SECRETS_STORE_DIR="$WORK/store")"
   check "Secrets: --personal loads just yours" "$( [[ "$out" == *"team= mine=1"* ]]; echo $?)" "$out"
+  # Start-up load (CHIEF_CFG_SECRETS_LOAD / _NONINTERACTIVE), with the saved passwords above.
+  SENV=(CHIEF_SECRETS_NO_KEYCHAIN=1 CHIEF_SECRETS_STORE_DIR="$WORK/store")
+  report='echo "n=${#CHIEF_SECRETS_LOADED[@]} team=${S_TEAM:-} mine=${S_MINE:-} host=${S_HOST:-}"; for f in "${!CHIEF_SECRETS_LOADED[@]}"; do echo "rec=${CHIEF_SECRETS_LOADED[$f]}"; done; echo "err=[$(cat "$HOME/startup.err")]"'
+  write_cfg "$HOMEA"
+  out="$(start "$HOMEA" -ic "$report" "${SENV[@]}")"
+  check "Start-up load: off by default (nothing loaded)" "$( [[ "$out" == *"n=0 "* ]]; echo $?)" "$out"
+  write_cfg "$HOMEA"; echo 'CHIEF_CFG_SECRETS_LOAD=true' >> "$HOMEA/.chief_config.sh"
+  out="$(start "$HOMEA" -ic "$report" "${SENV[@]}")"
+  check "Start-up load: true loads team, personal and host in an interactive shell, quietly" \
+    "$( [[ "$out" == *"n=3 team=1 mine=1 host=1"* && "$out" != *"Success"* ]]; echo $?)" "$out"
+  check "Start-up load: recorded as 'at start-up (CHIEF_CFG_SECRETS_LOAD)'" \
+    "$( [[ "$out" == *"|at start-up (CHIEF_CFG_SECRETS_LOAD)|"* ]]; echo $?)" "$out"
+  out="$(start "$HOMEA" -c "$report" "${SENV[@]}")"
+  check "Start-up load: true doesn't load in a non-interactive shell" "$( [[ "$out" == *"n=0 "* ]]; echo $?)" "$out"
+  # saved: a file without a saved password is skipped with a note, never prompted for.
+  start "$HOMEA" -c "__chief_secrets_store_del '$HOMEA/.chief_user-secrets'" "${SENV[@]}" >/dev/null
+  write_cfg "$HOMEA"; echo 'CHIEF_CFG_SECRETS_LOAD=saved' >> "$HOMEA/.chief_config.sh"
+  out="$(start "$HOMEA" -ic "$report" "${SENV[@]}")"
+  check "Start-up load: saved skips a file with no saved password (with a note), never prompts" \
+    "$( [[ "$out" == *"n=2 team=1 mine=1 host="* && "$out" == *"has no saved password"* && "$out" != *"GPG password"* && "$out" != *"Skipped the local"* ]]; echo $?)" "$out"
+  write_cfg "$HOMEA"; printf 'CHIEF_CFG_SECRETS_LOAD=true\nCHIEF_CFG_SECRETS_LOAD_NONINTERACTIVE=true\n' >> "$HOMEA/.chief_config.sh"
+  out="$(start "$HOMEA" -c "$report" "${SENV[@]}")"
+  check "Start-up load: _NONINTERACTIVE=true loads saved-password files in scripts, with no output" \
+    "$( [[ "$out" == *"n=2 team=1 mine=1 host="* && "$out" == *"err=[]"* ]]; echo $?)" "$out"
+  write_cfg "$HOMEA"; echo 'CHIEF_CFG_SECRETS_LOAD=yes' >> "$HOMEA/.chief_config.sh"
+  out="$(start "$HOMEA" -ic "$report" "${SENV[@]}")"
+  check "Start-up load: an unknown value warns and loads nothing" \
+    "$( [[ "$out" == *"n=0 "* && "$out" == *"isn't one of false, true or saved"* ]]; echo $?)" "$out"
+  write_cfg "$HOMEA"
+  save "$HOMEA/.chief_user-secrets" mypass
+
   out="$(start "$HOMEA" -c 'chief.secrets_file-edit')"
   check "Secrets: with several files and no terminal, edit asks for --team/--personal/--local" \
     "$( [[ "$out" == *"Pass --team, --personal, --local or a path"* ]]; echo $?)" "$out"

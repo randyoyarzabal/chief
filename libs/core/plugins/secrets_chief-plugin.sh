@@ -1184,6 +1184,7 @@ function __chief_secrets_tilde() {
 
 # How the current load was started, from the call stack:
 #   "manually"                         typed at the prompt
+#   "at start-up (CHIEF_CFG_SECRETS_LOAD)"  Chief's own start-up load
 #   "automatically from <file>"        a start-up file or script (e.g. ~/.bash_profile)
 #   "by <function> (<file>)"           another (non-Chief) function, e.g. in a plugin
 #   "by secrets_file-edit --load"
@@ -1194,6 +1195,10 @@ function __chief_secrets_load_origin() {
   for ((i = 1; i < n; i++)); do
     fn="${FUNCNAME[$i]}"
     src="${BASH_SOURCE[$i]}"
+    if [[ "$fn" == "__chief_secrets_autoload" ]]; then
+      echo "at start-up (CHIEF_CFG_SECRETS_LOAD)"
+      return
+    fi
     if [[ "$fn" == *.secrets_file-edit ]]; then
       echo "by secrets_file-edit --load"
       return
@@ -1255,6 +1260,45 @@ function __chief_secrets_loaded_report() {
   done
 }
 
+# Note for a file skipped because it has no saved password (saved-only loads never prompt).
+function __chief_secrets_no_saved_note() {
+  echo -e "${CHIEF_COLOR_YELLOW}Not loaded:${CHIEF_NO_COLOR} $(__chief_secrets_tilde "$1") has no saved password, and this load doesn't prompt. Load it with ${CHIEF_COLOR_CYAN}chief.secrets_file-load $(__chief_secrets_tilde "$1")${CHIEF_NO_COLOR}, or save its password once: ${CHIEF_COLOR_CYAN}chief.secrets_password-save $(__chief_secrets_tilde "$1")${CHIEF_NO_COLOR}" >&2
+}
+
+# Start-up load, called once by chief.sh after plugins load and before the banner.
+#   Interactive shells:      CHIEF_CFG_SECRETS_LOAD = false (default) | true | saved
+#     true   load every secrets file that exists, quietly: saved password, else prompt
+#     saved  the same, but only files with a saved password; never prompts
+#   Non-interactive shells:  CHIEF_CFG_SECRETS_LOAD_NONINTERACTIVE = false (default) | true
+#     true   saved passwords only, never prompts, no output at all. Off by default, since it
+#            puts the secrets in the environment of every script and tool that starts Chief.
+# Hosts with no secrets file are skipped silently. Loads are recorded as "at start-up".
+function __chief_secrets_autoload() {
+  local mode
+  if [[ $- == *i* ]]; then
+    mode="${CHIEF_CFG_SECRETS_LOAD:-false}"
+    case "$mode" in
+      false|"") return 0 ;;
+      true|saved) ;;
+      *)
+        echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} CHIEF_CFG_SECRETS_LOAD='${mode}' isn't one of false, true or saved, so secrets weren't loaded. Fix it with: ${CHIEF_COLOR_CYAN}chief.config-set secrets_load true${CHIEF_NO_COLOR}" >&2
+        return 0 ;;
+    esac
+  else
+    [[ "${CHIEF_CFG_SECRETS_LOAD_NONINTERACTIVE:-false}" == "true" ]] || return 0
+    mode=quiet
+  fi
+  [[ -n "$(__chief_secrets_existing_layers)" ]] || return 0
+  local __chief_secrets_saved_only=false
+  [[ "$mode" != "true" ]] && __chief_secrets_saved_only=true
+  if [[ "$mode" == "quiet" ]]; then
+    chief.secrets_file-load --quiet >/dev/null 2>&1 </dev/null
+  else
+    chief.secrets_file-load --quiet
+  fi
+  return 0
+}
+
 function chief.secrets_file-load() {
   __chief_secrets_resolve_default
   if [[ -z $CHIEF_SECRETS_FILE ]]; then
@@ -1285,9 +1329,17 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -q, --quiet     No success message (errors and warnings still show).
                   Handy in ~/.bash_profile: chief.secrets_file-load --quiet
                   Every load is still recorded: chief.status and chief.secrets_password-status
-                  show what this shell loaded, how (manually or by a start-up file), and
-                  whether it was silent.
+                  show what this shell loaded, how (manually, by a start-up file, or by Chief
+                  at start-up), and whether it was silent.
   -?, --help      Show this help
+
+${CHIEF_COLOR_GREEN}Load at start-up (instead of a line in ~/.bash_profile):${CHIEF_NO_COLOR}
+  CHIEF_CFG_SECRETS_LOAD=true     interactive shells: saved password, else prompt
+  CHIEF_CFG_SECRETS_LOAD=saved    interactive shells: only files with a saved password; never prompts
+  CHIEF_CFG_SECRETS_LOAD_NONINTERACTIVE=true
+                                  also scripts and tools: saved passwords only, silently.
+                                  Off by default: it puts your secrets in every script's environment.
+  Turn on with: chief.config-set secrets_load true   (or in shared settings, per host)
 "
   local arg secrets_file="" __chief_secrets_quiet=false layer=""
   for arg in "$@"; do
@@ -1313,11 +1365,14 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
       echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} No secrets file found (team, personal or this host). Create one with chief.secrets_file-edit."
       return 1
     fi
+    local one
     for line in "${lines[@]}"; do
-      chief.secrets_file-load "${line#*$'\t'}" "${qflag[@]}" || {
-        rc=1
-        echo -e "${CHIEF_COLOR_YELLOW}Skipped the ${line%%$'\t'*} secrets${CHIEF_NO_COLOR} ($(__chief_secrets_tilde "${line#*$'\t'}")); the others still load." >&2
-      }
+      chief.secrets_file-load "${line#*$'\t'}" "${qflag[@]}"
+      one=$?
+      (( one == 0 )) && continue
+      rc=1
+      # 3: skipped for having no saved password; that note already says what to do.
+      (( one == 3 )) || echo -e "${CHIEF_COLOR_YELLOW}Skipped the ${line%%$'\t'*} secrets${CHIEF_NO_COLOR} ($(__chief_secrets_tilde "${line#*$'\t'}")); the others still load." >&2
     done
     return $rc
   fi
@@ -1352,6 +1407,10 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
     elif [[ -n "$spw" ]]; then
       pw_src="saved password ($(__chief_secrets_store_where "$(__chief_secrets_abs_path "$secrets_file")"))"
     fi
+    if [[ "$pw_src" == "prompt" && "${__chief_secrets_saved_only:-false}" == "true" ]]; then
+      __chief_secrets_no_saved_note "$secrets_file"
+      return 3
+    fi
     aerrf="$(mktemp)"
     adec="$(__chief_secrets_ansible_vault "$spw" view "$secrets_file" 2>"$aerrf")" || {
       __chief_secrets_ansible_report "$aerrf" decrypt
@@ -1385,6 +1444,10 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
       if [[ -n "$gpg_pass" ]]; then
         from_saved=true
         pw_src="saved password ($(__chief_secrets_store_where "$(__chief_secrets_abs_path "$secrets_file")"))"
+      elif [[ "${__chief_secrets_saved_only:-false}" == "true" ]]; then
+        rm -f "$errf"
+        __chief_secrets_no_saved_note "$secrets_file"
+        return 3
       else
         echo -e "${CHIEF_COLOR_CYAN}GPG password:${CHIEF_NO_COLOR}" >&2
         read -rs gpg_pass </dev/tty 2>/dev/null || read -rs gpg_pass

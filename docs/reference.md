@@ -176,6 +176,9 @@ chief.secrets_file-edit [secrets-file] --rekey [--new-password-file=PATH] [--loa
 
 # Load secrets (no file: team AND personal AND this host, all that exist; -q: no success message)
 chief.secrets_file-load [--team|--personal|--local|<file>] [-q|--quiet]
+
+# Load them at start-up instead: true (saved password, else prompt) | saved (never prompts)
+chief.config-set secrets_load true
 ```
 
 Where the password comes from (first match wins):
