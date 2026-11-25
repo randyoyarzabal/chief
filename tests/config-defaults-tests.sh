@@ -88,5 +88,26 @@ check_out "stale hint when disk version differs" yes "$(stale_out v0.0.1)"
 check_out "no hint when versions match"          no  "$(stale_out "$on_disk")"
 rm -rf "$STALE"
 
+# chief.config-set says when a setting only takes effect in a new terminal.
+CFGDIR="$(mktemp -d "${TMPDIR:-/tmp}/chief-cfgset-test.XXXXXX")"
+cfgset_out() { # <name> <value> -> chief.config-set output, against a throwaway config
+    printf 'CHIEF_CFG_BANNER=false\nCHIEF_CFG_HINTS=false\nCHIEF_CFG_PROMPT=false\nCHIEF_CFG_MULTILINE_PROMPT=false\nCHIEF_CFG_PLUGINS_TYPE=local\nCHIEF_CFG_CONFIG_UPDATE_BACKUP=false\n' > "$CFGDIR/config.sh"
+    NO_COLOR=1 CHIEF_PATH="$PROJECT_ROOT" CHIEF_CONFIG="$CFGDIR/config.sh" bash -c '
+        source "$CHIEF_CONFIG"; source "$CHIEF_PATH/libs/core/chief_library.sh" >/dev/null 2>&1
+        chief.config-set -y "$1" "$2"' _ "$1" "$2" </dev/null 2>&1
+}
+note_is() { # <label> <expect:yes|no> <output>
+    if [[ "$2" == yes && "$3" == *"Open a new terminal"* ]] || [[ "$2" == no && "$3" != *"Note:"* && "$3" == *"Confirmed:"* ]]; then
+        echo -e "${GREEN}[PASS]${NC} $1"; PASS=$((PASS + 1))
+    else echo -e "${RED}[FAIL]${NC} $1 (output: '$3')"; FAIL=$((FAIL + 1)); fi
+}
+note_is "config-set prompt: says to open a new terminal"     yes "$(cfgset_out prompt true)"
+note_is "config-set multiline_prompt: no note (applies now)" no  "$(cfgset_out multiline_prompt true)"
+out="$(cfgset_out ssh_load_keys true)"
+if [[ "$out" == *"chief.ssh_load-keys"* ]]; then
+    echo -e "${GREEN}[PASS]${NC} config-set ssh_load_keys: points to chief.ssh_load-keys"; PASS=$((PASS + 1))
+else echo -e "${RED}[FAIL]${NC} config-set ssh_load_keys (output: '$out')"; FAIL=$((FAIL + 1)); fi
+rm -rf "$CFGDIR"
+
 echo "Passed: $PASS  Failed: $FAIL"
 [[ $FAIL -eq 0 ]]

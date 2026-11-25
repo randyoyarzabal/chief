@@ -3239,8 +3239,10 @@ ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
 - Configuration options are case insensitive
 - Supports BOTH syntaxes: config_name value OR config_name=value
 - String values with spaces should be quoted
-- Changes take effect immediately after reload
-- Some changes may require terminal restart
+- Most changes take effect immediately (Chief reloads after the change)
+- Applied only when a terminal starts, so they need a new terminal (a Note says so):
+  PROMPT, COLORED_PROMPT, GIT_PROMPT, SHORT_PATH, COLORED_LS, plus the start-up-only
+  BANNER, HINTS, AUTOCHECK_UPDATES, BASH_WARN. SSH_LOAD_KEYS: run chief.ssh_load-keys.
 - Reports previous and new values for each change
 "
 
@@ -3439,6 +3441,28 @@ ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
   else
     echo -e "${CHIEF_COLOR_YELLOW}⚠${CHIEF_NO_COLOR} Could not verify the configuration change"
   fi
+
+  __chief_config_restart_note "${config_var}"
+}
+
+# Tell the user when a setting doesn't take effect in the current shell. chief.config-set
+# reloads the library (__chief_load_library), but chief.sh applies some settings only once,
+# at shell start-up: the prompt, ls colors, the banner, hints, the update check, SSH keys.
+# Usage: __chief_config_restart_note <CHIEF_CFG_VAR>
+function __chief_config_restart_note() {
+  local note=""
+  case "$1" in
+    CHIEF_CFG_PROMPT|CHIEF_CFG_COLORED_PROMPT|CHIEF_CFG_GIT_PROMPT|CHIEF_CFG_SHORT_PATH|CHIEF_CFG_COLORED_LS)
+      note="$1 is applied when a terminal starts, so this terminal keeps the old setting (chief.reload doesn't change it either). Open a new terminal to see the change." ;;
+    CHIEF_CFG_ALIAS)
+      note="The new alias works now, but commands from a previous alias stay in this terminal. Open a new terminal for a clean set." ;;
+    CHIEF_CFG_BANNER|CHIEF_CFG_HINTS|CHIEF_CFG_AUTOCHECK_UPDATES|CHIEF_CFG_BASH_WARN)
+      note="$1 only matters when a terminal starts. You'll see the change in the next new terminal." ;;
+    CHIEF_CFG_SSH_LOAD_KEYS|CHIEF_CFG_SSH_KEYS_PATH)
+      note="$1 is used at start-up and by chief.reload. To load keys now, run: chief.ssh_load-keys" ;;
+  esac
+  [[ -n "$note" ]] && echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} ${note}"
+  return 0
 }
 
 function __chief_get_config_renames() {
@@ -4305,15 +4329,20 @@ ${CHIEF_COLOR_MAGENTA}What Gets Reloaded:${CHIEF_NO_COLOR}
 - Chief core library functions
 - All configured plugins
 - Environment variables
-- Color schemes and prompts
 - SSH key configurations
+
+${CHIEF_COLOR_YELLOW}Not reloaded (open a new terminal instead):${CHIEF_NO_COLOR}
+- The prompt: CHIEF_CFG_PROMPT, COLORED_PROMPT, GIT_PROMPT, SHORT_PATH
+- ls colors: CHIEF_CFG_COLORED_LS
+- Start-up only: CHIEF_CFG_BANNER, HINTS, AUTOCHECK_UPDATES, BASH_WARN
+- Commands from a previous CHIEF_CFG_ALIAS stay until a new terminal
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME                    # Reload Chief environment
   chief.config && $FUNCNAME   # Edit config then reload
 
 ${CHIEF_COLOR_BLUE}Alternative:${CHIEF_NO_COLOR}
-Restart your terminal session for a complete reset.
+Open a new terminal for a complete reset.
 "
 
   if [[ $1 == "-?" ]]; then
