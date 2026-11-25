@@ -328,7 +328,7 @@ Everything lives in the repo's plugins folder (`CHIEF_CFG_PLUGINS_GIT_PATH`, whi
 | `users/<you>/profile.sh` | You | Your start-up code |
 | `users/<you>/secrets` | You | Your encrypted secrets (your own password) |
 
-`<you>` is **`CHIEF_CFG_USER`**, your Chief identity, the same on every host even where your login name differs (for example `alice.smith` on a laptop and `deploy` on a server, both `alice`). It's **required in a team repo**: one whose plugins folder has a `users/` folder. A repo only you use, with no `users/` folder, doesn't need it; the team files are yours there. The repo becomes a team repo when someone first creates `users/<name>/` (for example with `chief.shared-profile --personal`). From then on, Chief loads only the team layers on hosts where the user isn't set, and warns at start-up how to set it. Onboarding asks for it when there's a terminal; otherwise use `chief.config-set user <name>`. `chief.status` shows your user and the layers in use.
+`<you>` is **`CHIEF_CFG_USER`**, your Chief identity, the same on every host even where your login name differs (for example `alice.smith` on a laptop and `deploy` on a server, both `alice`). It's **required in a team repo**: one whose plugins folder has a `users/` folder. A repo only you use, with no `users/` folder, doesn't need it; the team files are yours there. The repo becomes a team repo when someone first creates `users/<name>/`: only the `--personal` commands do that (`chief.shared-profile --personal`, `chief.shared-config --personal`, `chief.secrets_file-edit --personal`), and they say so. Close the editor without changes and nothing is kept. From then on, Chief loads only the team layers on hosts where the user isn't set, and warns at start-up how to set it. Onboarding asks for it when there's a terminal; otherwise use `chief.config-set user <name>`. `chief.status` shows your user and the layers in use.
 
 ### Onboarding a host
 
@@ -343,7 +343,7 @@ Then open a new terminal. On each host, save your secrets passwords once with `c
 
 ### Settings: team, then yours
 
-Settings apply in this order, later ones winning: this host's `~/.chief_config.sh` (defaults, plus where the repo is), then the team's `.chief_shared-config.sh`, then your `users/<you>/config.sh`. Edit them with `chief.shared-config` and `chief.shared-config --personal`; both offer to commit and push.
+Settings apply in this order, later ones winning: this host's `~/.chief_config.sh` (defaults, plus where the repo is), then the team's `.chief_shared-config.sh`, then your `users/<you>/config.sh`. Edit them with `chief.shared-config` and `chief.shared-config --personal`; both offer to commit and push when you changed something.
 
 - **Host exceptions** go inside the shared files: `if chief.host_is my-laptop; then CHIEF_CFG_PROMPT=false; fi`.
 - **Where the repo is** (`CHIEF_CFG_PLUGINS_*`) and **`CHIEF_CFG_USER`** always come from each host's own config. The repo can't redirect itself.
