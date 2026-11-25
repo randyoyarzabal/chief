@@ -151,6 +151,8 @@ function __chief_load_library() {
 
   # Shared and personal settings from the shared repo, on top of this host's config.
   __chief_apply_layered_config
+  # Anything still unset gets the template's default, as on a fresh install.
+  __chief_apply_template_defaults
   # Shared and personal profile: once per shell, before any plugin loads.
   __chief_run_shared_profile
 
@@ -701,6 +703,25 @@ function __chief_user_dir() {
 # Shared or personal settings can't change them (the repo can't redirect itself).
 CHIEF_LOCAL_ONLY_SETTINGS="CHIEF_CFG_PLUGINS_TYPE CHIEF_CFG_PLUGINS_PATH CHIEF_CFG_PLUGINS_GIT_REPO CHIEF_CFG_PLUGINS_GIT_BRANCH CHIEF_CFG_PLUGINS_GIT_PATH CHIEF_CFG_USER"
 
+# Settings no layer set (not this host's config, the shared settings or yours) get the template's
+# default, so a missing line behaves like a fresh install instead of an empty value: Chief tests
+# its on/off settings with `if ${CHIEF_CFG_X}`, and an empty one counts as on. A host config can
+# then leave out what the shared settings set without turning anything on while the shared file
+# isn't there yet. Not filled in: the local-only settings (where the repo is and CHIEF_CFG_USER
+# describe this host, and the template's values are placeholders) and CHIEF_CFG_SSH_LOAD_KEYS
+# (unset, it keeps the older rule: a set CHIEF_CFG_SSH_KEYS_PATH means load the keys).
+function __chief_apply_template_defaults() {
+  local tpl="${CHIEF_PATH}/templates/chief_config_template.sh" line var
+  [[ -f "$tpl" ]] || return 0
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    [[ "$line" =~ ^(CHIEF_CFG_[A-Z0-9_]+)= ]] || continue
+    var="${BASH_REMATCH[1]}"
+    [[ -n "${!var+x}" ]] && continue
+    [[ " ${CHIEF_LOCAL_ONLY_SETTINGS} CHIEF_CFG_SSH_LOAD_KEYS " == *" ${var} "* ]] && continue
+    eval "$line"
+  done < "$tpl"
+}
+
 # Layer settings on top of this host's config: shared (.chief_shared-config.sh), then yours
 # (users/<user>/config.sh). Later layers win; host exceptions go inside them with chief.host_is.
 # Records the layers used in CHIEF_CONFIG_LAYERS (e.g. "local shared personal").
@@ -1108,38 +1129,11 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   $edited && echo -e "${CHIEF_COLOR_BLUE}Applies at start-up:${CHIEF_NO_COLOR} open a new terminal to use it (chief.reload doesn't re-run profiles)."
 }
 
-function chief.shared-config() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--personal] [--code]
-
-${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
-Edit the shared Chief settings in your plugins repo, so every host gets the same settings.
-After saving, offers to commit and push them. Close the editor without changes and it
-doesn't ask; a file it had just created is removed again.
-
-${CHIEF_COLOR_GREEN}Files (in the repo's plugins folder):${CHIEF_NO_COLOR}
-  (default)       .chief_shared-config.sh: shared, for every host using the repo
-  --personal      users/\$CHIEF_CFG_USER/config.sh: yours
-
-${CHIEF_COLOR_GREEN}Order (later wins):${CHIEF_NO_COLOR}
-  Each host's ~/.chief_config.sh, then the shared settings, then yours. Host exceptions go inside
-  them: if chief.host_is <host>; then ...; fi. Where the repo is (CHIEF_CFG_PLUGINS_*) and
-  CHIEF_CFG_USER always come from each host's own config.
-
-${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
-  --personal      Edit your own settings (team repo: users/<you>/) instead of the shared ones
-  --code          Use the GUI editor (Cursor or VS Code)
-  -?, --help      Show this help
-"
-  local personal=false gui=false arg file
-  for arg in "$@"; do
-    case "$arg" in
-      -\?|--help) echo -e "${USAGE}"; return 0 ;;
-      --personal) personal=true ;;
-      --code|--vscode) gui=true ;;
-      *) echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $arg" >&2; return 1 ;;
-    esac
-  done
-  local out made edited=true
+# Edit the shared (or, with personal=true, your own) settings file in the shared repo, reload,
+# and offer to commit and push. Used by chief.config --shared / --personal.
+# Usage: __chief_shared_config_edit <personal:true|false> <gui:true|false>
+function __chief_shared_config_edit() {
+  local personal="$1" gui="$2" out file made edited=true
   out="$(__chief_shared_file .chief_shared-config.sh config.sh "$personal" config)" || return 1
   { IFS= read -r file; IFS= read -r made; } <<< "$out"
   if __chief_shared_edit "$file" "$made" "$gui"; then
@@ -2646,7 +2640,15 @@ __chief_stdout_color_ok() {
   [[ -t 1 && -n "${TERM:-}" && "${TERM}" != dumb ]]
 }
 
-if __chief_stdout_color_ok; then
+# True for a reload with its output silenced (e.g. __chief_load_library >/dev/null, as
+# chief.config --shared and chief.plugins-repo do) in an interactive shell that already has
+# colors: stdout isn't a terminal just for that call, so keep the colors instead of switching
+# the prompt and every later message to plain text until a new terminal. NO_COLOR still wins.
+__chief_keep_colors_on_silent_reload() {
+  [[ -z "${NO_COLOR:-}" && $- == *i* && -n "${CHIEF_NO_COLOR:-}" ]]
+}
+
+if __chief_stdout_color_ok || __chief_keep_colors_on_silent_reload; then
   export CHIEF_COLOR_RED='\033[0;31m'
   export CHIEF_COLOR_BLUE='\033[0;34m'
   export CHIEF_COLOR_CYAN='\033[0;36m'
@@ -3877,10 +3879,17 @@ Run the install script again to reinstall Chief with your backed up configuratio
 }
 
 function chief.config() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--shared|--personal] [--code]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
-Edit Chief's configuration file with automatic reload on changes.
+Edit Chief's settings, with automatic reload on changes. With a shared plugins repo there are
+up to three layers, later ones winning:
+  (default)   this host's config (\$CHIEF_CONFIG)
+  --shared    .chief_shared-config.sh in the repo: every host using it
+  --personal  users/\$CHIEF_CFG_USER/config.sh in the repo: yours (team repos)
+The shared and personal files offer to commit and push after a change (closing the editor
+without changes asks nothing). Host exceptions go inside them: if chief.host_is <host>; then
+...; fi. Where the repo is and CHIEF_CFG_USER always come from this host's config.
 
 ${CHIEF_COLOR_GREEN}Configuration Options:${CHIEF_NO_COLOR}
 - CHIEF_CFG_BANNER: Show startup banner
@@ -3907,8 +3916,18 @@ ${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR}
 Some changes require terminal restart to take full effect.
 "
 
-  if [[ $1 == "-?" ]]; then
-    echo -e "${USAGE}"
+  local layer="" gui=false arg
+  for arg in "$@"; do
+    case "$arg" in
+      -\?|--help) echo -e "${USAGE}"; return 0 ;;
+      --shared) layer=shared ;;
+      --personal) layer=personal ;;
+      --code|--vscode) gui=true ;;
+      *) echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $arg (see: $FUNCNAME -?)" >&2; return 1 ;;
+    esac
+  done
+  if [[ -n "$layer" ]]; then
+    __chief_shared_config_edit "$([[ "$layer" == personal ]] && echo true || echo false)" "$gui"
     return
   fi
 
@@ -4208,8 +4227,8 @@ function __chief_config_layer_note() {
   dir="$(__chief_shared_dir)"
   [[ -n "$dir" ]] || return 0
   user_dir="$(__chief_user_dir)"
-  grep -Eq "^[[:space:]]*(export[[:space:]]+)?${var}=" "$dir/.chief_shared-config.sh" 2>/dev/null && where+=("shared settings (chief.shared-config)")
-  [[ -n "$user_dir" ]] && grep -Eq "^[[:space:]]*(export[[:space:]]+)?${var}=" "$user_dir/config.sh" 2>/dev/null && where+=("your settings (chief.shared-config --personal)")
+  grep -Eq "^[[:space:]]*(export[[:space:]]+)?${var}=" "$dir/.chief_shared-config.sh" 2>/dev/null && where+=("shared settings (chief.config --shared)")
+  [[ -n "$user_dir" ]] && grep -Eq "^[[:space:]]*(export[[:space:]]+)?${var}=" "$user_dir/config.sh" 2>/dev/null && where+=("your settings (chief.config --personal)")
   (( ${#where[@]} > 0 )) || return 0
   echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} ${var} is also set in the shared repo's $(IFS=';'; echo "${where[*]}" | sed 's/;/ and /'), which take precedence over this host's config. Change it there to change it everywhere."
 }
@@ -4513,7 +4532,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     user_status["$var_name"]="$status"
   done <<< "$user_options"
 
-  # Options the shared settings set (chief.shared-config) aren't missing here: those win over
+  # Options the shared settings set (chief.config --shared) aren't missing here: those win over
   # this file anyway. They're reported, not added.
   declare -A layer_vars=()
   local layer_var
@@ -4560,7 +4579,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 
   if [[ ${#layer_options[@]} -gt 0 ]]; then
-    echo -e "\n${CHIEF_COLOR_BLUE}Set in the shared settings (chief.shared-config), so not needed here:${CHIEF_NO_COLOR}"
+    echo -e "\n${CHIEF_COLOR_BLUE}Set in the shared settings (chief.config --shared), so not needed here:${CHIEF_NO_COLOR}"
     printf '  • %s\n' $(printf '%s\n' "${layer_options[@]}" | sort)
   fi
 
@@ -4641,7 +4660,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
       local from_layer=false
       if [[ -z "$user_value" && -n "${layer_vars[$var_name]:-}" ]]; then
         from_layer=true
-        echo "# Set in the shared settings (chief.shared-config), which win over this file."
+        echo "# Set in the shared settings (chief.config --shared), which win over this file."
       fi
 
       # Use template default if no user value
@@ -5283,7 +5302,7 @@ function __chief_show_core_commands() {
   echo -e "${CHIEF_COLOR_CYAN}Shared Repo (solo or team):${CHIEF_NO_COLOR}"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}plugins-repo${CHIEF_NO_COLOR}   Adopt a shared plugins repo on this host (clone, point config, set user)"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}shared-profile${CHIEF_NO_COLOR} Edit the shared start-up profile (--personal: yours)"
-  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}shared-config${CHIEF_NO_COLOR}  Edit the shared settings (--personal: yours)"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}config --shared${CHIEF_NO_COLOR} Edit the shared settings (--personal: yours)"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}host_is${CHIEF_NO_COLOR}        Test this host/login in shared files (host, login@host, wildcards)"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}on_startup${CHIEF_NO_COLOR}     Run a command at the end of start-up (from a shared profile)"
   echo -e "${CHIEF_COLOR_CYAN}Utilities:${CHIEF_NO_COLOR}"

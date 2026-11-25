@@ -151,13 +151,34 @@ out="$(start "$HOMEA" -c 'chief.config-set -y hints false')"
 check "config-set: says when the shared settings also set it (and take precedence)" \
   "$( [[ "$out" == *"also set in the shared repo's shared settings"* ]]; echo $?)" "$out"
 
+# --- Unset settings get the template's defaults --------------------------
+# A host config that leaves settings out (because the shared settings set them)
+# must behave like a fresh install, not treat a missing on/off setting as "on".
+HOMEU="$WORK/home-u"; mkdir -p "$HOMEU"
+printf 'CHIEF_CFG_BANNER=false\nCHIEF_CFG_PLUGINS_TYPE="local"\nCHIEF_CFG_PLUGINS_PATH=""\nCHIEF_CFG_SSH_KEYS_PATH="$HOME/.ssh"\n' > "$HOMEU/.chief_config.sh"
+out="$(start "$HOMEU" -ic 'echo "autocheck=[$CHIEF_CFG_AUTOCHECK_UPDATES] hints=[$CHIEF_CFG_HINTS] ls=[$CHIEF_CFG_COLORED_LS] multi=[$CHIEF_CFG_MULTILINE_PROMPT] banner=[$CHIEF_CFG_BANNER] sshload=[${CHIEF_CFG_SSH_LOAD_KEYS-unset}] repo=[${CHIEF_CFG_PLUGINS_GIT_REPO-unset}] user=[${CHIEF_CFG_USER-unset}]"')"
+check "Unset settings: on/off settings get the template's defaults (an update check doesn't turn on)" \
+  "$( [[ "$out" == *"autocheck=[false] hints=[true] ls=[false] multi=[false] banner=[false]"* ]]; echo $?)" "$out"
+check "Unset settings: the repo location, CHIEF_CFG_USER and SSH_LOAD_KEYS stay unset" \
+  "$( [[ "$out" == *"sshload=[unset] repo=[unset] user=[unset]"* ]]; echo $?)" "$out"
+
+# --- Colors survive a reload with its output silenced -----------------------
+# chief.config --shared and chief.plugins-repo reload with >/dev/null; that used to turn every
+# color (prompt included) off until a new terminal, since stdout wasn't a TTY for that call.
+out="$(env -i PATH="$PATH" TERM=xterm HOME="$HOMEU" CHIEF_FORCE_COLOR=1 CHIEF_PATH="$PROJECT_ROOT" CHIEF_CONFIG="$HOMEU/.chief_config.sh" \
+  "$BASH" --norc --noprofile -ic 'source "$CHIEF_PATH/chief.sh" >/dev/null 2>&1; unset CHIEF_FORCE_COLOR
+    __chief_load_library >/dev/null 2>&1; echo "kept=[${CHIEF_NO_COLOR:+on}]"
+    export NO_COLOR=1; __chief_load_library >/dev/null 2>&1; echo "no_color=[${CHIEF_NO_COLOR:+on}]"' </dev/null 2>/dev/null)"
+check "Colors: a silenced reload in an interactive shell keeps them; NO_COLOR still turns them off" \
+  "$( [[ "$out" == *"kept=[on]"* && "$out" == *"no_color=[]"* ]]; echo $?)" "$out"
+
 # --- chief.config-update and the shared settings ------------------------
 # alice's personal settings set CHIEF_CFG_BANNER_INDICATORS; this host's config doesn't have it.
 out="$(echo n | env -i PATH="$PATH" TERM=dumb NO_COLOR=1 HOME="$HOMEA" USER=alice CHIEF_PATH="$PROJECT_ROOT" CHIEF_CONFIG="$HOMEA/.chief_config.sh" \
   "$BASH" --norc --noprofile -c 'source "$CHIEF_PATH/chief.sh" --lib-only >/dev/null 2>&1; CHIEF_CFG_CONFIG_UPDATE_BACKUP=false chief.config-update' 2>&1)"
 newpart="$(sed -n '/New options to be added/,/Set in the shared settings/p' <<<"$out")"
 check "config-update: an option the shared/personal settings set isn't 'new'; it's listed as set there" \
-  "$( [[ "$out" == *"Set in the shared settings (chief.shared-config), so not needed here:"*"CHIEF_CFG_BANNER_INDICATORS"* && "$newpart" != *"CHIEF_CFG_BANNER_INDICATORS"* ]]; echo $?)" "$out"
+  "$( [[ "$out" == *"Set in the shared settings (chief.config --shared), so not needed here:"*"CHIEF_CFG_BANNER_INDICATORS"* && "$newpart" != *"CHIEF_CFG_BANNER_INDICATORS"* ]]; echo $?)" "$out"
 check "config-update: local-only settings in the shared file don't count (PLUGINS_PATH)" \
   "$( [[ "$(sed -n '/Set in the shared settings/,$p' <<<"$out")" != *"CHIEF_CFG_PLUGINS_PATH"* ]]; echo $?)" "$out"
 
@@ -247,8 +268,8 @@ write_cfg "$HOMEA" "bob"
 out="$(start "$HOMEA" -c 'chief.shared-profile --personal' EDITOR=true)"
 check "shared-profile: an untouched new personal profile isn't kept (no users/bob, no commit offer)" \
   "$( [[ ! -e "$HAP/users/bob" && "$out" == *"wasn't kept"* && "$out" != *"Not pushed"* ]]; echo $?)" "$out"
-out="$(start "$HOMEA" -c 'chief.shared-config --personal' EDITOR=true)"
-check "shared-config: same for an untouched new personal settings file" \
+out="$(start "$HOMEA" -c 'chief.config --personal' EDITOR=true)"
+check "config --personal: same for an untouched new personal settings file" \
   "$( [[ ! -e "$HAP/users/bob" && "$out" == *"wasn't kept"* && "$out" != *"Not pushed"* ]]; echo $?)" "$out"
 out="$(start "$HOMEA" -c 'chief.shared-profile --personal' EDITOR="$WORK/append-editor.sh")"
 check "shared-profile: an edited new profile is kept and offered for commit (declined: no terminal)" \
