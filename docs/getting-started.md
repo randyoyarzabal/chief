@@ -34,14 +34,15 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 
 ### New host? Adopt your shared repo in the same step
 
-If you keep a shared plugins repo (plugins, settings, start-up profile and secrets), point the installer at it. It installs Chief, clones the repo, writes a config that uses it, and sets your Chief identity, so the new host matches your others from the first terminal:
+If you keep a shared plugins repo (plugins, settings, start-up profile and secrets), point the installer at it. It installs Chief, clones the repo, writes a config that uses it, and (in a team repo) sets your Chief identity, so the new host matches your others from the first terminal:
 
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/dev/tools/install.sh)" -- \
   --repo ssh://git@git.example.com:2222/team/common.git \
-  --repo-path path/to/plugins \
-  --user alice
+  --repo-path path/to/plugins
 ```
+
+For a team repo, add `--user alice`.
 
 | Option | Meaning |
 |--------|---------|
@@ -50,7 +51,7 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 | `--user NAME` | Your Chief identity, the same on every host even when your login differs. Needed when the repo is a team repo (its plugins folder has a `users/` folder); asked for when there's a terminal |
 | `--repo-branch B` / `--repo-dir DIR` | Branch to use / where to clone it (default `~/chief_plugins`) |
 
-Chief is already installed? Run `chief.plugins-repo <git-url> --path <folder> --user <name>` instead. Then open a new terminal, and save your secrets passwords on this host once with `chief.secrets_password-save`. More in [Shared repo](configuration.html#shared-repo-the-same-chief-everywhere). (`--repo` is new in v3.2.1; until that's released, use the `dev` install URL as above.)
+Chief is already installed? Run `chief.plugins-repo <git-url> --path <folder> [--user <name>]` instead. Then open a new terminal, and save your secrets passwords on this host once with `chief.secrets_password-save`. More in [Shared repo](configuration.html#shared-repo-the-same-chief-everywhere). (`--repo` is new in v3.2.1; until that's released, use the `dev` install URL as above.)
 
 ### Alternative Installation Methods
 

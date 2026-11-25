@@ -334,10 +334,12 @@ Everything lives in the repo's plugins folder (`CHIEF_CFG_PLUGINS_GIT_PATH`, whi
 
 ```bash
 # New host (installs Chief too)
-install.sh --repo <git-url> --repo-path <folder> --user <name>
+install.sh --repo <git-url> --repo-path <folder> [--user <name>]
 # Host that already has Chief
-chief.plugins-repo <git-url> --path <folder> --user <name>
+chief.plugins-repo <git-url> --path <folder> [--user <name>]
 ```
+
+`--user` is for a team repo (one with `users/` folders); leave it out for a repo only you use.
 
 Then open a new terminal. On each host, save your secrets passwords once with `chief.secrets_password-save` so they don't prompt.
 

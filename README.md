@@ -30,10 +30,10 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 ```bash
 bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/dev/tools/install.sh)" -- \
   --repo ssh://git@git.example.com:2222/team/common.git \
-  --repo-path path/to/plugins --user alice
+  --repo-path path/to/plugins
 ```
 
-On a host that already has Chief: `chief.plugins-repo <git-url> --path <folder> --user <name>`. See [Shared repo](https://chief.randyo.dev/configuration.html#shared-repo-the-same-chief-everywhere). (`--repo` is new in v3.2.1; until that's released, use the `dev` install URL as above.)
+Add `--user <name>` for a team repo (one with `users/` folders). On a host that already has Chief: `chief.plugins-repo <git-url> --path <folder>`. See [Shared repo](https://chief.randyo.dev/configuration.html#shared-repo-the-same-chief-everywhere). (`--repo` is new in v3.2.1; until that's released, use the `dev` install URL as above.)
 
 **Switching an existing install** between stable and development is just a checkout; Chief follows the branch it's on (`auto`, the default) and the banner's `tracking:` line shows it:
 
@@ -56,31 +56,45 @@ For environments without git connectivity:
 
 ## Quick Start: Portable Setup
 
-**Real-world example**: Set up Chief with remote plugins and vault that follows you across all systems.
+**Real-world example**: keep your plugins, settings, start-up profile and encrypted secrets in one git repo, and get the same Chief on every host: laptop, servers, CI.
 
-### One-Time Setup (any new system)
+### New host: one command
 
 ```bash
-# 1. Install Chief (one command)
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
-
-# 2. Configure your plugin repository (replace with your repo)
-chief.config-set -y PLUGINS_GIT_REPO="git@github.com:yourusername/my-plugins.git"
-chief.config-set -y PLUGINS_PATH="${HOME}/chief_plugins"
-chief.config-set -y PLUGINS_GIT_BRANCH="main"
-chief.config-set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root, this is plugins path relative to PLUGINS_PATH
-chief.config-set -y PLUGINS_GIT_AUTOUPDATE="false"    # manual updates
-chief.config-set -y PLUGINS_TYPE="remote"             # Enable remote sync
-
-# 3. (Optional) Enable multi-line prompt, useful when current working dir is deep.
-chief.config-set -y MULTILINE_PROMPT=true 
-
-# 4. (Optional) Load your encrypted secrets (if exists)
-chief.secrets_file-load  # Team secrets (.chief_shared-secrets - if exists)
-chief.secrets_file-load ~/.my-personal-secrets     # Personal secrets
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/dev/tools/install.sh)" -- \
+  --repo git@github.com:yourusername/my-plugins.git \
+  --repo-path bash/plugins        # where the plugins live in the repo; leave out for the repo root
 ```
 
-For detailed secrets and vault setup, see: [Secrets and Vault Configuration](https://chief.randyo.dev/configuration.html#-secrets-and-vault-configuration)
+This installs Chief, clones the repo, points the new config at it and reports what it found. Open a new terminal and it's all there. Other options: `--repo-branch <b>`, `--repo-dir <clone-dir>` (default `~/chief_plugins`), and `--user <name>` for a team repo (below). `--repo` is new in v3.2.1; until that's released, use the `dev` install URL as above.
+
+### Host that already has Chief
+
+```bash
+chief.plugins-repo git@github.com:yourusername/my-plugins.git --path bash/plugins
+```
+
+### Then, once per host (optional)
+
+```bash
+chief.secrets_password-save   # save the secrets password once, so new shells don't prompt
+chief.secrets_file-load       # load every secrets file that exists (shared and this host's)
+```
+
+### What goes in the repo
+
+| In the plugins folder | What it is |
+|---|---|
+| `*_chief-plugin.sh` | your plugins (functions, aliases) |
+| `.chief_shared-config.sh` | Chief settings for every host (`chief.shared-config`) |
+| `.chief_shared-profile.sh` | start-up code, like a shared `~/.bash_profile` (`chief.shared-profile`) |
+| `.chief_shared-secrets` | encrypted secrets (`chief.secrets_file-edit --team`) |
+
+Host- or login-specific lines go inside those files with `chief.host_is`, for example `if chief.host_is my-laptop; then ...; fi` or `if chief.host_is 'deploy@*'; then ...; fi`.
+
+**Sharing the repo with a team?** Each person gets a `users/<name>/` folder for their own settings, profile and secrets (the `--personal` commands create it), and sets `CHIEF_CFG_USER` to that name on each host they use (`--user <name>` when onboarding). A repo only you use doesn't need either.
+
+See [Shared repo](https://chief.randyo.dev/configuration.html#shared-repo-the-same-chief-everywhere) for the details, and [Secrets and Vault Configuration](https://chief.randyo.dev/configuration.html#secrets-and-vault-configuration) for secrets.
 
 ### Result
 
