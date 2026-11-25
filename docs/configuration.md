@@ -519,6 +519,7 @@ chief.secrets_file-load ~/.my-personal-secrets
 
 - **Backends**: Ansible Vault (`ansible-vault`) or GPG (symmetric AES256). Use `--backend=gpg` or `--backend=ansible` when creating; backend is auto-detected when editing or loading.
 - **Password (optional)**: To avoid prompts, set a password file. Ansible: `ANSIBLE_VAULT_PASSWORD_FILE`. GPG: `CHIEF_SECRETS_PASSWORD_FILE`. Otherwise you are prompted.
+- **Changing the password (re-key)**: `chief.secrets_file-edit <file> --rekey` changes the password of an existing file without opening the editor, for both backends. It asks for the current password (or reads the password file above), then the new one twice; `--new-password-file=PATH` reads the new one from a file instead. If anything fails, the file is left as it was. Afterwards, update any password file that still holds the old password. For a shared team file, tell your team the new password.
 - **Team secrets**: `CHIEF_CFG_PLUGINS_PATH/.chief_shared-secrets` (shared). Legacy name `.chief_shared-vault` is deprecated.
 - **Personal secrets**: `~/.chief_user-secrets` (or legacy `~/.chief_user-vault`).
 

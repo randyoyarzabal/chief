@@ -233,6 +233,19 @@ main() {
         echo ""
     fi
 
+    # 7. Secrets plugin tests (re-key; each backend skipped when its tool is missing)
+    if [[ -f "$TEST_DIR/secrets-tests.sh" ]]; then
+        log_info "Running secrets plugin tests..."
+        TOTAL_TESTS=$((TOTAL_TESTS + 1))
+        if "$TEST_DIR/secrets-tests.sh"; then
+            log_success "Secrets plugin tests"
+        else
+            log_error "Secrets plugin tests"
+            suite_failures=$((suite_failures + 1))
+        fi
+        echo ""
+    fi
+
     # Print final summary
     print_summary
 }
@@ -260,6 +273,7 @@ show_help() {
     echo "  ./tests/release-tests.sh    - dev-only release tooling end to end (fake GitHub)"
     echo "  ./tests/config-defaults-tests.sh - plugin defaults and SSH auto-load (incl. upgrades)"
     echo "  ./tests/bash-version-tests.sh - Bash < 4 start-up warning"
+    echo "  ./tests/secrets-tests.sh    - secrets re-key (GPG and Ansible Vault)"
 }
 
 # Parse command line arguments

@@ -149,6 +149,11 @@ chief.secrets_file-edit [secrets-file] [--load] [--backend=gpg|ansible]
     --load          Load (source) secrets after editing
     --backend=...   For new files only: gpg or ansible
 
+# Change the password of an existing file (Ansible Vault or GPG), no editing
+chief.secrets_file-edit [secrets-file] --rekey [--new-password-file=PATH] [--load]
+    --rekey         Asks for the current password, then the new one twice
+    --new-password-file=PATH  Read the new password from PATH instead of prompting
+
 # Load secrets into current shell
 chief.secrets_file-load [secrets-file]
 ```

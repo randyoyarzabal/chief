@@ -145,6 +145,133 @@ function __chief_secrets_warn_legacy_file() {
   echo -e "${CHIEF_COLOR_YELLOW}Deprecation:${CHIEF_NO_COLOR} .chief_*vault is deprecated; rename to .chief_*secrets (e.g. .chief_user-secrets, .chief_shared-secrets). Migration: mv $base ${base/-vault/-secrets} && export CHIEF_SECRETS_FILE=..." >&2
 }
 
+# Print a file's permission bits (e.g. 600). GNU stat first: BSD/macOS stat rejects -c, while
+# GNU stat accepts -f (file-system mode) and would print the wrong thing.
+function __chief_secrets_file_mode() {
+  stat -c '%a' "$1" 2>/dev/null || stat -f '%Lp' "$1" 2>/dev/null
+}
+
+# Prompt twice for a new password and store it in the variable named by $1.
+# Fails (without setting it) when the password is empty or the two entries differ.
+function __chief_secrets_read_new_password() {
+  local p1 p2
+  echo -e "${CHIEF_COLOR_CYAN}New GPG password:${CHIEF_NO_COLOR}" >&2
+  read -rs p1 </dev/tty 2>/dev/null || read -rs p1
+  echo >&2
+  if [[ -z "$p1" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} The new password can't be empty. Nothing changed." >&2
+    return 1
+  fi
+  echo -e "${CHIEF_COLOR_CYAN}Confirm new GPG password:${CHIEF_NO_COLOR}" >&2
+  read -rs p2 </dev/tty 2>/dev/null || read -rs p2
+  echo >&2
+  if [[ "$p1" != "$p2" ]]; then
+    unset p1 p2
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} The passwords don't match. Nothing changed." >&2
+    return 1
+  fi
+  printf -v "$1" '%s' "$p1"
+  unset p1 p2
+}
+
+# Change the password of an existing secrets file (Ansible Vault or GPG) without editing it.
+# Usage: __chief_secrets_rekey <secrets_file> [new_password_file]
+# The current password comes from ANSIBLE_VAULT_PASSWORD_FILE / CHIEF_SECRETS_PASSWORD_FILE
+# or a prompt; the new one from new_password_file or a prompt (twice). On any failure the
+# original file is left untouched.
+function __chief_secrets_rekey() {
+  local secrets_file="$1" new_pw_file="$2" det
+  if [[ -n "$new_pw_file" && ! -f "$new_pw_file" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} New password file not found: $new_pw_file" >&2
+    return 1
+  fi
+  det="$(__chief_secrets_detect_backend "$secrets_file")"
+  if [[ -z "$det" ]]; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Not a recognized encrypted file: $secrets_file (expected Ansible Vault or GPG)." >&2
+    return 1
+  fi
+
+  if [[ "$det" == "ansible" ]]; then
+    if ! command -v ansible-vault >/dev/null 2>&1; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} ansible-vault required. Install ansible-core." >&2
+      return 1
+    fi
+    # ansible-vault reads the current password from ANSIBLE_VAULT_PASSWORD_FILE when set and
+    # otherwise prompts; it prompts (twice) for the new one unless a file is given. Its output
+    # stays visible (prompts) and is also captured to explain a failure.
+    local errf args=(rekey)
+    [[ -n "$new_pw_file" ]] && args+=(--new-vault-password-file "$new_pw_file")
+    errf="$(mktemp)"
+    if ! ansible-vault "${args[@]}" "$secrets_file" 2> >(tee "$errf" >&2); then
+      __chief_secrets_ansible_report "$errf" rekey
+      rm -f "$errf"
+      return 1
+    fi
+    rm -f "$errf"
+    echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file re-keyed (ansible-vault): $secrets_file"
+    if [[ -n "${ANSIBLE_VAULT_PASSWORD_FILE:-}" ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} ANSIBLE_VAULT_PASSWORD_FILE ($ANSIBLE_VAULT_PASSWORD_FILE) still holds the old password. Update it, or loading this file will fail."
+    fi
+    return 0
+  fi
+
+  # GPG: decrypt with the current password and pipe straight into a re-encrypt with the new
+  # one, so the plaintext never touches the disk. Write to a temp file next to the original
+  # and swap it in only after both steps succeed.
+  __chief_secrets_require_gpg || return 1
+  local old_pass="" new_pass="" dec_pw enc_pw out errd erre mode
+  if [[ -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" ]] && [[ -f "$CHIEF_SECRETS_PASSWORD_FILE" ]]; then
+    dec_pw=(--passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE")
+  else
+    echo -e "${CHIEF_COLOR_CYAN}Current GPG password:${CHIEF_NO_COLOR}" >&2
+    read -rs old_pass </dev/tty 2>/dev/null || read -rs old_pass
+    echo >&2
+    dec_pw=(--passphrase-fd 3)
+  fi
+  if [[ -n "$new_pw_file" ]]; then
+    enc_pw=(--passphrase-file "$new_pw_file")
+  else
+    __chief_secrets_read_new_password new_pass || { unset old_pass; return 1; }
+    enc_pw=(--passphrase-fd 4)
+  fi
+
+  out="$(mktemp "${secrets_file}.rekey.XXXXXX")" || {
+    unset old_pass new_pass
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Can't create a temporary file next to $secrets_file. Nothing changed." >&2
+    return 1
+  }
+  errd="$(mktemp)"
+  erre="$(mktemp)"
+  gpg --batch "${dec_pw[@]}" --decrypt "$secrets_file" 2>"$errd" 3<<<"$old_pass" \
+    | gpg --batch --yes --armor "${enc_pw[@]}" --symmetric --cipher-algo AES256 -o "$out" 2>"$erre" 4<<<"$new_pass"
+  local rcs=("${PIPESTATUS[@]}")
+  unset old_pass new_pass
+  if [[ ${rcs[0]} -ne 0 ]]; then
+    __chief_secrets_gpg_report "$errd" decrypt
+    echo -e "${CHIEF_COLOR_YELLOW}Nothing changed.${CHIEF_NO_COLOR}" >&2
+    rm -f "$out" "$errd" "$erre"
+    return 1
+  fi
+  if [[ ${rcs[1]} -ne 0 ]]; then
+    __chief_secrets_gpg_report "$erre" encrypt
+    echo -e "${CHIEF_COLOR_YELLOW}Nothing changed.${CHIEF_NO_COLOR}" >&2
+    rm -f "$out" "$errd" "$erre"
+    return 1
+  fi
+  rm -f "$errd" "$erre"
+  mode="$(__chief_secrets_file_mode "$secrets_file")"
+  mv -f "$out" "$secrets_file" || {
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Couldn't replace $secrets_file; the re-keyed copy is at $out" >&2
+    return 1
+  }
+  [[ -n "$mode" ]] && chmod "$mode" "$secrets_file"
+  echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file re-keyed (gpg): $secrets_file"
+  if [[ -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" ]] && [[ -f "$CHIEF_SECRETS_PASSWORD_FILE" ]]; then
+    echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} CHIEF_SECRETS_PASSWORD_FILE ($CHIEF_SECRETS_PASSWORD_FILE) still holds the old password. Update it, or loading this file will fail."
+  fi
+  return 0
+}
+
 function chief.secrets_file-edit() {
   __chief_secrets_resolve_default
   if [[ -z $CHIEF_SECRETS_FILE ]]; then
@@ -152,6 +279,7 @@ function chief.secrets_file-edit() {
   fi
 
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [secrets-file] [--load] [--backend=gpg|ansible]
+       $FUNCNAME [secrets-file] --rekey [--new-password-file=PATH] [--load]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Edit/create a Bash shell secrets file (env vars, functions, etc.) encrypted with Ansible Vault or GPG.
@@ -169,6 +297,11 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   --load          Load (source) secrets into environment after editing
   --backend=...   For new files only: gpg or ansible (default: gpg if available, else ansible).
                   Once a file exists, backend is auto-detected; do not pass --backend for edit/load.
+  --rekey         Change the password of an existing file (Ansible Vault or GPG) without
+                  opening the editor. Asks for the current password (or reads the password
+                  file above), then the new one twice. The file is unchanged if anything fails.
+  --new-password-file=PATH
+                  With --rekey: read the new password from PATH instead of prompting.
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -?, --help      Show this help
@@ -183,18 +316,22 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME
   $FUNCNAME --load
   $FUNCNAME ~/.my-secrets --backend=gpg
+  $FUNCNAME --rekey                     # change the password of \$CHIEF_SECRETS_FILE
+  $FUNCNAME ~/.my-secrets --rekey --new-password-file=~/.new-pass
 "
   if [[ $1 == "-?" || $1 == "--help" ]]; then
     echo -e "${USAGE}"
     return 0
   fi
 
-  local no_load=true secrets_file="" backend=""
+  local no_load=true secrets_file="" backend="" rekey=false new_pw_file=""
   local arg
   for arg in "$@"; do
     case "$arg" in
       --load) no_load=false ;;
       --backend=*) backend="${arg#--backend=}" ;;
+      --rekey) rekey=true ;;
+      --new-password-file=*) new_pw_file="${arg#--new-password-file=}"; new_pw_file="${new_pw_file/#\~/$HOME}" ;;
       -?|--help) ;;
       *) [[ -z "$secrets_file" ]] && secrets_file="$arg" ;;
     esac
@@ -211,6 +348,28 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
 
   # Deprecation: legacy file name
   __chief_secrets_warn_legacy_file "$(basename "$secrets_file")"
+
+  if [[ -n "$new_pw_file" ]] && ! $rekey; then
+    echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} --new-password-file only works with --rekey." >&2
+    return 1
+  fi
+
+  # Re-key: change the password of an existing file, no editing.
+  if $rekey; then
+    if [[ -n "$backend" ]]; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} --backend is for new files; --rekey detects the backend of the existing file." >&2
+      return 1
+    fi
+    if [[ ! -f "$secrets_file" ]]; then
+      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Nothing to re-key: $secrets_file does not exist." >&2
+      return 1
+    fi
+    __chief_secrets_rekey "$secrets_file" "$new_pw_file" || return 1
+    if ! $no_load; then
+      chief.secrets_file-load "$secrets_file"
+    fi
+    return 0
+  fi
 
   # New file
   if [[ ! -f "$secrets_file" ]]; then

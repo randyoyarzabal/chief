@@ -321,6 +321,11 @@ test_python_dependencies() {
 # shells get a yellow warning with the disable command; non-interactive shells
 # stay quiet; disabling the plugin silences the warning.
 test_missing_link_plugin() {
+    # Chief needs Bash 4+; under older Bash a non-interactive load is core-only by design.
+    if (( BASH_VERSINFO[0] < 4 )); then
+        log_warning "Missing-link plugin tests skipped (Bash ${BASH_VERSION} < 4; Chief needs 4+)"
+        return 0
+    fi
     local dir="$TEMP_DIR/missing-link"
     local plugins="$dir/plugins"
     mkdir -p "$plugins"

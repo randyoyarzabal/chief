@@ -246,6 +246,7 @@ chief.git_reset-hard -n       # Preview a hard reset (dry run)
 
 # Secrets plugin (encrypted file): create/edit and load into shell
 chief.secrets_file-edit         # Create/edit encrypted secrets file (Ansible Vault or GPG)
+chief.secrets_file-edit --rekey # Change its password (both backends), without editing
 chief.secrets_file-load         # Load secrets into shell
 
 # Vault plugin (HashiCorp Vault; off by default): read/write/list KV secrets
