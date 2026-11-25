@@ -138,5 +138,30 @@ bcheck "banner: 5 indicators still 5 lines, extras share the last line" "$( [[ $
 out="$(banner_out CHIEF_CFG_BANNER_STYLE=compact)"
 bcheck "banner compact: small logo, indicators beside it, version under it" "$( [[ "$(head -1 <<<"$out")" == *"┌─┐"* && "$out" == *"plugins:"* && "$(tail -1 <<<"$out")" == v* && $(wc -l <<<"$out") -eq 4 ]]; echo $?)"
 
+# chief.config-update must not turn the template's commented examples into real settings
+# (CHIEF_CFG_PLUGINS_GIT_PATH has three "#   CHIEF_CFG_PLUGINS_GIT_PATH=..." examples).
+DUPDIR="$(mktemp -d "${TMPDIR:-/tmp}/chief-dup-test.XXXXXX")"
+cfgupdate() { # <config file>
+    NO_COLOR=1 CHIEF_PATH="$PROJECT_ROOT" CHIEF_CONFIG="$1" bash -c '
+        source "$CHIEF_PATH/libs/core/chief_library.sh" >/dev/null 2>&1
+        chief.config-update --force --no-backup >/dev/null 2>&1' </dev/null
+}
+gitpath_counts() { echo "$(grep -c '^CHIEF_CFG_PLUGINS_GIT_PATH=' "$1") active, $(grep -c '^#   CHIEF_CFG_PLUGINS_GIT_PATH=' "$1") examples"; }
+cp "$PROJECT_ROOT/templates/chief_config_template.sh" "$DUPDIR/healthy.sh"
+sed -i.bak 's|^CHIEF_CFG_PLUGINS_GIT_PATH=""|CHIEF_CFG_PLUGINS_GIT_PATH="deep/folder"|' "$DUPDIR/healthy.sh"
+cfgupdate "$DUPDIR/healthy.sh"; cfgupdate "$DUPDIR/healthy.sh"
+got="$(gitpath_counts "$DUPDIR/healthy.sh")"
+if [[ "$got" == "1 active, 3 examples" ]] && grep -q '^CHIEF_CFG_PLUGINS_GIT_PATH="deep/folder"$' "$DUPDIR/healthy.sh"; then
+    echo -e "${GREEN}[PASS]${NC} config-update: template examples stay comments, no duplicated settings (run twice)"; PASS=$((PASS + 1))
+else echo -e "${RED}[FAIL]${NC} config-update duplicated a setting (got: $got)"; FAIL=$((FAIL + 1)); fi
+# A config already damaged by the old bug (4 copies, examples gone) is repaired.
+grep -v '^#   CHIEF_CFG_PLUGINS_GIT_PATH=' "$DUPDIR/healthy.sh" | awk '{print} /^CHIEF_CFG_PLUGINS_GIT_PATH=/{print; print; print}' > "$DUPDIR/broken.sh"
+cfgupdate "$DUPDIR/broken.sh"
+got="$(gitpath_counts "$DUPDIR/broken.sh")"
+if [[ "$got" == "1 active, 3 examples" ]] && grep -q '^CHIEF_CFG_PLUGINS_GIT_PATH="deep/folder"$' "$DUPDIR/broken.sh"; then
+    echo -e "${GREEN}[PASS]${NC} config-update: repairs a config with duplicated settings, keeping the value"; PASS=$((PASS + 1))
+else echo -e "${RED}[FAIL]${NC} config-update didn't repair duplicates (got: $got)"; FAIL=$((FAIL + 1)); fi
+rm -rf "$DUPDIR"
+
 echo "Passed: $PASS  Failed: $FAIL"
 [[ $FAIL -eq 0 ]]
