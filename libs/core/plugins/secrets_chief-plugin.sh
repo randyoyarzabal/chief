@@ -132,6 +132,13 @@ function __chief_secrets_ansible_report() {
   fi
 }
 
+# Print a success/progress message unless the caller (chief.secrets_file-load / -edit) runs
+# with --quiet. Errors and warnings are never routed through here, so they always show.
+function __chief_secrets_say() {
+  [[ "${__chief_secrets_quiet:-false}" == "true" ]] && return 0
+  echo -e "$@"
+}
+
 # Show deprecation warning for legacy file name (once per session).
 function __chief_secrets_warn_legacy_file() {
   local base="$1"
@@ -186,7 +193,7 @@ function __chief_secrets_rekey_update_saved() {
   local file="$1" where="$2" new_pw="$3"
   [[ -z "$where" ]] && return 0
   if [[ -n "$new_pw" ]] && __chief_secrets_store_put "$file" "$where" <<<"$new_pw"; then
-    echo -e "${CHIEF_COLOR_GREEN}Saved password updated${CHIEF_NO_COLOR} (${where} store)."
+    __chief_secrets_say "${CHIEF_COLOR_GREEN}Saved password updated${CHIEF_NO_COLOR} (${where} store)."
   else
     __chief_secrets_store_del "$file" >/dev/null 2>&1
     echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} The saved password was out of date and has been removed. Save the new one with ${CHIEF_COLOR_CYAN}chief.secrets_password-save $file${CHIEF_NO_COLOR}."
@@ -230,7 +237,7 @@ function __chief_secrets_rekey() {
     fi
     unset spw
     rm -f "$errf"
-    echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file re-keyed (ansible-vault): $secrets_file"
+    __chief_secrets_say "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file re-keyed (ansible-vault): $secrets_file"
     if [[ -n "${ANSIBLE_VAULT_PASSWORD_FILE:-}" ]]; then
       echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} ANSIBLE_VAULT_PASSWORD_FILE ($ANSIBLE_VAULT_PASSWORD_FILE) still holds the old password. Update it, or loading this file will fail."
     fi
@@ -301,7 +308,7 @@ function __chief_secrets_rekey() {
     return 1
   }
   [[ -n "$mode" ]] && chmod "$mode" "$secrets_file"
-  echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file re-keyed (gpg): $secrets_file"
+  __chief_secrets_say "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file re-keyed (gpg): $secrets_file"
   if [[ -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" ]] && [[ -f "$CHIEF_SECRETS_PASSWORD_FILE" ]]; then
     echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} CHIEF_SECRETS_PASSWORD_FILE ($CHIEF_SECRETS_PASSWORD_FILE) still holds the old password. Update it, or loading this file will fail."
   fi
@@ -316,8 +323,8 @@ function chief.secrets_file-edit() {
     CHIEF_SECRETS_FILE="$HOME/.chief_user-secrets"
   fi
 
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [secrets-file] [--load] [--backend=gpg|ansible]
-       $FUNCNAME [secrets-file] --rekey [--new-password-file=PATH] [--load]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [secrets-file] [--load] [--backend=gpg|ansible] [-q]
+       $FUNCNAME [secrets-file] --rekey [--new-password-file=PATH] [--load] [-q]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Edit/create a Bash shell secrets file (env vars, functions, etc.) encrypted with Ansible Vault or GPG.
@@ -342,6 +349,8 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
                   file above), then the new one twice. The file is unchanged if anything fails.
   --new-password-file=PATH
                   With --rekey: read the new password from PATH instead of prompting.
+  -q, --quiet     No success or progress messages (errors and warnings still show).
+                  Passed on to the load when used with --load.
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -?, --help      Show this help
@@ -365,10 +374,12 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 
   local no_load=true secrets_file="" backend="" rekey=false new_pw_file=""
+  local __chief_secrets_quiet=false
   local arg
   for arg in "$@"; do
     case "$arg" in
       --load) no_load=false ;;
+      -q|--quiet) __chief_secrets_quiet=true ;;
       --backend=*) backend="${arg#--backend=}" ;;
       --rekey) rekey=true ;;
       --new-password-file=*) new_pw_file="${arg#--new-password-file=}"; new_pw_file="${new_pw_file/#\~/$HOME}" ;;
@@ -406,7 +417,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     fi
     __chief_secrets_rekey "$secrets_file" "$new_pw_file" || return 1
     if ! $no_load; then
-      chief.secrets_file-load "$secrets_file"
+      if $__chief_secrets_quiet; then chief.secrets_file-load "$secrets_file" --quiet; else chief.secrets_file-load "$secrets_file"; fi
     fi
     return 0
   fi
@@ -429,7 +440,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
 
     mkdir -p "$(dirname "$secrets_file")" || { echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Cannot create directory for $secrets_file"; return 1; }
     local editor="${EDITOR:-vi}"
-    echo -e "${CHIEF_COLOR_GREEN}Creating new secrets file:${CHIEF_NO_COLOR} $secrets_file (backend: $backend)"
+    __chief_secrets_say "${CHIEF_COLOR_GREEN}Creating new secrets file:${CHIEF_NO_COLOR} $secrets_file (backend: $backend)"
     $editor "$secrets_file"
     if [[ ! -f "$secrets_file" ]] || [[ ! -s "$secrets_file" ]]; then
       echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} File not created or empty. Save in editor and retry."
@@ -451,9 +462,9 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
       fi
       rm -f "$tmpf"
     fi
-    echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file created and encrypted."
+    __chief_secrets_say "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file created and encrypted."
     if $no_load; then
-      echo -e "${CHIEF_COLOR_BLUE}Load with:${CHIEF_NO_COLOR} chief.secrets_file-load ${secrets_file:+$secrets_file}"
+      __chief_secrets_say "${CHIEF_COLOR_BLUE}Load with:${CHIEF_NO_COLOR} chief.secrets_file-load ${secrets_file:+$secrets_file}"
     fi
     return 0
   fi
@@ -533,9 +544,9 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   fi
 
   if $no_load; then
-    echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file edited (not loaded). Load with: chief.secrets_file-load ${secrets_file:+$secrets_file}"
+    __chief_secrets_say "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file edited (not loaded). Load with: chief.secrets_file-load ${secrets_file:+$secrets_file}"
   else
-    chief.secrets_file-load "$secrets_file"
+    if $__chief_secrets_quiet; then chief.secrets_file-load "$secrets_file" --quiet; else chief.secrets_file-load "$secrets_file"; fi
   fi
 }
 
@@ -916,7 +927,7 @@ function chief.secrets_file-load() {
     CHIEF_SECRETS_FILE="$HOME/.chief_user-secrets"
   fi
 
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [secrets-file]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [secrets-file] [-q|--quiet]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Load (decrypt and source) an encrypted Bash secrets file into the current shell.
@@ -932,14 +943,19 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   [secrets-file]  Optional path (default: \$CHIEF_SECRETS_FILE)
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -q, --quiet     No success message (errors and warnings still show).
+                  Handy in ~/.bash_profile: chief.secrets_file-load --quiet
   -?, --help      Show this help
 "
-  if [[ $1 == "-?" || $1 == "--help" ]]; then
-    echo -e "${USAGE}"
-    return 0
-  fi
-
-  local secrets_file="${1:-$CHIEF_SECRETS_FILE}"
+  local arg secrets_file="" __chief_secrets_quiet=false
+  for arg in "$@"; do
+    case "$arg" in
+      -\?|--help) echo -e "${USAGE}"; return 0 ;;
+      -q|--quiet) __chief_secrets_quiet=true ;;
+      *) [[ -z "$secrets_file" ]] && secrets_file="$arg" ;;
+    esac
+  done
+  secrets_file="${secrets_file:-$CHIEF_SECRETS_FILE}"
   if [[ "$secrets_file" != /* ]]; then
     secrets_file="$(realpath "$secrets_file" 2>/dev/null || echo "$(pwd)/$secrets_file")"
   fi
@@ -977,7 +993,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
     unset spw
     rm -f "$aerrf"
     if source <(printf '%s\n' "$adec"); then
-      echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file loaded (ansible-vault)."
+      __chief_secrets_say "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file loaded (ansible-vault)."
     else
       echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Sourcing decrypted content failed (syntax error). Check with: ansible-vault view $secrets_file | bash -n"
       return 1
@@ -1012,7 +1028,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
     fi
     rm -f "$errf"
     if source <(printf '%s' "$dec"); then
-      echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file loaded (gpg)."
+      __chief_secrets_say "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file loaded (gpg)."
     else
       echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Sourcing decrypted content failed (syntax error)."
       return 1

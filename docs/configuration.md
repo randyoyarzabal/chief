@@ -514,6 +514,8 @@ chief.secrets_file-edit ~/.my-personal-secrets
 
 # Load secrets into shell (decrypt and source)
 chief.secrets_file-load .chief_shared-secrets
+# ...without the "Success" line, e.g. in ~/.bash_profile (errors still show)
+chief.secrets_file-load --quiet
 chief.secrets_file-load ~/.my-personal-secrets
 ```
 

@@ -143,19 +143,20 @@ Encrypted Bash secrets file (env vars, functions). Backends: Ansible Vault or GP
 
 ```bash
 # Edit or create encrypted secrets file
-chief.secrets_file-edit [secrets-file] [--load] [--backend=gpg|ansible]
+chief.secrets_file-edit [secrets-file] [--load] [--backend=gpg|ansible] [-q]
   Arguments:
     [secrets-file]  Optional path (default: $CHIEF_SECRETS_FILE)
     --load          Load (source) secrets after editing
     --backend=...   For new files only: gpg or ansible
+    -q, --quiet     No success or progress messages (errors and warnings still show)
 
 # Change the password of an existing file (Ansible Vault or GPG), no editing
 chief.secrets_file-edit [secrets-file] --rekey [--new-password-file=PATH] [--load]
     --rekey         Asks for the current password, then the new one twice
     --new-password-file=PATH  Read the new password from PATH instead of prompting
 
-# Load secrets into current shell
-chief.secrets_file-load [secrets-file]
+# Load secrets into current shell (-q: no success message; errors still show)
+chief.secrets_file-load [secrets-file] [-q|--quiet]
 ```
 
 Where the password comes from (first match wins):
