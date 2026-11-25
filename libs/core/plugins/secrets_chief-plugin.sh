@@ -876,9 +876,11 @@ function __chief_secrets_store_where() {
 }
 
 # Remove the stored password for <secrets_file> from every store. Returns 1 if none existed.
+# Remove the saved password for <file>: from every store, or only <store> (keychain | file).
 function __chief_secrets_store_del() {
-  local file="$1" kind found=1 dir id
+  local file="$1" only="${2:-}" kind found=1 dir id
   kind="$(__chief_secrets_keychain_kind)"
+  [[ "$only" == "file" ]] && kind=""
   if [[ "$kind" == "macos" ]]; then
     if [[ -n "${CHIEF_SECRETS_KEYCHAIN:-}" ]]; then
       security delete-generic-password -s "$CHIEF_SECRETS_STORE_SERVICE" -a "$file" "$CHIEF_SECRETS_KEYCHAIN" >/dev/null 2>&1 && found=0
@@ -890,6 +892,7 @@ function __chief_secrets_store_del() {
       secret-tool clear service "$CHIEF_SECRETS_STORE_SERVICE" account "$file" >/dev/null 2>&1 && found=0
     fi
   fi
+  [[ "$only" == "keychain" ]] && return $found
   dir="$(__chief_secrets_store_dir)"
   id="$(__chief_secrets_store_id "$file" 2>/dev/null)"
   if [[ -n "$id" && -f "$dir/$id" ]]; then
@@ -946,7 +949,7 @@ function __chief_secrets_check_password() {
 }
 
 function chief.secrets_password-save() {
-  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--shared|--personal|--local|<file>] [--store=auto|keychain|file]
+  local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME [--shared|--personal|--local|<file>] [--store=auto|keychain|file] [-y]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Save the password of an encrypted secrets file (Ansible Vault or GPG) so that
@@ -968,9 +971,12 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   --store=...     auto (default), keychain or file
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
+  -y, --yes       Replace an already saved password without asking
   -?, --help      Show this help
 
 ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
+- A password already saved for the file? It says where, and whether it still opens the file,
+  then asks before replacing it (the default is to keep it, unless it no longer works).
 - ANSIBLE_VAULT_PASSWORD_FILE / CHIEF_SECRETS_PASSWORD_FILE, when set, still take precedence.
 - The entry is tied to the file's path; save again after moving or renaming the file.
 - Remove with chief.secrets_password-remove; check with chief.secrets_password-status.
@@ -980,10 +986,11 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   $FUNCNAME ~/.chief_user-secrets
   $FUNCNAME ~/chief_plugins/.chief_shared-secrets --store=file
 "
-  local arg secrets_file="" store="auto" layer=""
+  local arg secrets_file="" store="auto" layer="" yes=false
   for arg in "$@"; do
     case "$arg" in
       -\?|--help) echo -e "${USAGE}"; return 0 ;;
+      -y|--yes) yes=true ;;
       --store=*) store="${arg#--store=}" ;;
       --shared) layer=shared ;;
       --personal) layer=personal ;;
@@ -1024,6 +1031,33 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     return 1
   fi
 
+  # Already saved? Say where and whether it still works, then ask before replacing it.
+  local old_where old_pw old_ok=false reply
+  old_where="$(__chief_secrets_store_where "$secrets_file")"
+  if [[ -n "$old_where" ]]; then
+    old_pw="$(__chief_secrets_store_get "$secrets_file" "$old_where")"
+    __chief_secrets_check_password "$secrets_file" <<<"$old_pw" && old_ok=true
+    unset old_pw
+    local old_label="obfuscated file store"
+    [[ "$old_where" == "keychain" ]] && old_label="$( [[ "$(__chief_secrets_keychain_kind)" == "macos" ]] && echo "macOS Keychain" || echo "keyring")"
+    if $old_ok; then
+      echo -e "${CHIEF_COLOR_YELLOW}A password is already saved${CHIEF_NO_COLOR} for $(__chief_secrets_tilde "$secrets_file") (${old_label}), and it still opens the file." >&2
+    else
+      echo -e "${CHIEF_COLOR_YELLOW}A password is already saved${CHIEF_NO_COLOR} for $(__chief_secrets_tilde "$secrets_file") (${old_label}), but it ${CHIEF_COLOR_RED}no longer opens the file${CHIEF_NO_COLOR} (the file's password probably changed)." >&2
+    fi
+    if ! $yes; then
+      if $old_ok; then
+        echo -ne "Replace it? ([${CHIEF_COLOR_GREEN}y${CHIEF_NO_COLOR}]es or [${CHIEF_COLOR_RED}N${CHIEF_NO_COLOR}]o): " >&2
+        read -r reply </dev/tty
+        [[ "$reply" =~ ^[Yy]([Ee][Ss])?$ ]] || { echo -e "${CHIEF_COLOR_BLUE}Kept${CHIEF_NO_COLOR} the saved password. Nothing changed."; return 0; }
+      else
+        echo -ne "Replace it? ([${CHIEF_COLOR_GREEN}Y${CHIEF_NO_COLOR}]es or [${CHIEF_COLOR_RED}n${CHIEF_NO_COLOR}]o): " >&2
+        read -r reply </dev/tty
+        [[ "$reply" =~ ^[Nn]([Oo])?$ ]] && { echo -e "${CHIEF_COLOR_BLUE}Kept${CHIEF_NO_COLOR} the saved password. Nothing changed."; return 0; }
+      fi
+    fi
+  fi
+
   local pw
   echo -e "${CHIEF_COLOR_CYAN}Password for ${secrets_file}:${CHIEF_NO_COLOR}" >&2
   read -rs pw </dev/tty
@@ -1043,6 +1077,11 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     return 1
   fi
   unset pw
+  # Replaced one in the other store? Remove that copy, or it could still be the one used
+  # (the keychain is read before the file store).
+  if [[ -n "$old_where" && "$old_where" != "$store" ]]; then
+    __chief_secrets_store_del "$secrets_file" "$old_where"
+  fi
   if [[ "$store" == "keychain" ]]; then
     echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Password saved in the $( [[ "$(__chief_secrets_keychain_kind)" == "macos" ]] && echo "macOS Keychain" || echo "keyring") for $secrets_file."
   else
