@@ -3311,7 +3311,7 @@ ${CHIEF_COLOR_GREEN}Input Formats:${CHIEF_NO_COLOR}
 
 ${CHIEF_COLOR_BLUE}Supported Configuration Variables:${CHIEF_NO_COLOR}
   BANNER                    Show/hide startup banner (true/false)
-  BANNER_INDICATORS         Banner status items, in order (e.g. "alias plugins tracking secrets"; "" for none)
+  BANNER_INDICATORS         Banner status items, in order (e.g. \"alias plugins tracking secrets\"; \"\" for none)
   BANNER_STYLE              Banner logo: full or compact (smaller, for narrow screens)
   BASH_WARN                 Warn at start-up if Bash is older than 4.0 (true/false)
   HINTS                     Show/hide startup hints (true/false)
