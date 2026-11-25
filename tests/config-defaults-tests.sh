@@ -105,6 +105,10 @@ note_is() { # <label> <expect:yes|no> <output>
 }
 note_is "config-set prompt: no reload, says to open a new terminal" yes "$(cfgset_out prompt true)"
 note_is "config-set multiline_prompt: reloads, no note (applies now)" no  "$(cfgset_out multiline_prompt true)"
+out="$(cfgset_out hints true)"
+if [[ "$out" != *"local: "* && "$out" == *"Confirmed: CHIEF_CFG_HINTS"* ]]; then
+    echo -e "${GREEN}[PASS]${NC} config-set: runs cleanly (no shell errors from its help text)"; PASS=$((PASS + 1))
+else echo -e "${RED}[FAIL]${NC} config-set printed a shell error (output: '$out')"; FAIL=$((FAIL + 1)); fi
 out="$(cfgset_out ssh_load_keys true)"
 if [[ "$out" == *"chief.ssh_load-keys"* && "$out" != *"Reloading Chief configuration"* ]]; then
     echo -e "${GREEN}[PASS]${NC} config-set ssh_load_keys: points to chief.ssh_load-keys"; PASS=$((PASS + 1))
