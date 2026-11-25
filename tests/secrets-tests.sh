@@ -294,6 +294,44 @@ else
   skip "Saved-password tests (need gpg and openssl)"
 fi
 
+# --- Load record: what this shell loaded, and how ---------------------
+if command -v gpg >/dev/null 2>&1; then
+  r="$WORK/record.secrets"
+  printf '%s\n' "$PLAIN" | gpg --batch --yes --armor --passphrase-file "$WORK/old.pass" --symmetric --cipher-algo AES256 -o "$r" 2>/dev/null
+  printf 'chief.secrets_file-load %q --quiet\n' "$r" > "$WORK/profile.sh"
+
+  out="$(run_chief CHIEF_SECRETS_PASSWORD_FILE="$WORK/old.pass" -- "__chief_secrets_loaded_report; chief.secrets_file-load '$r' >/dev/null; __chief_secrets_loaded_report")"
+  if grep -q "none loaded in this shell" <<<"$out" && grep -q "1 file(s) loaded" <<<"$out" \
+     && grep -q "loaded manually at" <<<"$out" && grep -q "password from CHIEF_SECRETS_PASSWORD_FILE" <<<"$out"; then
+    pass "Load record: a load typed at the prompt shows as manual, with its password source"
+  else
+    fail "Load record (manual); got: $out"
+  fi
+
+  out="$(run_chief CHIEF_SECRETS_PASSWORD_FILE="$WORK/old.pass" -- "source '$WORK/profile.sh'; __chief_secrets_loaded_report")"
+  if grep -q "loaded automatically, from .*profile.sh" <<<"$out" && grep -q "silently (--quiet)" <<<"$out"; then
+    pass "Load record: a quiet load from a start-up file shows as automatic and silent"
+  else
+    fail "Load record (start-up file, quiet); got: $out"
+  fi
+
+  out="$(run_chief CHIEF_SECRETS_PASSWORD_FILE="$WORK/old.pass" -- "chief.secrets_file-load '$r' >/dev/null; source \"\$CHIEF_PATH/libs/core/plugins/secrets_chief-plugin.sh\"; chief.secrets_password-status '$r'")"
+  if grep -q "This shell:   loaded manually" <<<"$out"; then
+    pass "Load record: survives re-sourcing the plugin (chief.reload) and shows in password-status"
+  else
+    fail "Load record across reload / password-status; got: $out"
+  fi
+
+  out="$(run_chief CHIEF_SECRETS_PASSWORD_FILE="$WORK/old.pass" CHIEF_CFG_BANNER=false -- "source '$WORK/profile.sh'; chief.status")"
+  if grep -q "Secrets: 1 file(s) loaded in this shell" <<<"$out" && grep -q "silently (--quiet)" <<<"$out"; then
+    pass "chief.status: lists the loaded secrets file, including a silent load"
+  else
+    fail "chief.status secrets section; got: $out"
+  fi
+else
+  skip "Load-record tests (need gpg)"
+fi
+
 if command -v ansible-vault >/dev/null 2>&1 && command -v openssl >/dev/null 2>&1; then
   a="$WORK/saved-ansible.secrets"
   printf '%s\n' "$PLAIN" > "$a"

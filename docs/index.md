@@ -99,7 +99,7 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 
 - `chief.help` - Interactive help system with plugin browsing
 - `chief.whereis <function>` - Find any function across all plugins
-- `chief.status` - Banner plus a health summary (functions, plugins, enabled/disabled)
+- `chief.status` - Banner plus a health summary (functions, plugins, enabled/disabled, secrets loaded in this shell and how)
 - `chief.plugin enable|disable|status` - Turn core, user and contrib plugins on or off
 - `chief.plugins-*` - Plugin management and discovery tools
 

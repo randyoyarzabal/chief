@@ -655,7 +655,15 @@ function __chief_print_shared_secrets_summary() {
   [[ -n "${CHIEF_SECRETS_FILE:-}" && -f "${CHIEF_SECRETS_FILE}" ]] || return 0
   local prefix base_msg legacy_note=""
   prefix="$(__chief_get_command_prefix)"
-  base_msg="The core ${CHIEF_COLOR_CYAN}secrets${CHIEF_NO_COLOR} plugin auto-detected a shared vault file under your plugins tree (not applied to this shell yet). Run ${CHIEF_COLOR_CYAN}${prefix}secrets_file-load${CHIEF_NO_COLOR} to load; see ${CHIEF_COLOR_CYAN}${prefix}help${CHIEF_NO_COLOR} for details."
+  local loaded=""
+  if declare -F __chief_secrets_loaded_desc >/dev/null; then
+    loaded="$(__chief_secrets_loaded_desc "${CHIEF_SECRETS_FILE}")"
+  fi
+  if [[ -n "$loaded" ]]; then
+    base_msg="The core ${CHIEF_COLOR_CYAN}secrets${CHIEF_NO_COLOR} plugin found a shared secrets file under your plugins tree: ${loaded}."
+  else
+    base_msg="The core ${CHIEF_COLOR_CYAN}secrets${CHIEF_NO_COLOR} plugin auto-detected a shared vault file under your plugins tree (not applied to this shell yet). Run ${CHIEF_COLOR_CYAN}${prefix}secrets_file-load${CHIEF_NO_COLOR} to load; see ${CHIEF_COLOR_CYAN}${prefix}help${CHIEF_NO_COLOR} for details."
+  fi
   if [[ "${CHIEF_SECRETS_FILE##*/}" == ".chief_shared-vault" ]] && [[ -z "${CHIEF_SECRETS_WARNED_LEGACY_DISCOVERY:-}" ]]; then
     export CHIEF_SECRETS_WARNED_LEGACY_DISCOVERY=1
     legacy_note="${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} rename .chief_shared-vault → .chief_shared-secrets when you can. "
@@ -1607,6 +1615,12 @@ function chief.status() {
   __chief.banner
   echo
   __chief_show_chief_stats
+  # Secrets loaded into this shell, and how (manually, by a start-up file, silently...).
+  if declare -F __chief_secrets_loaded_report >/dev/null; then
+    __chief_secrets_loaded_report
+  else
+    echo -e "${CHIEF_COLOR_MAGENTA}Secrets:${CHIEF_NO_COLOR} secrets plugin is off (chief.plugin enable core.secrets)"
+  fi
   case "$(__chief_dev_tools_state)" in
     active)  echo -e "${CHIEF_COLOR_MAGENTA}Dev tools:${CHIEF_NO_COLOR} active (chief.release_status, chief.release_prepare, chief.release_publish)" ;;
     branch)  echo -e "${CHIEF_COLOR_MAGENTA}Dev tools:${CHIEF_NO_COLOR} on, but inactive: ${CHIEF_PATH} is not on the dev branch (they only load on dev)" ;;

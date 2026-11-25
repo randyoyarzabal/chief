@@ -525,6 +525,10 @@ chief.secrets_file-edit ~/.my-personal-secrets
 chief.secrets_file-load .chief_shared-secrets
 # ...without the "Success" line, e.g. in ~/.bash_profile (errors still show)
 chief.secrets_file-load --quiet
+
+# See what this shell loaded, how (manually / by a start-up file) and whether silently
+chief.status
+chief.secrets_password-status
 chief.secrets_file-load ~/.my-personal-secrets
 ```
 

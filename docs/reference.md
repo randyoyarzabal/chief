@@ -79,7 +79,7 @@ chief.config-update --dry-run
 # Reload Chief after changes
 chief.reload
 
-# Show banner and stats (functions, core/user plugins, enabled/disabled)
+# Show banner and stats (functions, core/user plugins, enabled/disabled, secrets loaded in this shell)
 chief.status
 ```
 

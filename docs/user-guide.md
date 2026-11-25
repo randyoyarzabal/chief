@@ -107,7 +107,7 @@ chief.whereis my_function
 # Reload all plugins after changes
 chief.reload
 
-# Show banner and stats (function count, core/user plugins, enabled/disabled)
+# Show banner and stats (function count, core/user plugins, enabled/disabled, secrets loaded in this shell)
 chief.status
 ```
 

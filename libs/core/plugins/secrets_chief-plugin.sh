@@ -926,6 +926,95 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
     source_msg="prompt (save one with: chief.secrets_password-save)"
   fi
   echo -e "${CHIEF_COLOR_BLUE}Password from:${CHIEF_NO_COLOR} ${source_msg}"
+  local loaded
+  loaded="$(__chief_secrets_loaded_desc "$secrets_file")" || loaded="not loaded in this shell"
+  echo -e "${CHIEF_COLOR_BLUE}This shell:${CHIEF_NO_COLOR}   ${loaded}"
+}
+
+########################################################################
+# Load record: which secrets files this shell has loaded, and how
+########################################################################
+# Shown by chief.status, chief.secrets_password-status and the start-up/reload hint, so a
+# load is visible even when it was silent (--quiet) or done by a start-up file.
+# Per shell; kept across chief.reload (re-sourcing this plugin must not reset it).
+# Entry: CHIEF_SECRETS_LOADED[<abs path>]="<time>|<backend>|<origin>|<password source>|<quiet>"
+if ! declare -p CHIEF_SECRETS_LOADED >/dev/null 2>&1; then
+  declare -gA CHIEF_SECRETS_LOADED=()
+fi
+
+# A path with $HOME shown as ~.
+function __chief_secrets_tilde() {
+  if [[ "$1" == "$HOME"/* ]]; then
+    printf '~%s' "${1#"$HOME"}"
+  else
+    printf '%s' "$1"
+  fi
+}
+
+# How the current load was started, from the call stack:
+#   "manually"                         typed at the prompt
+#   "automatically, from <file>"       a start-up file or script (e.g. ~/.bash_profile)
+#   "by <function> (<file>)"           another (non-Chief) function, e.g. in a plugin
+#   "by secrets_file-edit --load"
+# Chief's own functions are skipped by name (with CHIEF_CFG_ALIAS they come from a temp file).
+function __chief_secrets_load_origin() {
+  local i fn src n=${#FUNCNAME[@]} alias_prefix=""
+  [[ -n "${CHIEF_CFG_ALIAS:-}" ]] && alias_prefix="$(printf '%s' "$CHIEF_CFG_ALIAS" | tr '[:upper:]' '[:lower:]')."
+  for ((i = 1; i < n; i++)); do
+    fn="${FUNCNAME[$i]}"
+    src="${BASH_SOURCE[$i]}"
+    if [[ "$fn" == *.secrets_file-edit ]]; then
+      echo "by secrets_file-edit --load"
+      return
+    fi
+    if [[ "$fn" == chief.* || "$fn" == __chief* || ( -n "$alias_prefix" && "$fn" == "$alias_prefix"* ) ]]; then
+      continue
+    fi
+    if [[ "$fn" == "source" || "$fn" == "main" ]]; then
+      if [[ -n "$src" ]]; then
+        echo "automatically, from $(__chief_secrets_tilde "$src")"
+        return
+      fi
+      continue
+    fi
+    echo "by ${fn} ($(__chief_secrets_tilde "$src"))"
+    return
+  done
+  echo "manually"
+}
+
+# Record a successful load. Usage: __chief_secrets_record_load <file> <backend> <password source>
+function __chief_secrets_record_load() {
+  local quiet="no"
+  [[ "${__chief_secrets_quiet:-false}" == "true" ]] && quiet="yes"
+  CHIEF_SECRETS_LOADED["$1"]="$(date '+%H:%M:%S')|$2|$(__chief_secrets_load_origin)|$3|$quiet"
+}
+
+# One-line description of how <file> was loaded in this shell; returns 1 if it wasn't.
+function __chief_secrets_loaded_desc() {
+  local entry="${CHIEF_SECRETS_LOADED[$1]:-}" t backend origin pw quiet desc
+  [[ -z "$entry" ]] && return 1
+  IFS='|' read -r t backend origin pw quiet <<<"$entry"
+  desc="loaded ${origin} at ${t} (${backend}; password from ${pw})"
+  [[ "$quiet" == "yes" ]] && desc+=", ${CHIEF_COLOR_YELLOW}silently (--quiet)${CHIEF_NO_COLOR}"
+  printf '%s' "$desc"
+}
+
+# Print the load record for chief.status. Usage: __chief_secrets_loaded_report
+function __chief_secrets_loaded_report() {
+  local f n=${#CHIEF_SECRETS_LOADED[@]}
+  if (( n == 0 )); then
+    local hint=""
+    if [[ -n "${CHIEF_SECRETS_FILE:-}" && -f "${CHIEF_SECRETS_FILE}" ]]; then
+      hint=" (available: $(__chief_secrets_tilde "$CHIEF_SECRETS_FILE"); load with chief.secrets_file-load)"
+    fi
+    echo -e "${CHIEF_COLOR_MAGENTA}Secrets:${CHIEF_NO_COLOR} none loaded in this shell${hint}"
+    return 0
+  fi
+  echo -e "${CHIEF_COLOR_MAGENTA}Secrets:${CHIEF_NO_COLOR} ${n} file(s) loaded in this shell"
+  for f in "${!CHIEF_SECRETS_LOADED[@]}"; do
+    echo -e "  $(__chief_secrets_tilde "$f"): $(__chief_secrets_loaded_desc "$f")"
+  done
 }
 
 function chief.secrets_file-load() {
@@ -952,6 +1041,9 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
   -q, --quiet     No success message (errors and warnings still show).
                   Handy in ~/.bash_profile: chief.secrets_file-load --quiet
+                  Every load is still recorded: chief.status and chief.secrets_password-status
+                  show what this shell loaded, how (manually or by a start-up file), and
+                  whether it was silent.
   -?, --help      Show this help
 "
   local arg secrets_file="" __chief_secrets_quiet=false
@@ -987,8 +1079,13 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
       return 1
     fi
     # Decrypt first (keeping stderr) so a decrypt failure is not confused with a syntax error in the content.
-    local adec aerrf spw
+    local adec aerrf spw pw_src="prompt"
     spw="$(__chief_secrets_saved_password_for "$secrets_file" ansible)"
+    if [[ -n "${ANSIBLE_VAULT_PASSWORD_FILE:-}" ]]; then
+      pw_src="ANSIBLE_VAULT_PASSWORD_FILE"
+    elif [[ -n "$spw" ]]; then
+      pw_src="saved password ($(__chief_secrets_store_where "$(__chief_secrets_abs_path "$secrets_file")"))"
+    fi
     aerrf="$(mktemp)"
     adec="$(__chief_secrets_ansible_vault "$spw" view "$secrets_file" 2>"$aerrf")" || {
       __chief_secrets_ansible_report "$aerrf" decrypt
@@ -1000,6 +1097,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
     unset spw
     rm -f "$aerrf"
     if source <(printf '%s\n' "$adec"); then
+      __chief_secrets_record_load "$secrets_file" ansible-vault "$pw_src"
       __chief_secrets_say "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file loaded (ansible-vault)."
     else
       echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Sourcing decrypted content failed (syntax error). Check with: ansible-vault view $secrets_file | bash -n"
@@ -1007,9 +1105,10 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
     fi
   else
     __chief_secrets_require_gpg || return 1
-    local dec gpg_pass errf from_saved=false
+    local dec gpg_pass errf from_saved=false pw_src="prompt"
     errf="$(mktemp)"
     if [[ -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" ]] && [[ -f "$CHIEF_SECRETS_PASSWORD_FILE" ]]; then
+      pw_src="CHIEF_SECRETS_PASSWORD_FILE"
       dec="$(gpg --batch --passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE" --decrypt "$secrets_file" 2>"$errf")" || {
         __chief_secrets_gpg_report "$errf" decrypt
         rm -f "$errf"
@@ -1019,6 +1118,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
       gpg_pass="$(__chief_secrets_saved_password_for "$secrets_file" gpg)"
       if [[ -n "$gpg_pass" ]]; then
         from_saved=true
+        pw_src="saved password ($(__chief_secrets_store_where "$(__chief_secrets_abs_path "$secrets_file")"))"
       else
         echo -e "${CHIEF_COLOR_CYAN}GPG password:${CHIEF_NO_COLOR}" >&2
         read -rs gpg_pass </dev/tty 2>/dev/null || read -rs gpg_pass
@@ -1035,6 +1135,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
     fi
     rm -f "$errf"
     if source <(printf '%s' "$dec"); then
+      __chief_secrets_record_load "$secrets_file" gpg "$pw_src"
       __chief_secrets_say "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file loaded (gpg)."
     else
       echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Sourcing decrypted content failed (syntax error)."
