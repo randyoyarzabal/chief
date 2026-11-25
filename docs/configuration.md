@@ -380,11 +380,14 @@ Settings apply in this order, later ones winning: this host's `~/.chief_config.s
 | `'deploy@build-01'` | the login `deploy`, only on build-01 |
 | `'root@*'` | root shells, on any host |
 | `'*@build-01'` | any login on build-01 (same as `build-01`) |
+| `! chief.host_is build-01` | everywhere **except** build-01 (`!` negates) |
+| `! chief.host_is 'build-*' 'root@*'` | on **none** of these: not a build host, and not as root |
 
 - **Host name:** `$CHIEF_HOST` if it's set, otherwise the short `hostname`. Set `CHIEF_HOST` in a host's `~/.bash_profile`, before Chief loads, when the real hostname isn't the name you want to write (a laptop called `MacBook-Pro-3`, for example).
 - **Login:** `$USER`, the account the shell runs as. It's the login on that host, not `CHIEF_CFG_USER`.
 - **Wildcards** `*` and `?` work on both sides of the `@`. Quote patterns that use them, so the shell doesn't expand them as file names.
 - **Which to use:** check the host for anything tied to a machine (paths, mounts, hardware). Check the login for anything tied to the account, on whichever host it is (for example tools only a service account uses, or keeping something out of root's shell).
+- **Not on a host:** put `!` before the call: `if ! chief.host_is build-01; then ...; fi`. With several patterns it's true only when none of them match.
 - **The OS** isn't a host check: test `$PLATFORM` (`MacOS` or `Linux`) instead.
 - Run `chief.host_is -?` on a host to see what it calls itself, shown as `login@host`.
 
@@ -392,6 +395,7 @@ Settings apply in this order, later ones winning: this host's `~/.chief_config.s
 if chief.host_is my-laptop; then export BACKUP_DIR=~/backups; fi          # one machine
 if chief.host_is 'build-*' build-db; then alias ll='ls -alF'; fi           # a group of machines
 if chief.host_is 'deploy@*'; then export PATH="/opt/deploy/bin:$PATH"; fi  # one account, any host
+if ! chief.host_is build-01; then export PROXY=off; fi                     # everywhere except build-01
 if ! chief.host_is 'root@*'; then chief.on_startup chief.secrets_file-load --quiet; fi  # not as root
 ```
 

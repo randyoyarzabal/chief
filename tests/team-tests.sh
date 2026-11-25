@@ -123,9 +123,11 @@ out="$(start "$HOMEA" -c '
   chief.host_is "alice@my-laptop" && echo C
   chief.host_is "deploy@*" || echo D
   chief.host_is other "*-laptop" && echo E
-  chief.host_is other || echo F' CHIEF_HOST=my-laptop)"
-check "chief.host_is: name, wildcard, user@host, several patterns, no match" \
-  "$( [[ "$(tr -d '\n' <<<"$out")" == "ABCDEF" ]]; echo $?)" "$out"
+  chief.host_is other || echo F
+  if ! chief.host_is other "deploy@*"; then echo G; fi
+  if ! chief.host_is other my-laptop; then echo X; fi' CHIEF_HOST=my-laptop)"
+check "chief.host_is: name, wildcard, user@host, several patterns, no match, ! negation" \
+  "$( [[ "$(tr -d '\n' <<<"$out")" == "ABCDEFG" ]]; echo $?)" "$out"
 
 # --- CHIEF_CFG_USER is required in a team repo (one with users/) -------
 HOMEB="$WORK/home-b"; mkdir -p "$HOMEB"
