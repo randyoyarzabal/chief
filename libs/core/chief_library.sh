@@ -4202,6 +4202,17 @@ function __chief_parse_config_template() {
     echo "Error: Template file not found: $template_file" >&2
     return 1
   fi
+
+  # Variables the template defines for real (an uncommented line). A commented line for one of
+  # these is an example (e.g. "#   CHIEF_CFG_PLUGINS_GIT_PATH="tools/bash""), not an option:
+  # it stays part of the comment text. Treating examples as options made chief.config-update
+  # write the user's value once per example, duplicating the setting on every run.
+  local -A active_vars=() seen_vars=()
+  while IFS= read -r line; do
+    if [[ "$line" =~ ^[[:space:]]*CHIEF_CFG_([A-Z_]+)= ]]; then
+      active_vars["CHIEF_CFG_${BASH_REMATCH[1]}"]=1
+    fi
+  done < "$template_file"
   
   while IFS= read -r line; do
     # Skip empty lines but preserve section breaks
@@ -4212,6 +4223,16 @@ function __chief_parse_config_template() {
       continue
     fi
     
+    # A commented example of a variable the template also defines for real: keep it as comment text.
+    if [[ "$line" =~ ^[[:space:]]*#[[:space:]]*(CHIEF_CFG_[A-Z_]+)= ]] && [[ -n "${active_vars[${BASH_REMATCH[1]}]:-}" ]]; then
+      if [[ -n "$current_comments" ]]; then
+        current_comments="${current_comments}\n${line}"
+      else
+        current_comments="$line"
+      fi
+      continue
+    fi
+
     # Collect comments and section headers
     if [[ "$line" =~ ^[[:space:]]*# ]] && [[ ! "$line" =~ ^[[:space:]]*#[[:space:]]*CHIEF_CFG_ ]]; then
       if [[ -n "$current_comments" ]]; then
@@ -4227,6 +4248,12 @@ function __chief_parse_config_template() {
       local var_name="CHIEF_CFG_${BASH_REMATCH[1]}"
       local var_value="${BASH_REMATCH[2]}"
       local is_commented="active"
+      # Each option once: a variable defined twice in the template counts once.
+      if [[ -n "${seen_vars[$var_name]:-}" ]]; then
+        current_comments=""
+        continue
+      fi
+      seen_vars["$var_name"]=1
       
       # Check if the variable line is commented out
       if [[ "$line" =~ ^[[:space:]]*#[[:space:]]*CHIEF_CFG_ ]]; then
