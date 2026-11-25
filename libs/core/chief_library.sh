@@ -716,7 +716,7 @@ __chief_load_remote_plugins() {
     else
       if chief.etc_ask-yes-or-no "Force update anyway? This will ${CHIEF_COLOR_RED}DISCARD ALL LOCAL CHANGES${CHIEF_NO_COLOR}!"; then
         good_to_load=true
-        echo -e "${CHIEF_COLOR_YELLOW}Proceeding with force update. Local changes will be lost.${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_COLOR_YELLOW}Force update: local changes will be lost.${CHIEF_NO_COLOR}"
       else
         skip_autoupdate=true
         echo -e "${CHIEF_COLOR_GREEN}Update cancelled. Your local changes are preserved.${CHIEF_NO_COLOR}"
@@ -2885,7 +2885,7 @@ Set CHIEF_CFG_PLUGINS_TYPE='remote' and CHIEF_CFG_PLUGINS_GIT_REPO in chief.conf
       echo
       
       if chief.etc_ask-yes-or-no "Force update anyway? This will ${CHIEF_COLOR_RED}DISCARD ALL LOCAL CHANGES${CHIEF_NO_COLOR}!"; then
-        echo -e "${CHIEF_COLOR_YELLOW}Proceeding with force update. Local changes will be lost.${CHIEF_NO_COLOR}"
+        echo -e "${CHIEF_COLOR_YELLOW}Force update: local changes will be lost.${CHIEF_NO_COLOR}"
         __chief_load_remote_plugins "--verbose" "--force" "--explicit" && {
           echo -e "${CHIEF_COLOR_GREEN}Updated all plugins to the latest version.${CHIEF_NO_COLOR}"
         } || {
@@ -3097,9 +3097,9 @@ You can also manually update by running git pull in the Chief directory.
   __chief_spin "Checking for updates..." "__chief_check_for_updates" tmp_out
   echo -e "${tmp_out}"
   if [[ ${tmp_out} == *"available"* ]]; then
+    # chief.etc_ask-yes-or-no prints "Proceeding..." itself on yes.
     if chief.etc_ask-yes-or-no "Updates are available, update now?"; then
-      echo "Proceeding..."
-      
+
       # We're already in CHIEF_PATH and on the correct branch
       local TARGET_BRANCH
       TARGET_BRANCH="$(__chief_update_branch)"
