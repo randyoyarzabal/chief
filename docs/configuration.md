@@ -48,6 +48,15 @@ chief.config-update --dry-run         # Preview changes without applying them
 chief.config-set config_set_interactive false
 ```
 
+**When a change takes effect.** `chief.config-set` (and `chief.reload`) reload Chief's library and plugins, so most changes apply right away. A few settings are applied only when a terminal starts. For those, `chief.config-set` saves the change but skips the reload (it couldn't apply them, so it would only print noise) and prints a yellow **Note** with what to do:
+
+| Setting | When it takes effect |
+|---------|----------------------|
+| `PROMPT`, `COLORED_PROMPT`, `GIT_PROMPT`, `SHORT_PATH`, `COLORED_LS` | A new terminal (`chief.reload` doesn't re-apply them) |
+| `ALIAS` | Now, but a previous alias's commands stay until a new terminal |
+| `BANNER`, `HINTS`, `AUTOCHECK_UPDATES`, `BASH_WARN` | The next terminal you open (they only run at start-up) |
+| `SSH_LOAD_KEYS`, `SSH_KEYS_PATH` | Start-up or `chief.reload`; run `chief.ssh_load-keys` to load keys now |
+
 ---
 
 ## Configuration Options
@@ -514,6 +523,8 @@ chief.secrets_file-edit ~/.my-personal-secrets
 
 # Load secrets into shell (decrypt and source)
 chief.secrets_file-load .chief_shared-secrets
+# ...without the "Success" line, e.g. in ~/.bash_profile (errors still show)
+chief.secrets_file-load --quiet
 chief.secrets_file-load ~/.my-personal-secrets
 ```
 

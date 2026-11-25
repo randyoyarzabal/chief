@@ -116,6 +116,15 @@ if command -v gpg >/dev/null 2>&1; then
     fail "GPG: expected a password-file reminder; got: $out"
   fi
 
+  # Quiet re-key: no success line, but the outdated-password-file warning still shows.
+  cp "$WORK/new.pass" "$WORK/cur.pass"
+  out="$(run_edit CHIEF_SECRETS_PASSWORD_FILE="$WORK/cur.pass" -- "$f" --rekey --new-password-file="$WORK/new.pass" --quiet)"
+  if [[ $? -eq 0 ]] && ! grep -q "re-keyed" <<<"$out" && grep -q "still holds the old password" <<<"$out"; then
+    pass "Quiet: --rekey --quiet hides success but keeps the warning"
+  else
+    fail "Quiet re-key; got: $out"
+  fi
+
   before="$(cat "$f")"
   out="$(run_edit CHIEF_SECRETS_PASSWORD_FILE="$WORK/wrong.pass" -- "$f" --rekey --new-password-file="$WORK/old.pass")"
   rc=$?
@@ -195,6 +204,20 @@ if command -v gpg >/dev/null 2>&1 && command -v openssl >/dev/null 2>&1; then
     pass "File store: folder 700, key 600, password not stored in clear text"
   else
     fail "File store: modes dir=$dmode key=$kmode, or clear text found"
+  fi
+
+  # --quiet: no success message, secrets still loaded; errors still shown.
+  out="$(run_chief CHIEF_SECRETS_NO_KEYCHAIN=1 -- "chief.secrets_file-load '$g' --quiet; echo \"token=\$DEMO_TOKEN\"")"
+  if [[ "$out" == "token=it's a secret" ]]; then
+    pass "Quiet: load --quiet prints nothing and still loads the secrets"
+  else
+    fail "Quiet load; expected only the token line; got: $out"
+  fi
+  out="$(run_chief CHIEF_SECRETS_NO_KEYCHAIN=1 -- "chief.secrets_file-load -q '$WORK/missing.secrets'")"
+  if grep -q "Secrets file does not exist" <<<"$out"; then
+    pass "Quiet: errors still show with -q"
+  else
+    fail "Quiet error; got: $out"
   fi
 
   out="$(run_chief CHIEF_SECRETS_NO_KEYCHAIN=1 CHIEF_SECRETS_PASSWORD_FILE="$WORK/wrong.pass" -- "chief.secrets_file-load '$g'")"
