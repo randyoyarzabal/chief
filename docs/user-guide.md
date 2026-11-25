@@ -252,7 +252,7 @@ chief.secrets_password-save     # Save its password (Keychain / keyring / obfusc
 chief.secrets_file-edit --personal  # Your secrets in the shared repo (also --team, --local)
 
 # Shared repo (team mode): same plugins, settings, profile and secrets on every host
-chief.plugins-repo <url> --path <folder> --user <name>   # adopt it on this host
+chief.plugins-repo <url> --path <folder> [--user <name>]  # adopt it on this host
 chief.shared-profile [--personal]  # shared start-up code (a shared ~/.bash_profile)
 chief.shared-config [--personal]   # shared Chief settings
 chief.host_is my-laptop 'deploy@*'  # in shared files: this host, or this login on any host

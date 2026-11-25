@@ -908,15 +908,22 @@ function __chief_confirm() {
 }
 
 # After editing a file in the shared repo, offer to commit and push it so other hosts get it.
-# Usage: __chief_repo_offer_commit <file> <commit message>
+# Usage: __chief_repo_offer_commit <file> <commit message> [edited:true|false]
+# With edited=false (the editor closed without changes) it doesn't ask; if the file still has
+# uncommitted changes from before, it only says how to share them.
 function __chief_repo_offer_commit() {
-  local file="$1" msg="$2" top rel
+  local file="$1" msg="$2" edited="${3:-true}" top rel share
   top="$(git -C "$(dirname "$file")" rev-parse --show-toplevel 2>/dev/null)" || return 0
   if [[ -z "$(git -C "$top" status --porcelain -- "$file" 2>/dev/null)" ]]; then
     echo -e "${CHIEF_COLOR_BLUE}No changes to share.${CHIEF_NO_COLOR}"
     return 0
   fi
   rel="${file#"$top"/}"
+  share="git -C $(__chief_tilde "$top") add '${rel}' && git -C $(__chief_tilde "$top") commit -m '${msg}' && git -C $(__chief_tilde "$top") push"
+  if [[ "$edited" != "true" ]]; then
+    echo -e "${CHIEF_COLOR_BLUE}No changes this time.${CHIEF_NO_COLOR} ${rel} still has earlier changes that aren't pushed. To share them: ${CHIEF_COLOR_CYAN}${share}${CHIEF_NO_COLOR}"
+    return 0
+  fi
   if __chief_confirm "Commit and push ${rel} to the shared repo now?"; then
     if git -C "$top" add -- "$file" && git -C "$top" commit -q -m "$msg" -- "$file" && git -C "$top" push -q; then
       echo -e "${CHIEF_COLOR_GREEN}Pushed${CHIEF_NO_COLOR} ${rel}. Other hosts get it with chief.plugins-update."
@@ -925,7 +932,7 @@ function __chief_repo_offer_commit() {
       return 1
     fi
   else
-    echo -e "${CHIEF_COLOR_BLUE}Not pushed.${CHIEF_NO_COLOR} To share it later: ${CHIEF_COLOR_CYAN}git -C $(__chief_tilde "$top") add '${rel}' && git -C $(__chief_tilde "$top") commit -m '${msg}' && git -C $(__chief_tilde "$top") push${CHIEF_NO_COLOR}"
+    echo -e "${CHIEF_COLOR_BLUE}Not pushed.${CHIEF_NO_COLOR} To share it later: ${CHIEF_COLOR_CYAN}${share}${CHIEF_NO_COLOR}"
   fi
 }
 
@@ -965,9 +972,11 @@ function __chief_open_in_editor() {
 
 # Resolve the team or personal copy of a shared file and create it from a starter if missing.
 # Usage: __chief_shared_file <team-name> <personal-name> <personal:true|false> <starter-kind>
-# Prints the path. starter-kind: profile | config
+# starter-kind: profile | config. Prints two lines: the path, then (only if it created the file)
+# the top folder it had to create, or the file itself when no folder was needed; empty otherwise.
+# __chief_shared_edit uses that to undo an untouched starter.
 function __chief_shared_file() {
-  local team_name="$1" personal_name="$2" personal="$3" kind="$4" dir user_dir file who
+  local team_name="$1" personal_name="$2" personal="$3" kind="$4" dir user_dir file who made="" d
   dir="$(__chief_shared_dir)"
   if [[ -z "$dir" || ! -d "$dir" ]]; then
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} No shared plugins folder here. Point Chief at your repo first: chief.plugins-repo <git-url> --path <folder>" >&2
@@ -985,6 +994,10 @@ function __chief_shared_file() {
     who="team (everyone using this repo)"
   fi
   if [[ ! -f "$file" ]]; then
+    # Remember the highest folder that doesn't exist yet, so an untouched starter can be undone.
+    d="$(dirname "$file")"
+    while [[ ! -d "$d" ]]; do made="$d"; d="$(dirname "$d")"; done
+    [[ -z "$made" ]] && made="$file"
     mkdir -p "$(dirname "$file")" || return 1
     if [[ "$kind" == "profile" ]]; then
       cat > "$file" <<EOF
@@ -1019,8 +1032,30 @@ EOF
 EOF
     fi
     echo -e "${CHIEF_COLOR_GREEN}Created${CHIEF_NO_COLOR} $(__chief_tilde "$file")" >&2
+    if [[ "$made" == "${dir}/users" ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} This adds the repo's first users/ folder, which makes it a team repo: once pushed, every host using it needs CHIEF_CFG_USER. For a repo only you use, run this without --personal; close the editor without changes and nothing is kept." >&2
+    fi
   fi
-  printf '%s' "$file"
+  printf '%s\n%s\n' "$file" "$made"
+}
+
+# Open a shared file (from __chief_shared_file) in the editor. Returns 0 if it changed.
+# If Chief just created it and the editor closed without changes, remove the starter (and any
+# folder made for it, such as users/<you>/), so a quick look leaves the repo as it was. Without
+# that, an untouched users/<you>/ would turn a solo repo into a team repo.
+# Usage: __chief_shared_edit <file> <made> <gui:true|false>
+function __chief_shared_edit() {
+  local file="$1" made="$2" gui="$3"
+  __chief_open_in_editor "$file" "$gui" && return 0
+  if [[ -n "$made" ]]; then
+    if [[ "$made" == "$file" ]]; then
+      rm -f -- "$file"
+    else
+      rm -rf -- "$made"
+    fi
+    echo -e "${CHIEF_COLOR_BLUE}No changes,${CHIEF_NO_COLOR} so $(__chief_tilde "$file") wasn't kept."
+  fi
+  return 1
 }
 
 function chief.shared-profile() {
@@ -1029,7 +1064,8 @@ function chief.shared-profile() {
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Edit the shared profile in your plugins repo: start-up code (exports, PATH, aliases, functions)
 that every host using the repo runs, so you don't keep it in each ~/.bash_profile.
-After saving, offers to commit and push it so your other hosts get it.
+After saving, offers to commit and push it so your other hosts get it. Close the editor
+without changes and it doesn't ask; a file it had just created is removed again.
 
 ${CHIEF_COLOR_GREEN}Files (in the repo's plugins folder):${CHIEF_NO_COLOR}
   (default)       .chief_shared-profile.sh: the team's, for everyone using the repo
@@ -1055,10 +1091,15 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
       *) echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $arg" >&2; return 1 ;;
     esac
   done
-  file="$(__chief_shared_file .chief_shared-profile.sh profile.sh "$personal" profile)" || return 1
-  __chief_open_in_editor "$file" "$gui"
-  __chief_repo_offer_commit "$file" "profile: update $($personal && echo "${CHIEF_CFG_USER}'s" || echo team) profile"
-  echo -e "${CHIEF_COLOR_BLUE}Applies at start-up:${CHIEF_NO_COLOR} open a new terminal to use it (chief.reload doesn't re-run profiles)."
+  local out made edited=true
+  out="$(__chief_shared_file .chief_shared-profile.sh profile.sh "$personal" profile)" || return 1
+  { IFS= read -r file; IFS= read -r made; } <<< "$out"
+  if ! __chief_shared_edit "$file" "$made" "$gui"; then
+    [[ -n "$made" ]] && return 0
+    edited=false
+  fi
+  __chief_repo_offer_commit "$file" "profile: update $($personal && echo "${CHIEF_CFG_USER}'s" || echo team) profile" "$edited"
+  $edited && echo -e "${CHIEF_COLOR_BLUE}Applies at start-up:${CHIEF_NO_COLOR} open a new terminal to use it (chief.reload doesn't re-run profiles)."
 }
 
 function chief.shared-config() {
@@ -1066,7 +1107,8 @@ function chief.shared-config() {
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
 Edit the shared Chief settings in your plugins repo, so every host gets the same settings.
-After saving, offers to commit and push them.
+After saving, offers to commit and push them. Close the editor without changes and it
+doesn't ask; a file it had just created is removed again.
 
 ${CHIEF_COLOR_GREEN}Files (in the repo's plugins folder):${CHIEF_NO_COLOR}
   (default)       .chief_shared-config.sh: the team's
@@ -1091,11 +1133,16 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
       *) echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Unknown option: $arg" >&2; return 1 ;;
     esac
   done
-  file="$(__chief_shared_file .chief_shared-config.sh config.sh "$personal" config)" || return 1
-  if __chief_open_in_editor "$file" "$gui"; then
+  local out made edited=true
+  out="$(__chief_shared_file .chief_shared-config.sh config.sh "$personal" config)" || return 1
+  { IFS= read -r file; IFS= read -r made; } <<< "$out"
+  if __chief_shared_edit "$file" "$made" "$gui"; then
     __chief_load_library >/dev/null 2>&1 && echo -e "${CHIEF_COLOR_GREEN}Settings reloaded.${CHIEF_NO_COLOR} (Prompt, ls-color and banner start-up settings need a new terminal.)"
+  else
+    [[ -n "$made" ]] && return 0
+    edited=false
   fi
-  __chief_repo_offer_commit "$file" "config: update $($personal && echo "${CHIEF_CFG_USER}'s" || echo team) settings"
+  __chief_repo_offer_commit "$file" "config: update $($personal && echo "${CHIEF_CFG_USER}'s" || echo team) settings" "$edited"
 }
 
 function chief.plugins-repo() {

@@ -654,12 +654,15 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     return 1
   fi
 
+  # Closing the editor without changes leaves the file alone: no re-encrypt, no commit offer.
+  local unchanged=false before_sum
   if [[ "$det" == "ansible" ]]; then
     if ! command -v ansible-vault >/dev/null 2>&1; then
       echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} ansible-vault required. Install ansible-core."
       return 1
     fi
     local spw
+    before_sum="$(cksum < "$secrets_file")"
     spw="$(__chief_secrets_saved_password_for "$secrets_file" ansible)"
     __chief_secrets_ansible_vault "$spw" edit "$secrets_file" || {
       echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} ansible-vault edit failed (see ansible-vault output above): $secrets_file" >&2
@@ -668,6 +671,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
       return 1
     }
     unset spw
+    [[ "$(cksum < "$secrets_file")" == "$before_sum" ]] && unchanged=true
   else
     __chief_secrets_require_gpg || return 1
     local tmpf errf editor gpg_pass
@@ -699,8 +703,12 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
       }
     fi
     rm -f "$errf"
+    before_sum="$(cksum < "$tmpf")"
     "$editor" "$tmpf"
-    if [[ -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" ]] && [[ -f "$CHIEF_SECRETS_PASSWORD_FILE" ]]; then
+    if [[ "$(cksum < "$tmpf")" == "$before_sum" ]]; then
+      unchanged=true
+      unset gpg_pass
+    elif [[ -n "${CHIEF_SECRETS_PASSWORD_FILE:-}" ]] && [[ -f "$CHIEF_SECRETS_PASSWORD_FILE" ]]; then
       errf="$(mktemp)"
       gpg --batch --yes --armor --passphrase-file "$CHIEF_SECRETS_PASSWORD_FILE" --symmetric --cipher-algo AES256 -o "$secrets_file" "$tmpf" 2>"$errf" || {
         __chief_secrets_gpg_report "$errf" encrypt
@@ -720,9 +728,13 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     rm -f "$tmpf" "$errf"
   fi
 
-  __chief_secrets_offer_commit "$secrets_file"
+  if $unchanged; then
+    __chief_secrets_say "${CHIEF_COLOR_BLUE}No changes:${CHIEF_NO_COLOR} $secrets_file was left as it was."
+  else
+    __chief_secrets_offer_commit "$secrets_file"
+  fi
   if $no_load; then
-    __chief_secrets_say "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file edited (not loaded). Load with: chief.secrets_file-load ${secrets_file:+$secrets_file}"
+    $unchanged || __chief_secrets_say "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Secrets file edited (not loaded). Load with: chief.secrets_file-load ${secrets_file:+$secrets_file}"
   else
     if $__chief_secrets_quiet; then chief.secrets_file-load "$secrets_file" --quiet; else chief.secrets_file-load "$secrets_file"; fi
   fi

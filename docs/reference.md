@@ -154,7 +154,7 @@ chief.host_is <pattern> [pattern...]
 chief.on_startup <command> [args...]
 ```
 
-New installs: `tools/install.sh --repo <url> --repo-path <folder> --user <name>`. See [Shared repo](configuration.html#shared-repo-the-same-chief-everywhere).
+New installs: `tools/install.sh --repo <url> --repo-path <folder> [--user <name>]` (`--user` only for a team repo). See [Shared repo](configuration.html#shared-repo-the-same-chief-everywhere).
 
 ### Secrets Plugin (encrypted file)
 

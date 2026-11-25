@@ -188,6 +188,47 @@ else
   skip "Layered secrets tests (gpg not installed)"
 fi
 
+# --- Editing shared files: closing the editor without changes --------------
+# (No terminal here, so a commit offer would only show its question; it must not appear at all.)
+printf '#!/bin/sh\nprintf "export ADDED=1\\n" >> "$1"\n' > "$WORK/append-editor.sh"; chmod +x "$WORK/append-editor.sh"
+HAP="$HOMEA/chief_plugins/$FOLDER"
+write_cfg "$HOMEA" "bob"
+out="$(start "$HOMEA" -c 'chief.shared-profile --personal' EDITOR=true)"
+check "shared-profile: an untouched new personal profile isn't kept (no users/bob, no commit offer)" \
+  "$( [[ ! -e "$HAP/users/bob" && "$out" == *"wasn't kept"* && "$out" != *"Not pushed"* ]]; echo $?)" "$out"
+out="$(start "$HOMEA" -c 'chief.shared-config --personal' EDITOR=true)"
+check "shared-config: same for an untouched new personal settings file" \
+  "$( [[ ! -e "$HAP/users/bob" && "$out" == *"wasn't kept"* && "$out" != *"Not pushed"* ]]; echo $?)" "$out"
+out="$(start "$HOMEA" -c 'chief.shared-profile --personal' EDITOR="$WORK/append-editor.sh")"
+check "shared-profile: an edited new profile is kept and offered for commit (declined: no terminal)" \
+  "$( grep -q 'ADDED=1' "$HAP/users/bob/profile.sh" && [[ "$out" == *"Not pushed"* ]]; echo $?)" "$out"
+rm -rf "$HAP/users/bob"
+write_cfg "$HOMEA"
+sum="$(cksum < "$HAP/.chief_shared-profile.sh")"
+out="$(start "$HOMEA" -c 'chief.shared-profile' EDITOR=true)"
+check "shared-profile: closing an existing profile without changes doesn't offer a commit" \
+  "$( [[ "$(cksum < "$HAP/.chief_shared-profile.sh")" == "$sum" && "$out" != *"Not pushed"* ]]; echo $?)" "$out"
+printf '# local tweak\n' >> "$HAP/.chief_shared-profile.sh"
+out="$(start "$HOMEA" -c 'chief.shared-profile' EDITOR=true)"
+check "shared-profile: earlier unpushed changes get a how-to-share note, not a question" \
+  "$( [[ "$out" == *"earlier changes that aren't pushed"* && "$out" != *"Not pushed"* ]]; echo $?)" "$out"
+git -C "$HOMEA/chief_plugins" checkout -q -- "$FOLDER/.chief_shared-profile.sh"
+if command -v gpg >/dev/null 2>&1; then
+  sum="$(cksum < "$HAP/users/alice/secrets")"
+  out="$(start "$HOMEA" -c 'chief.secrets_file-edit --personal' EDITOR=true CHIEF_SECRETS_PASSWORD_FILE="$WORK/my.pass")"
+  check "Secrets: closing the editor without changes leaves the file as it was (no re-encrypt, no commit offer)" \
+    "$( [[ "$(cksum < "$HAP/users/alice/secrets")" == "$sum" && "$out" == *"No changes"* && "$out" != *"Not pushed"* ]]; echo $?)" "$out"
+fi
+
+# --personal in a repo without users/ warns that it would make it a team repo (and keeps nothing).
+mv "$HAP/users" "$WORK/users.aside"
+write_cfg "$HOMEA" "bob"
+out="$(start "$HOMEA" -c 'chief.shared-profile --personal' EDITOR=true)"
+check "shared-profile --personal: the repo's first users/ gets a team-repo note, and nothing is kept" \
+  "$( [[ "$out" == *"makes it a team repo"* && ! -e "$HAP/users" ]]; echo $?)" "$out"
+mv "$WORK/users.aside" "$HAP/users"
+write_cfg "$HOMEA"
+
 # --- chief.plugins-repo (a host that already has Chief) ------------------
 HOMEC="$WORK/home-c"; mkdir -p "$HOMEC"
 printf 'CHIEF_CFG_BANNER=false\nCHIEF_CFG_HINTS=false\nCHIEF_CFG_PLUGINS_TYPE="local"\nCHIEF_CFG_PLUGINS_PATH=""\n#CHIEF_CFG_USER=""\n' > "$HOMEC/.chief_config.sh"
