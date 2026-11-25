@@ -338,19 +338,17 @@ function __chief_get_tmpfile() {
   # 
   # Developer usage: Generates a unique temporary file path
   # - Creates platform-specific random filename in /tmp directory
-  # - Uses /dev/random on macOS and /dev/urandom on Linux for entropy
+  # - Uses mktemp -u (macOS and Linux) for a random name, with no pipeline: the old
+  #   cat /dev/urandom | tr | fold | head printed "Broken pipe" errors on some Linux systems
+  #   when head closed the pipe, e.g. at start-up of non-interactive shells
   # - Returns absolute path to temporary file (file is not created, just named)
   # - Used internally by __chief_load_file for alias processing
   #
   # Returns:
   #   Absolute path to a unique temporary file
   local tmp_file
-  if [[ ${PLATFORM} == "MacOS" ]]; then
-    tmp_file="/tmp/._$(cat /dev/random | LC_CTYPE=C tr -dc "[:alpha:]" | fold -w 8 | head -n 1)"
-  else
-    tmp_file="/tmp/._$(cat /dev/urandom | tr -dc 'a-zA-Z0-9' | fold -w 8 | head -n 1)"
-  fi
-  echo ${tmp_file}
+  tmp_file="$(mktemp -u /tmp/._XXXXXXXX 2>/dev/null)" || tmp_file="/tmp/._${RANDOM}${RANDOM}$$"
+  echo "${tmp_file}"
 }
 
 function __chief_this_file() {
