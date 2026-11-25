@@ -76,7 +76,7 @@ chief.config-set secrets_load true  # load every secrets file that exists in eac
 | `*_chief-plugin.sh` | your plugins (functions, aliases) |
 | `.chief_shared-config.sh` | Chief settings for every host (`chief.shared-config`) |
 | `.chief_shared-profile.sh` | start-up code, like a shared `~/.bash_profile` (`chief.shared-profile`) |
-| `.chief_shared-secrets` | encrypted secrets (`chief.secrets_file-edit --team`) |
+| `.chief_shared-secrets` | encrypted secrets (`chief.secrets_file-edit --shared`) |
 
 Host- or login-specific lines go inside those files with `chief.host_is`, for example `if chief.host_is my-laptop; then ...; fi` or `if chief.host_is 'deploy@*'; then ...; fi`; negate with `!`: `if ! chief.host_is my-laptop; then ...; fi`.
 
@@ -87,7 +87,7 @@ See [Shared repo](configuration.html#shared-repo-the-same-chief-everywhere) for 
 ### Result
 
 - ✓ **Same plugins everywhere**: Functions, aliases, and tools sync across laptop, server, CI/CD
-- ✓ **Encrypted secrets**: Secrets files travel with your setup (team + personal)
+- ✓ **Encrypted secrets**: Secrets files travel with your setup (shared + personal)
 - ✓ **Zero reconfiguration**: New systems work identically after this setup
 - ✓ **Version controlled**: Track changes to your shell environment
 
@@ -127,7 +127,7 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.whereis <function>` - Find any function across all plugins
 - `chief.status` - Banner plus a health summary (functions, plugins, enabled/disabled, secrets loaded in this shell and how)
 - `chief.plugin enable|disable|status` - Turn core, user and contrib plugins on or off
-- `chief.plugins-repo` - Adopt your shared repo on a host in one step (or `install.sh --repo` on a new one): same plugins, settings, start-up profile and secrets everywhere, for you and your team
+- `chief.plugins-repo` - Adopt your shared repo on a host in one step (or `install.sh --repo` on a new one): same plugins, settings, start-up profile and secrets everywhere, whether it's just you across hosts or a whole team
 - `chief.plugins-*` - Plugin management and discovery tools
 
 ### **Secrets Plugin** (5 functions)

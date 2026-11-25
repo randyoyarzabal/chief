@@ -137,7 +137,7 @@ chief.uninstall
 
 ## Built-in Plugin Command Reference
 
-### Shared Repo (team mode)
+### Shared Repo (solo or team)
 
 ```bash
 # Adopt a shared plugins repo on this host (clone, point the config, set your user)
@@ -174,8 +174,8 @@ chief.secrets_file-edit [secrets-file] --rekey [--new-password-file=PATH] [--loa
     --rekey         Asks for the current password, then the new one twice
     --new-password-file=PATH  Read the new password from PATH instead of prompting
 
-# Load secrets (no file: team AND personal AND this host, all that exist; -q: no success message)
-chief.secrets_file-load [--team|--personal|--local|<file>] [-q|--quiet]
+# Load secrets (no file: shared AND personal AND this host, all that exist; -q: no success message)
+chief.secrets_file-load [--shared|--personal|--local|<file>] [-q|--quiet]
 
 # Load them at start-up instead: true (saved password, else prompt) | saved (never prompts)
 chief.config-set secrets_load true

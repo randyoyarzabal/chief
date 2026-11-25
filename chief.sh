@@ -174,5 +174,5 @@ if ${CHIEF_CFG_PROMPT}; then
   fi
 fi
 
-# Last: run what the team/personal profile queued with chief.on_startup (once per shell).
+# Last: run what the shared/personal profile queued with chief.on_startup (once per shell).
 __chief_run_on_startup

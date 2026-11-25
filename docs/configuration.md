@@ -295,7 +295,7 @@ For detailed secrets and vault setup, see: [Secrets and Vault Configuration](con
 #### Result
 
 - ✓ **Same plugins everywhere**: Functions, aliases, and tools sync across laptop, server, CI/CD
-- ✓ **Encrypted secrets**: Secrets files travel with your setup (team + personal)
+- ✓ **Encrypted secrets**: Secrets files travel with your setup (shared + personal)
 - ✓ **Zero reconfiguration**: New systems work identically after this setup
 - ✓ **Version controlled**: Track changes to your shell environment
 
@@ -314,6 +314,13 @@ chief.whereis my_function      # Find any function instantly
 
 Point every host (and every account) at one shared plugins repo, and you get the same environment everywhere: plugins, settings, start-up code and secrets, for you and for your team.
 
+### Solo or team
+
+- **Solo** (the default): a repo only you use. Everything goes in the shared files, which apply on every host. No user setting is needed.
+- **Team:** add a `users/` folder, and each person gets `users/<name>/` for their own settings, profile and secrets, on top of the shared ones. Each person sets `CHIEF_CFG_USER` to their name on every host they use.
+
+Chief tells them apart by that folder alone: a repo with `users/` is a team repo. `chief.status` shows `Shared repo: …` for a solo repo and `Team repo: user <name> · …` for a team repo, with the layers in use.
+
 ### What the repo can hold
 
 Everything lives in the repo's plugins folder (`CHIEF_CFG_PLUGINS_GIT_PATH`, which can be deep, e.g. `path/to/plugins`):
@@ -321,14 +328,14 @@ Everything lives in the repo's plugins folder (`CHIEF_CFG_PLUGINS_GIT_PATH`, whi
 | File | Whose | What |
 |------|-------|------|
 | `*_chief-plugin.sh` | Everyone | Plugins (functions, aliases) |
-| `.chief_shared-config.sh` | Team | Chief settings for everyone |
-| `.chief_shared-profile.sh` | Team | Start-up code for everyone (a shared `~/.bash_profile`) |
-| `.chief_shared-secrets` | Team | Encrypted team secrets (team password) |
-| `users/<you>/config.sh` | You | Your settings |
-| `users/<you>/profile.sh` | You | Your start-up code |
-| `users/<you>/secrets` | You | Your encrypted secrets (your own password) |
+| `.chief_shared-config.sh` | Shared | Chief settings for every host (everyone, in a team repo) |
+| `.chief_shared-profile.sh` | Shared | Start-up code for every host (a shared `~/.bash_profile`) |
+| `.chief_shared-secrets` | Shared | Encrypted secrets for every host (one shared password) |
+| `users/<you>/config.sh` | You (team repo) | Your settings |
+| `users/<you>/profile.sh` | You (team repo) | Your start-up code |
+| `users/<you>/secrets` | You (team repo) | Your encrypted secrets (your own password) |
 
-`<you>` is **`CHIEF_CFG_USER`**, your Chief identity, the same on every host even where your login name differs (for example `alice.smith` on a laptop and `deploy` on a server, both `alice`). It's **required in a team repo**: one whose plugins folder has a `users/` folder. A repo only you use, with no `users/` folder, doesn't need it; the team files are yours there. The repo becomes a team repo when someone first creates `users/<name>/`: only the `--personal` commands do that (`chief.shared-profile --personal`, `chief.shared-config --personal`, `chief.secrets_file-edit --personal`), and they say so. Close the editor without changes and nothing is kept. From then on, Chief loads only the team layers on hosts where the user isn't set, and warns at start-up how to set it. Onboarding asks for it when there's a terminal; otherwise use `chief.config-set user <name>`. `chief.status` shows your user and the layers in use.
+`<you>` is **`CHIEF_CFG_USER`**, your Chief identity, the same on every host even where your login name differs (for example `alice.smith` on a laptop and `deploy` on a server, both `alice`). It's **required in a team repo**: one whose plugins folder has a `users/` folder. A repo only you use, with no `users/` folder, doesn't need it; the shared files are yours there. The repo becomes a team repo when someone first creates `users/<name>/`: only the `--personal` commands do that (`chief.shared-profile --personal`, `chief.shared-config --personal`, `chief.secrets_file-edit --personal`), and they say so. Close the editor without changes and nothing is kept. From then on, Chief loads only the shared layers on hosts where the user isn't set, and warns at start-up how to set it. Onboarding asks for it when there's a terminal; otherwise use `chief.config-set user <name>`. `chief.status` shows the user and the layers in use.
 
 ### Onboarding a host
 
@@ -343,9 +350,9 @@ chief.plugins-repo <git-url> --path <folder> [--user <name>]
 
 Then open a new terminal. On each host, save your secrets passwords once with `chief.secrets_password-save` so they don't prompt.
 
-### Settings: team, then yours
+### Settings: shared, then yours
 
-Settings apply in this order, later ones winning: this host's `~/.chief_config.sh` (defaults, plus where the repo is), then the team's `.chief_shared-config.sh`, then your `users/<you>/config.sh`. Edit them with `chief.shared-config` and `chief.shared-config --personal`; both offer to commit and push when you changed something.
+Settings apply in this order, later ones winning: this host's `~/.chief_config.sh` (defaults, plus where the repo is), then the shared `.chief_shared-config.sh`, then your `users/<you>/config.sh` (team repo). Edit them with `chief.shared-config` and `chief.shared-config --personal`; both offer to commit and push when you changed something.
 
 - **Host exceptions** go inside the shared files: `if chief.host_is my-laptop; then CHIEF_CFG_PROMPT=false; fi`.
 - **Where the repo is** (`CHIEF_CFG_PLUGINS_*`) and **`CHIEF_CFG_USER`** always come from each host's own config. The repo can't redirect itself.
@@ -353,10 +360,10 @@ Settings apply in this order, later ones winning: this host's `~/.chief_config.s
 
 ### Profile: a shared `~/.bash_profile`
 
-`.chief_shared-profile.sh` (team) and `users/<you>/profile.sh` (yours) hold start-up code: exports, `PATH`, aliases, functions. Edit them with `chief.shared-profile` / `chief.shared-profile --personal`.
+`.chief_shared-profile.sh` (shared) and `users/<you>/profile.sh` (yours, in a team repo) hold start-up code: exports, `PATH`, aliases, functions. Edit them with `chief.shared-profile` / `chief.shared-profile --personal`.
 
 - They run **once per shell, before plugins load**, so plugins see their exports (for example variables a plugin reads while loading). `chief.reload` doesn't re-run them.
-- Order: team, then yours, then each host's `~/.bash_profile`. Lines after `source …/chief.sh` there can override both.
+- Order: shared, then yours, then each host's `~/.bash_profile`. Lines after `source …/chief.sh` there can override both.
 - **Commands from plugins** aren't loaded yet at that point, so queue them with `chief.on_startup`. It runs at the end of start-up:
   ```bash
   chief.on_startup my_plugin.connect --quiet
@@ -400,18 +407,18 @@ if ! chief.host_is build-01; then export PROXY=off; fi                     # eve
 if ! chief.host_is 'root@*'; then CHIEF_CFG_SECRETS_LOAD=true; fi                # (shared settings) not as root
 ```
 
-### Secrets: team AND personal AND this host
+### Secrets: shared AND personal AND this host
 
 `chief.secrets_file-load` with no file loads **every** secrets file that exists, in this order (later files override earlier ones that set the same variable):
 
 | Layer | File | Follows you? |
 |-------|------|--------------|
-| `--team` | `.chief_shared-secrets` | Yes, for everyone |
-| `--personal` | `users/<you>/secrets` | Yes; only your password opens it |
+| `--shared` | `.chief_shared-secrets` | Yes, to every host (everyone's, in a team repo) |
+| `--personal` | `users/<you>/secrets` (team repo) | Yes; only your password opens it |
 | `--local` | `~/.chief_user-secrets` | No; never leaves the host |
 
 - A failing file (wrong password, say) doesn't stop the others; Chief says which one it skipped.
-- **You choose the layer** when you create or edit: `chief.secrets_file-edit --personal` (or `--team` / `--local`). With no flag, Chief opens the only file that exists or asks which. Editing a team or personal file offers to commit and push it.
+- **You choose the layer** when you create or edit: `chief.secrets_file-edit --shared` (or `--personal` / `--local`). With no flag, Chief opens the only file that exists or asks which. Editing a shared or personal file offers to commit and push it.
 - **Personal secrets in a team repo:** teammates hold a copy of your encrypted file and could try to guess the password offline, so make it long and unique. Anything too sensitive for that belongs in `--local`.
 - Saved passwords (`chief.secrets_password-save --personal`, etc.) are per file and per host.
 
@@ -646,7 +653,7 @@ Chief provides two separate mechanisms:
 ### Secrets plugin: creating and loading encrypted files
 
 ```bash
-# Create team secrets file (encrypted; backend: gpg or ansible)
+# Create the shared secrets file (encrypted; backend: gpg or ansible)
 chief.secrets_file-edit .chief_shared-secrets
 
 # Create personal secrets file
@@ -674,13 +681,13 @@ chief.secrets_file-load ~/.my-personal-secrets
   - **Elsewhere** (for example headless servers): in `~/.chief_secrets-store/` (folder 700), encrypted with a random key kept beside it (600). This is **obfuscation, not protection**: it keeps the password out of casual reads, backups and git, but anyone who can read your account can recover it. Force a store with `--store=keychain` or `--store=file`.
   - `chief.secrets_password-status [file]` shows where the password will come from; `chief.secrets_password-remove [file]` forgets it. Saved passwords are tied to the file's path, so save again after moving the file. `--rekey` updates a saved GPG password automatically; for Ansible Vault (which asks for the new password itself) it removes the outdated one and tells you to save the new one.
 - **Changing the password (re-key)**: `chief.secrets_file-edit <file> --rekey` changes the password of an existing file without opening the editor, for both backends. It asks for the current password (or reads the password file above), then the new one twice; `--new-password-file=PATH` reads the new one from a file instead. If anything fails, the file is left as it was. Afterwards, update any password file that still holds the old password. For a shared team file, tell your team the new password.
-- **Layers**: with a shared repo there are team, personal and host secrets, and `chief.secrets_file-load` loads all that exist. See [Shared repo: Secrets](#secrets-team-and-personal-and-this-host).
-- **Team secrets**: `CHIEF_CFG_PLUGINS_PATH/.chief_shared-secrets` (shared). Legacy name `.chief_shared-vault` is deprecated.
+- **Layers**: with a shared repo there are shared, personal (team repo) and host secrets, and `chief.secrets_file-load` loads all that exist. See [Shared repo: Secrets](#secrets-shared-and-personal-and-this-host).
+- **Shared secrets**: `CHIEF_CFG_PLUGINS_PATH/.chief_shared-secrets`. Legacy name `.chief_shared-vault` is deprecated.
 - **Personal secrets**: `~/.chief_user-secrets` (or legacy `~/.chief_user-vault`).
 
 ### Load secrets at start-up
 
-Instead of a `chief.secrets_file-load` line in `~/.bash_profile`, let Chief load them. It loads every secrets file that exists (team, personal, this host), quietly, after plugins load and before the banner, so the banner's secrets indicator shows `loaded`.
+Instead of a `chief.secrets_file-load` line in `~/.bash_profile`, let Chief load them. It loads every secrets file that exists (shared, personal, this host), quietly, after plugins load and before the banner, so the banner's secrets indicator shows `loaded`.
 
 | Setting | Values | Shells |
 |---|---|---|
@@ -695,7 +702,7 @@ chief.config-set secrets_load true # then remove any chief.secrets_file-load lin
 - **Why two settings:** loading in non-interactive shells puts your secrets in the environment of every script and tool that starts Chief, AI tools included. Keep it off unless scripts on that host need them.
 - **`saved`** never stops a new terminal at a password prompt: a file with no saved password gets a one-line note saying how to load it, and the others still load.
 - **Per host:** they're ordinary settings, so they can go in shared settings with `chief.host_is`, for example `if chief.host_is 'build-*'; then CHIEF_CFG_SECRETS_LOAD_NONINTERACTIVE=true; fi`.
-- **Visible:** it loads quietly; with `CHIEF_CFG_VERBOSE=true`, start-up prints `Secrets loaded: team (…), this host (…)`. Either way the banner says `secrets: loaded`, and `chief.status` lists each file as loaded `at start-up (CHIEF_CFG_SECRETS_LOAD)`.
+- **Visible:** it loads quietly; with `CHIEF_CFG_VERBOSE=true`, start-up prints `Secrets loaded: shared (…), this host (…)`. Either way the banner says `secrets: loaded`, and `chief.status` lists each file as loaded `at start-up (CHIEF_CFG_SECRETS_LOAD)`.
 - They apply when a terminal starts. After changing them, open a new terminal, or run `chief.secrets_file-load` in this one.
 
 ### Vault plugin: HashiCorp Vault KV

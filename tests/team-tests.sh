@@ -100,14 +100,14 @@ start() {
 
 # --- Layered settings and profiles --------------------------------------
 out="$(start "$HOMEA" -c 'echo "banner=$CHIEF_CFG_BANNER hints=$CHIEF_CFG_HINTS path=$CHIEF_CFG_PLUGINS_PATH layers=[$CHIEF_CONFIG_LAYERS]"')"
-check "Settings: host < team < personal (personal banner wins, team hints apply)" \
-  "$( [[ "$out" == *"banner=true hints=true"* && "$out" == *"layers=[local team personal]"* ]]; echo $?)" "$out"
+check "Settings: host < shared < personal (personal banner wins, shared hints apply)" \
+  "$( [[ "$out" == *"banner=true hints=true"* && "$out" == *"layers=[local shared personal]"* ]]; echo $?)" "$out"
 check "Settings: the repo can't redirect where it is (PLUGINS_PATH stays local)" \
   "$( [[ "$out" == *"path=$HOMEA/chief_plugins "* ]]; echo $?)" "$out"
 
 out="$(start "$HOMEA" -c 'echo "seen=$SEEN_AT_LOAD runs=$PROFILE_RUNS order=$STARTUP_ORDER profile=[$CHIEF_PROFILE_LAYERS]"; __chief_load_library >/dev/null 2>&1; echo "after-reload runs=$PROFILE_RUNS"')"
-check "Profile: team then personal run before plugins load (plugin saw personal/matched)" \
-  "$( [[ "$out" == *"seen=personal/matched"* && "$out" == *"profile=[team personal]"* ]]; echo $?)" "$out"
+check "Profile: shared then personal run before plugins load (plugin saw personal/matched)" \
+  "$( [[ "$out" == *"seen=personal/matched"* && "$out" == *"profile=[shared personal]"* ]]; echo $?)" "$out"
 check "Profile: chief.on_startup runs after plugins, at the end of start-up" \
   "$( [[ "$out" == *"order=plugin;on_startup;"* ]]; echo $?)" "$out"
 check "Profile: runs once; chief.reload doesn't re-run it" \
@@ -135,8 +135,8 @@ HOMEB="$WORK/home-b"; mkdir -p "$HOMEB"
 write_cfg "$HOMEB" ""
 start "$HOMEB" -ic 'echo "layers=[$CHIEF_CONFIG_LAYERS] profile=[$CHIEF_PROFILE_LAYERS]" > "$HOME/out"' >/dev/null
 out="$(cat "$HOMEB/out" "$HOMEB/startup.err" 2>/dev/null)"
-check "User unset: team layers still load, personal ones don't, and a warning says how to fix it" \
-  "$( [[ "$out" == *"layers=[local team]"* && "$out" == *"profile=[team]"* && "$out" == *"CHIEF_CFG_USER isn't set"*"chief.config-set user"* ]]; echo $?)" "$out"
+check "User unset: shared layers still load, personal ones don't, and a warning says how to fix it" \
+  "$( [[ "$out" == *"layers=[local shared]"* && "$out" == *"profile=[shared]"* && "$out" == *"CHIEF_CFG_USER isn't set"*"chief.config-set user"* ]]; echo $?)" "$out"
 write_cfg "$HOMEB" "nobody"
 start "$HOMEB" -ic 'true' >/dev/null
 out="$(cat "$HOMEB/startup.err" 2>/dev/null)"
@@ -144,12 +144,12 @@ check "User with no folder in the repo: a note suggests a typo or creating one" 
   "$( [[ "$out" == *"No personal folder for 'nobody'"* ]]; echo $?)" "$out"
 out="$(start "$HOMEA" -c 'chief.status')"
 check "chief.status: shows the user and the layers in use" \
-  "$( [[ "$out" == *"User: alice · settings: local team personal · profile: team personal"* ]]; echo $?)" "$out"
+  "$( [[ "$out" == *"Team repo: user alice · settings: local shared personal · profile: shared personal"* ]]; echo $?)" "$out"
 
 # --- chief.config-set notes a setting the shared layers override --------
 out="$(start "$HOMEA" -c 'chief.config-set -y hints false')"
-check "config-set: says when the team settings also set it (and take precedence)" \
-  "$( [[ "$out" == *"also set in the shared repo's team settings"* ]]; echo $?)" "$out"
+check "config-set: says when the shared settings also set it (and take precedence)" \
+  "$( [[ "$out" == *"also set in the shared repo's shared settings"* ]]; echo $?)" "$out"
 
 # --- Layered secrets ---------------------------------------------------
 if command -v gpg >/dev/null 2>&1; then
@@ -163,11 +163,11 @@ if command -v gpg >/dev/null 2>&1; then
   save() { start "$HOMEA" -c "__chief_secrets_store_put '$1' file <<<'$2'" CHIEF_SECRETS_NO_KEYCHAIN=1 CHIEF_SECRETS_STORE_DIR="$WORK/store" >/dev/null; }
   save "$HA/users/alice/secrets" mypass; save "$HOMEA/.chief_user-secrets" mypass; save "$HA/.chief_shared-secrets" wrongpass
   out="$(start "$HOMEA" -c 'chief.secrets_file-load --quiet; echo "rc=$? team=${S_TEAM:-} mine=${S_MINE:-} host=${S_HOST:-}"' CHIEF_SECRETS_NO_KEYCHAIN=1 CHIEF_SECRETS_STORE_DIR="$WORK/store")"
-  check "Secrets: a failing team file doesn't stop personal and host secrets (rc=1, says which)" \
-    "$( [[ "$out" == *"rc=1 team= mine=1 host=1"* && "$out" == *"Skipped the team secrets"* ]]; echo $?)" "$out"
+  check "Secrets: a failing shared file doesn't stop personal and host secrets (rc=1, says which)" \
+    "$( [[ "$out" == *"rc=1 team= mine=1 host=1"* && "$out" == *"Skipped the shared secrets"* ]]; echo $?)" "$out"
   save "$HA/.chief_shared-secrets" teampass
   out="$(start "$HOMEA" -c 'chief.secrets_file-load --quiet; echo "rc=$? team=$S_TEAM mine=$S_MINE host=$S_HOST who=$S_WHO"; __chief_banner_secrets' CHIEF_SECRETS_NO_KEYCHAIN=1 CHIEF_SECRETS_STORE_DIR="$WORK/store")"
-  check "Secrets: no file name loads team AND personal AND host; personal overrides team" \
+  check "Secrets: no file name loads shared AND personal AND host; personal overrides shared" \
     "$( [[ "$out" == *"rc=0 team=1 mine=1 host=1 who=personal"* && "$out" == *"secrets: loaded (3)"* ]]; echo $?)" "$out"
   out="$(start "$HOMEA" -c 'chief.secrets_file-load --personal --quiet; echo "team=${S_TEAM:-} mine=${S_MINE:-}"' CHIEF_SECRETS_NO_KEYCHAIN=1 CHIEF_SECRETS_STORE_DIR="$WORK/store")"
   check "Secrets: --personal loads just yours" "$( [[ "$out" == *"team= mine=1"* ]]; echo $?)" "$out"
@@ -179,7 +179,7 @@ if command -v gpg >/dev/null 2>&1; then
   check "Start-up load: off by default (nothing loaded)" "$( [[ "$out" == *"n=0 "* ]]; echo $?)" "$out"
   write_cfg "$HOMEA"; echo 'CHIEF_CFG_SECRETS_LOAD=true' >> "$HOMEA/.chief_config.sh"
   out="$(start "$HOMEA" -ic "$report" "${SENV[@]}")"
-  check "Start-up load: true loads team, personal and host in an interactive shell, quietly" \
+  check "Start-up load: true loads shared, personal and host in an interactive shell, quietly" \
     "$( [[ "$out" == *"n=3 team=1 mine=1 host=1"* && "$out" != *"Success"* ]]; echo $?)" "$out"
   check "Start-up load: recorded as 'at start-up (CHIEF_CFG_SECRETS_LOAD)'" \
     "$( [[ "$out" == *"|at start-up (CHIEF_CFG_SECRETS_LOAD)|"* ]]; echo $?)" "$out"
@@ -189,7 +189,7 @@ if command -v gpg >/dev/null 2>&1; then
   out="$(env -i PATH="$PATH" TERM=dumb NO_COLOR=1 HOME="$HOMEA" USER=alice GNUPGHOME="$GNUPGHOME" CHIEF_PATH="$PROJECT_ROOT" CHIEF_CONFIG="$HOMEA/.chief_config.sh" "${SENV[@]}" \
     "$BASH" --norc --noprofile -ic 'source "$CHIEF_PATH/chief.sh" 2>/dev/null; for f in "${!CHIEF_SECRETS_LOADED[@]}"; do echo "rec=${CHIEF_SECRETS_LOADED[$f]}"; done' </dev/null 2>&1)"
   check "Start-up load: verbose names the files by layer, and doesn't mark them silent" \
-    "$( [[ "$out" == *"Secrets loaded: team ("*"personal ("*"this host ("* && "$out" == *"|no"* && "$out" != *"|yes"* ]]; echo $?)" "$out"
+    "$( [[ "$out" == *"Secrets loaded: shared ("*"personal ("*"this host ("* && "$out" == *"|no"* && "$out" != *"|yes"* ]]; echo $?)" "$out"
   write_cfg "$HOMEA"; echo 'CHIEF_CFG_SECRETS_LOAD=true' >> "$HOMEA/.chief_config.sh"
   out="$(start "$HOMEA" -c "$report" "${SENV[@]}")"
   check "Start-up load: true doesn't load in a non-interactive shell" "$( [[ "$out" == *"n=0 "* ]]; echo $?)" "$out"
@@ -211,8 +211,8 @@ if command -v gpg >/dev/null 2>&1; then
   save "$HOMEA/.chief_user-secrets" mypass
 
   out="$(start "$HOMEA" -c 'chief.secrets_file-edit')"
-  check "Secrets: with several files and no terminal, edit asks for --team/--personal/--local" \
-    "$( [[ "$out" == *"Pass --team, --personal, --local or a path"* ]]; echo $?)" "$out"
+  check "Secrets: with several files and no terminal, edit asks for --shared/--personal/--local" \
+    "$( [[ "$out" == *"Pass --shared, --personal, --local or a path"* ]]; echo $?)" "$out"
 
   # Creating personal secrets on a host for a new user: lands in users/<user>/secrets, encrypted,
   # with no plaintext left in the repo folder.
@@ -282,7 +282,7 @@ cfg="$(cat "$HOMEC/.chief_config.sh")"
 check "plugins-repo: clones the repo and points the config at the deep folder, as the user" \
   "$( [[ -d "$HOMEC/chief_plugins/.git" && "$cfg" == *"CHIEF_CFG_PLUGINS_TYPE=\"remote\""* && "$cfg" == *"CHIEF_CFG_PLUGINS_GIT_PATH=\"$FOLDER\""* && "$cfg" == *"CHIEF_CFG_USER=\"alice\""* && "$cfg" == *"CHIEF_CFG_PLUGINS_GIT_REPO=\"$BARE\""* ]]; echo $?)" "$cfg"
 check "plugins-repo: reports what the repo holds and applies the shared settings right away" \
-  "$( [[ "$out" == *"Found: team settings, team profile"*"your settings, your profile"* && "$out" == *"layers=[local team personal]"* ]]; echo $?)" "$out"
+  "$( [[ "$out" == *"Found: shared settings, shared profile"*"your settings, your profile"* && "$out" == *"layers=[local shared personal]"* ]]; echo $?)" "$out"
 out="$(start "$HOMEC" -c "chief.plugins-repo '$WORK/other.git' --user alice")"
 check "plugins-repo: refuses to reuse a folder that's a clone of another repo" \
   "$( [[ "$out" == *"already a clone of"* ]]; echo $?)" "$out"
@@ -300,8 +300,8 @@ write_cfg "$HOMEP" ""
 sed -i.bak "s|$BARE|$PBARE|" "$HOMEP/.chief_config.sh"
 start "$HOMEP" -ic 'echo "mine=${MINE:-} team=$(__chief_team_mode && echo yes || echo no)" > "$HOME/out"; chief.status >> "$HOME/out"' >/dev/null
 out="$(cat "$HOMEP/out" "$HOMEP/startup.err" 2>/dev/null)"
-check "Personal repo (no users/): its profile runs, no user warning, status has no User line" \
-  "$( [[ "$out" == *"mine=1 team=no"* && "$out" != *"CHIEF_CFG_USER"* && "$out" != *"User:"* ]]; echo $?)" "$out"
+check "Personal repo (no users/): its profile runs, no user warning, status shows the shared repo, no user" \
+  "$( [[ "$out" == *"mine=1 team=no"* && "$out" != *"CHIEF_CFG_USER"* && "$out" != *"Team repo:"* && "$out" == *"Shared repo: settings: local"*"profile: shared"* ]]; echo $?)" "$out"
 
 # --- install.sh --repo (a brand-new host) --------------------------------
 HOMED0="$WORK/home-d0"; mkdir -p "$HOMED0"; touch "$HOMED0/.bash_profile"
@@ -315,10 +315,10 @@ cfg="$(cat "$HOMED/.chief_config.sh" 2>/dev/null)"
 check "install.sh --repo: installs Chief, clones the repo and writes the repo settings and user" \
   "$( [[ -d "$HOMED/.chief" && -d "$HOMED/chief_plugins/.git" && "$cfg" == *"CHIEF_CFG_PLUGINS_GIT_PATH=\"$FOLDER\""* && "$cfg" == *"CHIEF_CFG_USER=\"alice\""* && "$cfg" == *"CHIEF_CFG_PLUGINS_TYPE=\"remote\""* ]]; echo $?)" "$(tail -5 <<<"$out")"
 check "install.sh --repo: says what it found in the repo" \
-  "$( [[ "$out" == *"Found team settings, team profile"* ]]; echo $?)" "$(grep -i found <<<"$out")"
+  "$( [[ "$out" == *"Found shared settings, shared profile"* ]]; echo $?)" "$(grep -i found <<<"$out")"
 out="$(env -i PATH="$PATH" TERM=dumb NO_COLOR=1 HOME="$HOMED" USER=alice CHIEF_PATH="$HOMED/.chief" CHIEF_CONFIG="$HOMED/.chief_config.sh" "$BASH" --norc --noprofile -c 'source "$CHIEF_PATH/chief.sh" >/dev/null 2>&1; echo "seen=$SEEN_AT_LOAD layers=[$CHIEF_CONFIG_LAYERS]"' </dev/null 2>&1)"
 check "install.sh --repo: the new host's first shell gets the shared settings, profile and plugins" \
-  "$( [[ "$out" == *"seen=personal/matched layers=[local team personal]"* ]]; echo $?)" "$out"
+  "$( [[ "$out" == *"seen=personal/matched layers=[local shared personal]"* ]]; echo $?)" "$out"
 
 echo ""
 echo "Team mode tests: ${PASSED} passed, ${FAILED} failed, ${SKIPPED} skipped"

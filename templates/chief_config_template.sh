@@ -99,7 +99,7 @@ CHIEF_CFG_PLUGINS_GIT_PATH=""
 # only you use to sync your own hosts.
 # It names your folder in the repo's plugins folder, users/<name>/, which can hold your own
 # settings (config.sh), start-up code (profile.sh) and encrypted secrets (secrets), loaded after
-# the team's (.chief_shared-config.sh, .chief_shared-profile.sh, .chief_shared-secrets).
+# the shared ones (.chief_shared-config.sh, .chief_shared-profile.sh, .chief_shared-secrets).
 # Use the same name on every host, even where your login name differs. Letters, digits, . _ -
 # Set it with: chief.config-set user <name>   (or: chief.plugins-repo <url> --user <name>)
 # The repo becomes a team repo when someone first creates users/<name>/ (for example with
@@ -240,7 +240,7 @@ CHIEF_CFG_SSH_LOAD_KEYS=false
 #CHIEF_CFG_SSH_KEYS_PATH="$HOME/.ssh"
 
 # Load your encrypted secrets at start-up, instead of a chief.secrets_file-load line in
-# ~/.bash_profile. Loads every secrets file that exists (team, personal, this host), quietly.
+# ~/.bash_profile. Loads every secrets file that exists (shared, personal, this host), quietly.
 #   false  don't (default)
 #   true   in interactive shells: use the saved password, else prompt for it
 #   saved  in interactive shells: only files with a saved password; never prompts

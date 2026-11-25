@@ -88,7 +88,7 @@ chief.config-set secrets_load true  # load every secrets file that exists in eac
 | `*_chief-plugin.sh` | your plugins (functions, aliases) |
 | `.chief_shared-config.sh` | Chief settings for every host (`chief.shared-config`) |
 | `.chief_shared-profile.sh` | start-up code, like a shared `~/.bash_profile` (`chief.shared-profile`) |
-| `.chief_shared-secrets` | encrypted secrets (`chief.secrets_file-edit --team`) |
+| `.chief_shared-secrets` | encrypted secrets (`chief.secrets_file-edit --shared`) |
 
 Host- or login-specific lines go inside those files with `chief.host_is`, for example `if chief.host_is my-laptop; then ...; fi` or `if chief.host_is 'deploy@*'; then ...; fi`; negate with `!`: `if ! chief.host_is my-laptop; then ...; fi`.
 
@@ -99,7 +99,7 @@ See [Shared repo](https://chief.randyo.dev/configuration.html#shared-repo-the-sa
 ### Result
 
 - **Same plugins everywhere**: Functions, aliases, and tools sync across laptop, server, CI/CD
-- **Encrypted secrets**: Secrets files travel with your setup (team + personal)
+- **Encrypted secrets**: Secrets files travel with your setup (shared + personal)
 - **Zero reconfiguration**: New systems work identically after this setup
 - **Version controlled**: Track changes to your shell environment
 

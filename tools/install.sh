@@ -33,7 +33,7 @@ CHIEF_CONFIG="$HOME/.chief_config.sh"
 CHIEF_PATH="$HOME/.chief"
 LOCAL_INSTALL=false
 BRANCH_SPECIFIED=false
-# Shared plugins repo to adopt (--repo): plugins, team/personal settings, profile and secrets.
+# Shared plugins repo to adopt (--repo): plugins, shared/personal settings, profile and secrets.
 REPO_URL=""
 REPO_PATH=""
 REPO_BRANCH=""
@@ -556,9 +556,9 @@ setup_repo() {
     echo -e "${YELLOW}WARNING: This is a team repo (it has a users/ folder). Set your Chief user to load your own settings, profile and secrets: chief.config-set user <name>${NC}"
   fi
   local found=() user_dir="$folder/users/${CHIEF_USER_NAME:-__none__}"
-  [[ -f "$folder/.chief_shared-config.sh" ]] && found+=("team settings")
-  [[ -f "$folder/.chief_shared-profile.sh" ]] && found+=("team profile")
-  [[ -f "$folder/.chief_shared-secrets" ]] && found+=("team secrets")
+  [[ -f "$folder/.chief_shared-config.sh" ]] && found+=("shared settings")
+  [[ -f "$folder/.chief_shared-profile.sh" ]] && found+=("shared profile")
+  [[ -f "$folder/.chief_shared-secrets" ]] && found+=("shared secrets")
   [[ -f "$user_dir/config.sh" ]] && found+=("your settings")
   [[ -f "$user_dir/profile.sh" ]] && found+=("your profile")
   [[ -f "$user_dir/secrets" ]] && found+=("your secrets")
