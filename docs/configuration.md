@@ -335,7 +335,7 @@ Everything lives in the repo's plugins folder (`CHIEF_CFG_PLUGINS_GIT_PATH`, whi
 | `users/<you>/profile.sh` | You (team repo) | Your start-up code |
 | `users/<you>/secrets` | You (team repo) | Your encrypted secrets (your own password) |
 
-`<you>` is **`CHIEF_CFG_USER`**, your Chief identity, the same on every host even where your login name differs (for example `alice.smith` on a laptop and `deploy` on a server, both `alice`). It's **required in a team repo**: one whose plugins folder has a `users/` folder. A repo only you use, with no `users/` folder, doesn't need it; the shared files are yours there. The repo becomes a team repo when someone first creates `users/<name>/`: only the `--personal` commands do that (`chief.shared-profile --personal`, `chief.shared-config --personal`, `chief.secrets_file-edit --personal`), and they say so. Close the editor without changes and nothing is kept. From then on, Chief loads only the shared layers on hosts where the user isn't set, and warns at start-up how to set it. Onboarding asks for it when there's a terminal; otherwise use `chief.config-set user <name>`. `chief.status` shows the user and the layers in use.
+`<you>` is **`CHIEF_CFG_USER`**, your Chief identity, the same on every host even where your login name differs (for example `alice.smith` on a laptop and `deploy` on a server, both `alice`). It's **required in a team repo**: one whose plugins folder has a `users/` folder. A repo only you use, with no `users/` folder, doesn't need it; the shared files are yours there. The repo becomes a team repo when someone first creates `users/<name>/`: only the `--personal` commands do that (`chief.shared-profile --personal`, `chief.config --personal`, `chief.secrets_file-edit --personal`), and they say so. Close the editor without changes and nothing is kept. From then on, Chief loads only the shared layers on hosts where the user isn't set, and warns at start-up how to set it. Onboarding asks for it when there's a terminal; otherwise use `chief.config-set user <name>`. `chief.status` shows the user and the layers in use.
 
 ### Onboarding a host
 
@@ -352,13 +352,14 @@ Then open a new terminal. On each host, save your secrets passwords once with `c
 
 ### Settings: shared, then yours
 
-Settings apply in this order, later ones winning: this host's `~/.chief_config.sh` (defaults, plus where the repo is), then the shared `.chief_shared-config.sh`, then your `users/<you>/config.sh` (team repo). Edit them with `chief.shared-config` and `chief.shared-config --personal`; both offer to commit and push when you changed something.
+Settings apply in this order, later ones winning: this host's `~/.chief_config.sh` (defaults, plus where the repo is), then the shared `.chief_shared-config.sh`, then your `users/<you>/config.sh` (team repo). Edit them with `chief.config --shared` and `chief.config --personal` (plain `chief.config` edits this host's file); both offer to commit and push when you changed something.
 
 - **Host exceptions** go inside the shared files: `if chief.host_is my-laptop; then CHIEF_CFG_PROMPT=false; fi`.
 - **Shared wins:** a setting in `.chief_shared-config.sh` overrides the same setting in every host's `~/.chief_config.sh`, including one you change there with `chief.config-set`. For a value that should differ on one host, put a `chief.host_is` block in the shared file, or leave the setting out of it.
 - **Where the repo is** (`CHIEF_CFG_PLUGINS_TYPE`, `_PATH`, `_GIT_REPO`, `_GIT_BRANCH`, `_GIT_PATH`) and **`CHIEF_CFG_USER`** always come from each host's own config. The repo can't redirect itself. Other `CHIEF_CFG_PLUGINS_*` settings, such as the disabled-plugin lists, can be shared.
 - **`CHIEF_CFG_BASH_WARN`** is read before the shared settings apply (Chief checks the Bash version first), so set it in each host's own config.
 - `chief.config-set` warns when the setting you change is also set in the shared layers, since those take precedence.
+- **Settings no layer sets** get the template's default, as on a fresh install. So a host config can leave out what the shared settings set: if the shared file isn't there yet (a new host, or before a pull), those settings behave like a fresh install rather than empty. On/off settings such as `CHIEF_CFG_AUTOCHECK_UPDATES` used to count an empty value as on. Not filled in this way: where the repo is, `CHIEF_CFG_USER`, and `CHIEF_CFG_SSH_LOAD_KEYS`, which keeps its older rule (a set `CHIEF_CFG_SSH_KEYS_PATH` means load).
 - `chief.config-update` doesn't add an option that the shared settings set. It lists it as "Set in the shared settings", and on a rewrite keeps the template's line commented, with a note saying so. So a host config can leave out what the shared file covers.
 
 ### Profile: a shared `~/.bash_profile`

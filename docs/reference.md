@@ -69,8 +69,8 @@ grep "^CHIEF_CFG_" "$CHIEF_CONFIG"
 chief.config-set PROMPT true
 chief.config-set default_editor_path "vim"
 
-# Interactive configuration editor
-chief.config
+# Interactive configuration editor (--shared / --personal: the shared repo's settings)
+chief.config [--shared|--personal] [--code]
 
 # Update config with new features (after upgrade)
 chief.config-update
@@ -145,7 +145,7 @@ chief.plugins-repo <git-url> [--path <folder>] [--user <name>] [--branch <b>] [-
 
 # Edit shared start-up code / settings (--personal: yours in users/<you>/); offer to commit & push
 chief.shared-profile [--personal] [--code]
-chief.shared-config [--personal] [--code]
+chief.config --shared|--personal [--code]
 
 # In shared files: is this host/login one of these? (no @ = host; login@host; wildcards * ?)
 chief.host_is <pattern> [pattern...]

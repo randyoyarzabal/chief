@@ -255,7 +255,7 @@ chief.secrets_file-edit --shared    # Secrets for every host, in the shared repo
 # Shared repo (solo or team): same plugins, settings, profile and secrets on every host
 chief.plugins-repo <url> --path <folder> [--user <name>]  # adopt it on this host
 chief.shared-profile [--personal]  # shared start-up code (a shared ~/.bash_profile)
-chief.shared-config [--personal]   # shared Chief settings
+chief.config --shared|--personal   # shared Chief settings
 chief.host_is my-laptop 'deploy@*'  # in shared files: this host, or this login on any host
 chief.secrets_password-status   # Where the password will come from
 

@@ -86,7 +86,7 @@ chief.config-set secrets_load true  # load every secrets file that exists in eac
 | In the plugins folder | What it is |
 |---|---|
 | `*_chief-plugin.sh` | your plugins (functions, aliases) |
-| `.chief_shared-config.sh` | Chief settings for every host (`chief.shared-config`) |
+| `.chief_shared-config.sh` | Chief settings for every host (`chief.config --shared`) |
 | `.chief_shared-profile.sh` | start-up code, like a shared `~/.bash_profile` (`chief.shared-profile`) |
 | `.chief_shared-secrets` | encrypted secrets (`chief.secrets_file-edit --shared`) |
 
