@@ -97,14 +97,16 @@ cfgset_out() { # <name> <value> -> chief.config-set output, against a throwaway 
         chief.config-set -y "$1" "$2"' _ "$1" "$2" </dev/null 2>&1
 }
 note_is() { # <label> <expect:yes|no> <output>
-    if [[ "$2" == yes && "$3" == *"Open a new terminal"* ]] || [[ "$2" == no && "$3" != *"Note:"* && "$3" == *"Confirmed:"* ]]; then
+    # yes: note shown, no reload (it couldn't apply the change). no: no note, normal reload.
+    if [[ "$2" == yes && "$3" == *"Open a new terminal"* && "$3" != *"Reloading Chief configuration"* && "$3" == *"Confirmed:"* ]] \
+       || [[ "$2" == no && "$3" != *"Note:"* && "$3" == *"Configuration reloaded successfully"* && "$3" == *"Confirmed:"* ]]; then
         echo -e "${GREEN}[PASS]${NC} $1"; PASS=$((PASS + 1))
     else echo -e "${RED}[FAIL]${NC} $1 (output: '$3')"; FAIL=$((FAIL + 1)); fi
 }
-note_is "config-set prompt: says to open a new terminal"     yes "$(cfgset_out prompt true)"
-note_is "config-set multiline_prompt: no note (applies now)" no  "$(cfgset_out multiline_prompt true)"
+note_is "config-set prompt: no reload, says to open a new terminal" yes "$(cfgset_out prompt true)"
+note_is "config-set multiline_prompt: reloads, no note (applies now)" no  "$(cfgset_out multiline_prompt true)"
 out="$(cfgset_out ssh_load_keys true)"
-if [[ "$out" == *"chief.ssh_load-keys"* ]]; then
+if [[ "$out" == *"chief.ssh_load-keys"* && "$out" != *"Reloading Chief configuration"* ]]; then
     echo -e "${GREEN}[PASS]${NC} config-set ssh_load_keys: points to chief.ssh_load-keys"; PASS=$((PASS + 1))
 else echo -e "${RED}[FAIL]${NC} config-set ssh_load_keys (output: '$out')"; FAIL=$((FAIL + 1)); fi
 rm -rf "$CFGDIR"

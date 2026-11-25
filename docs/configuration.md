@@ -48,7 +48,7 @@ chief.config-update --dry-run         # Preview changes without applying them
 chief.config-set config_set_interactive false
 ```
 
-**When a change takes effect.** `chief.config-set` (and `chief.reload`) reload Chief's library and plugins, so most changes apply right away. A few settings are applied only when a terminal starts, and `chief.config-set` prints a yellow **Note** when you change one:
+**When a change takes effect.** `chief.config-set` (and `chief.reload`) reload Chief's library and plugins, so most changes apply right away. A few settings are applied only when a terminal starts. For those, `chief.config-set` saves the change but skips the reload (it couldn't apply them, so it would only print noise) and prints a yellow **Note** with what to do:
 
 | Setting | When it takes effect |
 |---------|----------------------|

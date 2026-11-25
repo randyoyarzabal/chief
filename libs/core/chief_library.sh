@@ -3240,9 +3240,10 @@ ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
 - Supports BOTH syntaxes: config_name value OR config_name=value
 - String values with spaces should be quoted
 - Most changes take effect immediately (Chief reloads after the change)
-- Applied only when a terminal starts, so they need a new terminal (a Note says so):
-  PROMPT, COLORED_PROMPT, GIT_PROMPT, SHORT_PATH, COLORED_LS, plus the start-up-only
-  BANNER, HINTS, AUTOCHECK_UPDATES, BASH_WARN. SSH_LOAD_KEYS: run chief.ssh_load-keys.
+- Applied only when a terminal starts, so they need a new terminal: PROMPT, COLORED_PROMPT,
+  GIT_PROMPT, SHORT_PATH, COLORED_LS, plus the start-up-only BANNER, HINTS,
+  AUTOCHECK_UPDATES, BASH_WARN. SSH_LOAD_KEYS/SSH_KEYS_PATH: run chief.ssh_load-keys.
+  For these Chief skips the reload (it couldn't apply them) and prints a Note instead.
 - Reports previous and new values for each change
 "
 
@@ -3426,14 +3427,16 @@ ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
     fi
   fi
 
-  # Reload configuration
-  echo -e "${CHIEF_COLOR_BLUE}Reloading Chief configuration...${CHIEF_NO_COLOR}"
-  if __chief_load_library --verbose; then
-    echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Configuration reloaded successfully"
-  else
-    echo -e "${CHIEF_COLOR_YELLOW}⚠${CHIEF_NO_COLOR} Configuration file updated but reload had issues"
+  # Reload configuration, unless a reload can't apply this setting (it would only add noise).
+  if ! __chief_config_reload_cant_apply "${config_var}"; then
+    echo -e "${CHIEF_COLOR_BLUE}Reloading Chief configuration...${CHIEF_NO_COLOR}"
+    if __chief_load_library --verbose; then
+      echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Configuration reloaded successfully"
+    else
+      echo -e "${CHIEF_COLOR_YELLOW}⚠${CHIEF_NO_COLOR} Configuration file updated but reload had issues"
+    fi
   fi
-  
+
   # Verify the change
   local current_value
   if current_value=$(grep "^${config_var}=" "${CHIEF_CONFIG}" 2>/dev/null | cut -d'=' -f2-); then
@@ -3445,21 +3448,33 @@ ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
   __chief_config_restart_note "${config_var}"
 }
 
-# Tell the user when a setting doesn't take effect in the current shell. chief.config-set
-# reloads the library (__chief_load_library), but chief.sh applies some settings only once,
-# at shell start-up: the prompt, ls colors, the banner, hints, the update check, SSH keys.
+# Return 0 for settings that chief.config-set's reload (__chief_load_library) can't apply:
+# chief.sh applies them once, at shell start-up (the prompt, ls colors, the banner, hints,
+# the update check), and SSH keys load only at start-up or via chief.reload. config-set skips
+# the reload for these, since it would only print noise.
+# Usage: __chief_config_reload_cant_apply <CHIEF_CFG_VAR>
+function __chief_config_reload_cant_apply() {
+  case "$1" in
+    CHIEF_CFG_PROMPT|CHIEF_CFG_COLORED_PROMPT|CHIEF_CFG_GIT_PROMPT|CHIEF_CFG_SHORT_PATH|CHIEF_CFG_COLORED_LS) return 0 ;;
+    CHIEF_CFG_BANNER|CHIEF_CFG_HINTS|CHIEF_CFG_AUTOCHECK_UPDATES|CHIEF_CFG_BASH_WARN) return 0 ;;
+    CHIEF_CFG_SSH_LOAD_KEYS|CHIEF_CFG_SSH_KEYS_PATH) return 0 ;;
+  esac
+  return 1
+}
+
+# Tell the user when a setting doesn't take effect in the current shell, and what to do.
 # Usage: __chief_config_restart_note <CHIEF_CFG_VAR>
 function __chief_config_restart_note() {
   local note=""
   case "$1" in
     CHIEF_CFG_PROMPT|CHIEF_CFG_COLORED_PROMPT|CHIEF_CFG_GIT_PROMPT|CHIEF_CFG_SHORT_PATH|CHIEF_CFG_COLORED_LS)
-      note="$1 is applied when a terminal starts, so this terminal keeps the old setting (chief.reload doesn't change it either). Open a new terminal to see the change." ;;
+      note="$1 is applied when a terminal starts, so Chief didn't reload (it can't change this terminal; neither can chief.reload). Open a new terminal to see the change." ;;
     CHIEF_CFG_ALIAS)
       note="The new alias works now, but commands from a previous alias stay in this terminal. Open a new terminal for a clean set." ;;
     CHIEF_CFG_BANNER|CHIEF_CFG_HINTS|CHIEF_CFG_AUTOCHECK_UPDATES|CHIEF_CFG_BASH_WARN)
-      note="$1 only matters when a terminal starts. You'll see the change in the next new terminal." ;;
+      note="$1 only matters when a terminal starts, so no reload was needed. You'll see the change in the next new terminal." ;;
     CHIEF_CFG_SSH_LOAD_KEYS|CHIEF_CFG_SSH_KEYS_PATH)
-      note="$1 is used at start-up and by chief.reload. To load keys now, run: chief.ssh_load-keys" ;;
+      note="$1 is used when a terminal starts and by chief.reload, so no reload was done now. To load keys now, run: chief.ssh_load-keys" ;;
   esac
   [[ -n "$note" ]] && echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} ${note}"
   return 0
