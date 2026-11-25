@@ -359,15 +359,39 @@ Settings apply in this order, later ones winning: this host's `~/.chief_config.s
   ```bash
   chief.on_startup chief.secrets_file-load --quiet
   ```
-- **Host- or account-specific lines** go in a `chief.host_is` block. It matches the host name (`$CHIEF_HOST`, else the short hostname), or `user@host`, with `*` and `?` wildcards:
-  ```bash
-  if chief.host_is my-laptop; then export BACKUP_DIR=~/backups; fi
-  if chief.host_is 'build-*' 'deploy@*'; then alias ll='ls -alF'; fi
-  ```
+- **Host- or login-specific lines** go in a `chief.host_is` block. See [Host and login checks](#host-and-login-checks) below.
 
 **What stays in `~/.bash_profile`:** Chief's own lines (`CHIEF_PATH`, `CHIEF_CONFIG`, `source …/chief.sh`), anything Chief needs before it starts (such as `CHIEF_HOST`), and anything you don't want in git. Host-specific lines can live either there or in the shared profile under `chief.host_is`. In the repo they're versioned and come back automatically on a replacement machine.
 
 **Trust:** shared profiles are code that runs as you on every host. Anyone who can push to the repo can change them, the same as plugins.
+
+### Host and login checks
+
+`chief.host_is <pattern> [pattern...]` is true when this shell matches any of the patterns. A pattern **without `@` is a host name**; a pattern **with `@` is `login@host`**, so you can target a machine, an account, or both:
+
+| Pattern | Matches |
+|---|---|
+| `my-laptop` | the host my-laptop, any login |
+| `'build-*'` | any host whose name starts with `build-` |
+| `build-01 build-02` | either host (several patterns: any one matching is enough) |
+| `'deploy@*'` | the login `deploy`, on any host |
+| `'deploy@build-01'` | the login `deploy`, only on build-01 |
+| `'root@*'` | root shells, on any host |
+| `'*@build-01'` | any login on build-01 (same as `build-01`) |
+
+- **Host name:** `$CHIEF_HOST` if it's set, otherwise the short `hostname`. Set `CHIEF_HOST` in a host's `~/.bash_profile`, before Chief loads, when the real hostname isn't the name you want to write (a laptop called `MacBook-Pro-3`, for example).
+- **Login:** `$USER`, the account the shell runs as. It's the login on that host, not `CHIEF_CFG_USER`.
+- **Wildcards** `*` and `?` work on both sides of the `@`. Quote patterns that use them, so the shell doesn't expand them as file names.
+- **Which to use:** check the host for anything tied to a machine (paths, mounts, hardware). Check the login for anything tied to the account, on whichever host it is (for example tools only a service account uses, or keeping something out of root's shell).
+- **The OS** isn't a host check: test `$PLATFORM` (`MacOS` or `Linux`) instead.
+- Run `chief.host_is -?` on a host to see what it calls itself, shown as `login@host`.
+
+```bash
+if chief.host_is my-laptop; then export BACKUP_DIR=~/backups; fi          # one machine
+if chief.host_is 'build-*' build-db; then alias ll='ls -alF'; fi           # a group of machines
+if chief.host_is 'deploy@*'; then export PATH="/opt/deploy/bin:$PATH"; fi  # one account, any host
+if ! chief.host_is 'root@*'; then chief.on_startup chief.secrets_file-load --quiet; fi  # not as root
+```
 
 ### Secrets: team AND personal AND this host
 

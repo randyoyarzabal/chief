@@ -147,7 +147,7 @@ chief.plugins-repo <git-url> [--path <folder>] [--user <name>] [--branch <b>] [-
 chief.shared-profile [--personal] [--code]
 chief.shared-config [--personal] [--code]
 
-# In shared files: is this host/account one of these? (host, user@host, wildcards)
+# In shared files: is this host/login one of these? (no @ = host; login@host; wildcards * ?)
 chief.host_is <pattern> [pattern...]
 
 # In a shared profile: run a command at the end of start-up (after plugins load)

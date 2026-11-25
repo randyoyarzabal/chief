@@ -768,17 +768,24 @@ function chief.host_is() {
   local USAGE="${CHIEF_COLOR_CYAN}Usage:${CHIEF_NO_COLOR} $FUNCNAME <pattern> [pattern...]
 
 ${CHIEF_COLOR_YELLOW}Description:${CHIEF_NO_COLOR}
-True (exit 0) when this host matches any pattern. For host-specific blocks in shared files
-(.chief_shared-profile.sh, .chief_shared-config.sh, users/<you>/...).
+True (exit 0) when this host or login matches any pattern. For host- or login-specific
+blocks in shared files (.chief_shared-profile.sh, .chief_shared-config.sh, users/<you>/...).
 
-${CHIEF_COLOR_BLUE}Patterns:${CHIEF_NO_COLOR}
-  host        Matches the host name: \$CHIEF_HOST if set, else the short hostname.
-  user@host   Matches the login and host, e.g. deploy@build-01, alice@*, *@build-01.
-  Wildcards * and ? work in both, e.g. build-*. For the OS, test \$PLATFORM (MacOS / Linux).
+${CHIEF_COLOR_BLUE}Patterns:${CHIEF_NO_COLOR} (no @ = a host; with @ = login@host)
+  build-01          the host build-01, any login
+  'build-*'         any host whose name starts with build-
+  'deploy@*'        the login deploy, on any host
+  'deploy@build-01' the login deploy, only on build-01
+  'root@*'          root shells, on any host
+  '*@build-01'      any login on build-01 (same as build-01)
+The host name is \$CHIEF_HOST if set, else the short hostname. The login is \$USER.
+Wildcards * and ? work on both sides; quote patterns that have them. Several patterns
+match if any one does. For the OS, test \$PLATFORM (MacOS / Linux) instead.
 
 ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
-  if $FUNCNAME my-laptop; then export BACKUP_DIR=~/backups; fi
-  if $FUNCNAME 'build-*' 'deploy@*'; then alias ll='ls -alF'; fi
+  if $FUNCNAME my-laptop; then export BACKUP_DIR=~/backups; fi      # a machine
+  if $FUNCNAME 'build-*' build-db; then alias ll='ls -alF'; fi       # a group of machines
+  if $FUNCNAME 'deploy@*'; then export PATH=\"/opt/deploy/bin:\$PATH\"; fi  # an account
 
 This host: $(__chief_host_name)  (as $(__chief_host_login)@$(__chief_host_name))
 "
@@ -987,7 +994,9 @@ function __chief_shared_file() {
 # Order: team profile, then personal (users/<you>/profile.sh), then each host's ~/.bash_profile.
 #
 #   Exports, PATH, aliases, functions:   put them here.
-#   Only on some hosts:                  if chief.host_is my-laptop; then ...; fi   (chief.host_is -?)
+#   Only on some hosts:                  if chief.host_is my-laptop 'build-*'; then ...; fi
+#   Only for one login (any host):       if chief.host_is 'deploy@*'; then ...; fi
+#   (No @ = a host name; with @ = login@host. Wildcards * ?. See chief.host_is -?)
 #   Commands from plugins (not loaded    chief.on_startup chief.secrets_file-load --quiet
 #   yet here), run at the end of start-up:
 #
@@ -5171,7 +5180,7 @@ function __chief_show_core_commands() {
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}plugins-repo${CHIEF_NO_COLOR}   Adopt a shared plugins repo on this host (clone, point config, set user)"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}shared-profile${CHIEF_NO_COLOR} Edit the shared start-up profile (--personal: yours)"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}shared-config${CHIEF_NO_COLOR}  Edit the shared settings (--personal: yours)"
-  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}host_is${CHIEF_NO_COLOR}        Test this host/account in shared files (host, user@host, wildcards)"
+  echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}host_is${CHIEF_NO_COLOR}        Test this host/login in shared files (host, login@host, wildcards)"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}on_startup${CHIEF_NO_COLOR}     Run a command at the end of start-up (from a shared profile)"
   echo -e "${CHIEF_COLOR_CYAN}Utilities:${CHIEF_NO_COLOR}"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}status${CHIEF_NO_COLOR}        Show Chief status (banner + stats, including disabled plugins)"

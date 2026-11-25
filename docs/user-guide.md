@@ -255,7 +255,7 @@ chief.secrets_file-edit --personal  # Your secrets in the shared repo (also --te
 chief.plugins-repo <url> --path <folder> --user <name>   # adopt it on this host
 chief.shared-profile [--personal]  # shared start-up code (a shared ~/.bash_profile)
 chief.shared-config [--personal]   # shared Chief settings
-chief.host_is my-laptop             # in shared files: only on this host / account
+chief.host_is my-laptop 'deploy@*'  # in shared files: this host, or this login on any host
 chief.secrets_password-status   # Where the password will come from
 
 # Vault plugin (HashiCorp Vault; off by default): read/write/list KV secrets
