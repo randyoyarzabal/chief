@@ -328,7 +328,7 @@ Everything lives in the repo's plugins folder (`CHIEF_CFG_PLUGINS_GIT_PATH`, whi
 | `users/<you>/profile.sh` | You | Your start-up code |
 | `users/<you>/secrets` | You | Your encrypted secrets (your own password) |
 
-`<you>` is **`CHIEF_CFG_USER`**, your Chief identity. It's **required** with a shared repo, and should be the same on every host, even where your login name differs (for example `alice.smith` on a laptop and `deploy` on a server, both `alice`). Onboarding sets it. Otherwise use `chief.config-set user <name>`. Without it, Chief still loads the team layers and warns at start-up. `chief.status` shows your user and the layers in use.
+`<you>` is **`CHIEF_CFG_USER`**, your Chief identity, the same on every host even where your login name differs (for example `alice.smith` on a laptop and `deploy` on a server, both `alice`). It's **required in a team repo**: one whose plugins folder has a `users/` folder. A repo only you use, with no `users/` folder, doesn't need it; the team files are yours there. The repo becomes a team repo when someone first creates `users/<name>/` (for example with `chief.shared-profile --personal`). From then on, Chief loads only the team layers on hosts where the user isn't set, and warns at start-up how to set it. Onboarding asks for it when there's a terminal; otherwise use `chief.config-set user <name>`. `chief.status` shows your user and the layers in use.
 
 ### Onboarding a host
 

@@ -127,7 +127,7 @@ out="$(start "$HOMEA" -c '
 check "chief.host_is: name, wildcard, user@host, several patterns, no match" \
   "$( [[ "$(tr -d '\n' <<<"$out")" == "ABCDEF" ]]; echo $?)" "$out"
 
-# --- CHIEF_CFG_USER is required with a shared repo ----------------------
+# --- CHIEF_CFG_USER is required in a team repo (one with users/) -------
 HOMEB="$WORK/home-b"; mkdir -p "$HOMEB"
 "${GIT[@]}" clone -q "$BARE" "$HOMEB/chief_plugins" 2>/dev/null
 write_cfg "$HOMEB" ""
@@ -192,8 +192,9 @@ fi
 HOMEC="$WORK/home-c"; mkdir -p "$HOMEC"
 printf 'CHIEF_CFG_BANNER=false\nCHIEF_CFG_HINTS=false\nCHIEF_CFG_PLUGINS_TYPE="local"\nCHIEF_CFG_PLUGINS_PATH=""\n#CHIEF_CFG_USER=""\n' > "$HOMEC/.chief_config.sh"
 out="$(start "$HOMEC" -c "chief.plugins-repo '$BARE' --path $FOLDER")"
-check "plugins-repo: --user is required when there's no terminal to ask on" \
-  "$( [[ "$out" == *"--user <name> is required"* && ! -d "$HOMEC/chief_plugins" ]]; echo $?)" "$out"
+cfg="$(cat "$HOMEC/.chief_config.sh")"
+check "plugins-repo: without --user (no terminal) it still sets up, and warns that this is a team repo" \
+  "$( [[ -d "$HOMEC/chief_plugins/.git" && "$out" == *"This is a team repo"*"chief.config-set user"* ]] && ! grep -q '^CHIEF_CFG_USER="[^"]' <<<"$cfg"; echo $?)" "$out"
 out="$(start "$HOMEC" -c "chief.plugins-repo '$BARE' --path $FOLDER/ --user alice; echo \"layers=[\$CHIEF_CONFIG_LAYERS]\"")"
 cfg="$(cat "$HOMEC/.chief_config.sh")"
 check "plugins-repo: clones the repo and points the config at the deep folder, as the user" \
@@ -204,11 +205,29 @@ out="$(start "$HOMEC" -c "chief.plugins-repo '$WORK/other.git' --user alice")"
 check "plugins-repo: refuses to reuse a folder that's a clone of another repo" \
   "$( [[ "$out" == *"already a clone of"* ]]; echo $?)" "$out"
 
+# --- A repo only you use (no users/ folder): never asks for a user -------
+PBARE="$WORK/personal.git"
+"${GIT[@]}" init -q --bare "$PBARE"
+PSEED="$WORK/pseed"; "${GIT[@]}" clone -q "$PBARE" "$PSEED" 2>/dev/null
+mkdir -p "$PSEED/$FOLDER"
+printf 'export MINE=1\n' > "$PSEED/$FOLDER/.chief_shared-profile.sh"
+( cd "$PSEED" && "${GIT[@]}" add -A && "${GIT[@]}" commit -qm seed && "${GIT[@]}" push -q origin main ) >/dev/null 2>&1
+HOMEP="$WORK/home-p"; mkdir -p "$HOMEP"
+"${GIT[@]}" clone -q "$PBARE" "$HOMEP/chief_plugins" 2>/dev/null
+write_cfg "$HOMEP" ""
+sed -i.bak "s|$BARE|$PBARE|" "$HOMEP/.chief_config.sh"
+start "$HOMEP" -ic 'echo "mine=${MINE:-} team=$(__chief_team_mode && echo yes || echo no)" > "$HOME/out"; chief.status >> "$HOME/out"' >/dev/null
+out="$(cat "$HOMEP/out" "$HOMEP/startup.err" 2>/dev/null)"
+check "Personal repo (no users/): its profile runs, no user warning, status has no User line" \
+  "$( [[ "$out" == *"mine=1 team=no"* && "$out" != *"CHIEF_CFG_USER"* && "$out" != *"User:"* ]]; echo $?)" "$out"
+
 # --- install.sh --repo (a brand-new host) --------------------------------
+HOMED0="$WORK/home-d0"; mkdir -p "$HOMED0"; touch "$HOMED0/.bash_profile"
+out="$(env -i PATH="$PATH" HOME="$HOMED0" USER=alice TERM=dumb "$BASH" "$PROJECT_ROOT/tools/install.sh" --local --path "$HOMED0/.chief" --config "$HOMED0/.chief_config.sh" --repo "$BARE" --repo-path "$FOLDER" </dev/null 2>&1)"
+cfg="$(cat "$HOMED0/.chief_config.sh" 2>/dev/null)"
+check "install.sh --repo without --user (no terminal): installs, and warns that this is a team repo" \
+  "$( [[ -d "$HOMED0/.chief" && -d "$HOMED0/chief_plugins/.git" && "$out" == *"This is a team repo"* ]] && ! grep -q '^CHIEF_CFG_USER="[^"]' <<<"$cfg"; echo $?)" "$(grep -iE 'team repo|error' <<<"$out")"
 HOMED="$WORK/home-d"; mkdir -p "$HOMED"; touch "$HOMED/.bash_profile"
-out="$(env -i PATH="$PATH" HOME="$HOMED" USER=alice TERM=dumb "$BASH" "$PROJECT_ROOT/tools/install.sh" --local --path "$HOMED/.chief" --config "$HOMED/.chief_config.sh" --repo "$BARE" --repo-path "$FOLDER" </dev/null 2>&1)"
-check "install.sh --repo without --user (no terminal) stops before installing anything" \
-  "$( [[ "$out" == *"--user NAME is required"* && ! -d "$HOMED/.chief" ]]; echo $?)" "$out"
 out="$(env -i PATH="$PATH" HOME="$HOMED" USER=alice TERM=dumb "$BASH" "$PROJECT_ROOT/tools/install.sh" --local --path "$HOMED/.chief" --config "$HOMED/.chief_config.sh" --repo "$BARE" --repo-path "$FOLDER" --user alice </dev/null 2>&1)"
 cfg="$(cat "$HOMED/.chief_config.sh" 2>/dev/null)"
 check "install.sh --repo: installs Chief, clones the repo and writes the repo settings and user" \

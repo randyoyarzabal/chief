@@ -101,7 +101,8 @@ while [[ $# -gt 0 ]]; do
       echo "  --repo-branch B   Branch to use (default: the repo's default branch)"
       echo "  --repo-dir DIR    Where to clone it (default: ~/chief_plugins)"
       echo "  --user NAME       Your Chief identity: your folder users/NAME/ in the repo."
-      echo "                    Required with --repo (asked for when there's a terminal)"
+      echo "                    Needed when the repo has a users/ folder (a team repo);"
+      echo "                    asked for when there's a terminal"
       echo ""
       echo "Example:"
       echo "  $0 --repo ssh://git@git.example.com:2222/team/common.git \\"
@@ -178,22 +179,17 @@ if $LOCAL_INSTALL && $BRANCH_SPECIFIED; then
   echo ""
 fi
 
-# --repo needs --user (your Chief identity). Ask now if there's a terminal; otherwise stop
-# before anything is installed.
+# --repo: ask for --user (your Chief identity) now if there's a terminal. Without one, carry on;
+# setup_repo warns if the repo turns out to be a team repo (it has users/), where it's needed.
 if [[ -n "$REPO_URL" ]]; then
   REPO_PATH="${REPO_PATH#/}"; REPO_PATH="${REPO_PATH%/}"
   REPO_DIR="${REPO_DIR/#\~/$HOME}"
-  if [[ -z "$CHIEF_USER_NAME" ]]; then
-    if { : </dev/tty; } 2>/dev/null; then
-      printf 'Your Chief user name (your folder users/<name>/ in the repo; the same on every host) [%s]: ' "${USER:-$(id -un)}"
-      read -r CHIEF_USER_NAME </dev/tty
-      CHIEF_USER_NAME="${CHIEF_USER_NAME:-${USER:-$(id -un)}}"
-    else
-      echo -e "${RED}ERROR: --user NAME is required with --repo (no terminal to ask on).${NC}"
-      exit 1
-    fi
+  if [[ -z "$CHIEF_USER_NAME" ]] && { : </dev/tty; } 2>/dev/null; then
+    printf 'Your Chief user name (your folder users/<name>/ in a team repo; the same on every host) [%s]: ' "${USER:-$(id -un)}"
+    read -r CHIEF_USER_NAME </dev/tty
+    CHIEF_USER_NAME="${CHIEF_USER_NAME:-${USER:-$(id -un)}}"
   fi
-  if [[ ! "$CHIEF_USER_NAME" =~ ^[A-Za-z0-9._-]+$ ]]; then
+  if [[ -n "$CHIEF_USER_NAME" && ! "$CHIEF_USER_NAME" =~ ^[A-Za-z0-9._-]+$ ]]; then
     echo -e "${RED}ERROR: '$CHIEF_USER_NAME' isn't a valid user name (letters, digits, . _ -).${NC}"
     exit 1
   fi
@@ -554,9 +550,12 @@ setup_repo() {
   config_write "$CHIEF_CONFIG" CHIEF_CFG_PLUGINS_GIT_BRANCH "${REPO_BRANCH:-main}"
   config_write "$CHIEF_CONFIG" CHIEF_CFG_PLUGINS_GIT_PATH "$REPO_PATH"
   config_write "$CHIEF_CONFIG" CHIEF_CFG_PLUGINS_PATH "$REPO_DIR"
-  config_write "$CHIEF_CONFIG" CHIEF_CFG_USER "$CHIEF_USER_NAME"
-  echo -e "${GREEN}SUCCESS: Configuration points at the repo${REPO_PATH:+ (folder $REPO_PATH)}, as user $CHIEF_USER_NAME${NC}"
-  local found=() user_dir="$folder/users/$CHIEF_USER_NAME"
+  [[ -n "$CHIEF_USER_NAME" ]] && config_write "$CHIEF_CONFIG" CHIEF_CFG_USER "$CHIEF_USER_NAME"
+  echo -e "${GREEN}SUCCESS: Configuration points at the repo${REPO_PATH:+ (folder $REPO_PATH)}${CHIEF_USER_NAME:+, as user $CHIEF_USER_NAME}${NC}"
+  if [[ -z "$CHIEF_USER_NAME" && -d "$folder/users" ]]; then
+    echo -e "${YELLOW}WARNING: This is a team repo (it has a users/ folder). Set your Chief user to load your own settings, profile and secrets: chief.config-set user <name>${NC}"
+  fi
+  local found=() user_dir="$folder/users/${CHIEF_USER_NAME:-__none__}"
   [[ -f "$folder/.chief_shared-config.sh" ]] && found+=("team settings")
   [[ -f "$folder/.chief_shared-profile.sh" ]] && found+=("team profile")
   [[ -f "$folder/.chief_shared-secrets" ]] && found+=("team secrets")
@@ -598,7 +597,7 @@ else
 fi
 echo -e "${CYAN}  • Created/updated configuration file: ${YELLOW}$CHIEF_CONFIG${NC}"
 if [[ -n "$REPO_URL" ]]; then
-  echo -e "${CYAN}  • Cloned your shared plugins repo to: ${YELLOW}$REPO_DIR${NC}${CYAN} (as user ${YELLOW}$CHIEF_USER_NAME${CYAN})${NC}"
+  echo -e "${CYAN}  • Cloned your shared plugins repo to: ${YELLOW}$REPO_DIR${NC}${CHIEF_USER_NAME:+${CYAN} (as user ${YELLOW}$CHIEF_USER_NAME${CYAN})}${NC}"
 fi
 if [[ -f "$CHIEF_BASH_PROFILE" ]]; then
   echo -e "${CYAN}  • Added 3 export/source lines to: ${YELLOW}$CHIEF_BASH_PROFILE${NC}"

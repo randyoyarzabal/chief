@@ -658,8 +658,9 @@ function __chief_discover_shared_secrets_file() {
 #   .chief_shared-config.sh    team settings          users/<user>/config.sh   yours
 #   .chief_shared-profile.sh   team start-up code     users/<user>/profile.sh  yours
 #   .chief_shared-secrets      team secrets           users/<user>/secrets     yours
-# <user> is CHIEF_CFG_USER (required with a shared repo): your Chief identity, the same on
-# every host even when your login name differs.
+# <user> is CHIEF_CFG_USER: your Chief identity, the same on every host even when your login name
+# differs. It's required once the repo is a team repo, i.e. its plugins folder has a users/
+# folder (per-user files); a repo only you use, without users/, doesn't need it.
 
 # The folder that holds plugins and shared files. Prints nothing when none is configured.
 function __chief_shared_dir() {
@@ -672,9 +673,13 @@ function __chief_shared_dir() {
   [[ -n "$d" ]] && printf '%s' "${d%/}"
 }
 
-# True when a shared (remote) plugins repo is in use: CHIEF_CFG_USER is required then.
+# True for a team repo: the plugins folder has a users/ folder (per-user files). CHIEF_CFG_USER
+# is required then. A repo without users/ (say, one person syncing their own hosts) is not a
+# team repo, so Chief never asks for a user there.
 function __chief_team_mode() {
-  [[ ${CHIEF_CFG_PLUGINS_TYPE} == "remote" && -n ${CHIEF_CFG_PLUGINS_GIT_REPO:-} ]]
+  local dir
+  dir="$(__chief_shared_dir)"
+  [[ -n "$dir" && -d "$dir/users" ]]
 }
 
 # A usable user name: letters, digits, dot, underscore, dash.
@@ -1096,8 +1101,9 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   <git-url>       The repo, e.g. ssh://git@git.example.com:2222/team/common.git
   --path <folder> Folder inside the repo that holds the plugins and shared files, e.g.
                   path/to/plugins (default: the repo root)
-  --user <name>   Your Chief identity: your folder users/<name>/ in the repo. Required (asked for
-                  when missing); the same on every host, even when your login name differs.
+  --user <name>   Your Chief identity: your folder users/<name>/ in the repo, the same on every
+                  host even when your login name differs. Needed when the repo has a users/
+                  folder (a team repo); asked for when there's a terminal.
   --branch <b>    Branch to use (default: the repo's default branch)
   --dir <dir>     Where to clone it (default: \$CHIEF_CFG_PLUGINS_PATH or ~/chief_plugins)
 
@@ -1128,20 +1134,16 @@ ${CHIEF_COLOR_YELLOW}Example:${CHIEF_NO_COLOR}
   dir="${dir:-${CHIEF_CFG_PLUGINS_PATH:-$HOME/chief_plugins}}"
   dir="${dir/#\~/$HOME}"
 
-  # Identity: required with a shared repo.
+  # Identity: asked for when there's a terminal (default: the login name). Without one, carry on;
+  # after cloning, warn if this is a team repo (it has users/), where it's required.
   user="${user:-${CHIEF_CFG_USER:-}}"
-  if [[ -z "$user" ]]; then
-    if { : </dev/tty; } 2>/dev/null; then
-      local default_user; default_user="$(__chief_host_login)"
-      echo -ne "${CHIEF_COLOR_CYAN}Your Chief user name${CHIEF_NO_COLOR} (your folder users/<name>/ in the repo; the same on every host) [${default_user}]: " >&2
-      read -r user </dev/tty
-      user="${user:-$default_user}"
-    else
-      echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} --user <name> is required (no terminal to ask on)." >&2
-      return 1
-    fi
+  if [[ -z "$user" ]] && { : </dev/tty; } 2>/dev/null; then
+    local default_user; default_user="$(__chief_host_login)"
+    echo -ne "${CHIEF_COLOR_CYAN}Your Chief user name${CHIEF_NO_COLOR} (your folder users/<name>/ in a team repo; the same on every host) [${default_user}]: " >&2
+    read -r user </dev/tty
+    user="${user:-$default_user}"
   fi
-  if ! __chief_user_valid "$user"; then
+  if [[ -n "$user" ]] && ! __chief_user_valid "$user"; then
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} '$user' isn't a valid user name (letters, digits, . _ -)." >&2
     return 1
   fi
@@ -1178,12 +1180,12 @@ ${CHIEF_COLOR_YELLOW}Example:${CHIEF_NO_COLOR}
   __chief_config_write "$CHIEF_CONFIG" CHIEF_CFG_PLUGINS_GIT_BRANCH "${branch:-main}"
   __chief_config_write "$CHIEF_CONFIG" CHIEF_CFG_PLUGINS_GIT_PATH "$path"
   __chief_config_write "$CHIEF_CONFIG" CHIEF_CFG_PLUGINS_PATH "$dir"
-  __chief_config_write "$CHIEF_CONFIG" CHIEF_CFG_USER "$user"
-  echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} $(__chief_tilde "$CHIEF_CONFIG") now uses ${url}${path:+ (folder ${path})} as ${user}."
+  [[ -n "$user" ]] && __chief_config_write "$CHIEF_CONFIG" CHIEF_CFG_USER "$user"
+  echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} $(__chief_tilde "$CHIEF_CONFIG") now uses ${url}${path:+ (folder ${path})}${user:+ as ${user}}."
   __chief_load_library >/dev/null 2>&1
 
   # What the repo holds.
-  local found=() user_dir="$folder/users/$user"
+  local found=() user_dir="$folder/users/${user:-__none__}"
   [[ -f "$folder/.chief_shared-config.sh" ]] && found+=("team settings")
   [[ -f "$folder/.chief_shared-profile.sh" ]] && found+=("team profile")
   [[ -f "$folder/.chief_shared-secrets" || -f "$folder/.chief_shared-vault" ]] && found+=("team secrets")
@@ -1193,7 +1195,13 @@ ${CHIEF_COLOR_YELLOW}Example:${CHIEF_NO_COLOR}
   if (( ${#found[@]} > 0 )); then
     echo -e "${CHIEF_COLOR_GREEN}✓${CHIEF_NO_COLOR} Found: $(IFS=,; echo "${found[*]}" | sed 's/,/, /g')."
   fi
-  [[ -d "$user_dir" ]] || echo -e "${CHIEF_COLOR_BLUE}No folder for ${user} in the repo yet.${CHIEF_NO_COLOR} Start one with: chief.shared-profile --personal (or chief.secrets_file-edit --personal)"
+  if [[ -z "$user" ]]; then
+    if [[ -d "$folder/users" ]]; then
+      echo -e "${CHIEF_COLOR_YELLOW}Warning:${CHIEF_NO_COLOR} This is a team repo (it has a users/ folder), so set your Chief user to load your own settings, profile and secrets: ${CHIEF_COLOR_CYAN}chief.config-set user <name>${CHIEF_NO_COLOR}"
+    fi
+  elif [[ ! -d "$user_dir" ]]; then
+    echo -e "${CHIEF_COLOR_BLUE}No folder for ${user} in the repo yet.${CHIEF_NO_COLOR} Start one with: chief.shared-profile --personal (or chief.secrets_file-edit --personal)"
+  fi
   echo -e "${CHIEF_COLOR_BLUE}Next:${CHIEF_NO_COLOR} open a new terminal so the shared profiles run. Save secrets passwords on this host with chief.secrets_password-save."
 }
 
