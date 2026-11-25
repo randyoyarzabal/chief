@@ -228,8 +228,8 @@ if command -v gpg >/dev/null 2>&1 && command -v openssl >/dev/null 2>&1; then
   fi
 
   out="$(run_chief CHIEF_SECRETS_NO_KEYCHAIN=1 -- "chief.secrets_password-status '$g'")"
-  if grep -q "Password from: saved password (file store, obfuscated)" <<<"$out"; then
-    pass "Status: reports the file store as the password source"
+  if grep -q "Password from: saved password (file store, obfuscated)" <<<"$out" && grep -q "none available (file store is the fallback): CHIEF_SECRETS_NO_KEYCHAIN=1 is set" <<<"$out"; then
+    pass "Status: reports the file store as the password source, and why there's no keychain"
   else
     fail "Status: got: $out"
   fi
