@@ -158,7 +158,21 @@ chief.secrets_file-edit [secrets-file] --rekey [--new-password-file=PATH] [--loa
 chief.secrets_file-load [secrets-file]
 ```
 
-Optional password files (avoid prompts): Ansible Vault → `ANSIBLE_VAULT_PASSWORD_FILE`; GPG → `CHIEF_SECRETS_PASSWORD_FILE`.
+Where the password comes from (first match wins):
+1. A password file: Ansible Vault → `ANSIBLE_VAULT_PASSWORD_FILE`; GPG → `CHIEF_SECRETS_PASSWORD_FILE`.
+2. A saved password: `chief.secrets_password-save` (see below).
+3. A prompt.
+
+```bash
+# Save a file's password so load/edit/--rekey don't prompt (typed at a prompt only; checked first)
+chief.secrets_password-save [secrets-file] [--store=auto|keychain|file]
+# Where Chief will get the password from, and which keychain is available
+chief.secrets_password-status [secrets-file]
+# Forget a saved password (the secrets file is not touched)
+chief.secrets_password-remove [secrets-file]
+```
+
+Stores: the **keychain** (macOS Keychain, or the Linux desktop keyring via `secret-tool`) is encrypted by the OS and unlocked by your login. The **file** store (`~/.chief_secrets-store/`, used where there's no keychain, such as headless servers) is obfuscation only: anyone who can read your account can recover the password. Saved passwords are tied to the secrets file's path.
 
 ### Vault Plugin (HashiCorp Vault KV)
 

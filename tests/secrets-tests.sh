@@ -41,7 +41,7 @@ trap cleanup EXIT
 printf 'old-secret-pass\n' > "$WORK/old.pass"
 printf 'new-secret-pass\n' > "$WORK/new.pass"
 printf 'wrong-pass\n' > "$WORK/wrong.pass"
-PLAIN=$'export DEMO_TOKEN="it'"'"'s a secret"\nfunction demo.hello() { echo hi; }'
+PLAIN=$'export DEMO_TOKEN="it\'s a secret"\nfunction demo.hello() { echo hi; }'
 
 # Run chief.secrets_file-edit with the given env/args in a clean shell.
 # Usage: run_edit <env assignments...> -- <args...>
@@ -160,6 +160,129 @@ if command -v ansible-vault >/dev/null 2>&1; then
   fi
 else
   skip "Ansible Vault re-key tests (ansible-vault not installed)"
+fi
+
+# --- Saved passwords ---------------------------------------------------
+# Run Chief code with saved-password stores pointed at throwaway locations.
+# Usage: run_chief <env assignments...> -- <shell code>
+run_chief() {
+  local envs=()
+  while [[ $# -gt 0 && $1 != "--" ]]; do envs+=("$1"); shift; done
+  shift
+  env NO_COLOR=1 CHIEF_PATH="$PROJECT_ROOT" CHIEF_SECRETS_STORE_DIR="$WORK/store" \
+    ${envs[@]+"${envs[@]}"} "$BASH" --norc --noprofile -c '
+    source "$CHIEF_PATH/libs/core/chief_library.sh" >/dev/null 2>&1
+    source "$CHIEF_PATH/libs/core/plugins/secrets_chief-plugin.sh"
+    eval "$1"
+  ' _ "$1" </dev/null 2>&1
+}
+
+if command -v gpg >/dev/null 2>&1 && command -v openssl >/dev/null 2>&1; then
+  g="$WORK/saved-gpg.secrets"
+  printf '%s\n' "$PLAIN" | gpg --batch --yes --armor --passphrase-file "$WORK/old.pass" --symmetric --cipher-algo AES256 -o "$g" 2>/dev/null
+
+  # File store (no keychain).
+  out="$(run_chief CHIEF_SECRETS_NO_KEYCHAIN=1 -- "__chief_secrets_store_put '$g' file <<<old-secret-pass && chief.secrets_file-load '$g' && echo \"token=\$DEMO_TOKEN\"")"
+  if grep -q "token=it's a secret" <<<"$out" && ! grep -q "GPG password:" <<<"$out"; then
+    pass "File store: load uses the saved password, no prompt"
+  else
+    fail "File store: load with saved password; got: $out"
+  fi
+
+  dmode="$(stat -c '%a' "$WORK/store" 2>/dev/null || stat -f '%Lp' "$WORK/store")"
+  kmode="$(stat -c '%a' "$WORK/store/.key" 2>/dev/null || stat -f '%Lp' "$WORK/store/.key")"
+  if [[ "$dmode" == "700" && "$kmode" == "600" ]] && ! grep -rq "old-secret-pass" "$WORK/store"; then
+    pass "File store: folder 700, key 600, password not stored in clear text"
+  else
+    fail "File store: modes dir=$dmode key=$kmode, or clear text found"
+  fi
+
+  out="$(run_chief CHIEF_SECRETS_NO_KEYCHAIN=1 CHIEF_SECRETS_PASSWORD_FILE="$WORK/wrong.pass" -- "chief.secrets_file-load '$g'")"
+  if grep -q "wrong password" <<<"$out"; then
+    pass "Precedence: CHIEF_SECRETS_PASSWORD_FILE wins over a saved password"
+  else
+    fail "Precedence: expected the env password file to be used; got: $out"
+  fi
+
+  out="$(run_chief CHIEF_SECRETS_NO_KEYCHAIN=1 -- "chief.secrets_password-status '$g'")"
+  if grep -q "Password from: saved password (file store, obfuscated)" <<<"$out"; then
+    pass "Status: reports the file store as the password source"
+  else
+    fail "Status: got: $out"
+  fi
+
+  # Re-key keeps the saved password in step.
+  out="$(run_chief CHIEF_SECRETS_NO_KEYCHAIN=1 -- "chief.secrets_file-edit '$g' --rekey --new-password-file='$WORK/new.pass' && chief.secrets_file-load '$g' && echo \"token=\$DEMO_TOKEN\"")"
+  if grep -q "Saved password updated" <<<"$out" && grep -q "token=it's a secret" <<<"$out"; then
+    pass "Re-key: the saved password is updated to the new one"
+  else
+    fail "Re-key with a saved password; got: $out"
+  fi
+
+  # A saved password that no longer works gets a clear hint.
+  run_chief CHIEF_SECRETS_NO_KEYCHAIN=1 -- "__chief_secrets_store_put '$g' file <<<old-secret-pass" >/dev/null
+  out="$(run_chief CHIEF_SECRETS_NO_KEYCHAIN=1 -- "chief.secrets_file-load '$g'")"
+  if grep -q "The saved password didn't work" <<<"$out"; then
+    pass "Stale saved password: load fails with a hint to save or remove it"
+  else
+    fail "Stale saved password; got: $out"
+  fi
+
+  out="$(run_chief CHIEF_SECRETS_NO_KEYCHAIN=1 -- "chief.secrets_password-remove '$g'; chief.secrets_password-status '$g'")"
+  if grep -q "Saved password removed" <<<"$out" && grep -q "Password from: prompt" <<<"$out" && [[ -z "$(ls "$WORK/store")" ]]; then
+    pass "Remove: deletes the saved password; status falls back to prompt"
+  else
+    fail "Remove; got: $out"
+  fi
+
+  # Saving is interactive only: without a terminal it refuses (only checkable with no tty).
+  if ! { : </dev/tty; } 2>/dev/null; then
+    out="$(run_chief CHIEF_SECRETS_NO_KEYCHAIN=1 -- "chief.secrets_password-save '$g'")"
+    if grep -q "needs a terminal" <<<"$out"; then
+      pass "Save: refuses without a terminal (no piped passwords)"
+    else
+      fail "Save without a terminal; got: $out"
+    fi
+  else
+    skip "Save-without-terminal check (this run has a terminal)"
+  fi
+
+  # macOS Keychain, in a throwaway keychain file.
+  if [[ "$(uname -s)" == "Darwin" ]] && command -v security >/dev/null 2>&1; then
+    kc="$WORK/test.keychain-db"
+    security create-keychain -p chief-test "$kc" >/dev/null 2>&1 && security unlock-keychain -p chief-test "$kc" >/dev/null 2>&1
+    out="$(run_chief CHIEF_SECRETS_KEYCHAIN="$kc" -- "__chief_secrets_store_put '$g' keychain <<<'new-secret-pass' && chief.secrets_password-status '$g' && chief.secrets_file-load '$g' && echo \"token=\$DEMO_TOKEN\"")"
+    if grep -q "Password from: saved password (keychain)" <<<"$out" && grep -q "token=it's a secret" <<<"$out" && [[ -z "$(ls "$WORK/store")" ]]; then
+      pass "macOS Keychain: load uses the saved password, nothing written to the file store"
+    else
+      fail "macOS Keychain; got: $out"
+    fi
+    out="$(run_chief CHIEF_SECRETS_KEYCHAIN="$kc" -- "chief.secrets_password-remove '$g'; __chief_secrets_store_where '$g' || true")"
+    if grep -q "Saved password removed" <<<"$out" && ! grep -qx "keychain" <<<"$out"; then
+      pass "macOS Keychain: remove deletes the entry"
+    else
+      fail "macOS Keychain remove; got: $out"
+    fi
+    security delete-keychain "$kc" >/dev/null 2>&1
+  else
+    skip "macOS Keychain tests (not macOS)"
+  fi
+else
+  skip "Saved-password tests (need gpg and openssl)"
+fi
+
+if command -v ansible-vault >/dev/null 2>&1 && command -v openssl >/dev/null 2>&1; then
+  a="$WORK/saved-ansible.secrets"
+  printf '%s\n' "$PLAIN" > "$a"
+  ANSIBLE_VAULT_PASSWORD_FILE="$WORK/old.pass" ansible-vault encrypt "$a" >/dev/null 2>&1
+  out="$(run_chief CHIEF_SECRETS_NO_KEYCHAIN=1 -- "__chief_secrets_store_put '$a' file <<<old-secret-pass && chief.secrets_file-load '$a' && echo \"token=\$DEMO_TOKEN\"")"
+  if grep -q "token=it's a secret" <<<"$out"; then
+    pass "Ansible Vault: load uses the saved password (passed through a pipe)"
+  else
+    fail "Ansible Vault with saved password; got: $out"
+  fi
+else
+  skip "Ansible Vault saved-password test (needs ansible-vault and openssl)"
 fi
 
 echo ""
