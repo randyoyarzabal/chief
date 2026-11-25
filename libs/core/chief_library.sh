@@ -149,9 +149,9 @@ function __chief_load_library() {
 
   __chief_load_file ${CHIEF_LIBRARY} 
 
-  # Team and personal settings from the shared repo, on top of this host's config.
+  # Shared and personal settings from the shared repo, on top of this host's config.
   __chief_apply_layered_config
-  # Team and personal profile: once per shell, before any plugin loads.
+  # Shared and personal profile: once per shell, before any plugin loads.
   __chief_run_shared_profile
 
   # Set a default alias if none defined.
@@ -631,7 +631,7 @@ __chief_backup_local_plugins() {
   return 0
 }
 
-# Discover portable team secrets under the configured plugins directory (sets CHIEF_SECRETS_FILE; no output).
+# Discover portable shared secrets under the configured plugins directory (sets CHIEF_SECRETS_FILE; no output).
 function __chief_discover_shared_secrets_file() {
   local dir_base secrets_path
   dir_base="$(__chief_shared_dir)"
@@ -649,13 +649,15 @@ function __chief_discover_shared_secrets_file() {
 }
 
 ########################################################################
-# Team mode: the shared repo folder, your identity, layered settings and profile
+# Shared repo (solo or team): the repo folder, your identity, layered settings and profile
 ########################################################################
 # A shared plugins repo can hold, next to the plugins (in CHIEF_CFG_PLUGINS_GIT_PATH, which may
 # be deep inside the repo):
-#   .chief_shared-config.sh    team settings          users/<user>/config.sh   yours
-#   .chief_shared-profile.sh   team start-up code     users/<user>/profile.sh  yours
-#   .chief_shared-secrets      team secrets           users/<user>/secrets     yours
+#   .chief_shared-config.sh    shared settings        users/<user>/config.sh   yours (team repo)
+#   .chief_shared-profile.sh   shared start-up code   users/<user>/profile.sh  yours (team repo)
+#   .chief_shared-secrets      shared secrets         users/<user>/secrets     yours (team repo)
+# The shared files apply on every host using the repo: yours alone in a solo repo, everyone's
+# in a team repo.
 # <user> is CHIEF_CFG_USER: your Chief identity, the same on every host even when your login name
 # differs. It's required once the repo is a team repo, i.e. its plugins folder has a users/
 # folder (per-user files); a repo only you use, without users/, doesn't need it.
@@ -699,9 +701,9 @@ function __chief_user_dir() {
 # Shared or personal settings can't change them (the repo can't redirect itself).
 CHIEF_LOCAL_ONLY_SETTINGS="CHIEF_CFG_PLUGINS_TYPE CHIEF_CFG_PLUGINS_PATH CHIEF_CFG_PLUGINS_GIT_REPO CHIEF_CFG_PLUGINS_GIT_BRANCH CHIEF_CFG_PLUGINS_GIT_PATH CHIEF_CFG_USER"
 
-# Layer settings on top of this host's config: team (.chief_shared-config.sh), then yours
+# Layer settings on top of this host's config: shared (.chief_shared-config.sh), then yours
 # (users/<user>/config.sh). Later layers win; host exceptions go inside them with chief.host_is.
-# Records the layers used in CHIEF_CONFIG_LAYERS (e.g. "local team personal").
+# Records the layers used in CHIEF_CONFIG_LAYERS (e.g. "local shared personal").
 function __chief_apply_layered_config() {
   local dir user_dir var layers="local"
   local -A keep=()
@@ -718,7 +720,7 @@ function __chief_apply_layered_config() {
   if [[ -f "$dir/.chief_shared-config.sh" ]]; then
     source "$dir/.chief_shared-config.sh"
     __chief_restore_local_only keep
-    layers+=" team"
+    layers+=" shared"
   fi
   if [[ -n "$user_dir" && -f "$user_dir/config.sh" ]]; then
     source "$user_dir/config.sh"
@@ -741,9 +743,9 @@ function __chief_restore_local_only() {
   done
 }
 
-# Run the team and personal profiles: once per shell, before plugins load (so their exports are
+# Run the shared and personal profiles: once per shell, before plugins load (so their exports are
 # there when plugins load), and not again on chief.reload, like ~/.bash_profile.
-# Records what ran in CHIEF_PROFILE_LAYERS (e.g. "team personal").
+# Records what ran in CHIEF_PROFILE_LAYERS (e.g. "shared personal").
 function __chief_run_shared_profile() {
   [[ -n "${__CHIEF_PROFILE_RAN:-}" ]] && return 0
   __CHIEF_PROFILE_RAN=1
@@ -752,7 +754,7 @@ function __chief_run_shared_profile() {
   [[ -n "$dir" ]] || return 0
   if [[ -f "$dir/.chief_shared-profile.sh" ]]; then
     source "$dir/.chief_shared-profile.sh"
-    ran+=" team"
+    ran+=" shared"
   fi
   user_dir="$(__chief_user_dir)"
   if [[ -n "$user_dir" && -f "$user_dir/profile.sh" ]]; then
@@ -971,13 +973,13 @@ function __chief_open_in_editor() {
   [[ "$before" != "$after" ]]
 }
 
-# Resolve the team or personal copy of a shared file and create it from a starter if missing.
-# Usage: __chief_shared_file <team-name> <personal-name> <personal:true|false> <starter-kind>
+# Resolve the shared or personal copy of a shared file and create it from a starter if missing.
+# Usage: __chief_shared_file <shared-name> <personal-name> <personal:true|false> <starter-kind>
 # starter-kind: profile | config. Prints two lines: the path, then (only if it created the file)
 # the top folder it had to create, or the file itself when no folder was needed; empty otherwise.
 # __chief_shared_edit uses that to undo an untouched starter.
 function __chief_shared_file() {
-  local team_name="$1" personal_name="$2" personal="$3" kind="$4" dir user_dir file who made="" d
+  local shared_name="$1" personal_name="$2" personal="$3" kind="$4" dir user_dir file who made="" d
   dir="$(__chief_shared_dir)"
   if [[ -z "$dir" || ! -d "$dir" ]]; then
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} No shared plugins folder here. Point Chief at your repo first: chief.plugins-repo <git-url> --path <folder>" >&2
@@ -991,8 +993,8 @@ function __chief_shared_file() {
     file="${user_dir}/${personal_name}"
     who="yours (users/${CHIEF_CFG_USER})"
   else
-    file="${dir}/${team_name}"
-    who="team (everyone using this repo)"
+    file="${dir}/${shared_name}"
+    who="shared (every host using this repo; in a team repo, everyone)"
   fi
   if [[ ! -f "$file" ]]; then
     # Remember the highest folder that doesn't exist yet, so an untouched starter can be undone.
@@ -1005,7 +1007,7 @@ function __chief_shared_file() {
 # Chief shared profile: ${who}.
 # Runs once at the start of every shell on every host that uses this repo, before plugins load,
 # like a shared ~/.bash_profile. chief.reload doesn't re-run it; open a new terminal instead.
-# Order: team profile, then personal (users/<you>/profile.sh), then each host's ~/.bash_profile.
+# Order: shared profile, then personal (users/<you>/profile.sh, team repos), then each host's ~/.bash_profile.
 #
 #   Exports, PATH, aliases, functions:   put them here.
 #   Only on some hosts:                  if chief.host_is my-laptop 'build-*'; then ...; fi
@@ -1022,7 +1024,7 @@ EOF
       cat > "$file" <<EOF
 # Chief shared settings: ${who}.
 # Applied on every host that uses this repo, on top of that host's ~/.chief_config.sh.
-# Order: host config, then team (.chief_shared-config.sh), then personal (users/<you>/config.sh).
+# Order: host config, then shared (.chief_shared-config.sh), then personal (users/<you>/config.sh, team repos).
 # Use the same names as in ~/.chief_config.sh, for example:
 #CHIEF_CFG_BANNER_STYLE="compact"
 #CHIEF_CFG_MULTILINE_PROMPT=true
@@ -1071,17 +1073,17 @@ After saving, offers to commit and push it so your other hosts get it. Close the
 without changes and it doesn't ask; a file it had just created is removed again.
 
 ${CHIEF_COLOR_GREEN}Files (in the repo's plugins folder):${CHIEF_NO_COLOR}
-  (default)       .chief_shared-profile.sh: the team's, for everyone using the repo
+  (default)       .chief_shared-profile.sh: shared, for every host using the repo
   --personal      users/\$CHIEF_CFG_USER/profile.sh: yours, on every host you use
 
 ${CHIEF_COLOR_GREEN}When it runs:${CHIEF_NO_COLOR}
   Once per shell, before plugins load (so plugins see its exports), not on chief.reload.
-  Order: team, personal, then each host's ~/.bash_profile (which can override both).
+  Order: shared, personal, then each host's ~/.bash_profile (which can override both).
   Host-specific lines: if chief.host_is <host>; then ...; fi
   Commands from plugins: chief.on_startup <command> (runs at the end of start-up).
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
-  --personal      Edit your own profile instead of the team's
+  --personal      Edit your own profile (team repo: users/<you>/) instead of the shared one
   --code          Use the GUI editor (Cursor or VS Code)
   -?, --help      Show this help
 "
@@ -1101,7 +1103,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
     [[ -n "$made" ]] && return 0
     edited=false
   fi
-  __chief_repo_offer_commit "$file" "profile: update $($personal && echo "${CHIEF_CFG_USER}'s" || echo team) profile" "$edited"
+  __chief_repo_offer_commit "$file" "profile: update $($personal && echo "${CHIEF_CFG_USER}'s" || echo shared) profile" "$edited"
   $edited && echo -e "${CHIEF_COLOR_BLUE}Applies at start-up:${CHIEF_NO_COLOR} open a new terminal to use it (chief.reload doesn't re-run profiles)."
 }
 
@@ -1114,16 +1116,16 @@ After saving, offers to commit and push them. Close the editor without changes a
 doesn't ask; a file it had just created is removed again.
 
 ${CHIEF_COLOR_GREEN}Files (in the repo's plugins folder):${CHIEF_NO_COLOR}
-  (default)       .chief_shared-config.sh: the team's
+  (default)       .chief_shared-config.sh: shared, for every host using the repo
   --personal      users/\$CHIEF_CFG_USER/config.sh: yours
 
 ${CHIEF_COLOR_GREEN}Order (later wins):${CHIEF_NO_COLOR}
-  Each host's ~/.chief_config.sh, then the team settings, then yours. Host exceptions go inside
+  Each host's ~/.chief_config.sh, then the shared settings, then yours. Host exceptions go inside
   them: if chief.host_is <host>; then ...; fi. Where the repo is (CHIEF_CFG_PLUGINS_*) and
   CHIEF_CFG_USER always come from each host's own config.
 
 ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
-  --personal      Edit your own settings instead of the team's
+  --personal      Edit your own settings (team repo: users/<you>/) instead of the shared ones
   --code          Use the GUI editor (Cursor or VS Code)
   -?, --help      Show this help
 "
@@ -1145,7 +1147,7 @@ ${CHIEF_COLOR_BLUE}Options:${CHIEF_NO_COLOR}
     [[ -n "$made" ]] && return 0
     edited=false
   fi
-  __chief_repo_offer_commit "$file" "config: update $($personal && echo "${CHIEF_CFG_USER}'s" || echo team) settings" "$edited"
+  __chief_repo_offer_commit "$file" "config: update $($personal && echo "${CHIEF_CFG_USER}'s" || echo shared) settings" "$edited"
 }
 
 function chief.plugins-repo() {
@@ -1245,9 +1247,9 @@ ${CHIEF_COLOR_YELLOW}Example:${CHIEF_NO_COLOR}
 
   # What the repo holds.
   local found=() user_dir="$folder/users/${user:-__none__}"
-  [[ -f "$folder/.chief_shared-config.sh" ]] && found+=("team settings")
-  [[ -f "$folder/.chief_shared-profile.sh" ]] && found+=("team profile")
-  [[ -f "$folder/.chief_shared-secrets" || -f "$folder/.chief_shared-vault" ]] && found+=("team secrets")
+  [[ -f "$folder/.chief_shared-config.sh" ]] && found+=("shared settings")
+  [[ -f "$folder/.chief_shared-profile.sh" ]] && found+=("shared profile")
+  [[ -f "$folder/.chief_shared-secrets" || -f "$folder/.chief_shared-vault" ]] && found+=("shared secrets")
   [[ -f "$user_dir/config.sh" ]] && found+=("your settings")
   [[ -f "$user_dir/profile.sh" ]] && found+=("your profile")
   [[ -f "$user_dir/secrets" ]] && found+=("your secrets")
@@ -2334,15 +2336,17 @@ function chief.status() {
   __chief.banner
   echo
   __chief_show_chief_stats
-  # Shared repo, identity, and which settings/profile layers are in use.
-  if __chief_team_mode || [[ -n "${CHIEF_CFG_USER:-}" ]]; then
+  # Shared repo: which settings/profile layers are in use, plus the user in a team repo.
+  if __chief_team_mode; then
     local who="${CHIEF_CFG_USER:-}"
     if [[ -z "$who" ]]; then
       who="${CHIEF_COLOR_YELLOW}not set${CHIEF_NO_COLOR} (personal layers off: chief.config-set user <name>)"
     elif ! __chief_user_valid "$who"; then
       who="${CHIEF_COLOR_YELLOW}${who} (invalid name)${CHIEF_NO_COLOR}"
     fi
-    echo -e "${CHIEF_COLOR_MAGENTA}User:${CHIEF_NO_COLOR} ${who} · settings: ${CHIEF_CONFIG_LAYERS:-local} · profile: ${CHIEF_PROFILE_LAYERS:-none}"
+    echo -e "${CHIEF_COLOR_MAGENTA}Team repo:${CHIEF_NO_COLOR} user ${who} · settings: ${CHIEF_CONFIG_LAYERS:-local} · profile: ${CHIEF_PROFILE_LAYERS:-none}"
+  elif [[ -n "$(__chief_shared_dir)" && -d "$(__chief_shared_dir)" ]]; then
+    echo -e "${CHIEF_COLOR_MAGENTA}Shared repo:${CHIEF_NO_COLOR} settings: ${CHIEF_CONFIG_LAYERS:-local} · profile: ${CHIEF_PROFILE_LAYERS:-none}"
   fi
   # Secrets loaded into this shell, and how (manually, by a start-up file, silently...).
   if declare -F __chief_secrets_loaded_report >/dev/null; then
@@ -4195,7 +4199,7 @@ ${CHIEF_COLOR_MAGENTA}Notes:${CHIEF_NO_COLOR}
   __chief_config_layer_note "${config_var}"
 }
 
-# After chief.config-set: if the team or personal settings in the shared repo also set this
+# After chief.config-set: if the shared or personal settings in the shared repo also set this
 # variable, they take precedence over this host's config, so say where to change it instead.
 function __chief_config_layer_note() {
   local var="$1" dir user_dir where=()
@@ -4203,7 +4207,7 @@ function __chief_config_layer_note() {
   dir="$(__chief_shared_dir)"
   [[ -n "$dir" ]] || return 0
   user_dir="$(__chief_user_dir)"
-  grep -Eq "^[[:space:]]*(export[[:space:]]+)?${var}=" "$dir/.chief_shared-config.sh" 2>/dev/null && where+=("team settings (chief.shared-config)")
+  grep -Eq "^[[:space:]]*(export[[:space:]]+)?${var}=" "$dir/.chief_shared-config.sh" 2>/dev/null && where+=("shared settings (chief.shared-config)")
   [[ -n "$user_dir" ]] && grep -Eq "^[[:space:]]*(export[[:space:]]+)?${var}=" "$user_dir/config.sh" 2>/dev/null && where+=("your settings (chief.shared-config --personal)")
   (( ${#where[@]} > 0 )) || return 0
   echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} ${var} is also set in the shared repo's $(IFS=';'; echo "${where[*]}" | sed 's/;/ and /'), which take precedence over this host's config. Change it there to change it everywhere."
@@ -5231,7 +5235,7 @@ function __chief_show_core_commands() {
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin${CHIEF_NO_COLOR}        Create/edit plugins"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin -?${CHIEF_NO_COLOR}     List available plugins | ${CHIEF_COLOR_GREEN}${cmd_prefix}plugin status${CHIEF_NO_COLOR} enabled/disabled"
   echo
-  echo -e "${CHIEF_COLOR_CYAN}Shared Repo (team mode):${CHIEF_NO_COLOR}"
+  echo -e "${CHIEF_COLOR_CYAN}Shared Repo (solo or team):${CHIEF_NO_COLOR}"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}plugins-repo${CHIEF_NO_COLOR}   Adopt a shared plugins repo on this host (clone, point config, set user)"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}shared-profile${CHIEF_NO_COLOR} Edit the shared start-up profile (--personal: yours)"
   echo -e "  ${CHIEF_COLOR_GREEN}${cmd_prefix}shared-config${CHIEF_NO_COLOR}  Edit the shared settings (--personal: yours)"
@@ -5319,7 +5323,7 @@ function __chief_show_plugin_help() {
   
   if compgen -A function | grep -q "^chief\.secrets_"; then
     echo -e "  ${CHIEF_COLOR_GREEN}Secrets Plugin:${CHIEF_NO_COLOR} ${CHIEF_COLOR_YELLOW}(ansible-vault or gpg)${CHIEF_NO_COLOR}"
-    echo "    secrets_file-edit, secrets_file-load (--team / --personal / --local),"
+    echo "    secrets_file-edit, secrets_file-load (--shared / --personal / --local),"
     echo "    secrets_password-save, secrets_password-status, secrets_password-remove"
     found_plugins=true
   fi
