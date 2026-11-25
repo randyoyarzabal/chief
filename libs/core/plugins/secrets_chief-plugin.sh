@@ -904,7 +904,14 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   det="$(__chief_secrets_detect_backend "$secrets_file")"
   echo -e "${CHIEF_COLOR_BLUE}Backend:${CHIEF_NO_COLOR}      ${det:-unknown}"
   kind="$(__chief_secrets_keychain_kind)"
-  echo -e "${CHIEF_COLOR_BLUE}Keychain:${CHIEF_NO_COLOR}     $(case "$kind" in macos) echo "macOS Keychain" ;; linux) echo "Linux keyring (secret-tool)" ;; *) echo "none available (file store is the fallback)" ;; esac)"
+  # No `case` inside $(...): Bash 3.2 (macOS /bin/bash, used by CI's syntax check) can't parse it.
+  local kc_label="none available (file store is the fallback)"
+  if [[ "$kind" == "macos" ]]; then
+    kc_label="macOS Keychain"
+  elif [[ "$kind" == "linux" ]]; then
+    kc_label="Linux keyring (secret-tool)"
+  fi
+  echo -e "${CHIEF_COLOR_BLUE}Keychain:${CHIEF_NO_COLOR}     ${kc_label}"
   where="$(__chief_secrets_store_where "$secrets_file")"
   local source_msg
   if [[ "$det" == "ansible" && -n "${ANSIBLE_VAULT_PASSWORD_FILE:-}" ]]; then
