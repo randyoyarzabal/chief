@@ -20,8 +20,7 @@ CHIEF_CFG_BANNER=true
 #   alias     alias: cf                                  (only when CHIEF_CFG_ALIAS is set)
 #   plugins   plugins: 22 on, 4 off · git, manual update (loaded/off; where user plugins come from)
 #   tracking  tracking: dev (bleeding-edge, auto)        (the branch Chief updates from)
-#   secrets   secrets: loaded | loaded, silent | not loaded (not in the start-up banner,
-#             which prints before ~/.bash_profile loads secrets; see chief.status)
+#   secrets   secrets: loaded | loaded, silent | not loaded | found (at start-up)
 #             (silent = loaded with --quiet; chief.status shows the details)
 CHIEF_CFG_BANNER_INDICATORS="alias plugins tracking secrets"
 
