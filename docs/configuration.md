@@ -280,24 +280,15 @@ Chief is primarily designed as a **single-user system** that follows you across 
 #### One-Time Setup (any new system)
 
 ```bash
-# 1. Install Chief (one command)
-bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/main/tools/install.sh)"
+# New host: install Chief and adopt your repo in one step (see Getting Started)
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/dev/tools/install.sh)" -- \
+  --repo git@github.com:yourusername/my-plugins.git --repo-path bash/plugins --user you
 
-# 2. Configure your plugin repository (replace with your repo)
-chief.config-set -y PLUGINS_GIT_REPO="git@github.com:yourusername/my-plugins.git"
-chief.config-set -y PLUGINS_PATH="${HOME}/chief_plugins"
-chief.config-set -y PLUGINS_GIT_BRANCH="main"
-chief.config-set -y PLUGINS_GIT_PATH="bash/plugins"   # or "" for repo root, this is plugins path relative to PLUGINS_PATH
-chief.config-set -y PLUGINS_GIT_AUTOUPDATE="false"    # manual updates
-chief.config-set -y PLUGINS_TYPE="remote"             # Enable remote sync
-
-# 3. (Optional) Enable multi-line prompt, useful when current working dir is deep.
-chief.config-set -y MULTILINE_PROMPT=true 
-
-# 4. (Optional) Load your encrypted secrets (if exists)
-chief.secrets_file-load  # Team secrets (.chief_shared-secrets - if exists)
-chief.secrets_file-load ~/.my-personal-secrets     # Personal secrets
+# Chief already installed: the same, from inside Chief
+chief.plugins-repo git@github.com:yourusername/my-plugins.git --path bash/plugins --user you
 ```
+
+Either one clones the repo, points this host's config at it (`CHIEF_CFG_PLUGINS_TYPE=remote` and the `CHIEF_CFG_PLUGINS_*` settings), and sets `CHIEF_CFG_USER`. Your shared settings, profile and secrets then apply from the next terminal. See [Shared repo: the same Chief everywhere](#shared-repo-the-same-chief-everywhere).
 
 For detailed secrets and vault setup, see: [Secrets and Vault Configuration](configuration.html#secrets-and-vault-configuration)
 
@@ -316,6 +307,82 @@ chief.secrets_file-load          # Load secrets when needed
 chief.plugin mytools           # Edit/create plugins
 chief.whereis my_function      # Find any function instantly
 ```
+
+---
+
+## Shared repo: the same Chief everywhere
+
+Point every host (and every account) at one shared plugins repo, and you get the same environment everywhere: plugins, settings, start-up code and secrets, for you and for your team.
+
+### What the repo can hold
+
+Everything lives in the repo's plugins folder (`CHIEF_CFG_PLUGINS_GIT_PATH`, which can be deep, e.g. `path/to/plugins`):
+
+| File | Whose | What |
+|------|-------|------|
+| `*_chief-plugin.sh` | Everyone | Plugins (functions, aliases) |
+| `.chief_shared-config.sh` | Team | Chief settings for everyone |
+| `.chief_shared-profile.sh` | Team | Start-up code for everyone (a shared `~/.bash_profile`) |
+| `.chief_shared-secrets` | Team | Encrypted team secrets (team password) |
+| `users/<you>/config.sh` | You | Your settings |
+| `users/<you>/profile.sh` | You | Your start-up code |
+| `users/<you>/secrets` | You | Your encrypted secrets (your own password) |
+
+`<you>` is **`CHIEF_CFG_USER`**, your Chief identity. It's **required** with a shared repo, and should be the same on every host, even where your login name differs (for example `alice.smith` on a laptop and `deploy` on a server, both `alice`). Onboarding sets it. Otherwise use `chief.config-set user <name>`. Without it, Chief still loads the team layers and warns at start-up. `chief.status` shows your user and the layers in use.
+
+### Onboarding a host
+
+```bash
+# New host (installs Chief too)
+install.sh --repo <git-url> --repo-path <folder> --user <name>
+# Host that already has Chief
+chief.plugins-repo <git-url> --path <folder> --user <name>
+```
+
+Then open a new terminal. On each host, save your secrets passwords once with `chief.secrets_password-save` so they don't prompt.
+
+### Settings: team, then yours
+
+Settings apply in this order, later ones winning: this host's `~/.chief_config.sh` (defaults, plus where the repo is), then the team's `.chief_shared-config.sh`, then your `users/<you>/config.sh`. Edit them with `chief.shared-config` and `chief.shared-config --personal`; both offer to commit and push.
+
+- **Host exceptions** go inside the shared files: `if chief.host_is my-laptop; then CHIEF_CFG_PROMPT=false; fi`.
+- **Where the repo is** (`CHIEF_CFG_PLUGINS_*`) and **`CHIEF_CFG_USER`** always come from each host's own config. The repo can't redirect itself.
+- `chief.config-set` warns when the setting you change is also set in the shared layers, since those take precedence.
+
+### Profile: a shared `~/.bash_profile`
+
+`.chief_shared-profile.sh` (team) and `users/<you>/profile.sh` (yours) hold start-up code: exports, `PATH`, aliases, functions. Edit them with `chief.shared-profile` / `chief.shared-profile --personal`.
+
+- They run **once per shell, before plugins load**, so plugins see their exports (for example variables a plugin reads while loading). `chief.reload` doesn't re-run them.
+- Order: team, then yours, then each host's `~/.bash_profile`. Lines after `source …/chief.sh` there can override both.
+- **Commands from plugins** aren't loaded yet at that point, so queue them with `chief.on_startup`. It runs at the end of start-up:
+  ```bash
+  chief.on_startup chief.secrets_file-load --quiet
+  ```
+- **Host- or account-specific lines** go in a `chief.host_is` block. It matches the host name (`$CHIEF_HOST`, else the short hostname), or `user@host`, with `*` and `?` wildcards:
+  ```bash
+  if chief.host_is my-laptop; then export BACKUP_DIR=~/backups; fi
+  if chief.host_is 'build-*' 'deploy@*'; then alias ll='ls -alF'; fi
+  ```
+
+**What stays in `~/.bash_profile`:** Chief's own lines (`CHIEF_PATH`, `CHIEF_CONFIG`, `source …/chief.sh`), anything Chief needs before it starts (such as `CHIEF_HOST`), and anything you don't want in git. Host-specific lines can live either there or in the shared profile under `chief.host_is`. In the repo they're versioned and come back automatically on a replacement machine.
+
+**Trust:** shared profiles are code that runs as you on every host. Anyone who can push to the repo can change them, the same as plugins.
+
+### Secrets: team AND personal AND this host
+
+`chief.secrets_file-load` with no file loads **every** secrets file that exists, in this order (later files override earlier ones that set the same variable):
+
+| Layer | File | Follows you? |
+|-------|------|--------------|
+| `--team` | `.chief_shared-secrets` | Yes, for everyone |
+| `--personal` | `users/<you>/secrets` | Yes; only your password opens it |
+| `--local` | `~/.chief_user-secrets` | No; never leaves the host |
+
+- A failing file (wrong password, say) doesn't stop the others; Chief says which one it skipped.
+- **You choose the layer** when you create or edit: `chief.secrets_file-edit --personal` (or `--team` / `--local`). With no flag, Chief opens the only file that exists or asks which. Editing a team or personal file offers to commit and push it.
+- **Personal secrets in a team repo:** teammates hold a copy of your encrypted file and could try to guess the password offline, so make it long and unique. Anything too sensitive for that belongs in `--local`.
+- Saved passwords (`chief.secrets_password-save --personal`, etc.) are per file and per host.
 
 ---
 
@@ -573,6 +640,7 @@ chief.secrets_file-load ~/.my-personal-secrets
   - **Elsewhere** (for example headless servers): in `~/.chief_secrets-store/` (folder 700), encrypted with a random key kept beside it (600). This is **obfuscation, not protection**: it keeps the password out of casual reads, backups and git, but anyone who can read your account can recover it. Force a store with `--store=keychain` or `--store=file`.
   - `chief.secrets_password-status [file]` shows where the password will come from; `chief.secrets_password-remove [file]` forgets it. Saved passwords are tied to the file's path, so save again after moving the file. `--rekey` updates a saved GPG password automatically; for Ansible Vault (which asks for the new password itself) it removes the outdated one and tells you to save the new one.
 - **Changing the password (re-key)**: `chief.secrets_file-edit <file> --rekey` changes the password of an existing file without opening the editor, for both backends. It asks for the current password (or reads the password file above), then the new one twice; `--new-password-file=PATH` reads the new one from a file instead. If anything fails, the file is left as it was. Afterwards, update any password file that still holds the old password. For a shared team file, tell your team the new password.
+- **Layers**: with a shared repo there are team, personal and host secrets, and `chief.secrets_file-load` loads all that exist. See [Shared repo: Secrets](#secrets-team-and-personal-and-this-host).
 - **Team secrets**: `CHIEF_CFG_PLUGINS_PATH/.chief_shared-secrets` (shared). Legacy name `.chief_shared-vault` is deprecated.
 - **Personal secrets**: `~/.chief_user-secrets` (or legacy `~/.chief_user-vault`).
 

@@ -33,6 +33,12 @@ CHIEF_CONFIG="$HOME/.chief_config.sh"
 CHIEF_PATH="$HOME/.chief"
 LOCAL_INSTALL=false
 BRANCH_SPECIFIED=false
+# Shared plugins repo to adopt (--repo): plugins, team/personal settings, profile and secrets.
+REPO_URL=""
+REPO_PATH=""
+REPO_BRANCH=""
+REPO_DIR="$HOME/chief_plugins"
+CHIEF_USER_NAME=""
 
 # Parse command line arguments
 while [[ $# -gt 0 ]]; do
@@ -54,6 +60,26 @@ while [[ $# -gt 0 ]]; do
       CHIEF_CONFIG="$2"
       shift 2
       ;;
+    --repo)
+      REPO_URL="$2"
+      shift 2
+      ;;
+    --repo-path)
+      REPO_PATH="$2"
+      shift 2
+      ;;
+    --repo-branch)
+      REPO_BRANCH="$2"
+      shift 2
+      ;;
+    --repo-dir)
+      REPO_DIR="$2"
+      shift 2
+      ;;
+    --user)
+      CHIEF_USER_NAME="$2"
+      shift 2
+      ;;
     --help|-h)
       echo "Usage: $0 [OPTIONS]"
       echo ""
@@ -66,6 +92,20 @@ while [[ $# -gt 0 ]]; do
       echo "                    Note: Ignored when using --local"
       echo "  --path PATH       Installation directory (default: ~/.chief)"
       echo "  --config CONFIG   Configuration file path (default: ~/.chief_config.sh)"
+      echo ""
+      echo "Adopt a shared plugins repo (onboard a new host in one step):"
+      echo "  --repo URL        Git URL of your shared plugins repo (plugins, shared settings,"
+      echo "                    profile and secrets)"
+      echo "  --repo-path DIR   Folder inside the repo that holds them, e.g."
+      echo "                    path/to/plugins (default: the repo root)"
+      echo "  --repo-branch B   Branch to use (default: the repo's default branch)"
+      echo "  --repo-dir DIR    Where to clone it (default: ~/chief_plugins)"
+      echo "  --user NAME       Your Chief identity: your folder users/NAME/ in the repo."
+      echo "                    Required with --repo (asked for when there's a terminal)"
+      echo ""
+      echo "Example:"
+      echo "  $0 --repo ssh://git@git.example.com:2222/team/common.git \\"
+      echo "     --repo-path path/to/plugins --user alice"
       echo "  --help, -h        Show this help message"
       echo ""
       exit 0
@@ -136,6 +176,27 @@ if $LOCAL_INSTALL && $BRANCH_SPECIFIED; then
   echo -e "${CYAN}Local installations use the files present in the current directory,${NC}"
   echo -e "${CYAN}not a specific git branch. This is intended for disconnected environments.${NC}"
   echo ""
+fi
+
+# --repo needs --user (your Chief identity). Ask now if there's a terminal; otherwise stop
+# before anything is installed.
+if [[ -n "$REPO_URL" ]]; then
+  REPO_PATH="${REPO_PATH#/}"; REPO_PATH="${REPO_PATH%/}"
+  REPO_DIR="${REPO_DIR/#\~/$HOME}"
+  if [[ -z "$CHIEF_USER_NAME" ]]; then
+    if { : </dev/tty; } 2>/dev/null; then
+      printf 'Your Chief user name (your folder users/<name>/ in the repo; the same on every host) [%s]: ' "${USER:-$(id -un)}"
+      read -r CHIEF_USER_NAME </dev/tty
+      CHIEF_USER_NAME="${CHIEF_USER_NAME:-${USER:-$(id -un)}}"
+    else
+      echo -e "${RED}ERROR: --user NAME is required with --repo (no terminal to ask on).${NC}"
+      exit 1
+    fi
+  fi
+  if [[ ! "$CHIEF_USER_NAME" =~ ^[A-Za-z0-9._-]+$ ]]; then
+    echo -e "${RED}ERROR: '$CHIEF_USER_NAME' isn't a valid user name (letters, digits, . _ -).${NC}"
+    exit 1
+  fi
 fi
 
 # Configuration lines to add to .bash_profile
@@ -443,6 +504,71 @@ setup_prompt() {
   fi
 }
 
+# Set VAR="value" in the config file (replace an existing or commented line, else append).
+config_write() {
+  local file="$1" var="$2" value="$3" line out="" done=false q
+  q="${value//\\/\\\\}"; q="${q//\"/\\\"}"; q="${q//\$/\\\$}"; q="${q//\`/\\\`}"
+  while IFS= read -r line || [[ -n "$line" ]]; do
+    if ! $done && [[ "$line" =~ ^#?${var}= ]]; then
+      out+="${var}=\"${q}\""$'\n'
+      done=true
+    else
+      out+="${line}"$'\n'
+    fi
+  done < "$file"
+  $done || out+="${var}=\"${q}\""$'\n'
+  printf '%s' "$out" > "$file"
+}
+
+# Clone the shared plugins repo (--repo) and point the new config at it.
+setup_repo() {
+  [[ -n "$REPO_URL" ]] || return 0
+  echo ""
+  echo -e "${BLUE}Adopting shared plugins repo...${NC}"
+  if [[ -d "$REPO_DIR/.git" ]]; then
+    local origin
+    origin="$(git -C "$REPO_DIR" remote get-url origin 2>/dev/null)"
+    if [[ "$origin" != "$REPO_URL" ]]; then
+      echo -e "${RED}ERROR: $REPO_DIR is already a clone of ${origin:-another repo}. Use --repo-dir to pick another place.${NC}"
+      exit 1
+    fi
+    echo -e "${YELLOW}INFO: Using the existing clone in $REPO_DIR${NC}"
+  elif [[ -e "$REPO_DIR" && -n "$(ls -A "$REPO_DIR" 2>/dev/null)" ]]; then
+    echo -e "${RED}ERROR: $REPO_DIR exists and isn't empty. Use --repo-dir to pick another place.${NC}"
+    exit 1
+  else
+    if ! git clone -q ${REPO_BRANCH:+--branch "$REPO_BRANCH"} "$REPO_URL" "$REPO_DIR"; then
+      echo -e "${RED}ERROR: Could not clone $REPO_URL (see git's message above).${NC}"
+      exit 1
+    fi
+    echo -e "${GREEN}SUCCESS: Cloned $REPO_URL into $REPO_DIR${NC}"
+  fi
+  [[ -n "$REPO_BRANCH" ]] || REPO_BRANCH="$(git -C "$REPO_DIR" rev-parse --abbrev-ref HEAD 2>/dev/null)"
+  local folder="${REPO_DIR}${REPO_PATH:+/$REPO_PATH}"
+  if [[ ! -d "$folder" ]]; then
+    mkdir -p "$folder"
+    echo -e "${YELLOW}INFO: '$REPO_PATH' didn't exist in the repo yet; created it locally${NC}"
+  fi
+  config_write "$CHIEF_CONFIG" CHIEF_CFG_PLUGINS_TYPE remote
+  config_write "$CHIEF_CONFIG" CHIEF_CFG_PLUGINS_GIT_REPO "$REPO_URL"
+  config_write "$CHIEF_CONFIG" CHIEF_CFG_PLUGINS_GIT_BRANCH "${REPO_BRANCH:-main}"
+  config_write "$CHIEF_CONFIG" CHIEF_CFG_PLUGINS_GIT_PATH "$REPO_PATH"
+  config_write "$CHIEF_CONFIG" CHIEF_CFG_PLUGINS_PATH "$REPO_DIR"
+  config_write "$CHIEF_CONFIG" CHIEF_CFG_USER "$CHIEF_USER_NAME"
+  echo -e "${GREEN}SUCCESS: Configuration points at the repo${REPO_PATH:+ (folder $REPO_PATH)}, as user $CHIEF_USER_NAME${NC}"
+  local found=() user_dir="$folder/users/$CHIEF_USER_NAME"
+  [[ -f "$folder/.chief_shared-config.sh" ]] && found+=("team settings")
+  [[ -f "$folder/.chief_shared-profile.sh" ]] && found+=("team profile")
+  [[ -f "$folder/.chief_shared-secrets" ]] && found+=("team secrets")
+  [[ -f "$user_dir/config.sh" ]] && found+=("your settings")
+  [[ -f "$user_dir/profile.sh" ]] && found+=("your profile")
+  [[ -f "$user_dir/secrets" ]] && found+=("your secrets")
+  if (( ${#found[@]} > 0 )); then
+    local list; list="$(printf '%s, ' "${found[@]}")"
+    echo -e "${GREEN}SUCCESS: Found ${list%, } in the repo; they apply from your next terminal${NC}"
+  fi
+}
+
 # Main installation flow
 echo -e "${CYAN}========================================${NC}"
 echo -e "${CYAN}        CHIEF INSTALLATION${NC}"
@@ -454,6 +580,7 @@ install_chief
 
 echo -e "${BLUE}Step 2: Setting up configuration...${NC}"
 setup_config  
+setup_repo
 
 echo -e "${BLUE}Step 3: Configuring prompt...${NC}"
 setup_prompt
@@ -470,6 +597,9 @@ else
   echo -e "${CYAN}  • Downloaded Chief files from GitHub to: ${YELLOW}$CHIEF_PATH${NC}"
 fi
 echo -e "${CYAN}  • Created/updated configuration file: ${YELLOW}$CHIEF_CONFIG${NC}"
+if [[ -n "$REPO_URL" ]]; then
+  echo -e "${CYAN}  • Cloned your shared plugins repo to: ${YELLOW}$REPO_DIR${NC}${CYAN} (as user ${YELLOW}$CHIEF_USER_NAME${CYAN})${NC}"
+fi
 if [[ -f "$CHIEF_BASH_PROFILE" ]]; then
   echo -e "${CYAN}  • Added 3 export/source lines to: ${YELLOW}$CHIEF_BASH_PROFILE${NC}"
 else

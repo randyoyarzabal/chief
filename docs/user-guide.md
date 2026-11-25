@@ -249,6 +249,13 @@ chief.secrets_file-edit         # Create/edit encrypted secrets file (Ansible Va
 chief.secrets_file-edit --rekey # Change its password (both backends), without editing
 chief.secrets_file-load         # Load secrets into shell (-q / --quiet: no success message)
 chief.secrets_password-save     # Save its password (Keychain / keyring / obfuscated file); no more prompts
+chief.secrets_file-edit --personal  # Your secrets in the shared repo (also --team, --local)
+
+# Shared repo (team mode): same plugins, settings, profile and secrets on every host
+chief.plugins-repo <url> --path <folder> --user <name>   # adopt it on this host
+chief.shared-profile [--personal]  # shared start-up code (a shared ~/.bash_profile)
+chief.shared-config [--personal]   # shared Chief settings
+chief.host_is my-laptop             # in shared files: only on this host / account
 chief.secrets_password-status   # Where the password will come from
 
 # Vault plugin (HashiCorp Vault; off by default): read/write/list KV secrets

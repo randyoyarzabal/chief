@@ -101,6 +101,7 @@ Chief comes with **8 powerful plugins** providing **58+ functions** for your dai
 - `chief.whereis <function>` - Find any function across all plugins
 - `chief.status` - Banner plus a health summary (functions, plugins, enabled/disabled, secrets loaded in this shell and how)
 - `chief.plugin enable|disable|status` - Turn core, user and contrib plugins on or off
+- `chief.plugins-repo` - Adopt your shared repo on a host in one step (or `install.sh --repo` on a new one): same plugins, settings, start-up profile and secrets everywhere, for you and your team
 - `chief.plugins-*` - Plugin management and discovery tools
 
 ### **Secrets Plugin** (5 functions)

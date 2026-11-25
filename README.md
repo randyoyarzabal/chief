@@ -25,6 +25,16 @@ bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/ref
 
 **That's it!** Restart your terminal and start using Chief.
 
+**Already have a shared plugins repo** (your plugins, settings, profile and secrets)? Install and adopt it in one step, even when the plugins live deep inside the repo:
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/randyoyarzabal/chief/refs/heads/dev/tools/install.sh)" -- \
+  --repo ssh://git@git.example.com:2222/team/common.git \
+  --repo-path path/to/plugins --user alice
+```
+
+On a host that already has Chief: `chief.plugins-repo <git-url> --path <folder> --user <name>`. See [Shared repo](https://chief.randyo.dev/configuration.html#shared-repo-the-same-chief-everywhere). (`--repo` is new in v3.2.1; until that's released, use the `dev` install URL as above.)
+
 **Switching an existing install** between stable and development is just a checkout; Chief follows the branch it's on (`auto`, the default) and the banner's `tracking:` line shows it:
 
 ```bash

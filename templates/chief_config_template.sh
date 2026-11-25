@@ -94,6 +94,15 @@ CHIEF_CFG_PLUGINS_GIT_BRANCH="main"
 #   CHIEF_CFG_PLUGINS_GIT_PATH="scripts"    # Plugins in subdir: CHIEF_CFG_PLUGINS_PATH/scripts/*.sh
 CHIEF_CFG_PLUGINS_GIT_PATH=""
 
+# Your Chief identity when using a shared (remote) plugins repo: REQUIRED in that case.
+# It names your folder in the repo's plugins folder, users/<name>/, which can hold your own
+# settings (config.sh), start-up code (profile.sh) and encrypted secrets (secrets), loaded after
+# the team's (.chief_shared-config.sh, .chief_shared-profile.sh, .chief_shared-secrets).
+# Use the same name on every host, even where your login name differs. Letters, digits, . _ -
+# Set it with: chief.config-set user <name>   (or: chief.plugins-repo <url> --user <name>)
+# Not needed without a shared repo.
+CHIEF_CFG_USER=""
+
 # Load/update remote plugins when Chief starts.
 # If this is set to true, it will clone/update the remote repository when Chief starts.
 # If set to false, you will need to manually update the plugins with the command:

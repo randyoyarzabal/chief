@@ -233,6 +233,19 @@ main() {
         echo ""
     fi
 
+    # 8. Team mode and onboarding (shared repo, layers, plugins-repo, install.sh --repo)
+    if [[ -f "$TEST_DIR/team-tests.sh" ]]; then
+        log_info "Running team mode tests..."
+        TOTAL_TESTS=$((TOTAL_TESTS + 1))
+        if "$TEST_DIR/team-tests.sh"; then
+            log_success "Team mode tests"
+        else
+            log_error "Team mode tests"
+            suite_failures=$((suite_failures + 1))
+        fi
+        echo ""
+    fi
+
     # 7. Secrets plugin tests (re-key; each backend skipped when its tool is missing)
     if [[ -f "$TEST_DIR/secrets-tests.sh" ]]; then
         log_info "Running secrets plugin tests..."
@@ -274,6 +287,7 @@ show_help() {
     echo "  ./tests/config-defaults-tests.sh - plugin defaults and SSH auto-load (incl. upgrades)"
     echo "  ./tests/bash-version-tests.sh - Bash < 4 start-up warning"
     echo "  ./tests/secrets-tests.sh    - secrets re-key (GPG and Ansible Vault)"
+    echo "  ./tests/team-tests.sh       - team mode: shared repo layers, plugins-repo, install.sh --repo"
 }
 
 # Parse command line arguments
