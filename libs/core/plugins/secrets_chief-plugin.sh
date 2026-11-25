@@ -766,6 +766,20 @@ function __chief_secrets_abs_path() {
 }
 
 # Which OS keychain is usable: "macos", "linux" or "" (none).
+# Why there's no keychain here, in one line (empty when there is one).
+function __chief_secrets_no_keychain_reason() {
+  [[ -n "$(__chief_secrets_keychain_kind)" ]] && return 0
+  if [[ "${CHIEF_SECRETS_NO_KEYCHAIN:-}" == "1" ]]; then
+    echo "CHIEF_SECRETS_NO_KEYCHAIN=1 is set"
+  elif [[ "$(uname -s)" == "Darwin" ]]; then
+    echo "the macOS security command wasn't found"
+  elif ! command -v secret-tool >/dev/null 2>&1; then
+    echo "secret-tool isn't installed (package libsecret-tools on Debian/Ubuntu, libsecret on Fedora/Arch), and a keyring service must be running"
+  else
+    echo "no keyring service is running: Linux keyrings (GNOME Keyring, KWallet) run in a desktop session, so a server you SSH into usually has none"
+  fi
+}
+
 function __chief_secrets_keychain_kind() {
   [[ "${CHIEF_SECRETS_NO_KEYCHAIN:-}" == "1" ]] && return 0
   if [[ "$(uname -s)" == "Darwin" ]] && command -v security >/dev/null 2>&1; then
@@ -960,7 +974,9 @@ It is checked against the file before it is saved.
 
 ${CHIEF_COLOR_GREEN}Where it is stored (--store=auto picks the first available):${CHIEF_NO_COLOR}
 - keychain  macOS Keychain, or the Linux desktop keyring (secret-tool / libsecret).
-            Encrypted by the OS and unlocked by your login.
+            Encrypted by the OS and unlocked by your login. On Linux that needs secret-tool
+            and a running keyring service (GNOME Keyring or KWallet, as in a desktop session);
+            a server you SSH into usually has none, so it falls back to the file store.
 - file      ~/.chief_secrets-store/ (mode 700), encrypted with a random key kept beside it.
             ${CHIEF_COLOR_YELLOW}Obfuscation only:${CHIEF_NO_COLOR} keeps it out of casual reads, backups and git,
             but anyone who can read your account can recover it. Used where there is no keychain
@@ -1011,11 +1027,12 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
     echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} Not a recognized encrypted file (expected Ansible Vault or GPG): $secrets_file" >&2
     return 1
   fi
+  local auto_file=false
   case "$store" in
-    auto) [[ -n "$(__chief_secrets_keychain_kind)" ]] && store="keychain" || store="file" ;;
+    auto) [[ -n "$(__chief_secrets_keychain_kind)" ]] && store="keychain" || { store="file"; auto_file=true; } ;;
     keychain)
       if [[ -z "$(__chief_secrets_keychain_kind)" ]]; then
-        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} No keychain available here (macOS Keychain, or secret-tool with a running keyring). Use --store=file." >&2
+        echo -e "${CHIEF_COLOR_RED}Error:${CHIEF_NO_COLOR} No keychain available here: $(__chief_secrets_no_keychain_reason). Use --store=file." >&2
         return 1
       fi ;;
     file) ;;
@@ -1087,6 +1104,7 @@ ${CHIEF_COLOR_YELLOW}Examples:${CHIEF_NO_COLOR}
   else
     echo -e "${CHIEF_COLOR_GREEN}Success:${CHIEF_NO_COLOR} Password saved (obfuscated) in $(__chief_secrets_store_dir) for $secrets_file."
     echo -e "${CHIEF_COLOR_YELLOW}Note:${CHIEF_NO_COLOR} This store is obfuscation, not encryption: anyone who can read your account can recover the password."
+    $auto_file && echo -e "${CHIEF_COLOR_YELLOW}Why not a keychain:${CHIEF_NO_COLOR} $(__chief_secrets_no_keychain_reason)."
   fi
 }
 
@@ -1176,7 +1194,7 @@ ${CHIEF_COLOR_BLUE}Arguments:${CHIEF_NO_COLOR}
   echo -e "${CHIEF_COLOR_BLUE}Backend:${CHIEF_NO_COLOR}      ${det:-unknown}"
   kind="$(__chief_secrets_keychain_kind)"
   # No `case` inside $(...): Bash 3.2 (macOS /bin/bash, used by CI's syntax check) can't parse it.
-  local kc_label="none available (file store is the fallback)"
+  local kc_label="none available (file store is the fallback): $(__chief_secrets_no_keychain_reason)"
   if [[ "$kind" == "macos" ]]; then
     kc_label="macOS Keychain"
   elif [[ "$kind" == "linux" ]]; then
